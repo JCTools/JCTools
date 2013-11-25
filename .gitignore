@@ -4,3 +4,5 @@
 *.jar
 *.war
 *.ear
+/jaq-inabox/target
+/jaq-benchmarks/target

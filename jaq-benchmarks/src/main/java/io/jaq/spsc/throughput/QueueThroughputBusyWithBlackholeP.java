@@ -11,7 +11,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.jaq.spsc;
+package io.jaq.spsc.throughput;
+
+import io.jaq.spsc.SPSCQueueFactory;
 
 import java.util.Queue;
 import java.util.concurrent.TimeUnit;
@@ -31,28 +33,35 @@ import org.openjdk.jmh.logic.Control;
 @State(Scope.Group)
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
-public class QueueThroughputYield {
+public class QueueThroughputBusyWithBlackholeP {
     public final Queue<Integer> q = SPSCQueueFactory.createQueue();
     public final static Integer ONE = 777;
+
     @GenerateMicroBenchmark
     @Group("tpt")
-    public void offer(Control cnt) {
-        while (!cnt.stopMeasurement && !q.offer(ONE)) {
-            Thread.yield();
+    public void offer(Control cnt, BlackHole bh) {
+        int i = 0;
+        while (!q.offer(ONE) && !cnt.stopMeasurement) {
+            i++;
+        }
+        // slow me down some
+        if (i > 100) {
+            bh.consume(i);
+        } else {
+            bh.consume(-i);
         }
     }
 
     @GenerateMicroBenchmark
     @Group("tpt")
-    public void poll(Control cnt,BlackHole bh) {
-        Integer e = null;
-        while (!cnt.stopMeasurement && (e = q.poll()) == null) {
-            Thread.yield();
+    public void poll(Control cnt, BlackHole bh) {
+        while (q.poll() == null && !cnt.stopMeasurement) {
         }
-        bh.consume(e);
     }
+
     @TearDown(Level.Iteration)
     public void emptyQ() {
-        while(q.poll() != null);
+        while (q.poll() != null)
+            ;
     }
 }

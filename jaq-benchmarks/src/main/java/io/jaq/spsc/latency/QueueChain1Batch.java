@@ -11,7 +11,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.jaq.spsc;
+package io.jaq.spsc.latency;
+
+import io.jaq.spsc.SPSCQueueFactory;
 
 import java.util.Queue;
 import java.util.concurrent.TimeUnit;
@@ -26,31 +28,50 @@ import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.logic.Control;
+
 @State(Scope.Group)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
-public class QueuePingPong {
-    public final Queue<Integer> in = SPSCQueueFactory.createQueue();
-    public final Queue<Integer> out = SPSCQueueFactory.createQueue();
+public class QueueChain1Batch {
+
+    public final Queue<Integer> link1 = SPSCQueueFactory.createQueue();
+    public final Queue<Integer> link2 = SPSCQueueFactory.createQueue();
     public final static Integer ONE = 1;
+    public final static int BATCH_SIZE = Integer.getInteger("batch.size", 16);
+
     @GenerateMicroBenchmark
     @Group("pingpong")
-    public void ping(Control cnt) {
-        in.offer(ONE);
-        while (!cnt.stopMeasurement && out.poll() == null) {
+    public Integer loop(Control cnt) {
+        for (int i = 0; i < BATCH_SIZE; i++)
+            link1.offer(ONE);
+        Integer e = null;
+        for (int i = 0; i < BATCH_SIZE; i++)
+            e = read(cnt, link2);
+        return e;
+    }
+
+    private Integer read(Control cnt, Queue<Integer> q) {
+        Integer e = null;
+        while (!cnt.stopMeasurement && (e = q.poll()) == null) {
         }
+        return e;
     }
 
     @GenerateMicroBenchmark
     @Group("pingpong")
-    public void pong(Control cnt) {
-        while (!cnt.stopMeasurement && in.poll() == null) {
+    public void step1(Control cnt) {
+        for (int i = 0; i < BATCH_SIZE; i++) {
+            Integer e = read(cnt, link1);
+            if (e != null)
+                link2.offer(e);
         }
-        out.offer(ONE);
     }
+
     @TearDown(Level.Iteration)
     public void emptyQs() {
-        while(in.poll() != null);
-        while(out.poll() != null);
+        while (link1.poll() != null)
+            ;
+        while (link2.poll() != null)
+            ;
     }
 }
