@@ -13,6 +13,10 @@
  */
 package io.jaq;
 
-public enum Ordering {
-    FIFO,KFIFO,PFIPFO,NONE
+/**
+ * @author nitsanw
+ *
+ */
+public enum Preference {
+    LATENCY,THROUGHPUT,NONE
 }

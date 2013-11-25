@@ -2,10 +2,15 @@ package io.jaq;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+/**
+ * The queue factory produces {@link AQueue} instances based on a best fit to the {@link QueueSpec}. This
+ * allows minimal dependencies between user code and the queue implementations and gives users a way to
+ * express their requirements on a higher level. 
+ * 
+ * @author nitsanw
+ *
+ */
 public class QueueFactory {
-    public class QueueSpec{
-        
-    }
     public static <E> AQueue<E> newQueue(QueueSpec qs){
         return new GenericQueue<E>();
     }
