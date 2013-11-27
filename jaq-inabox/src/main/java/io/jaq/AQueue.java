@@ -23,9 +23,13 @@ package io.jaq;
  */
 public interface AQueue<E> {
     /**
-     * @param index
-     * @return
+     * @return a consumer instance to be used for this particular thread.
      */
-    QConsumer<E> consumer(int index);
-    QProducer<E> producer(int index);
+    QConsumer<E> consumer();
+    /**
+     * @return a producer instance to be used for this particular thread.
+     */
+    QProducer<E> producer();
+    
+    int size();
 }

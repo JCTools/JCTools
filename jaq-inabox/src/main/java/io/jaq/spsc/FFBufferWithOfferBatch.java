@@ -15,6 +15,7 @@ package io.jaq.spsc;
 
 import static io.jaq.util.UnsafeAccess.UNSAFE;
 import io.jaq.AQueue;
+import io.jaq.BatchConsumer;
 import io.jaq.QConsumer;
 import io.jaq.QProducer;
 import io.jaq.util.Pow2;
@@ -166,8 +167,7 @@ public final class FFBufferWithOfferBatch<E> extends FFBufferOfferBatchL3Pad<E> 
     }
 
     public E peek() {
-        long currentHead = getHead();
-        return getElement(currentHead);
+        return getElement(getHead());
     }
 
     @SuppressWarnings("unchecked")
@@ -242,19 +242,54 @@ public final class FFBufferWithOfferBatch<E> extends FFBufferOfferBatchL3Pad<E> 
     }
 
     public void clear() {
-        Object value;
+        while (null != poll());
+    }
+
+    @Override
+    public QConsumer<E> consumer() {
+        // TODO: potential for improved layout for consumer instance with all require fields packed.
+        return this;
+    }
+
+    @Override
+    public QProducer<E> producer() {
+     // TODO: potential for improved layout for producer instance with all require fields packed.
+        return this;
+    }
+
+    @Override
+    public void consumeBatch(BatchConsumer<E> bc, int batchSizeLimit) {
+        // TODO: this is a generic implementation, better performance can be achieved here
+        boolean last;
         do {
-            value = poll();
-        } while (null != value);
+            E e = poll();
+            if (e == null) {
+                return;
+            }
+            last = (peek() == null) || --batchSizeLimit == 0;
+            bc.consume(e, last);
+        } while (!last);
     }
 
     @Override
-    public QConsumer<E> consumer(int index) {
-        return this;
-    }
+    public boolean offer(E[] ea) {
+        if (null == ea) {
+            throw new NullPointerException("Null is not a valid element");
+        }
 
-    @Override
-    public QProducer<E> producer(int index) {
-        return this;
+        long requiredTail = tail + ea.length -1;
+        if (requiredTail >= batchTail) {
+            if (null != UNSAFE.getObjectVolatile(buffer, offset(requiredTail + OFFER_BATCH_SIZE))) {
+                return false;
+            }
+            batchTail = requiredTail + OFFER_BATCH_SIZE;
+        }
+        // TODO: a case can be made for copying the array instead of inserting individual elements when the
+        // elements are not sparse using System.copyArray
+        int i = 0;
+        for (; tail <= requiredTail; tail++) {
+            UNSAFE.putOrderedObject(buffer, offset(tail), ea[i++]);
+        }
+        return true;
     }
 }

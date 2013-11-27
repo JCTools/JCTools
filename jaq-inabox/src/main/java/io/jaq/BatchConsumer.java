@@ -13,11 +13,6 @@
  */
 package io.jaq;
 
-/**
- * @author nitsanw
- *
- */
-public interface QProducer<E> {
-    boolean offer(E e);
-    boolean offer(E[] ea);
+public interface BatchConsumer<E> {
+    void consume(E e,boolean last);
 }
