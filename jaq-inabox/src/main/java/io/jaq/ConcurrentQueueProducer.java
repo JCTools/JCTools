@@ -17,21 +17,7 @@ package io.jaq;
  * @author nitsanw
  *
  */
-public class QueueSpec {
-    public final int producers;
-    public final int consumers;
-    public final int capacity;
-    public final Growth growth;
-    public final Ordering ordering;
-    public final Preference preference;
-    public QueueSpec(int producers, int consumers, int capacity, Growth growth, Ordering ordering,
-            Preference preference) {
-        super();
-        this.producers = producers;
-        this.consumers = consumers;
-        this.capacity = capacity;
-        this.growth = growth;
-        this.ordering = ordering;
-        this.preference = preference;
-    }
+public interface ConcurrentQueueProducer<E> {
+    boolean offer(E e);
+    boolean offer(E[] ea);
 }

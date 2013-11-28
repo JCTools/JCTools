@@ -5,15 +5,15 @@ import io.jaq.spsc.FFBufferWithOfferBatch;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
- * The queue factory produces {@link AQueue} instances based on a best fit to the {@link QueueSpec}. This
+ * The queue factory produces {@link ConcurrentQueue} instances based on a best fit to the {@link ConcurrentQueueSpec}. This
  * allows minimal dependencies between user code and the queue implementations and gives users a way to
  * express their requirements on a higher level.
  * 
  * @author nitsanw
  * 
  */
-public class QueueFactory {
-    public static <E> AQueue<E> newQueue(QueueSpec qs) {
+public class ConcurrentQueueFactory {
+    public static <E> ConcurrentQueue<E> newQueue(ConcurrentQueueSpec qs) {
         if (qs.consumers == 1 && qs.producers == 1) {
             if (qs.growth == Growth.BOUNDED) {
                 return new FFBufferWithOfferBatch<>(qs.capacity);
@@ -23,17 +23,17 @@ public class QueueFactory {
     }
 
     // generic queue solution to fill gaps for now
-    private final static class GenericQueue<E> extends ConcurrentLinkedQueue<E> implements AQueue<E>,
-            QConsumer<E>, QProducer<E> {
+    private final static class GenericQueue<E> extends ConcurrentLinkedQueue<E> implements ConcurrentQueue<E>,
+            ConcurrentQueueConsumer<E>, ConcurrentQueueProducer<E> {
         private static final long serialVersionUID = -599236378503873292L;
 
         @Override
-        public QConsumer<E> consumer() {
+        public ConcurrentQueueConsumer<E> consumer() {
             return this;
         }
 
         @Override
-        public QProducer<E> producer() {
+        public ConcurrentQueueProducer<E> producer() {
             return this;
         }
 

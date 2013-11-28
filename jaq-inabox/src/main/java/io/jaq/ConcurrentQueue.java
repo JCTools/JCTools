@@ -21,15 +21,15 @@ package io.jaq;
  *
  * @param <E> element type
  */
-public interface AQueue<E> {
+public interface ConcurrentQueue<E> {
     /**
      * @return a consumer instance to be used for this particular thread.
      */
-    QConsumer<E> consumer();
+    ConcurrentQueueConsumer<E> consumer();
     /**
      * @return a producer instance to be used for this particular thread.
      */
-    QProducer<E> producer();
+    ConcurrentQueueProducer<E> producer();
     
     /**
      * This method may be O(n) or O(1) and may not be accurate.

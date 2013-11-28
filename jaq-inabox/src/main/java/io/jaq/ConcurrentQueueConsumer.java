@@ -16,13 +16,13 @@ package io.jaq;
 import java.util.Queue;
 
 /**
- * Consumers are local to the threads which use them. A thread should therefore call {@link AQueue#consumer()}
+ * Consumers are local to the threads which use them. A thread should therefore call {@link ConcurrentQueue#consumer()}
  * to obtain an instance and should only use it's own instance to poll.
  * 
  * @author nitsanw
  * 
  */
-public interface QConsumer<E> {
+public interface ConcurrentQueueConsumer<E> {
     /**
      * See {@link Queue#poll()} for contract. Elements are removed from the queue once read.
      * 

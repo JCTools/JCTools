@@ -11,9 +11,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Before;
 import org.junit.Test;
 
-public class AQueueSanityTest {
+public class ConcurrentQueueSanityTest {
 
-    AQueue q = new FFBufferWithOfferBatch<>(4096);
+    ConcurrentQueue q = new FFBufferWithOfferBatch<>(4096);
 
     @Before
     public void clear() {

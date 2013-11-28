@@ -14,10 +14,10 @@
 package io.jaq.spsc;
 
 import static io.jaq.util.UnsafeAccess.UNSAFE;
-import io.jaq.AQueue;
+import io.jaq.ConcurrentQueue;
 import io.jaq.BatchConsumer;
-import io.jaq.QConsumer;
-import io.jaq.QProducer;
+import io.jaq.ConcurrentQueueConsumer;
+import io.jaq.ConcurrentQueueProducer;
 import io.jaq.util.Pow2;
 import io.jaq.util.UnsafeAccess;
 
@@ -73,7 +73,7 @@ class FFBufferOfferBatchL3Pad<E> extends FFBufferOfferBatchHeadField<E> {
     public long p30, p31, p32, p33, p34, p35, p36,p37;
     public FFBufferOfferBatchL3Pad(int capacity) { super(capacity);}
 }
-public final class FFBufferWithOfferBatch<E> extends FFBufferOfferBatchL3Pad<E> implements Queue<E>, AQueue<E>, QProducer<E>, QConsumer<E> {
+public final class FFBufferWithOfferBatch<E> extends FFBufferOfferBatchL3Pad<E> implements Queue<E>, ConcurrentQueue<E>, ConcurrentQueueProducer<E>, ConcurrentQueueConsumer<E> {
     private final static long TAIL_OFFSET;
     private final static long HEAD_OFFSET;
     private static final long ARRAY_BASE;
@@ -252,13 +252,13 @@ public final class FFBufferWithOfferBatch<E> extends FFBufferOfferBatchL3Pad<E> 
     }
 
     @Override
-    public QConsumer<E> consumer() {
+    public ConcurrentQueueConsumer<E> consumer() {
         // TODO: potential for improved layout for consumer instance with all require fields packed.
         return this;
     }
 
     @Override
-    public QProducer<E> producer() {
+    public ConcurrentQueueProducer<E> producer() {
      // TODO: potential for improved layout for producer instance with all require fields packed.
         return this;
     }
