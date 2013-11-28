@@ -6,3 +6,4 @@
 *.ear
 /jaq-inabox/target
 /jaq-benchmarks/target
+/.project
