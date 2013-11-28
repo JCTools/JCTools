@@ -57,6 +57,10 @@ public class QueueFactory {
             }
             return true;
         }
+        @Override
+        public int capacity() {
+            return Integer.MAX_VALUE;
+        }
 
     }
 }

@@ -102,11 +102,11 @@ public final class FFBufferWithOfferBatch<E> extends FFBufferOfferBatchL3Pad<E> 
         super(capacity);
     }
 
-    private long getHead() {
+    private long getHeadV() {
         return UnsafeAccess.UNSAFE.getLongVolatile(this, HEAD_OFFSET);
     }
 
-    private long getTail() {
+    private long getTailV() {
         return UnsafeAccess.UNSAFE.getLongVolatile(this, TAIL_OFFSET);
     }
 
@@ -167,7 +167,7 @@ public final class FFBufferWithOfferBatch<E> extends FFBufferOfferBatchL3Pad<E> 
     }
 
     public E peek() {
-        return getElement(getHead());
+        return getElement(head);
     }
 
     @SuppressWarnings("unchecked")
@@ -177,11 +177,17 @@ public final class FFBufferWithOfferBatch<E> extends FFBufferOfferBatchL3Pad<E> 
 
 
     public int size() {
-        return (int) (getTail() - getHead());
+        // TODO: this is ugly :( the head/tail cannot be counted on to be written out, so must take max
+        return (int) (Math.max(getTailV(),tail) - Math.max(getHeadV(),head));
     }
 
     public boolean isEmpty() {
-        return getTail() == getHead();
+        // TODO: a better indication from consumer is peek() == null, or from producer get(head-1) == null
+        return size() == 0;
+    }
+    @Override
+    public int capacity() {
+        return capacity - OFFER_BATCH_SIZE;
     }
 
     public boolean contains(final Object o) {
@@ -189,7 +195,7 @@ public final class FFBufferWithOfferBatch<E> extends FFBufferOfferBatchL3Pad<E> 
             return false;
         }
 
-        for (long i = getHead(), limit = getTail(); i < limit; i++) {
+        for (long i = getHeadV(), limit = getTailV(); i < limit; i++) {
             final E e = getElement(i);
             if (o.equals(e)) {
                 return true;

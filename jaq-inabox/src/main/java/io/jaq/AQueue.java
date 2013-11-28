@@ -31,5 +31,14 @@ public interface AQueue<E> {
      */
     QProducer<E> producer();
     
+    /**
+     * This method may be O(n) or O(1) and may not be accurate.
+     * 
+     * @return the number of elements in the queue
+     */
     int size();
+    /**
+     * @return the maximum number of elements that can fit in this queue, or MAX_INT if unbounded.
+     */
+    int capacity();
 }
