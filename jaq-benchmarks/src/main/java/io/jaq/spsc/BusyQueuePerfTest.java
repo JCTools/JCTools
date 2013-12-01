@@ -68,10 +68,11 @@ public class BusyQueuePerfTest {
         }
 
         public void run() {
+            Queue<Integer> q = queue;
             int i = REPETITIONS;
             do {
-                while (!queue.offer(TEST_VALUE)) {
-                    // Thread.yield();
+                while (!q.offer(TEST_VALUE)) {
+//                    Thread.yield();
                 }
             } while (0 != --i);
         }
