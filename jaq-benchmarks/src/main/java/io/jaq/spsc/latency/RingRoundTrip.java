@@ -16,7 +16,6 @@ package io.jaq.spsc.latency;
 import io.jaq.spsc.SPSCQueueFactory;
 
 import java.util.Queue;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
@@ -24,7 +23,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.GenerateMicroBenchmark;
-import org.openjdk.jmh.annotations.Group;
 import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
@@ -69,7 +67,6 @@ public class RingRoundTrip {
         @Override
         public void run() {
             sam.release();
-            Integer e = null;
             while (!control.stopMeasurement) {
                 optimizeMe(in, out);
             }
@@ -135,12 +132,5 @@ public class RingRoundTrip {
     public void killExecutor() throws InterruptedException {
         exec.shutdownNow();
         exec.awaitTermination(10, TimeUnit.SECONDS);
-    }
-
-    public static void main(String[] args) {
-        RingRoundTrip test = new RingRoundTrip();
-        test.prepareChain();
-        test.startChain();
-        test.emptyQs();
     }
 }
