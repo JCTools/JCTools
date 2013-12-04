@@ -31,7 +31,7 @@ import org.openjdk.jmh.logic.Control;
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 public class BaselinePingPong {
 
-    public final AtomicReference<Object> flag = new AtomicReference<Object>();
+    public final AtomicBoolean flag = new AtomicBoolean();
 
     @GenerateMicroBenchmark
     @Group("pingpong")
@@ -48,5 +48,4 @@ public class BaselinePingPong {
             // this body is intentionally left blank
         }
     }
-
 }
