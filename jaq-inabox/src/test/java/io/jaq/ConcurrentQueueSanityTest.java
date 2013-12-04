@@ -13,7 +13,7 @@ import org.junit.Test;
 
 public class ConcurrentQueueSanityTest {
 
-    ConcurrentQueue q = new FFBufferWithOfferBatch<>(4096);
+    ConcurrentQueue<Object> q = new FFBufferWithOfferBatch<>(4096);
 
     @Before
     public void clear() {

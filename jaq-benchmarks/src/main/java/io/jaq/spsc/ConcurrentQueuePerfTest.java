@@ -15,9 +15,16 @@
  */
 package io.jaq.spsc;
 
-import java.util.Queue;
+import io.jaq.ConcurrentQueue;
+import io.jaq.ConcurrentQueueConsumer;
+import io.jaq.ConcurrentQueueFactory;
+import io.jaq.ConcurrentQueueProducer;
+import io.jaq.ConcurrentQueueSpec;
+import io.jaq.Growth;
+import io.jaq.Ordering;
+import io.jaq.Preference;
 
-public class QueuePerfTest {
+public class ConcurrentQueuePerfTest {
     // 15 == 32 * 1024
     public static final int QUEUE_CAPACITY = 1 << Integer.getInteger("scale", 15);
     public static final int REPETITIONS = Integer.getInteger("reps", 50) * 1000 * 1000;
@@ -25,7 +32,10 @@ public class QueuePerfTest {
 
     public static void main(final String[] args) throws Exception {
         System.out.println("capacity:" + QUEUE_CAPACITY + " reps:" + REPETITIONS);
-        final Queue<Integer> queue = SPSCQueueFactory.createQueue();
+        final ConcurrentQueue<Integer> queue = 
+                ConcurrentQueueFactory.newQueue(
+                        new ConcurrentQueueSpec(1, 1, QUEUE_CAPACITY, 
+                                Growth.BOUNDED, Ordering.FIFO, Preference.THROUGHPUT));
 
         final long[] results = new long[20];
         for (int i = 0; i < 20; i++) {
@@ -40,7 +50,8 @@ public class QueuePerfTest {
         System.out.format("summary,QueuePerfTest,%s,%d\n", queue.getClass().getSimpleName(), sum / 10);
     }
 
-    private static long performanceRun(final int runNumber, final Queue<Integer> queue) throws Exception {
+    private static long performanceRun(final int runNumber, final ConcurrentQueue<Integer> queue) throws Exception {
+        final ConcurrentQueueConsumer<Integer> consumer = queue.consumer();
         final long start = System.nanoTime();
         final Thread thread = new Thread(new Producer(queue));
         thread.start();
@@ -48,7 +59,7 @@ public class QueuePerfTest {
         Integer result;
         int i = REPETITIONS;
         do {
-            while (null == (result = queue.poll())) {
+            while (null == (result = consumer.poll())) {
                 Thread.yield();
             }
         } while (0 != --i);
@@ -63,17 +74,17 @@ public class QueuePerfTest {
     }
 
     public static class Producer implements Runnable {
-        private final Queue<Integer> queue;
+        private final ConcurrentQueue<Integer> queue;
 
-        public Producer(final Queue<Integer> queue) {
+        public Producer(final ConcurrentQueue<Integer> queue) {
             this.queue = queue;
         }
 
         public void run() {
-            Queue<Integer> q = queue;
+            final ConcurrentQueueProducer<Integer> producer = queue.producer();
             int i = REPETITIONS;
             do {
-                while (!q.offer(TEST_VALUE)) {
+                while (!producer.offer(TEST_VALUE)) {
                     Thread.yield();
                 }
             } while (0 != --i);

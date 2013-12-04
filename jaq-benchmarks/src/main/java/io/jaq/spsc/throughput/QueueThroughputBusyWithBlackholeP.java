@@ -45,7 +45,7 @@ public class QueueThroughputBusyWithBlackholeP {
             i++;
         }
         // slow me down some
-        if (i > 100) {
+        if (i > 0) {
             bh.consume(i);
         } else {
             bh.consume(-i);
