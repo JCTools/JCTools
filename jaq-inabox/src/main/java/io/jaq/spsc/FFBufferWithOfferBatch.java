@@ -96,7 +96,7 @@ public final class FFBufferWithOfferBatch<E> extends FFBufferOfferBatchL3Pad<E> 
             throw new RuntimeException(e);
         }
     }
-    protected static final int OFFER_BATCH_SIZE = Integer.getInteger("offer.batch.size", 512);
+    protected static final int OFFER_BATCH_SIZE = Integer.getInteger("offer.batch.size", 4096);
     
     public FFBufferWithOfferBatch(final int capacity) {
         super(capacity);

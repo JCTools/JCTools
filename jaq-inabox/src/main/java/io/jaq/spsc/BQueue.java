@@ -44,8 +44,8 @@ abstract class BQueueColdFields<E> extends BQueueL0Pad {
         ARRAY_BASE = UNSAFE.arrayBaseOffset(Object[].class)
                 + (BUFFER_PAD << ELEMENT_SHIFT);
     }
-    protected static final int OFFER_BATCH_SIZE = Integer.getInteger("offer.batch.size", 512);
-    protected static final int POLL_MAX_BATCH = Integer.getInteger("poll.batch.size", 32);
+    protected static final int OFFER_BATCH_SIZE = Integer.getInteger("offer.batch.size", 32);
+    protected static final int POLL_BATCH_SIZE = Integer.getInteger("poll.batch.size", 4096);
     protected final int capacity;
     protected final long mask;
     protected final E[] buffer;
@@ -92,7 +92,7 @@ abstract class BQueueL2Pad<E> extends BQueueOfferFields<E> {
 abstract class BQueuePollFields<E> extends BQueueL2Pad<E> {
     protected long head;
     protected long batchHead;
-    protected int batchHistory = POLL_MAX_BATCH;
+    protected int batchHistory = POLL_BATCH_SIZE;
     protected int batchSize;
     public BQueuePollFields(int capacity) {
         super(capacity);
@@ -155,8 +155,8 @@ public final class BQueue<E> extends BQueueL3Pad<E> implements Queue<E> {
     }
 
     boolean backtrackPoll() {
-        if (batchHistory < POLL_MAX_BATCH) {
-            batchHistory = Math.min(POLL_MAX_BATCH, batchHistory << 1);
+        if (batchHistory < POLL_BATCH_SIZE) {
+            batchHistory = Math.min(POLL_BATCH_SIZE, batchHistory << 1);
         }
         batchSize = batchHistory;
         batchHead = head + batchSize - 1;
