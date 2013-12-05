@@ -15,7 +15,6 @@ package io.jaq.spsc.latency;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.GenerateMicroBenchmark;
@@ -31,7 +30,7 @@ import org.openjdk.jmh.logic.Control;
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 public class BaselinePingPong {
 
-    public final AtomicReference<Object> flag = new AtomicReference<Object>();
+    public final AtomicBoolean flag = new AtomicBoolean();
 
     @GenerateMicroBenchmark
     @Group("pingpong")
@@ -48,5 +47,4 @@ public class BaselinePingPong {
             // this body is intentionally left blank
         }
     }
-
 }
