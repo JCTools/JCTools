@@ -15,6 +15,8 @@
  */
 package io.jaq.spsc;
 
+import io.jaq.spsc.BusyQueuePerfTest.Producer;
+
 import java.util.Queue;
 
 public class QueuePerfTest {
@@ -41,30 +43,34 @@ public class QueuePerfTest {
     }
 
     private static long performanceRun(final int runNumber, final Queue<Integer> queue) throws Exception {
-        final long start = System.nanoTime();
-        final Thread thread = new Thread(new Producer(queue));
+        Producer p = new Producer(queue);
+        final Thread thread = new Thread(p);
         thread.start();
 
         Integer result;
         int i = REPETITIONS;
+        int f = 0;
         do {
             while (null == (result = queue.poll())) {
+                f++;
                 Thread.yield();
             }
         } while (0 != --i);
-
+        final long end = System.nanoTime();
         thread.join();
 
-        final long duration = System.nanoTime() - start;
+        final long duration = end - p.start;
         final long ops = (REPETITIONS * 1000L * 1000L * 1000L) / duration;
-        System.out.format("%d - ops/sec=%,d - %s result=%d\n", Integer.valueOf(runNumber), Long.valueOf(ops),
-                queue.getClass().getSimpleName(), result);
+        System.out.format("%d - ops/sec=%,d - %s result=%d failed.poll=%d failed.offer=%d\n",
+                Integer.valueOf(runNumber), Long.valueOf(ops),
+                queue.getClass().getSimpleName(), result,f,p.fails);
         return ops;
     }
 
     public static class Producer implements Runnable {
         private final Queue<Integer> queue;
-
+        int fails=0;
+        long start=0;
         public Producer(final Queue<Integer> queue) {
             this.queue = queue;
         }
@@ -72,11 +78,16 @@ public class QueuePerfTest {
         public void run() {
             Queue<Integer> q = queue;
             int i = REPETITIONS;
+            int f=0;
+            final long s = System.nanoTime();
             do {
                 while (!q.offer(TEST_VALUE)) {
                     Thread.yield();
+                    f++;
                 }
             } while (0 != --i);
+            fails = f;
+            start = s;
         }
     }
 }

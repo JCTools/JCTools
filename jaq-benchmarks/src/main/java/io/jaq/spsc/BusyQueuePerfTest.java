@@ -40,14 +40,16 @@ public class BusyQueuePerfTest {
 
     private static long performanceRun(final int runNumber, final Queue<Integer> queue) throws Exception {
         final long start = System.nanoTime();
-        final Thread thread = new Thread(new Producer(queue));
+        Producer p = new Producer(queue);
+        final Thread thread = new Thread(p);
         thread.start();
 
         Integer result;
         int i = REPETITIONS;
+        int f = 0;
         do {
             while (null == (result = queue.poll())) {
-                // Thread.yield();
+                f++;
             }
         } while (0 != --i);
 
@@ -55,14 +57,15 @@ public class BusyQueuePerfTest {
 
         final long duration = System.nanoTime() - start;
         final long ops = (REPETITIONS * 1000L * 1000L * 1000L) / duration;
-        System.out.format("%d - ops/sec=%,d - %s result=%d\n", Integer.valueOf(runNumber), Long.valueOf(ops),
-                queue.getClass().getSimpleName(), result);
+        System.out.format("%d - ops/sec=%,d - %s result=%d failed.poll=%d failed.offer=%d\n",
+                Integer.valueOf(runNumber), Long.valueOf(ops),
+                queue.getClass().getSimpleName(), result,f,p.fails);
         return ops;
     }
 
     public static class Producer implements Runnable {
         private final Queue<Integer> queue;
-
+        int fails=0;
         public Producer(final Queue<Integer> queue) {
             this.queue = queue;
         }
@@ -70,11 +73,13 @@ public class BusyQueuePerfTest {
         public void run() {
             Queue<Integer> q = queue;
             int i = REPETITIONS;
+            int f=0;
             do {
                 while (!q.offer(TEST_VALUE)) {
-//                    Thread.yield();
+                    f++;
                 }
             } while (0 != --i);
+            fails = f;
         }
     }
 }
