@@ -15,8 +15,6 @@
  */
 package io.jaq.spsc;
 
-import io.jaq.spsc.BusyQueuePerfTest.Producer;
-
 import java.util.Queue;
 
 public class QueuePerfTest {
