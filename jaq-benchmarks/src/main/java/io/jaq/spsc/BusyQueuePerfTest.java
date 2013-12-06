@@ -40,7 +40,7 @@ public class BusyQueuePerfTest {
 
     private static long performanceRun(final int runNumber, final Queue<Integer> queue) throws Exception {
         final long start = System.nanoTime();
-        Producer p = new Producer(queue);
+        final Producer p = new Producer(queue);
         final Thread thread = new Thread(p);
         thread.start();
 
@@ -71,7 +71,7 @@ public class BusyQueuePerfTest {
         }
 
         public void run() {
-            Queue<Integer> q = queue;
+            final Queue<Integer> q = queue;
             int i = REPETITIONS;
             int f=0;
             do {
