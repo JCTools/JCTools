@@ -45,7 +45,8 @@ import org.openjdk.jmh.logic.Control;
 @BenchmarkMode(Mode.SampleTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @Threads(1)
-public class RingRoundTrip {
+public class RingBatchRoundTrip {
+    public final static int BATCH_SIZE = Integer.getInteger("batch.size", 16);
     public final static Integer ONE = 1;
     private static final int CHAIN_LENGTH = Integer.getInteger("chain.length", 2);
     final ExecutorService exec = Executors.newFixedThreadPool(CHAIN_LENGTH - 1);
@@ -115,8 +116,12 @@ public class RingRoundTrip {
 
     @GenerateMicroBenchmark
     public void ping(Control cnt) {
-        start.offer(ONE);
-        while (!cnt.stopMeasurement && end.poll() == null) {
+        for (int i = 0; i < BATCH_SIZE; i++) {
+            start.offer(ONE);
+        }
+        for (int i = 0; i < BATCH_SIZE; i++) {
+            while (!cnt.stopMeasurement && end.poll() == null) {
+            }
         }
     }
 
