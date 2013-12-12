@@ -79,7 +79,7 @@ public class RingBurstRoundTripWithGroups {
     @SuppressWarnings("unchecked")
     private final static Queue<Integer>[] chain = new Queue[CHAIN_LENGTH];
     /**
-     * This is a bit annoying, I need the threads to keep their queues, so each thread needs an index the id
+     * This is a bit annoying, I need the threads to keep their queues, so each thread needs an index. The id
      * is used to pick the in/out queues.
      */
     private final static AtomicInteger idx = new AtomicInteger();
@@ -189,8 +189,7 @@ public class RingBurstRoundTripWithGroups {
     }
 
     /**
-     * @param ctl
-     *            required here to make the benchmark generate code correctly(JMH issue)
+     * @param ctl required here to make the benchmark generate code correctly(JMH issue)
      */
     @GenerateMicroBenchmark
     @Group("ring")
