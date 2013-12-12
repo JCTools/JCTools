@@ -51,6 +51,18 @@ import org.openjdk.jmh.logic.Control;
  * export QUEUE_ARGS=-Dq.type=3 -Dsparse.shift=0 -Dpow2.capacity=15<br>
  * java $JVM_ARGS $QUEUE_ARGS <b>-Dburst.size=1 -Dchain.length=3</b> -jar target/microbenchmarks.jar <b>-tg
  * 2,1</b> -f 1 ".*.RingBurstRoundTripWithGroups.*"<br>
+ * <p>
+ * Note that when running this sort of benchmark thread affinity can effect performance significantly. It is
+ * therefore recommended you pin the benchmark run to a uniform set of core such that all threads are the same
+ * distance from each other. For example, when the chain.length is 2 we can run either pinned to 2 thread
+ * running on same core (taskset -c 0,1), or across 2 separate cores (taskset -c 2,4). When running larger
+ * chains it is recommended you avoid hyper threaded cores for stability. For example when running with
+ * chain.length=4 we can pin the 4 threads to 4 separate cores (taskset -c 1,3,5,7).
+ * <p>
+ * The instability in the results stems from the different possible layouts chains can have. Consider the
+ * case of chain.length=4 using 4 threads on 2 cores the ring layout could be:
+ * <li> 0 -> 1 -> 2 -> 3 -> 0: leading to 2 same core transitions + 2 cross core transitions
+ * <li> 0 -> 2 -> 1 -> 3 -> 0: leading to 4 cross core transitions
  * 
  * @author nitsanw
  * 
@@ -154,12 +166,16 @@ public class RingBurstRoundTripWithGroups {
 
     @Setup(Level.Trial)
     public void prepareChain() {
+        // can't have group threads set to zero on a method, so can't handle the length of 1 case
         if (CHAIN_LENGTH < 2) {
             throw new IllegalArgumentException("Chain length must be 1 or more");
         }
+        // This is an estimate, but for bounded queues if the burst size is more than actual ring capacity
+        // the benchmark will hang/
         if (BURST_SIZE > SPSCQueueFactory.QUEUE_CAPACITY * CHAIN_LENGTH >> 1) {
             throw new IllegalArgumentException("Batch size exceeds estimated capacity");
         }
+        // initialize the chain
         for (int i = 0; i < CHAIN_LENGTH; i++) {
             chain[i] = SPSCQueueFactory.createQueue();
         }
@@ -172,6 +188,10 @@ public class RingBurstRoundTripWithGroups {
         s.ping(ctl);
     }
 
+    /**
+     * @param ctl
+     *            required here to make the benchmark generate code correctly(JMH issue)
+     */
     @GenerateMicroBenchmark
     @Group("ring")
     @GroupThreads(1)
