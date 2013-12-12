@@ -15,7 +15,6 @@ package io.jaq.spsc.latency;
 
 import io.jaq.spsc.SPSCQueueFactory;
 
-import java.io.IOException;
 import java.util.Queue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -40,8 +39,16 @@ import org.openjdk.jmh.logic.Control;
  * performance edge case for queues as there is no scope for batching. The size of the batch will hopefully
  * expose near empty performance boundary cases.
  * <p>
- * Only a single group of this benchmark can be executed!
- * 
+ * Parameters must obey the following rules:<br>
+ * <li>1 thread is the source(running ping), the rest are links</li>
+ * <li>The chain length must be equal to the total number of threads</li>
+ * <li>Burst size must not exceed the overall capacity of the ring</li>
+ * <li>Only a single group of this benchmark can be executed!</li>
+ * <p>
+ * To launch this benchmark with chain length 3, run:<br>
+ * export JVM_ARGS=-server -XX:+UseCondCardMark -XX:CompileThreshold=100000<br>
+ * export QUEUE_ARGS=-Dq.type=3 -Dsparse.shift=0 -Dpow2.capacity=15<br>
+ * java $JVM_ARGS $QUEUE_ARGS <b>-Dburst.size=1 -Dchain.length=3</b> -jar target/microbenchmarks.jar <b>-tg 2,1</b> -f 1 ".*.RingBurstRoundTripWithGroups.*"<br>
  * @author nitsanw
  * 
  */
@@ -54,11 +61,12 @@ public class RingBurstRoundTripWithGroups {
     private static final int CHAIN_LENGTH = Integer.getInteger("chain.length", 2);
     private static final int BURST_SIZE = Integer.getInteger("burst.size", 1);
     private static final Integer ONE = 1;
+    @SuppressWarnings("unchecked")
     private final static Queue<Integer>[] chain = new Queue[CHAIN_LENGTH];
     // This is a bit annoying, I need the threads to keep their queues, so each thread needs an index
     // the id is used to pick the in/out queues.
-    final static AtomicInteger idx = new AtomicInteger();
-    final static ThreadLocal<Integer> tlIndex = new ThreadLocal<Integer>() {
+    private final static AtomicInteger idx = new AtomicInteger();
+    private final static ThreadLocal<Integer> tlIndex = new ThreadLocal<Integer>() {
         protected Integer initialValue() {
             return idx.getAndIncrement();
         }
@@ -125,10 +133,6 @@ public class RingBurstRoundTripWithGroups {
 
     @Setup(Level.Trial)
     public void prepareChain() {
-        init();
-    }
-
-    private static void init() {
         if (CHAIN_LENGTH < 2) {
             throw new IllegalArgumentException("Chain length must be 1 or more");
         }
