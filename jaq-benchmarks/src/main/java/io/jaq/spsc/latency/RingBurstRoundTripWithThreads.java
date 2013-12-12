@@ -16,6 +16,7 @@ package io.jaq.spsc.latency;
 import io.jaq.spsc.SPSCQueueFactory;
 
 import java.util.Queue;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
@@ -24,6 +25,7 @@ import java.util.concurrent.TimeUnit;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.GenerateMicroBenchmark;
 import org.openjdk.jmh.annotations.Level;
+import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Scope;
@@ -31,6 +33,7 @@ import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Threads;
+import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.logic.Control;
 
 /**
@@ -42,102 +45,126 @@ import org.openjdk.jmh.logic.Control;
  * 
  */
 @State(Scope.Thread)
-@BenchmarkMode(Mode.SampleTime)
+@BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
+@Warmup(iterations = 10, time = 1, timeUnit = TimeUnit.SECONDS)
+@Measurement(iterations = 10, time = 1, timeUnit = TimeUnit.SECONDS)
 @Threads(1)
-public class RingBatchRoundTrip {
-    public final static int BATCH_SIZE = Integer.getInteger("batch.size", 16);
-    public final static Integer ONE = 1;
+public class RingBurstRoundTripWithThreads {
     private static final int CHAIN_LENGTH = Integer.getInteger("chain.length", 2);
-    final ExecutorService exec = Executors.newFixedThreadPool(CHAIN_LENGTH - 1);
-    Semaphore sam;
-    final Queue<Integer>[] chain = new Queue[CHAIN_LENGTH];
-    Control control = new Control();
+    private static final int BURST_SIZE = Integer.getInteger("burst.size", 16);
+    private static final Integer ONE = 1;
+    private final ExecutorService exec = CHAIN_LENGTH > 1 ? Executors.newFixedThreadPool(CHAIN_LENGTH - 1)
+            : null;
+    private final Queue<Integer>[] chain = new Queue[CHAIN_LENGTH];
+    private final Control linkThreadsControl = new Control();
+    private final Queue<Integer> start = SPSCQueueFactory.createQueue();
+    private final Queue<Integer> end = CHAIN_LENGTH == 1 ? start : SPSCQueueFactory.createQueue();
+    private final Link[] links = new Link[CHAIN_LENGTH - 1];
 
     static class Link implements Runnable {
-        final Control control;
+        final Control linkControl;
         final Queue<Integer> in;
         final Queue<Integer> out;
-        Semaphore sam;
+        CountDownLatch start;
+        CountDownLatch stopWriting;
+        CountDownLatch done;
+        private Exception error;
 
         public Link(Control control, Queue<Integer> in, Queue<Integer> out) {
             super();
-            this.control = control;
+            this.linkControl = control;
             this.in = in;
             this.out = out;
         }
 
         @Override
         public void run() {
-            sam.release();
-            while (!control.stopMeasurement) {
-                optimizeMe(in, out);
+            start.countDown();
+            try {
+                while (!linkControl.stopMeasurement) {
+                    optimizeMe(in, out);
+                }
+                stopWriting.countDown();
+                stopWriting.await();
+                in.clear();
+            } catch (Exception e) {
+                error = e;
+            } finally {
+                done.countDown();
             }
-            sam.release();
         }
 
         private void optimizeMe(Queue<Integer> in, Queue<Integer> out) {
             Integer e;
             while ((e = in.poll()) == null) {
-                if (control.stopMeasurement)
+                if (linkControl.stopMeasurement)
                     return;
             }
             out.offer(e);
         }
     }
 
-    Link[] links = new Link[CHAIN_LENGTH - 1];
-    final Queue<Integer> start = SPSCQueueFactory.createQueue();
-    final Queue<Integer> end = SPSCQueueFactory.createQueue();
-
     @Setup(Level.Trial)
     public void prepareChain() {
+        if (CHAIN_LENGTH < 1) {
+            throw new IllegalArgumentException("Chain length must be 1 or more");
+        }
+        if (BURST_SIZE > SPSCQueueFactory.QUEUE_CAPACITY * CHAIN_LENGTH / 2.0) {
+            throw new IllegalArgumentException("Batch size exceeds estimated capacity");
+        }
         for (int i = 1; i < CHAIN_LENGTH - 1; i++) {
             chain[i] = SPSCQueueFactory.createQueue();
         }
         chain[0] = start;
         chain[CHAIN_LENGTH - 1] = end;
         for (int i = 0; i < CHAIN_LENGTH - 1; i++) {
-            links[i] = new Link(control, chain[i], chain[i + 1]);
+            links[i] = new Link(linkThreadsControl, chain[i], chain[i + 1]);
         }
     }
 
     @Setup(Level.Iteration)
-    public void startChain() {
-        control.stopMeasurement=false;
-        sam = new Semaphore(1 - CHAIN_LENGTH);
+    public void startChain() throws InterruptedException {
+        if (CHAIN_LENGTH == 1) {
+            return;
+        }
+        linkThreadsControl.stopMeasurement = false;
+        CountDownLatch start = new CountDownLatch(CHAIN_LENGTH-1);
+        CountDownLatch stopWriting = new CountDownLatch(CHAIN_LENGTH-1);
+        CountDownLatch done = new CountDownLatch(CHAIN_LENGTH-1);
         for (int i = 0; i < CHAIN_LENGTH - 1; i++) {
-            links[i].sam = sam;
+            links[i].start = start;
+            links[i].stopWriting = stopWriting;
+            links[i].done = done;
             exec.execute(links[i]);
         }
-        sam.release();
-        sam.acquireUninterruptibly();
+        start.await();
     }
 
     @GenerateMicroBenchmark
-    public void ping(Control cnt) {
-        for (int i = 0; i < BATCH_SIZE; i++) {
+    public void ping(Control ctl) {
+        for (int i = 0; i < BURST_SIZE; i++) {
             start.offer(ONE);
         }
-        for (int i = 0; i < BATCH_SIZE; i++) {
-            while (!cnt.stopMeasurement && end.poll() == null) {
+        for (int i = 0; i < BURST_SIZE; i++) {
+            while (!ctl.stopMeasurement && end.poll() == null) {
             }
         }
     }
 
     @TearDown(Level.Iteration)
-    public void emptyQs() {
-        control.stopMeasurement=true;
-        sam.acquireUninterruptibly(CHAIN_LENGTH - 1);
-        for (int i = 0; i < CHAIN_LENGTH; i++) {
-            while (chain[i].poll() != null)
-                ;
+    public void emptyQs() throws InterruptedException {
+        if (CHAIN_LENGTH > 1) {
+            linkThreadsControl.stopMeasurement = true;
+            links[0].done.await();
         }
     }
 
     @TearDown(Level.Trial)
     public void killExecutor() throws InterruptedException {
-        exec.shutdownNow();
-        exec.awaitTermination(10, TimeUnit.SECONDS);
+        if (exec != null) {
+            exec.shutdownNow();
+            exec.awaitTermination(10, TimeUnit.SECONDS);
+        }
     }
 }
