@@ -157,7 +157,7 @@ public class RingBurstRoundTripWithGroups {
         if (CHAIN_LENGTH < 2) {
             throw new IllegalArgumentException("Chain length must be 1 or more");
         }
-        if (BURST_SIZE > SPSCQueueFactory.QUEUE_CAPACITY * CHAIN_LENGTH / 2.0) {
+        if (BURST_SIZE > SPSCQueueFactory.QUEUE_CAPACITY * CHAIN_LENGTH >> 1) {
             throw new IllegalArgumentException("Batch size exceeds estimated capacity");
         }
         for (int i = 0; i < CHAIN_LENGTH; i++) {
