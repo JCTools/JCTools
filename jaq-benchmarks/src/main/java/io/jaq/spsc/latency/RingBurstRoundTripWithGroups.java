@@ -44,11 +44,14 @@ import org.openjdk.jmh.logic.Control;
  * <li>The chain length must be equal to the total number of threads</li>
  * <li>Burst size must not exceed the overall capacity of the ring</li>
  * <li>Only a single group of this benchmark can be executed!</li>
+ * <li>Iterations must be synchronized(which is the default)</li>
  * <p>
  * To launch this benchmark with chain length 3, run:<br>
  * export JVM_ARGS=-server -XX:+UseCondCardMark -XX:CompileThreshold=100000<br>
  * export QUEUE_ARGS=-Dq.type=3 -Dsparse.shift=0 -Dpow2.capacity=15<br>
- * java $JVM_ARGS $QUEUE_ARGS <b>-Dburst.size=1 -Dchain.length=3</b> -jar target/microbenchmarks.jar <b>-tg 2,1</b> -f 1 ".*.RingBurstRoundTripWithGroups.*"<br>
+ * java $JVM_ARGS $QUEUE_ARGS <b>-Dburst.size=1 -Dchain.length=3</b> -jar target/microbenchmarks.jar <b>-tg
+ * 2,1</b> -f 1 ".*.RingBurstRoundTripWithGroups.*"<br>
+ * 
  * @author nitsanw
  * 
  */
@@ -60,11 +63,13 @@ import org.openjdk.jmh.logic.Control;
 public class RingBurstRoundTripWithGroups {
     private static final int CHAIN_LENGTH = Integer.getInteger("chain.length", 2);
     private static final int BURST_SIZE = Integer.getInteger("burst.size", 1);
-    private static final Integer ONE = 1;
+    private static final Integer DUMMY_MESSAGE = 1;
     @SuppressWarnings("unchecked")
     private final static Queue<Integer>[] chain = new Queue[CHAIN_LENGTH];
-    // This is a bit annoying, I need the threads to keep their queues, so each thread needs an index
-    // the id is used to pick the in/out queues.
+    /**
+     * This is a bit annoying, I need the threads to keep their queues, so each thread needs an index the id
+     * is used to pick the in/out queues.
+     */
     private final static AtomicInteger idx = new AtomicInteger();
     private final static ThreadLocal<Integer> tlIndex = new ThreadLocal<Integer>() {
         protected Integer initialValue() {
@@ -72,7 +77,12 @@ public class RingBurstRoundTripWithGroups {
         }
     };
 
-    // Note that while the state is per thread, the thread can change per iteration.
+    /**
+     * Link in the chain passes events from chain[threadIndex] to chain[(id + 1) % CHAIN_LENGTH].
+     * <p>
+     * Note that while the state is per thread, the thread can change per iteration. We use the above thread
+     * id to maintain the same queues are selected per thread.
+     */
     @State(Scope.Thread)
     public static class Link {
         final Queue<Integer> in;
@@ -86,22 +96,31 @@ public class RingBurstRoundTripWithGroups {
             this.out = chain[(id + 1) % CHAIN_LENGTH];
         }
 
-        public void link(Control ctl) {
-            Integer e = null;
-            while (!ctl.stopMeasurement && (e = in.poll()) == null) {
-            }
+        public void link() {
+            // we could use the control here, but there's no reason as it is use externally and we only
+            // really want to measure the ping method
+            Integer e = in.poll();
             if (e != null) {
                 out.offer(e);
             }
         }
 
-        // we want to always start with an empty inbound
+        /**
+         * We want to always start with an empty inbound. Iteration tear downs are synchronized.
+         */
         @TearDown(Level.Iteration)
         public void clear() {
             in.clear();
         }
     }
 
+    /**
+     * The source of events in the ring. Sends a burst of events into chain[(id + 1) % CHAIN_LENGTH] and waits
+     * until the burst makes it through the ring back to chain[id].
+     * <p>
+     * Note that while the state is per thread, the thread can change per iteration. We use the above thread
+     * id to maintain the same queues are selected per thread.
+     */
     @State(Scope.Thread)
     public static class Source {
         final Queue<Integer> start;
@@ -116,7 +135,7 @@ public class RingBurstRoundTripWithGroups {
 
         public void ping(Control ctl) {
             for (int i = 0; i < BURST_SIZE; i++) {
-                start.offer(ONE);
+                start.offer(DUMMY_MESSAGE);
             }
             for (int i = 0; i < BURST_SIZE; i++) {
                 while (!ctl.stopMeasurement && end.poll() == null) {
@@ -124,7 +143,9 @@ public class RingBurstRoundTripWithGroups {
             }
         }
 
-        // we want to always start with an empty inbound
+        /**
+         * We want to always start with an empty inbound. Iteration tear downs are synchronized.
+         */
         @TearDown(Level.Iteration)
         public void clear() {
             end.clear();
@@ -155,6 +176,6 @@ public class RingBurstRoundTripWithGroups {
     @Group("ring")
     @GroupThreads(1)
     public void loop(Control ctl, Link l) {
-        l.link(ctl);
+        l.link();
     }
 }
