@@ -101,10 +101,9 @@ public class RingBurstRoundTripWithGroups {
         final Queue<Integer> out;
 
         public Link() {
-            super();
             int id = tlIndex.get();
             // the old in out, in out
-            this.in = chain[id];
+            this.in = chain[id % CHAIN_LENGTH];
             this.out = chain[(id + 1) % CHAIN_LENGTH];
         }
 
@@ -122,6 +121,7 @@ public class RingBurstRoundTripWithGroups {
          */
         @TearDown(Level.Iteration)
         public void clear() {
+            // SPSC -> consumer must clear the queue
             in.clear();
         }
     }
@@ -141,7 +141,7 @@ public class RingBurstRoundTripWithGroups {
         public Source() {
             int id = tlIndex.get();
             // the source ties the knot in our ring
-            this.end = chain[id];
+            this.end = chain[id % CHAIN_LENGTH];
             this.start = chain[(id + 1) % CHAIN_LENGTH];
         }
 
@@ -160,6 +160,7 @@ public class RingBurstRoundTripWithGroups {
          */
         @TearDown(Level.Iteration)
         public void clear() {
+            // SPSC -> consumer must clear the queue
             end.clear();
         }
     }
@@ -189,7 +190,7 @@ public class RingBurstRoundTripWithGroups {
     }
 
     /**
-     * @param ctl required here to make the benchmark generate code correctly(JMH issue)
+     * @param ctl required here to make the benchmark generate code correctly(JMH 0.2 issue, fixed on main)
      */
     @GenerateMicroBenchmark
     @Group("ring")
