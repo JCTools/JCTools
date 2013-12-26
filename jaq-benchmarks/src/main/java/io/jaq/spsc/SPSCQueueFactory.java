@@ -1,5 +1,8 @@
 package io.jaq.spsc;
 
+import io.jaq.mpsc.MPSCQueue;
+import io.jaq.spmc.SpmcConcurrentQueue;
+
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedTransferQueue;
@@ -23,6 +26,10 @@ public class SPSCQueueFactory {
             return new FFBufferWithOfferBatch<Integer>(QUEUE_CAPACITY);
         case 4:
             return new FloatingCountersSpscConcurrentArrayQueue<Integer>(QUEUE_CAPACITY);
+        case 5:
+            return new SpmcConcurrentQueue<Integer>(QUEUE_CAPACITY);
+        case 6:
+            return new MPSCQueue<Integer>(QUEUE_CAPACITY);
         }
         throw new IllegalArgumentException("Type: " + type);
     }
