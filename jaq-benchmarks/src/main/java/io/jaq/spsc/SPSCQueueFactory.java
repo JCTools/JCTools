@@ -1,6 +1,6 @@
 package io.jaq.spsc;
 
-import io.jaq.mpsc.MPSCQueue;
+import io.jaq.mpsc.MpscConcurrentQueue;
 import io.jaq.spmc.SpmcConcurrentQueue;
 
 import java.util.Queue;
@@ -29,7 +29,7 @@ public class SPSCQueueFactory {
         case 5:
             return new SpmcConcurrentQueue<Integer>(QUEUE_CAPACITY);
         case 6:
-            return new MPSCQueue<Integer>(QUEUE_CAPACITY);
+            return new MpscConcurrentQueue<Integer>(QUEUE_CAPACITY);
         }
         throw new IllegalArgumentException("Type: " + type);
     }
