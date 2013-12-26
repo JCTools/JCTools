@@ -20,9 +20,9 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Queue;
 
-public final class MPSCQueueCasStrategy<E> extends MPSCQueueL3Pad<E> implements Queue<E> {
+public final class MpscQueueCasStrategy<E> extends MpscConcurrentArrayQueueL3Pad<E> implements Queue<E> {
 	private static final BackOffStrategy CAS_BACKOFF = BackOffStrategy.getStrategy("cas.backoff", BackOffStrategy.SPIN);
-    public MPSCQueueCasStrategy(final int capacity) {
+    public MpscQueueCasStrategy(final int capacity) {
         super(capacity);
     }
 

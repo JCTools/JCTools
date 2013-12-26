@@ -13,61 +13,52 @@
  */
 package io.jaq.mpsc;
 
-import io.jaq.spsc.FFBuffer;
-import io.jaq.spsc.FFBufferWithOfferBatch;
+import static io.jaq.util.Pow2.findNextPositivePowerOfTwo;
+import static io.jaq.util.Pow2.isPowerOf2;
 
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Queue;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * Use an SPSC per producer.
+ * Use a set number of parallel MPSC queues to diffuse the contention on tail.
  */
-abstract class MPSCQueue35L0Pad {
+abstract class MPSCQueue33L0Pad {
 	public long p00, p01, p02, p03, p04, p05, p06, p07;
 	public long p30, p31, p32, p33, p34, p35, p36, p37;
 }
 
-@SuppressWarnings("unchecked")
-abstract class MPSCQueue35Fields<E> extends MPSCQueue35L0Pad {
-	private final Queue<E>[] queues = new Queue[Integer.getInteger("producers", 4)];
-	protected final ThreadLocal<Queue<E>> producerQueue;
-	protected int tail;
-	protected Queue<E> currentQ;
+abstract class MPSCQueue33ColdFields<E> extends MPSCQueue33L0Pad {
+	// must be power of 2
+	private static final int CPUS = Runtime.getRuntime().availableProcessors();
+	protected static final int PARALLEL_QUEUES = isPowerOf2(CPUS)?CPUS:
+		findNextPositivePowerOfTwo(CPUS)/2;
+	protected static final int PARALLEL_QUEUES_MASK = PARALLEL_QUEUES - 1;
+	protected final MpscConcurrentQueue<E>[] queues;
 
-	public MPSCQueue35Fields(final int capacity) {
-		producerQueue = new ThreadLocal<Queue<E>>(){
-		    final AtomicInteger index = new AtomicInteger();
-			@Override
-			protected Queue<E> initialValue() {
-				return queues[index.getAndIncrement()];
-			}
-		};
-		for(int i=0;i<queues.length;i++){
-		    queues[i] = new FFBufferWithOfferBatch<E>(capacity);
+	@SuppressWarnings("unchecked")
+	public MPSCQueue33ColdFields(int capacity) {
+		queues = new MpscConcurrentQueue[PARALLEL_QUEUES];
+		for (int i = 0; i < PARALLEL_QUEUES; i++) {
+			queues[i] = new MpscConcurrentQueue<E>(findNextPositivePowerOfTwo(capacity) / PARALLEL_QUEUES);
 		}
-		currentQ = queues[0];
 	}
-
-	protected final Queue<E>[] getQueues() {
-	    return queues;
-    }
 }
 
-abstract class MPSCQueue35L3Pad<E> extends MPSCQueue35Fields<E> {
+abstract class MPSCQueue33L3Pad<E> extends MPSCQueue33ColdFields<E> {
 	public long p40, p41, p42, p43, p44, p45, p46;
 	public long p30, p31, p32, p33, p34, p35, p36, p37;
 
-	public MPSCQueue35L3Pad(int capacity) {
+	public MPSCQueue33L3Pad(int capacity) {
 		super(capacity);
 	}
 }
 
-public final class MPSCOnSPSCQueue<E> extends MPSCQueue35L3Pad<E> implements Queue<E> {
+public final class MpscCompoundQueue<E> extends MPSCQueue33L3Pad<E> implements Queue<E> {
 
-	public MPSCOnSPSCQueue(final int capacity) {
+	public MpscCompoundQueue(final int capacity) {
 		super(capacity);
 	}
 
@@ -79,20 +70,33 @@ public final class MPSCOnSPSCQueue<E> extends MPSCQueue35L3Pad<E> implements Que
 	}
 
 	public boolean offer(final E e) {
-		return producerQueue.get().offer(e);
+		if (null == e) {
+			throw new NullPointerException("Null is not a valid element");
+		}
+		int start = (int) (Thread.currentThread().getId() & PARALLEL_QUEUES_MASK);
+		if (queues[start].offer(e)) {
+			return true;
+		} else {
+			for (;;) {
+				int status = 0;
+				for (int i = start; i < start + PARALLEL_QUEUES; i++) {
+					int s = queues[i & PARALLEL_QUEUES_MASK].offerStatus(e);
+					if (s == 0) {
+						return true;
+					}
+					status += s;
+				}
+				if (status == PARALLEL_QUEUES) {
+					return false;
+				}
+			}
+		}
 	}
 
 	public E poll() {
-//		int pCount = getProducerCount();
-//		if(pCount == 0){
-//			return null;
-//		}
-		Queue<E>[] qs = getQueues();
-//		int start = ThreadLocalRandom.current().nextInt(pCount);
-//		tail++;
-		
-		for (int i = 0; i < qs.length; i++) {
-			E e = qs[i].poll();
+		int start = ThreadLocalRandom.current().nextInt(PARALLEL_QUEUES);
+		for (int i = start; i < start + PARALLEL_QUEUES; i++) {
+			E e = queues[i & PARALLEL_QUEUES_MASK].poll();
 			if (e != null)
 				return e;
 		}

@@ -13,52 +13,53 @@
  */
 package io.jaq.mpsc;
 
-import static io.jaq.util.Pow2.findNextPositivePowerOfTwo;
-import static io.jaq.util.Pow2.isPowerOf2;
+import io.jaq.spsc.FFBufferWithOfferBatch;
 
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Queue;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Use a set number of parallel MPSC queues to diffuse the contention on tail.
+ * Use an SPSC per producer.
  */
-abstract class MPSCQueue33L0Pad {
+abstract class MpscOnSpscL0Pad {
 	public long p00, p01, p02, p03, p04, p05, p06, p07;
 	public long p30, p31, p32, p33, p34, p35, p36, p37;
 }
 
-abstract class MPSCQueue33ColdFields<E> extends MPSCQueue33L0Pad {
-	// must be power of 2
-	private static final int CPUS = Runtime.getRuntime().availableProcessors();
-	protected static final int PARALLEL_QUEUES = isPowerOf2(CPUS)?CPUS:
-		findNextPositivePowerOfTwo(CPUS)/2;
-	protected static final int PARALLEL_QUEUES_MASK = PARALLEL_QUEUES - 1;
-	protected final MPSCQueue<E>[] queues;
+@SuppressWarnings("unchecked")
+abstract class MpscOnSpscFields<E> extends MpscOnSpscL0Pad {
+	private final Queue<E>[] queues = new Queue[Integer.getInteger("producers", 4)];
+	protected final ThreadLocal<Queue<E>> producerQueue;
+	protected int tail;
+	protected Queue<E> currentQ;
 
-	@SuppressWarnings("unchecked")
-	public MPSCQueue33ColdFields(int capacity) {
-		queues = new MPSCQueue[PARALLEL_QUEUES];
-		for (int i = 0; i < PARALLEL_QUEUES; i++) {
-			queues[i] = new MPSCQueue<E>(findNextPositivePowerOfTwo(capacity) / PARALLEL_QUEUES);
+	public MpscOnSpscFields(final int capacity) {
+		producerQueue = new ThreadLocal<Queue<E>>(){
+		    final AtomicInteger index = new AtomicInteger();
+			@Override
+			protected Queue<E> initialValue() {
+				return queues[index.getAndIncrement()];
+			}
+		};
+		for(int i=0;i<queues.length;i++){
+		    queues[i] = new FFBufferWithOfferBatch<E>(capacity);
 		}
+		currentQ = queues[0];
 	}
+
+	protected final Queue<E>[] getQueues() {
+	    return queues;
+    }
 }
 
-abstract class MPSCQueue33L3Pad<E> extends MPSCQueue33ColdFields<E> {
-	public long p40, p41, p42, p43, p44, p45, p46;
-	public long p30, p31, p32, p33, p34, p35, p36, p37;
+public final class MpscOnSpscQueue<E> extends MpscOnSpscFields<E> implements Queue<E> {
+    public long p40, p41, p42, p43, p44, p45, p46;
+    public long p30, p31, p32, p33, p34, p35, p36, p37;
 
-	public MPSCQueue33L3Pad(int capacity) {
-		super(capacity);
-	}
-}
-
-public final class MPSCCompoundQueue<E> extends MPSCQueue33L3Pad<E> implements Queue<E> {
-
-	public MPSCCompoundQueue(final int capacity) {
+	public MpscOnSpscQueue(final int capacity) {
 		super(capacity);
 	}
 
@@ -70,33 +71,20 @@ public final class MPSCCompoundQueue<E> extends MPSCQueue33L3Pad<E> implements Q
 	}
 
 	public boolean offer(final E e) {
-		if (null == e) {
-			throw new NullPointerException("Null is not a valid element");
-		}
-		int start = (int) (Thread.currentThread().getId() & PARALLEL_QUEUES_MASK);
-		if (queues[start].offer(e)) {
-			return true;
-		} else {
-			for (;;) {
-				int status = 0;
-				for (int i = start; i < start + PARALLEL_QUEUES; i++) {
-					int s = queues[i & PARALLEL_QUEUES_MASK].offerStatus(e);
-					if (s == 0) {
-						return true;
-					}
-					status += s;
-				}
-				if (status == 4) {
-					return false;
-				}
-			}
-		}
+		return producerQueue.get().offer(e);
 	}
 
 	public E poll() {
-		int start = ThreadLocalRandom.current().nextInt(PARALLEL_QUEUES);
-		for (int i = start; i < start + PARALLEL_QUEUES; i++) {
-			E e = queues[i & PARALLEL_QUEUES_MASK].poll();
+//		int pCount = getProducerCount();
+//		if(pCount == 0){
+//			return null;
+//		}
+		Queue<E>[] qs = getQueues();
+//		int start = ThreadLocalRandom.current().nextInt(pCount);
+//		tail++;
+		
+		for (int i = 0; i < qs.length; i++) {
+			E e = qs[i].poll();
 			if (e != null)
 				return e;
 		}
@@ -122,11 +110,6 @@ public final class MPSCCompoundQueue<E> extends MPSCQueue33L3Pad<E> implements Q
 	}
 
 	public E peek() {
-		throw new UnsupportedOperationException();
-	}
-
-	@SuppressWarnings("unchecked")
-	private E getElement(long index) {
 		throw new UnsupportedOperationException();
 	}
 

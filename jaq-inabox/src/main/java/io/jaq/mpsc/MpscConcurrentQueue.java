@@ -21,12 +21,12 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Queue;
 
-abstract class MPSCQueueL0Pad {
+abstract class MpscConcurrentArrayQueueL0Pad {
 	public long p00, p01, p02, p03, p04, p05, p06, p07;
 	public long p30, p31, p32, p33, p34, p35, p36, p37;
 }
 
-abstract class MPSCQueueColdFields<E> extends MPSCQueueL0Pad {
+abstract class MpscConcurrentArrayQueueColdFields<E> extends MpscConcurrentArrayQueueL0Pad {
 	protected static final int BUFFER_PAD = 32;
 	protected static final int SPARSE_SHIFT = Integer.getInteger("sparse.shift", 0);
 	protected final int capacity;
@@ -34,7 +34,7 @@ abstract class MPSCQueueColdFields<E> extends MPSCQueueL0Pad {
 	protected final E[] buffer;
 
 	@SuppressWarnings("unchecked")
-	public MPSCQueueColdFields(int capacity) {
+	public MpscConcurrentArrayQueueColdFields(int capacity) {
 		if (Pow2.isPowerOf2(capacity)) {
 			this.capacity = capacity;
 		} else {
@@ -46,50 +46,50 @@ abstract class MPSCQueueColdFields<E> extends MPSCQueueL0Pad {
 	}
 }
 
-abstract class MPSCQueueL1Pad<E> extends MPSCQueueColdFields<E> {
+abstract class MpscConcurrentArrayQueueL1Pad<E> extends MpscConcurrentArrayQueueColdFields<E> {
 	public long p10, p11, p12, p13, p14, p15, p16;
 	public long p30, p31, p32, p33, p34, p35, p36, p37;
 
-	public MPSCQueueL1Pad(int capacity) {
+	public MpscConcurrentArrayQueueL1Pad(int capacity) {
 		super(capacity);
 	}
 }
 
-abstract class MPSCQueueTailField<E> extends MPSCQueueL1Pad<E> {
+abstract class MpscConcurrentArrayQueueTailField<E> extends MpscConcurrentArrayQueueL1Pad<E> {
 	protected volatile long tail;
 
-	public MPSCQueueTailField(int capacity) {
+	public MpscConcurrentArrayQueueTailField(int capacity) {
 		super(capacity);
 	}
 }
 
-abstract class MPSCQueueL2Pad<E> extends MPSCQueueTailField<E> {
+abstract class MpscConcurrentArrayQueueL2Pad<E> extends MpscConcurrentArrayQueueTailField<E> {
 	public long p20, p21, p22, p23, p24, p25, p26;
 	public long p30, p31, p32, p33, p34, p35, p36, p37;
 
-	public MPSCQueueL2Pad(int capacity) {
+	public MpscConcurrentArrayQueueL2Pad(int capacity) {
 		super(capacity);
 	}
 }
 
-abstract class MPSCQueueHeadField<E> extends MPSCQueueL2Pad<E> {
+abstract class MpscConcurrentArrayQueueHeadField<E> extends MpscConcurrentArrayQueueL2Pad<E> {
 	protected long head;
 
-	public MPSCQueueHeadField(int capacity) {
+	public MpscConcurrentArrayQueueHeadField(int capacity) {
 		super(capacity);
 	}
 }
 
-abstract class MPSCQueueL3Pad<E> extends MPSCQueueHeadField<E> {
+abstract class MpscConcurrentArrayQueueL3Pad<E> extends MpscConcurrentArrayQueueHeadField<E> {
 	protected final static long TAIL_OFFSET;
 	protected final static long HEAD_OFFSET;
 	protected static final long ARRAY_BASE;
 	protected static final int ELEMENT_SHIFT;
 	static {
 		try {
-			TAIL_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(MPSCQueueTailField.class
+			TAIL_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(MpscConcurrentArrayQueueTailField.class
 			        .getDeclaredField("tail"));
-			HEAD_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(MPSCQueueHeadField.class
+			HEAD_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(MpscConcurrentArrayQueueHeadField.class
 			        .getDeclaredField("head"));
 			final int scale = UnsafeAccess.UNSAFE.arrayIndexScale(Object[].class);
 			if (4 == scale) {
@@ -109,14 +109,14 @@ abstract class MPSCQueueL3Pad<E> extends MPSCQueueHeadField<E> {
 	public long p40, p41, p42, p43, p44, p45, p46;
 	public long p30, p31, p32, p33, p34, p35, p36, p37;
 
-	public MPSCQueueL3Pad(int capacity) {
+	public MpscConcurrentArrayQueueL3Pad(int capacity) {
 		super(capacity);
 	}
 }
 
-public final class MPSCQueue<E> extends MPSCQueueL3Pad<E> implements Queue<E> {
+public final class MpscConcurrentQueue<E> extends MpscConcurrentArrayQueueL3Pad<E> implements Queue<E> {
 
-	public MPSCQueue(final int capacity) {
+	public MpscConcurrentQueue(final int capacity) {
 		super(capacity);
 	}
 
