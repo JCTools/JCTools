@@ -11,40 +11,58 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.jaq.spsc.latency;
+package io.jaq.jmh.spsc.throughput;
 
+import io.jaq.spsc.SPSCQueueFactory;
+
+import java.util.Queue;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.GenerateMicroBenchmark;
 import org.openjdk.jmh.annotations.Group;
+import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.TearDown;
+import org.openjdk.jmh.logic.BlackHole;
 import org.openjdk.jmh.logic.Control;
 
 @State(Scope.Group)
-@BenchmarkMode(Mode.AverageTime)
-@OutputTimeUnit(TimeUnit.NANOSECONDS)
-public class BaselinePingPong {
-
-    public final AtomicBoolean flag = new AtomicBoolean();
+@BenchmarkMode(Mode.Throughput)
+@OutputTimeUnit(TimeUnit.MICROSECONDS)
+public class QueueThroughputBusyWithBlackholeC {
+    public final Queue<Integer> q = SPSCQueueFactory.createQueue();
+    public final static Integer ONE = 777;
 
     @GenerateMicroBenchmark
-    @Group("pingpong")
-    public void ping(Control cnt) {
-        while (!cnt.stopMeasurement && !flag.compareAndSet(false, true)) {
-            // this body is intentionally left blank
+    @Group("tpt")
+    public void offer(Control cnt, BlackHole bh) {
+        while (!q.offer(ONE) && !cnt.stopMeasurement) {
         }
     }
 
     @GenerateMicroBenchmark
-    @Group("pingpong")
-    public void pong(Control cnt) {
-        while (!cnt.stopMeasurement && !flag.compareAndSet(true, false)) {
-            // this body is intentionally left blank
+    @Group("tpt")
+    public void poll(Control cnt, BlackHole bh) {
+        int i = 0;
+        while (q.poll() == null && !cnt.stopMeasurement) {
+            i++;
+        }
+        // slow me down some
+        if(i>0){
+            bh.consume(i);
+        }
+        else{
+            bh.consume(-i);
+        }
+    }
+
+    @TearDown(Level.Iteration)
+    public void emptyQ() {
+        while (q.poll() != null) {
         }
     }
 }

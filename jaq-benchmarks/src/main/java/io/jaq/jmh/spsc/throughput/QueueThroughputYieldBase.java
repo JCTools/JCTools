@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.jaq.spsc.throughput;
+package io.jaq.jmh.spsc.throughput;
 
 import io.jaq.spsc.SPSCQueueFactory;
 
@@ -22,47 +22,58 @@ import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.GenerateMicroBenchmark;
 import org.openjdk.jmh.annotations.Group;
 import org.openjdk.jmh.annotations.Level;
+import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
-import org.openjdk.jmh.logic.BlackHole;
+import org.openjdk.jmh.annotations.Threads;
+import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.logic.Control;
 
 @State(Scope.Group)
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
-public class QueueThroughputBusyWithBlackholeC {
+@Threads(2)
+@Warmup(iterations=5,time=1,timeUnit=TimeUnit.SECONDS)
+@Measurement(iterations=5,time=3,timeUnit=TimeUnit.SECONDS)
+public class QueueThroughputYieldBase {
     public final Queue<Integer> q = SPSCQueueFactory.createQueue();
     public final static Integer ONE = 777;
+    private static ThreadLocal<Object> marker = new ThreadLocal<>();
 
-    @GenerateMicroBenchmark
-    @Group("tpt")
-    public void offer(Control cnt, BlackHole bh) {
-        while (!q.offer(ONE) && !cnt.stopMeasurement) {
+    @State(Scope.Thread)
+    public static class ConsumerMarker {
+        public ConsumerMarker() {
+            marker.set(this);
         }
     }
 
     @GenerateMicroBenchmark
     @Group("tpt")
-    public void poll(Control cnt, BlackHole bh) {
-        int i = 0;
+    public void offer(Control cnt) {
+        while (!q.offer(ONE) && !cnt.stopMeasurement) {
+            Thread.yield();
+        }
+    }
+
+    @GenerateMicroBenchmark
+    @Group("tpt")
+    public void poll(Control cnt, ConsumerMarker cm) {
         while (q.poll() == null && !cnt.stopMeasurement) {
-            i++;
-        }
-        // slow me down some
-        if(i>0){
-            bh.consume(i);
-        }
-        else{
-            bh.consume(-i);
+            Thread.yield();
         }
     }
 
     @TearDown(Level.Iteration)
     public void emptyQ() {
-        while (q.poll() != null) {
-        }
+        if(marker.get() == null)
+            return;
+        // sadly the iteration tear down is performed from each participating thread, so we need to guess
+        // which is which (can't have concurrent access to poll).
+        while (q.poll() != null)
+            ;
     }
+
 }

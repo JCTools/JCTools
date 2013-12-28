@@ -11,81 +11,54 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.jaq.spsc.throughput;
+package io.jaq.jmh.spsc.throughput;
 
 import io.jaq.spsc.SPSCQueueFactory;
 
 import java.util.Queue;
 import java.util.concurrent.TimeUnit;
 
-import org.openjdk.jmh.annotations.AuxCounters;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.GenerateMicroBenchmark;
 import org.openjdk.jmh.annotations.Group;
 import org.openjdk.jmh.annotations.Level;
-import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Scope;
-import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
-import org.openjdk.jmh.annotations.Threads;
-import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.logic.BlackHole;
 import org.openjdk.jmh.logic.Control;
 
 @State(Scope.Group)
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
-@Threads(2)
-@Warmup(iterations = 5, time = 1, timeUnit = TimeUnit.SECONDS)
-@Measurement(iterations = 5, time = 3, timeUnit = TimeUnit.SECONDS)
-public class QueueThroughputBusyWithThreadCounters {
+public class QueueThroughputBusyWithBlackholes {
     public final Queue<Integer> q = SPSCQueueFactory.createQueue();
     public final static Integer ONE = 777;
 
-    @AuxCounters
-    @State(Scope.Thread)
-    public static class OpCounters {
-        public int pollFail, offerFail;
-
-        @Setup(Level.Iteration)
-        public void clean() {
-            pollFail = offerFail = 0;
+    @GenerateMicroBenchmark
+    @Group("tpt")
+    public void offer(Control cnt, BlackHole bh) {
+        int i = 0;
+        while (!q.offer(ONE) && !cnt.stopMeasurement) {
+            i++;
         }
-    }
-
-    private static ThreadLocal<Object> marker = new ThreadLocal<>();
-
-    @State(Scope.Thread)
-    public static class ConsumerMarker {
-        public ConsumerMarker() {
-            marker.set(this);
-        }
+        bh.consume(i);
     }
 
     @GenerateMicroBenchmark
     @Group("tpt")
-    public void offer(Control cnt, OpCounters counters) {
-        if (!q.offer(ONE)) {
-            counters.pollFail++;
+    public void poll(Control cnt, BlackHole bh) {
+        int i = 0;
+        while (q.poll() == null && !cnt.stopMeasurement) {
+            i++;
         }
-    }
-
-    @GenerateMicroBenchmark
-    @Group("tpt")
-    public void poll(Control cnt, OpCounters counters, ConsumerMarker cm) {
-        if (q.poll() == null) {
-            counters.pollFail++;
-        }
+        bh.consume(i);
     }
 
     @TearDown(Level.Iteration)
     public void emptyQ() {
-        if(marker.get() == null)
-            return;
-        // sadly the iteration tear down is performed from each participating thread, so we need to guess
-        // which is which (can't have concurrent access to poll).
         while (q.poll() != null)
             ;
     }
