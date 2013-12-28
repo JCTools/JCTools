@@ -6,9 +6,9 @@ import java.util.concurrent.LinkedTransferQueue;
 
 public class SPSCQueueFactory {
     public static final int QUEUE_CAPACITY = 1 << Integer.getInteger("pow2.capacity", 15);
+    public static final int QUEUE_TYPE = Integer.getInteger("q.type", 0);
     public static Queue<Integer> createQueue() {
-        int type = Integer.getInteger("q.type", 0);
-        switch (type) {
+        switch (QUEUE_TYPE) {
         case -2:
             return new LinkedTransferQueue<Integer>();
         case -1:
@@ -24,7 +24,7 @@ public class SPSCQueueFactory {
         case 4:
             return new FloatingCountersSpscConcurrentArrayQueue<Integer>(QUEUE_CAPACITY);
         }
-        throw new IllegalArgumentException("Type: " + type);
+        throw new IllegalArgumentException("Type: " + QUEUE_TYPE);
     }
 
 }
