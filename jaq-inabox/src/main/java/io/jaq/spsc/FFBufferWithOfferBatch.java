@@ -80,8 +80,8 @@ public final class FFBufferWithOfferBatch<E> extends FFBufferOfferBatchL3Pad<E> 
     private static final int ELEMENT_SHIFT;
     static {
         try {
-            TAIL_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(FFBufferTailField.class.getDeclaredField("tail"));
-            HEAD_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(FFBufferHeadField.class.getDeclaredField("head"));
+            TAIL_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(FFBufferOfferBatchTailField.class.getDeclaredField("tail"));
+            HEAD_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(FFBufferOfferBatchHeadField.class.getDeclaredField("head"));
             final int scale = UnsafeAccess.UNSAFE.arrayIndexScale(Object[].class);
             if (4 == scale) {
                 ELEMENT_SHIFT = 2 + SPARSE_SHIFT;
