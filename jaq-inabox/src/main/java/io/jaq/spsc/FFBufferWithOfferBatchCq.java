@@ -29,10 +29,12 @@ abstract class FFBufferOfferBatchCqPad1 {
 abstract class FFBufferOfferBatchCqColdFields<E> extends FFBufferOfferBatchCqPad1 {
     protected static final int BUFFER_PAD = 32;
     protected static final int SPARSE_SHIFT = Integer.getInteger("sparse.shift", 2);
+    protected static final int OFFER_BATCH_SIZE = Integer.getInteger("offer.batch.size", 4096);
     protected final int capacity;
     protected final long mask;
     protected final E[] buffer;
     protected ConcurrentQueueConsumer<E> consumer;
+    protected ConcurrentQueueProducer<E> producer;
 
     @SuppressWarnings("unchecked")
     public FFBufferOfferBatchCqColdFields(int capacity) {
@@ -47,28 +49,8 @@ abstract class FFBufferOfferBatchCqColdFields<E> extends FFBufferOfferBatchCqPad
     }
 }
 
-abstract class FFBufferOfferBatchCqL1Pad<E> extends FFBufferOfferBatchCqColdFields<E> {
-    long p00, p01, p02, p03, p04, p05, p06, p07;
-    long p10, p11, p12, p13, p14, p15, p16, p17;
-
-    public FFBufferOfferBatchCqL1Pad(int capacity) {
-        super(capacity);
-    }
-}
-
-abstract class FFBufferOfferBatchCqTailField<E> extends FFBufferOfferBatchCqL1Pad<E> {
-    protected long tail;
-    protected long batchTail;
-
-    public FFBufferOfferBatchCqTailField(int capacity) {
-        super(capacity);
-    }
-}
-
-public final class FFBufferWithOfferBatchCq<E> extends FFBufferOfferBatchCqTailField<E> implements
-        ConcurrentQueue<E>{
-    // make configurable
-    protected static final int OFFER_BATCH_SIZE = Integer.getInteger("offer.batch.size", 4096);
+public final class FFBufferWithOfferBatchCq<E> extends FFBufferOfferBatchCqColdFields<E> implements
+        ConcurrentQueue<E> {
     // Layout field/data offsets are runtime constants
     private static final long TAIL_OFFSET;
     private static final long HEAD_OFFSET;
@@ -76,10 +58,10 @@ public final class FFBufferWithOfferBatchCq<E> extends FFBufferOfferBatchCqTailF
     private static final int ELEMENT_SHIFT;
     static {
         try {
-            TAIL_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(FFBufferTailField.class
-                    .getDeclaredField("tail"));
-            HEAD_OFFSET = UnsafeAccess.UNSAFE
-                    .objectFieldOffset(ConsumerFields.class.getDeclaredField("head"));
+            TAIL_OFFSET =
+                    UnsafeAccess.UNSAFE.objectFieldOffset(ProducerFields.class.getDeclaredField("tail"));
+            HEAD_OFFSET =
+                    UnsafeAccess.UNSAFE.objectFieldOffset(ConsumerFields.class.getDeclaredField("head"));
             final int scale = UnsafeAccess.UNSAFE.arrayIndexScale(Object[].class);
             if (4 == scale) {
                 ELEMENT_SHIFT = 2 + SPARSE_SHIFT;
@@ -99,6 +81,79 @@ public final class FFBufferWithOfferBatchCq<E> extends FFBufferOfferBatchCqTailF
     long p00, p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
+    static class ProducerFieldsPad0 {
+        long p00, p01, p02, p03, p04, p05, p06, p07;
+        long p10, p11, p12, p13, p14, p15, p16, p17;
+    }
+
+    static class ProducerFields<E> extends ProducerFieldsPad0 {
+        protected final E[] buffer;
+        protected final long mask;
+        protected long tail;
+        protected long batchTail;
+
+        public ProducerFields(E[] buffer, long mask) {
+            this.buffer = buffer;
+            this.mask = mask;
+        }
+    }
+
+    static final class Producer<E> extends ProducerFields<E> implements ConcurrentQueueProducer<E> {
+        public Producer(E[] buffer, long mask) {
+            super(buffer, mask);
+        }
+
+        long p00, p01, p02, p03, p04, p05, p06, p07;
+        long p10, p11, p12, p13, p14, p15, p16, p17;
+
+        private long offset(long index) {
+            return ARRAY_BASE + ((index & mask) << ELEMENT_SHIFT);
+        }
+
+        @Override
+        public boolean offer(final E e) {
+            if (null == e) {
+                throw new NullPointerException("Null is not a valid element");
+            }
+
+            if (tail >= batchTail) {
+                if (null != UNSAFE.getObjectVolatile(buffer, offset(tail + OFFER_BATCH_SIZE))) {
+                    return false;
+                }
+                batchTail = tail + OFFER_BATCH_SIZE;
+            }
+            UNSAFE.putOrderedObject(buffer, offset(tail), e);
+            tail++;
+
+            return true;
+        }
+
+        @Override
+        public boolean offer(E[] ea) {
+            if (null == ea) {
+                throw new NullPointerException("Null is not a valid element");
+            }
+
+            long requiredTail = tail + ea.length - 1;
+            if (requiredTail >= batchTail) {
+                if (null != UNSAFE.getObjectVolatile(buffer, offset(requiredTail + OFFER_BATCH_SIZE))) {
+                    return false;
+                }
+                batchTail = requiredTail + OFFER_BATCH_SIZE;
+            }
+            // TODO: a case can be made for copying the array instead of inserting individual elements
+            // when the elements are not sparse using System.copyArray
+            int i = 0;
+            for (; tail <= requiredTail; tail++) {
+                UNSAFE.putOrderedObject(buffer, offset(tail), ea[i++]);
+            }
+            return true;
+        }
+        private long getTailForSize() {
+            return Math.max(UnsafeAccess.UNSAFE.getLongVolatile(this, TAIL_OFFSET), tail);
+        }
+    }
+
     static class ConsumerFieldsPad0<E> {
         long p00, p01, p02, p03, p04, p05, p06, p07;
         long p10, p11, p12, p13, p14, p15, p16, p17;
@@ -109,9 +164,9 @@ public final class FFBufferWithOfferBatchCq<E> extends FFBufferOfferBatchCqTailF
         protected final E[] buffer;
         protected long head = 0;
 
-        public ConsumerFields(FFBufferWithOfferBatchCq<E> q) {
-            this.mask = q.mask;
-            this.buffer = q.buffer;
+        public ConsumerFields(E[] buffer, long mask) {
+            this.buffer = buffer;
+            this.mask = mask;
         }
     }
 
@@ -119,8 +174,8 @@ public final class FFBufferWithOfferBatchCq<E> extends FFBufferOfferBatchCqTailF
         long p00, p01, p02, p03, p04, p05, p06, p07;
         long p10, p11, p12, p13, p14, p15, p16, p17;
 
-        private Consumer(FFBufferWithOfferBatchCq<E> q) {
-            super(q);
+        private Consumer(E[] buffer, long mask) {
+            super(buffer, mask);
         }
 
         private long offset(long index) {
@@ -179,13 +234,11 @@ public final class FFBufferWithOfferBatchCq<E> extends FFBufferOfferBatchCqTailF
         super(capacity);
     }
 
-    private long getTailV() {
-        return UnsafeAccess.UNSAFE.getLongVolatile(this, TAIL_OFFSET);
-    }
-
+    @Override
     public int size() {
-        // TODO: this is ugly :( the head/tail cannot be counted on to be written out, so must take max
-        return (int) (Math.max(getTailV(), tail) - ((Consumer) consumer).getHeadForSize());
+        long headForSize = consumer == null ? 0 : ((Consumer<E>) consumer).getHeadForSize();
+        long tailForSize = producer == null ? 0 : ((Producer<E>) producer).getTailForSize();
+        return (int) (tailForSize - headForSize);
     }
 
     @Override
@@ -195,62 +248,18 @@ public final class FFBufferWithOfferBatchCq<E> extends FFBufferOfferBatchCqTailF
 
     @Override
     public ConcurrentQueueConsumer<E> consumer() {
-        if(consumer == null) {
-            consumer = new Consumer<>(this);
+        if (consumer == null) {
+            consumer = new Consumer<>(buffer, mask);
         }
         return consumer;
     }
 
     @Override
     public ConcurrentQueueProducer<E> producer() {
-        // TODO: potential for improved layout for producer instance with all require fields packed.
-        return new ConcurrentQueueProducer<E>() {
-
-            private long offset(long index) {
-                return ARRAY_BASE + ((index & mask) << ELEMENT_SHIFT);
-            }
-
-            @Override
-            public boolean offer(final E e) {
-                if (null == e) {
-                    throw new NullPointerException("Null is not a valid element");
-                }
-
-                if (tail >= batchTail) {
-                    if (null != UNSAFE.getObjectVolatile(buffer, offset(tail + OFFER_BATCH_SIZE))) {
-                        return false;
-                    }
-                    batchTail = tail + OFFER_BATCH_SIZE;
-                }
-                UNSAFE.putOrderedObject(buffer, offset(tail), e);
-                tail++;
-
-                return true;
-            }
-
-            @Override
-            public boolean offer(E[] ea) {
-                if (null == ea) {
-                    throw new NullPointerException("Null is not a valid element");
-                }
-
-                long requiredTail = tail + ea.length - 1;
-                if (requiredTail >= batchTail) {
-                    if (null != UNSAFE.getObjectVolatile(buffer, offset(requiredTail + OFFER_BATCH_SIZE))) {
-                        return false;
-                    }
-                    batchTail = requiredTail + OFFER_BATCH_SIZE;
-                }
-                // TODO: a case can be made for copying the array instead of inserting individual elements
-                // when the
-                // elements are not sparse using System.copyArray
-                int i = 0;
-                for (; tail <= requiredTail; tail++) {
-                    UNSAFE.putOrderedObject(buffer, offset(tail), ea[i++]);
-                }
-                return true;
-            }
-        };
+        if (producer == null) {
+            producer = new Producer<>(buffer, mask);
+        }
+        return producer;
     }
 
 }
