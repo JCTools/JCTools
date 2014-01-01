@@ -58,10 +58,10 @@ public final class FFBufferWithOfferBatchCq<E> extends FFBufferOfferBatchCqColdF
     private static final int ELEMENT_SHIFT;
     static {
         try {
-            TAIL_OFFSET =
-                    UnsafeAccess.UNSAFE.objectFieldOffset(ProducerFields.class.getDeclaredField("tail"));
-            HEAD_OFFSET =
-                    UnsafeAccess.UNSAFE.objectFieldOffset(ConsumerFields.class.getDeclaredField("head"));
+            TAIL_OFFSET = UnsafeAccess.UNSAFE
+                    .objectFieldOffset(ProducerFields.class.getDeclaredField("tail"));
+            HEAD_OFFSET = UnsafeAccess.UNSAFE
+                    .objectFieldOffset(ConsumerFields.class.getDeclaredField("head"));
             final int scale = UnsafeAccess.UNSAFE.arrayIndexScale(Object[].class);
             if (4 == scale) {
                 ELEMENT_SHIFT = 2 + SPARSE_SHIFT;
@@ -81,12 +81,12 @@ public final class FFBufferWithOfferBatchCq<E> extends FFBufferOfferBatchCqColdF
     long p00, p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
-    static class ProducerFieldsPad0 {
+    static abstract class ProducerFieldsPad0 {
         long p00, p01, p02, p03, p04, p05, p06, p07;
         long p10, p11, p12, p13, p14, p15, p16, p17;
     }
 
-    static class ProducerFields<E> extends ProducerFieldsPad0 {
+    static abstract class ProducerFields<E> extends ProducerFieldsPad0 {
         protected final E[] buffer;
         protected final long mask;
         protected long tail;
@@ -99,12 +99,12 @@ public final class FFBufferWithOfferBatchCq<E> extends FFBufferOfferBatchCqColdF
     }
 
     static final class Producer<E> extends ProducerFields<E> implements ConcurrentQueueProducer<E> {
+        long p00, p01, p02, p03, p04, p05, p06, p07;
+        long p10, p11, p12, p13, p14, p15, p16, p17;
+
         public Producer(E[] buffer, long mask) {
             super(buffer, mask);
         }
-
-        long p00, p01, p02, p03, p04, p05, p06, p07;
-        long p10, p11, p12, p13, p14, p15, p16, p17;
 
         private long offset(long index) {
             return ARRAY_BASE + ((index & mask) << ELEMENT_SHIFT);
@@ -149,17 +149,18 @@ public final class FFBufferWithOfferBatchCq<E> extends FFBufferOfferBatchCqColdF
             }
             return true;
         }
+
         private long getTailForSize() {
             return Math.max(UnsafeAccess.UNSAFE.getLongVolatile(this, TAIL_OFFSET), tail);
         }
     }
 
-    static class ConsumerFieldsPad0<E> {
+    static abstract class ConsumerFieldsPad0<E> {
         long p00, p01, p02, p03, p04, p05, p06, p07;
         long p10, p11, p12, p13, p14, p15, p16, p17;
     }
 
-    static class ConsumerFields<E> extends ConsumerFieldsPad0<E> {
+    static abstract class ConsumerFields<E> extends ConsumerFieldsPad0<E> {
         protected final long mask;
         protected final E[] buffer;
         protected long head = 0;
@@ -195,14 +196,10 @@ public final class FFBufferWithOfferBatchCq<E> extends FFBufferOfferBatchCqColdF
             return e;
         }
 
+        @SuppressWarnings("unchecked")
         @Override
         public E peek() {
-            return getElement(head);
-        }
-
-        @SuppressWarnings("unchecked")
-        private E getElement(long index) {
-            return (E) UnsafeAccess.UNSAFE.getObject(buffer, offset(index));
+            return (E) UnsafeAccess.UNSAFE.getObject(buffer, offset(head));
         }
 
         @Override
@@ -261,5 +258,4 @@ public final class FFBufferWithOfferBatchCq<E> extends FFBufferOfferBatchCqColdF
         }
         return producer;
     }
-
 }
