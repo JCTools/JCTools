@@ -31,7 +31,7 @@ abstract class FFBufferOfferBatchCqColdFields<E> extends FFBufferOfferBatchCqPad
     protected static final int SPARSE_SHIFT = Integer.getInteger("sparse.shift", 2);
     protected static final int OFFER_BATCH_SIZE = Integer.getInteger("offer.batch.size", 4096);
     protected final int capacity;
-    protected final long mask;
+    protected final int mask;
     protected final E[] buffer;
     protected ConcurrentQueueConsumer<E> consumer;
     protected ConcurrentQueueProducer<E> producer;
@@ -107,7 +107,7 @@ public final class FFBufferWithOfferBatchCq<E> extends FFBufferOfferBatchCqColdF
         }
 
         private long offset(long index) {
-            return ARRAY_BASE + ((index & mask) << ELEMENT_SHIFT);
+            return ARRAY_BASE + (((int) index & mask) << ELEMENT_SHIFT);
         }
 
         @Override

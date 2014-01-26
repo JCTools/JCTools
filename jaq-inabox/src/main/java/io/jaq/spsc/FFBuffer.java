@@ -29,7 +29,7 @@ class FFBufferColdFields<E> extends FFBufferL0Pad {
     protected static final int BUFFER_PAD = 32;
     protected static final int SPARSE_SHIFT = Integer.getInteger("sparse.shift", 2);
     protected final int capacity;
-    protected final long mask;
+    protected final int mask;
     protected final E[] buffer;
     @SuppressWarnings("unchecked")
     public FFBufferColdFields(int capacity) {
@@ -110,7 +110,7 @@ public final class FFBuffer<E> extends FFBufferL3Pad<E> implements Queue<E> {
         throw new IllegalStateException("Queue is full");
     }
     private long offset(long index) {
-        return ARRAY_BASE + ((index & mask) << ELEMENT_SHIFT);
+        return ARRAY_BASE + (((int) index & mask) << ELEMENT_SHIFT);
     }
     public boolean offer(final E e) {
         if (null == e) {
