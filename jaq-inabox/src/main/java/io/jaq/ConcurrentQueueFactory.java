@@ -1,6 +1,6 @@
 package io.jaq;
 
-import io.jaq.spsc.FFBufferWithOfferBatch;
+import io.jaq.spsc.FFBufferWithOfferBatchCq;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -16,7 +16,7 @@ public class ConcurrentQueueFactory {
     public static <E> ConcurrentQueue<E> newQueue(ConcurrentQueueSpec qs) {
         if (qs.consumers == 1 && qs.producers == 1) {
             if (qs.growth == Growth.BOUNDED) {
-                return new FFBufferWithOfferBatch<>(qs.capacity);
+                return new FFBufferWithOfferBatchCq<>(qs.capacity);
             }
         }
         return new GenericQueue<E>();
@@ -51,11 +51,15 @@ public class ConcurrentQueueFactory {
         }
 
         @Override
-        public boolean offer(E[] es) {
-            for (E e : es) {
-                offer(e);
+        public boolean offer(E[] ea) {
+            for (int i=0;i<ea.length;i++) {
+                offer(ea[i]);
             }
             return true;
+        }
+//        @Override
+        public boolean offer(E e, boolean flush) {
+            return offer(e);
         }
         @Override
         public int capacity() {
