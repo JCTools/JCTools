@@ -34,7 +34,7 @@ class FFBufferOfferBatchColdFields<E> extends FFBufferOfferBatchL0Pad {
     protected static final int BUFFER_PAD = 32;
     protected static final int SPARSE_SHIFT = Integer.getInteger("sparse.shift", 2);
     protected final int capacity;
-    protected final int mask;
+    protected final long mask;
     protected final E[] buffer;
     @SuppressWarnings("unchecked")
     public FFBufferOfferBatchColdFields(int capacity) {
@@ -117,7 +117,7 @@ public final class FFBufferWithOfferBatch<E> extends FFBufferOfferBatchL3Pad<E> 
         throw new IllegalStateException("Queue is full");
     }
     private long offset(long index) {
-        return ARRAY_BASE + (((int) index & mask) << ELEMENT_SHIFT);
+        return ARRAY_BASE + ((index & mask) << ELEMENT_SHIFT);
     }
     public boolean offer(final E e) {
         if (null == e) {
@@ -277,7 +277,7 @@ public final class FFBufferWithOfferBatch<E> extends FFBufferOfferBatchL3Pad<E> 
         } while (!last);
     }
 
-    @Override
+//    @Override
     public boolean offer(E[] ea) {
         if (null == ea) {
             throw new NullPointerException("Null is not a valid element");
