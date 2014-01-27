@@ -32,6 +32,7 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.logic.BlackHole;
 import org.openjdk.jmh.logic.Control;
 
 @State(Scope.Group)
@@ -41,8 +42,10 @@ import org.openjdk.jmh.logic.Control;
 @Warmup(iterations = 5, time = 1, timeUnit = TimeUnit.SECONDS)
 @Measurement(iterations = 5, time = 3, timeUnit = TimeUnit.SECONDS)
 public class QueueThroughputBusyWithThreadCounters {
+    private static final long DELAY_PRODUCER = Long.getLong("delay.p", 0L);
+    private static final long DELAY_CONSUMER = Long.getLong("delay.c", 0L);
+    private static final Integer ONE = 777;
     public final Queue<Integer> q = SPSCQueueFactory.createQueue();
-    public final static Integer ONE = 777;
 
     @AuxCounters
     @State(Scope.Thread)
@@ -66,23 +69,29 @@ public class QueueThroughputBusyWithThreadCounters {
 
     @GenerateMicroBenchmark
     @Group("tpt")
-    public void offer(Control cnt, OpCounters counters) {
+    public void offer(OpCounters counters) {
         if (!q.offer(ONE)) {
-            counters.pollFail++;
+            counters.offerFail++;
+        } 
+        if (DELAY_PRODUCER != 0) {
+            BlackHole.consumeCPU(DELAY_PRODUCER);
         }
     }
 
     @GenerateMicroBenchmark
     @Group("tpt")
-    public void poll(Control cnt, OpCounters counters, ConsumerMarker cm) {
+    public void poll(OpCounters counters, ConsumerMarker cm) {
         if (q.poll() == null) {
             counters.pollFail++;
+        } 
+        if (DELAY_CONSUMER != 0) {
+            BlackHole.consumeCPU(DELAY_CONSUMER);
         }
     }
 
     @TearDown(Level.Iteration)
     public void emptyQ() {
-        if(marker.get() == null)
+        if (marker.get() == null)
             return;
         // sadly the iteration tear down is performed from each participating thread, so we need to guess
         // which is which (can't have concurrent access to poll).
