@@ -15,11 +15,12 @@
  */
 package io.jaq.handrolled.spsc;
 
-import io.jaq.spsc.SPSCQueueFactory;
+import io.jaq.ConcurrentQueue;
+import io.jaq.ConcurrentQueueConsumer;
+import io.jaq.ConcurrentQueueProducer;
+import io.jaq.spsc.SPSCConcurrentQueueFactory;
 
-import java.util.Queue;
-
-public class QueuePerfTest {
+public class BusyConcurrentQueuePerfTest {
     // 15 == 32 * 1024
     public static final int QUEUE_CAPACITY = 1 << Integer.getInteger("scale", 15);
     public static final int REPETITIONS = Integer.getInteger("reps", 50) * 1000 * 1000;
@@ -27,7 +28,7 @@ public class QueuePerfTest {
 
     public static void main(final String[] args) throws Exception {
         System.out.println("capacity:" + QUEUE_CAPACITY + " reps:" + REPETITIONS);
-        final Queue<Integer> queue = SPSCQueueFactory.createQueue();
+        final ConcurrentQueue<Integer> queue = SPSCConcurrentQueueFactory.createQueue();
 
         final long[] results = new long[20];
         for (int i = 0; i < 20; i++) {
@@ -42,53 +43,49 @@ public class QueuePerfTest {
         System.out.format("summary,QueuePerfTest,%s,%d\n", queue.getClass().getSimpleName(), sum / 10);
     }
 
-    private static long performanceRun(int runNumber, Queue<Integer> queue) throws Exception {
-        Producer p = new Producer(queue);
-        Thread thread = new Thread(p);
-        thread.start();// producer will timestamp start
-
+    private static long performanceRun(final int runNumber, final ConcurrentQueue<Integer> queue) throws Exception {
+        final Producer p = new Producer(queue);
+        final Thread thread = new Thread(p);
+        thread.start();
+        final ConcurrentQueueConsumer<Integer> consumer = queue.consumer();
         Integer result;
         int i = REPETITIONS;
-        int queueEmpty = 0;
+        int f = 0;
         do {
-            while (null == (result = queue.poll())) {
-                queueEmpty++;
-                Thread.yield();
+            while (null == (result = consumer.poll())) {
+                f++;
             }
         } while (0 != --i);
-        long end = System.nanoTime();
-        
+        final long end = System.nanoTime();
         thread.join();
-        long duration = end - p.start;
-        long ops = (REPETITIONS * 1000L * 1000L * 1000L) / duration;
-        String qName = queue.getClass().getSimpleName();
-        System.out.format("%d - ops/sec=%,d - %s result=%d failed.poll=%d failed.offer=%d\n", runNumber, ops,
-                qName, result, queueEmpty, p.queueFull);
+
+        final long duration = end - p.start;
+        final long ops = (REPETITIONS * 1000L * 1000L * 1000L) / duration;
+        System.out.format("%d - ops/sec=%,d - %s result=%d failed.poll=%d failed.offer=%d\n",
+                Integer.valueOf(runNumber), Long.valueOf(ops),
+                queue.getClass().getSimpleName(), result,f,p.fails);
         return ops;
     }
 
     public static class Producer implements Runnable {
-        private final Queue<Integer> queue;
-        int queueFull = 0;
-        long start = 0;
-
-        public Producer(Queue<Integer> queue) {
+        private final ConcurrentQueue<Integer> queue;
+        int fails=0;
+        long start=0;
+        public Producer(final ConcurrentQueue<Integer> queue) {
             this.queue = queue;
         }
 
         public void run() {
+            final ConcurrentQueueProducer<Integer> producer = queue.producer();
             int i = REPETITIONS;
-            int f = 0;
-            Queue<Integer> q = queue;
-            long s = System.nanoTime();
+            int f=0;
+            final long s = System.nanoTime();
             do {
-                while (!q.offer(TEST_VALUE)) {
-                    Thread.yield();
+                while (!producer.offer(TEST_VALUE)) {
                     f++;
                 }
             } while (0 != --i);
-            
-            queueFull = f;
+            fails = f;
             start = s;
         }
     }

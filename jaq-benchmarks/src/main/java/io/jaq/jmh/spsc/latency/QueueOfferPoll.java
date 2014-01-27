@@ -45,12 +45,14 @@ public class QueueOfferPoll {
     
 
     @GenerateMicroBenchmark
-    public void offerAndPoll() {
+    public int offerAndPoll() {
         for (int i = 0; i < BURST_SIZE; i++) {
             q.offer(DUMMY_MESSAGE);
         }
+        Integer result = null;
         for (int i = 0; i < BURST_SIZE; i++) {
-            q.poll();
+            result = q.poll();
         }
+        return result.intValue();
     }
 }

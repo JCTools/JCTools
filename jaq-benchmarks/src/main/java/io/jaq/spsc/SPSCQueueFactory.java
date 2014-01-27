@@ -3,15 +3,19 @@ package io.jaq.spsc;
 import io.jaq.mpsc.MpscConcurrentQueue;
 import io.jaq.spmc.SpmcConcurrentQueue;
 
+import java.util.ArrayDeque;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedTransferQueue;
 
 public class SPSCQueueFactory {
+    public static final int CAPACITY = 1 << 14;
     public static final int QUEUE_CAPACITY = 1 << Integer.getInteger("pow2.capacity", 15);
     public static final int QUEUE_TYPE = Integer.getInteger("q.type", 0);
     public static Queue<Integer> createQueue() {
         switch (QUEUE_TYPE) {
+        case -3:
+            return new ArrayDeque<Integer>(QUEUE_CAPACITY);
         case -2:
             return new LinkedTransferQueue<Integer>();
         case -1:
