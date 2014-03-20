@@ -14,7 +14,6 @@
 package io.jaq.spsc;
 
 import static io.jaq.util.UnsafeAccess.UNSAFE;
-import io.jaq.BatchConsumer;
 import io.jaq.ConcurrentQueue;
 import io.jaq.ConcurrentQueueConsumer;
 import io.jaq.ConcurrentQueueProducer;
@@ -116,37 +115,16 @@ public final class FFBufferWithOfferBatchCq<E> extends FFBufferOfferBatchCqColdF
                 throw new NullPointerException("Null is not a valid element");
             }
 
+            E[] lb = buffer;
             if (tail >= batchTail) {
-                if (null != UNSAFE.getObjectVolatile(buffer, offset(tail + OFFER_BATCH_SIZE))) {
+                if (null != UNSAFE.getObjectVolatile(lb, offset(tail + OFFER_BATCH_SIZE))) {
                     return false;
                 }
                 batchTail = tail + OFFER_BATCH_SIZE;
             }
-            UNSAFE.putOrderedObject(buffer, offset(tail), e);
+            UNSAFE.putOrderedObject(lb, offset(tail), e);
             tail++;
 
-            return true;
-        }
-
-        @Override
-        public boolean offer(E[] ea) {
-            if (null == ea) {
-                throw new NullPointerException("Null is not a valid element");
-            }
-
-            long requiredTail = tail + ea.length - 1;
-            if (requiredTail >= batchTail) {
-                if (null != UNSAFE.getObjectVolatile(buffer, offset(requiredTail + OFFER_BATCH_SIZE))) {
-                    return false;
-                }
-                batchTail = requiredTail + OFFER_BATCH_SIZE;
-            }
-            // TODO: a case can be made for copying the array instead of inserting individual elements
-            // when the elements are not sparse using System.copyArray
-            int i = 0;
-            for (; tail <= requiredTail; tail++) {
-                UNSAFE.putOrderedObject(buffer, offset(tail), ea[i++]);
-            }
             return true;
         }
 
@@ -186,12 +164,13 @@ public final class FFBufferWithOfferBatchCq<E> extends FFBufferOfferBatchCqColdF
         @Override
         public E poll() {
             final long offset = offset(head);
+            E[] lb = buffer;
             @SuppressWarnings("unchecked")
-            final E e = (E) UnsafeAccess.UNSAFE.getObjectVolatile(buffer, offset);
+            final E e = (E) UnsafeAccess.UNSAFE.getObjectVolatile(lb, offset);
             if (null == e) {
                 return null;
             }
-            UnsafeAccess.UNSAFE.putOrderedObject(buffer, offset, null);
+            UnsafeAccess.UNSAFE.putOrderedObject(lb, offset, null);
             head++;
             return e;
         }
@@ -200,20 +179,6 @@ public final class FFBufferWithOfferBatchCq<E> extends FFBufferOfferBatchCqColdF
         @Override
         public E peek() {
             return (E) UnsafeAccess.UNSAFE.getObject(buffer, offset(head));
-        }
-
-        @Override
-        public void consumeBatch(BatchConsumer<E> bc, int batchSizeLimit) {
-            // TODO: this is a generic implementation, better performance can be achieved here
-            boolean last;
-            do {
-                E e = poll();
-                if (e == null) {
-                    return;
-                }
-                last = (peek() == null) || --batchSizeLimit == 0;
-                bc.consume(e, last);
-            } while (!last);
         }
 
         @Override

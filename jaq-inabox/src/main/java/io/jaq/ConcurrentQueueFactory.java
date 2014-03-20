@@ -1,30 +1,52 @@
 package io.jaq;
 
+import io.jaq.mpmc.MpmcConcurrentQueue;
+import io.jaq.mpsc.MpscCompoundQueue;
+import io.jaq.mpsc.MpscConcurrentQueue;
+import io.jaq.spmc.SpmcConcurrentQueue;
 import io.jaq.spsc.FFBufferWithOfferBatchCq;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
- * The queue factory produces {@link ConcurrentQueue} instances based on a best fit to the {@link ConcurrentQueueSpec}. This
- * allows minimal dependencies between user code and the queue implementations and gives users a way to
- * express their requirements on a higher level.
+ * The queue factory produces {@link ConcurrentQueue} instances based on a best fit to the
+ * {@link ConcurrentQueueSpec}. This allows minimal dependencies between user code and the queue
+ * implementations and gives users a way to express their requirements on a higher level.
  * 
  * @author nitsanw
  * 
  */
 public class ConcurrentQueueFactory {
     public static <E> ConcurrentQueue<E> newQueue(ConcurrentQueueSpec qs) {
-        if (qs.consumers == 1 && qs.producers == 1) {
-            if (qs.growth == Growth.BOUNDED) {
+        if (qs.growth == Growth.BOUNDED) {
+            // SPSC
+            if (qs.consumers == 1 && qs.producers == 1) {
+
                 return new FFBufferWithOfferBatchCq<>(qs.capacity);
+            }
+            // MPSC
+            else if (qs.consumers == 1) {
+                if (qs.ordering != Ordering.NONE) {
+                    return new MpscConcurrentQueue<>(qs.capacity);
+                } else {
+                    return new MpscCompoundQueue<>(qs.capacity);
+                }
+            }
+            // SPMC
+            else if (qs.producers == 1) {
+                return new SpmcConcurrentQueue<>(qs.capacity);
+            }
+            // MPMC
+            else {
+                return new MpmcConcurrentQueue<>(qs.capacity);
             }
         }
         return new GenericQueue<E>();
     }
 
     // generic queue solution to fill gaps for now
-    private final static class GenericQueue<E> extends ConcurrentLinkedQueue<E> implements ConcurrentQueue<E>,
-            ConcurrentQueueConsumer<E>, ConcurrentQueueProducer<E> {
+    private final static class GenericQueue<E> extends ConcurrentLinkedQueue<E> implements
+            ConcurrentQueue<E>, ConcurrentQueueConsumer<E>, ConcurrentQueueProducer<E> {
         private static final long serialVersionUID = -599236378503873292L;
 
         @Override
@@ -37,30 +59,6 @@ public class ConcurrentQueueFactory {
             return this;
         }
 
-        @Override
-        public void consumeBatch(BatchConsumer<E> bc, int batchSizeLimit) {
-            boolean last;
-            do {
-                E e = poll();
-                if (e == null) {
-                    return;
-                }
-                last = isEmpty() || --batchSizeLimit == 0;
-                bc.consume(e, last);
-            } while (!last);
-        }
-
-        @Override
-        public boolean offer(E[] ea) {
-            for (int i=0;i<ea.length;i++) {
-                offer(ea[i]);
-            }
-            return true;
-        }
-//        @Override
-        public boolean offer(E e, boolean flush) {
-            return offer(e);
-        }
         @Override
         public int capacity() {
             return Integer.MAX_VALUE;

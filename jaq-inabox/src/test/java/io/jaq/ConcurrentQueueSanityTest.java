@@ -3,17 +3,32 @@ package io.jaq;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import io.jaq.spsc.FFBufferWithOfferBatch;
 
 import java.util.Arrays;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Collection;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+@RunWith(Parameterized.class)
 public class ConcurrentQueueSanityTest {
 
-    ConcurrentQueue<Object> q = new FFBufferWithOfferBatch<>(4096);
+    @Parameterized.Parameters
+    public static Collection primeNumbers() {
+       return Arrays.asList(new Object[][] {
+               { new ConcurrentQueueSpec(1, 1, 4096, Growth.BOUNDED, Ordering.FIFO, Preference.NONE)},
+               { new ConcurrentQueueSpec(1, 0, 4096, Growth.BOUNDED, Ordering.FIFO, Preference.NONE)},
+               { new ConcurrentQueueSpec(0, 1, 4096, Growth.BOUNDED, Ordering.FIFO, Preference.NONE)},
+               { new ConcurrentQueueSpec(0, 0, 4096, Growth.BOUNDED, Ordering.FIFO, Preference.NONE)},
+       });
+    }
+    
+    final ConcurrentQueue<Object> q;
+    public ConcurrentQueueSanityTest(ConcurrentQueueSpec spec) {
+        q = ConcurrentQueueFactory.newQueue(spec);
+    }
 
     @Before
     public void clear() {
@@ -28,69 +43,6 @@ public class ConcurrentQueueSanityTest {
         assertEquals(a, q.consumer().poll());
         assertNull(q.consumer().poll());
         assertEquals(0, q.size());
-    }
-//    @Test
-    public void testOfferPollBatchOfZero() {
-        assertNull(q.consumer().poll());
-        Object[] ea = new Object[10];
-//        assertTrue(q.producer().offer(ea,0));
-        assertNull(q.consumer().poll());
-        assertEquals(0, q.size());
-    }
-//    @Test
-    public void testOfferPollBatchOfOne() {
-        assertNull(q.consumer().poll());
-        Object a = new Object();
-        Object[] ea = new Object[10];
-        Arrays.fill(ea, a);
-//        assertTrue(q.producer().offer(ea,1));
-        assertEquals(a, q.consumer().poll());
-        assertNull(q.consumer().poll());
-        assertEquals(0, q.size());
-    }
-//    @Test
-    public void testOfferBatch() {
-        assertNull(q.consumer().poll());
-        assertEquals(0, q.size());
-        Object[] ea = new Object[10];
-        Object a = new Object();
-        Arrays.fill(ea, a);
-//        assertTrue(q.producer().offer(ea,10));
-        assertEquals(10, q.size());
-        for (int i = 9; i >= 0; i--) {
-            assertEquals(a, q.consumer().poll());
-            assertEquals(i, q.size());
-        }
-        assertNull(q.consumer().poll());
-    }
-
-//    @Test
-    public void testPollBatch() {
-        assertNull(q.consumer().poll());
-        assertEquals(0, q.size());
-        Object[] ea = new Object[10];
-        final Object a = new Object();
-        Arrays.fill(ea, a);
-//        assertTrue(q.producer().offer(ea,10));
-        assertEquals(10, q.size());
-        final AtomicInteger counter = new AtomicInteger();
-        q.consumer().consumeBatch(new BatchConsumer() {
-            @Override
-            public void consume(Object e, boolean last) {
-                assertEquals(a, e);
-                counter.incrementAndGet();
-            }
-        }, 5);
-        assertEquals(5, counter.get());
-        q.consumer().consumeBatch(new BatchConsumer() {
-            @Override
-            public void consume(Object e, boolean last) {
-                assertEquals(a, e);
-                counter.incrementAndGet();
-            }
-        }, 10);
-        assertNull(q.consumer().poll());
-        assertEquals(10, counter.get());
     }
 
 }

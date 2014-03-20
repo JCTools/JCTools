@@ -16,6 +16,10 @@ package io.jaq.mpsc;
 import static io.jaq.util.Pow2.findNextPositivePowerOfTwo;
 import static io.jaq.util.Pow2.isPowerOf2;
 
+import io.jaq.ConcurrentQueue;
+import io.jaq.ConcurrentQueueConsumer;
+import io.jaq.ConcurrentQueueProducer;
+
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
@@ -31,9 +35,9 @@ abstract class MPSCQueue33L0Pad {
 }
 
 abstract class MPSCQueue33ColdFields<E> extends MPSCQueue33L0Pad {
-	// must be power of 2
 	private static final int CPUS = Runtime.getRuntime().availableProcessors();
-	protected static final int PARALLEL_QUEUES = isPowerOf2(CPUS)?CPUS:
+	// must be power of 2
+    protected static final int PARALLEL_QUEUES = isPowerOf2(CPUS)?CPUS:
 		findNextPositivePowerOfTwo(CPUS)/2;
 	protected static final int PARALLEL_QUEUES_MASK = PARALLEL_QUEUES - 1;
 	protected final MpscConcurrentQueue<E>[] queues;
@@ -56,7 +60,7 @@ abstract class MPSCQueue33L3Pad<E> extends MPSCQueue33ColdFields<E> {
 	}
 }
 
-public final class MpscCompoundQueue<E> extends MPSCQueue33L3Pad<E> implements Queue<E> {
+public final class MpscCompoundQueue<E> extends MPSCQueue33L3Pad<E> implements Queue<E>, ConcurrentQueue<E>, ConcurrentQueueConsumer<E>, ConcurrentQueueProducer<E> {
 
 	public MpscCompoundQueue(final int capacity) {
 		super(capacity);
@@ -185,4 +189,19 @@ public final class MpscCompoundQueue<E> extends MPSCQueue33L3Pad<E> implements Q
 			value = poll();
 		} while (null != value);
 	}
+
+    @Override
+    public ConcurrentQueueConsumer<E> consumer() {
+        return this;
+    }
+
+    @Override
+    public ConcurrentQueueProducer<E> producer() {
+        return this;
+    }
+
+    @Override
+    public int capacity() {
+        return PARALLEL_QUEUES * queues[0].capacity;
+    }
 }

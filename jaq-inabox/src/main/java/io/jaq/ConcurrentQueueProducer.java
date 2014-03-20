@@ -23,22 +23,4 @@ public interface ConcurrentQueueProducer<E> {
      * @return true if e was successfully offered, false if queue is full
      */
     boolean offer(E e);
-    
-    /**
-     * No atomicity guarantees are offered, so may be implemented simply as a loop over offer call.
-     * 
-     * @param ea an array of elements to be offered as a batch
-     * @param count number of elements to offer from the array, must be less than ea.length
-     * @return true if ea was successfully offered, false if queue is full
-     */
-    boolean offer(E[] ea);
-    
-    /**
-     * This allows batching of events directly onto the queue by delaying the flush trigger.
-     *  
-     * @param e
-     * @param flush
-     * @return 
-     */
-//    boolean offer(E e, boolean flush);
 }

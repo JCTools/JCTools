@@ -13,6 +13,9 @@
  */
 package io.jaq.mpsc;
 
+import io.jaq.ConcurrentQueue;
+import io.jaq.ConcurrentQueueConsumer;
+import io.jaq.ConcurrentQueueProducer;
 import io.jaq.util.Pow2;
 import io.jaq.util.UnsafeAccess;
 
@@ -114,7 +117,7 @@ abstract class MpscConcurrentArrayQueueL3Pad<E> extends MpscConcurrentArrayQueue
 	}
 }
 
-public final class MpscConcurrentQueue<E> extends MpscConcurrentArrayQueueL3Pad<E> implements Queue<E> {
+public final class MpscConcurrentQueue<E> extends MpscConcurrentArrayQueueL3Pad<E> implements Queue<E>, ConcurrentQueue<E>, ConcurrentQueueProducer<E>, ConcurrentQueueConsumer<E> {
 
 	public MpscConcurrentQueue(final int capacity) {
 		super(capacity);
@@ -291,4 +294,19 @@ public final class MpscConcurrentQueue<E> extends MpscConcurrentArrayQueueL3Pad<
 			value = poll();
 		} while (null != value);
 	}
+
+    @Override
+    public ConcurrentQueueConsumer<E> consumer() {
+        return this;
+    }
+
+    @Override
+    public ConcurrentQueueProducer<E> producer() {
+        return this;
+    }
+
+    @Override
+    public int capacity() {
+        return capacity;
+    }
 }

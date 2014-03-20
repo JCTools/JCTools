@@ -14,6 +14,9 @@
 package io.jaq.spmc;
 
 import static io.jaq.util.UnsafeAccess.UNSAFE;
+import io.jaq.ConcurrentQueue;
+import io.jaq.ConcurrentQueueConsumer;
+import io.jaq.ConcurrentQueueProducer;
 import io.jaq.util.Pow2;
 import io.jaq.util.UnsafeAccess;
 
@@ -115,7 +118,7 @@ abstract class SpmcConcurrentArrayQueueL3Pad<E> extends SpmcConcurrentArrayQueue
 	}
 }
 
-public final class SpmcConcurrentQueue<E> extends SpmcConcurrentArrayQueueL3Pad<E> implements Queue<E> {
+public final class SpmcConcurrentQueue<E> extends SpmcConcurrentArrayQueueL3Pad<E> implements Queue<E>, ConcurrentQueue<E>, ConcurrentQueueConsumer<E>,ConcurrentQueueProducer<E> {
     protected static final int OFFER_BATCH_SIZE = Integer.getInteger("offer.batch.size", 4096);
 
 	public SpmcConcurrentQueue(final int capacity) {
@@ -290,4 +293,19 @@ public final class SpmcConcurrentQueue<E> extends SpmcConcurrentArrayQueueL3Pad<
 			value = poll();
 		} while (null != value);
 	}
+
+	@Override
+    public ConcurrentQueueConsumer<E> consumer() {
+        return this;
+    }
+
+    @Override
+    public ConcurrentQueueProducer<E> producer() {
+        return this;
+    }
+
+    @Override
+    public int capacity() {
+        return capacity;
+    }
 }
