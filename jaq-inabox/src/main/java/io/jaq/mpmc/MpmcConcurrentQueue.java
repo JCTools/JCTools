@@ -166,8 +166,9 @@ public final class MpmcConcurrentQueue<E> extends MpmcConcurrentQueueL3Pad<E> im
         } while (!casTail(currentTail, currentTail + 1));
         final long offset = offset(currentTail);
         // head may become visible before element is taken
-        while (UnsafeAccess.UNSAFE.getObjectVolatile(buffer, offset) != null);
-        UnsafeAccess.UNSAFE.putOrderedObject(buffer, offset, e);
+        final E[] lb = buffer;
+        while (UnsafeAccess.UNSAFE.getObjectVolatile(lb, offset) != null);
+        UnsafeAccess.UNSAFE.putOrderedObject(lb, offset, e);
         return true;
     }
 

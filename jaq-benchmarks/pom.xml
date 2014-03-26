@@ -19,11 +19,32 @@
 		<dependency>
 			<groupId>org.openjdk.jmh</groupId>
 			<artifactId>jmh-core</artifactId>
-			<version>0.2</version>
+			<version>0.5.4</version>
+		</dependency>
+		<dependency>
+			<groupId>org.openjdk.jmh</groupId>
+			<artifactId>jmh-generator-annprocess</artifactId>
+			<version>0.5.4</version>
+			<scope>provided</scope>
 		</dependency>
 	</dependencies>
+
+	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+	</properties>
+
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.0</version>
+				<configuration>
+					<compilerVersion>1.7</compilerVersion>
+					<source>1.7</source>
+					<target>1.7</target>
+				</configuration>
+			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
@@ -42,15 +63,6 @@
 									<mainClass>org.openjdk.jmh.Main</mainClass>
 								</transformer>
 							</transformers>
-							<filters>
-								<!-- Remove annotation processor files -->
-								<filter>
-									<artifact>oracle.micro:MicroBenchmarkAnnotationProcessor</artifact>
-									<excludes>
-										<exclude>*/**</exclude>
-									</excludes>
-								</filter>
-							</filters>
 						</configuration>
 					</execution>
 				</executions>

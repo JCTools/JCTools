@@ -13,87 +13,44 @@
  */
 package io.jaq.spsc;
 
-import static io.jaq.util.UnsafeAccess.UNSAFE;
 import io.jaq.ConcurrentQueue;
 import io.jaq.ConcurrentQueueConsumer;
 import io.jaq.ConcurrentQueueProducer;
-import io.jaq.util.Pow2;
 import io.jaq.util.UnsafeAccess;
 
-abstract class FFBufferOfferBatchCqPad1 {
-    long p00, p01, p02, p03, p04, p05, p06, p07;
-    long p10, p11, p12, p13, p14, p15, p16, p17;
-}
-
-abstract class FFBufferOfferBatchCqColdFields<E> extends FFBufferOfferBatchCqPad1 {
-    protected static final int BUFFER_PAD = 32;
-    protected static final int SPARSE_SHIFT = Integer.getInteger("sparse.shift", 2);
-    protected static final int OFFER_BATCH_SIZE = Integer.getInteger("offer.batch.size", 4096);
-    protected final int capacity;
-    protected final long mask;
-    protected final E[] buffer;
+abstract class FFBufferOfferBatchCqColdFields<E> extends ConcurrentRingBuffer<E> {
     protected ConcurrentQueueConsumer<E> consumer;
     protected ConcurrentQueueProducer<E> producer;
 
-    @SuppressWarnings("unchecked")
     public FFBufferOfferBatchCqColdFields(int capacity) {
-        if (Pow2.isPowerOf2(capacity)) {
-            this.capacity = capacity;
-        } else {
-            this.capacity = Pow2.findNextPositivePowerOfTwo(capacity);
-        }
-        mask = this.capacity - 1;
-        // pad data on either end with some empty slots.
-        buffer = (E[]) new Object[(this.capacity << SPARSE_SHIFT) + BUFFER_PAD * 2];
+        super(capacity);
     }
 }
 
 public final class FFBufferWithOfferBatchCq<E> extends FFBufferOfferBatchCqColdFields<E> implements
         ConcurrentQueue<E> {
     // Layout field/data offsets are runtime constants
-    private static final long TAIL_OFFSET;
-    private static final long HEAD_OFFSET;
-    private static final long ARRAY_BASE;
-    private static final int ELEMENT_SHIFT;
-    static {
-        try {
-            TAIL_OFFSET = UnsafeAccess.UNSAFE
-                    .objectFieldOffset(ProducerFields.class.getDeclaredField("tail"));
-            HEAD_OFFSET = UnsafeAccess.UNSAFE
-                    .objectFieldOffset(ConsumerFields.class.getDeclaredField("head"));
-            final int scale = UnsafeAccess.UNSAFE.arrayIndexScale(Object[].class);
-            if (4 == scale) {
-                ELEMENT_SHIFT = 2 + SPARSE_SHIFT;
-            } else if (8 == scale) {
-                ELEMENT_SHIFT = 3 + SPARSE_SHIFT;
-            } else {
-                throw new IllegalStateException("Unknown pointer size");
-            }
-            // Including the buffer pad in the array base offset
-            ARRAY_BASE = UnsafeAccess.UNSAFE.arrayBaseOffset(Object[].class)
-                    + (BUFFER_PAD << (ELEMENT_SHIFT - SPARSE_SHIFT));
-        } catch (NoSuchFieldException e) {
-            throw new RuntimeException(e);
-        }
-    }
+    protected static final int OFFER_BATCH_SIZE = Integer.getInteger("offer.batch.size", 4096);
     // post pad queue fields
     long p00, p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
-    static abstract class ProducerFieldsPad0 {
-        long p00, p01, p02, p03, p04, p05, p06, p07;
-        long p10, p11, p12, p13, p14, p15, p16, p17;
-    }
 
-    static abstract class ProducerFields<E> extends ProducerFieldsPad0 {
-        protected final E[] buffer;
-        protected final long mask;
+    static abstract class ProducerFields<E> extends ConcurrentRingBuffer<E> {
+        protected static final long TAIL_OFFSET;
+        static {
+            try {
+                TAIL_OFFSET = UnsafeAccess.UNSAFE
+                        .objectFieldOffset(ProducerFields.class.getDeclaredField("tail"));
+            } catch (NoSuchFieldException e) {
+                throw new RuntimeException(e);
+            }
+        }
         protected long tail;
         protected long batchTail;
 
-        public ProducerFields(E[] buffer, long mask) {
-            this.buffer = buffer;
-            this.mask = mask;
+        public ProducerFields(ConcurrentRingBuffer<E> c) {
+            super(c);
         }
     }
 
@@ -101,12 +58,8 @@ public final class FFBufferWithOfferBatchCq<E> extends FFBufferOfferBatchCqColdF
         long p00, p01, p02, p03, p04, p05, p06, p07;
         long p10, p11, p12, p13, p14, p15, p16, p17;
 
-        public Producer(E[] buffer, long mask) {
-            super(buffer, mask);
-        }
-
-        private long offset(long index) {
-            return ARRAY_BASE + ((index & mask) << ELEMENT_SHIFT);
+        public Producer(ConcurrentRingBuffer<E> c) {
+            super(c);
         }
 
         @Override
@@ -117,12 +70,12 @@ public final class FFBufferWithOfferBatchCq<E> extends FFBufferOfferBatchCqColdF
 
             E[] lb = buffer;
             if (tail >= batchTail) {
-                if (null != UNSAFE.getObjectVolatile(lb, offset(tail + OFFER_BATCH_SIZE))) {
+                if (null != loadVolatile(lb, offset(tail + OFFER_BATCH_SIZE))) {
                     return false;
                 }
                 batchTail = tail + OFFER_BATCH_SIZE;
             }
-            UNSAFE.putOrderedObject(lb, offset(tail), e);
+            storeOrdered(lb, offset(tail), e);
             tail++;
 
             return true;
@@ -133,19 +86,20 @@ public final class FFBufferWithOfferBatchCq<E> extends FFBufferOfferBatchCqColdF
         }
     }
 
-    static abstract class ConsumerFieldsPad0<E> {
-        long p00, p01, p02, p03, p04, p05, p06, p07;
-        long p10, p11, p12, p13, p14, p15, p16, p17;
-    }
-
-    static abstract class ConsumerFields<E> extends ConsumerFieldsPad0<E> {
-        protected final long mask;
-        protected final E[] buffer;
+    static abstract class ConsumerFields<E> extends ConcurrentRingBuffer<E> {
+        protected static final long HEAD_OFFSET;
+        static {
+            try {
+                HEAD_OFFSET = UnsafeAccess.UNSAFE
+                        .objectFieldOffset(ConsumerFields.class.getDeclaredField("head"));
+            } catch (NoSuchFieldException e) {
+                throw new RuntimeException(e);
+            }
+        }
         protected long head = 0;
 
-        public ConsumerFields(E[] buffer, long mask) {
-            this.buffer = buffer;
-            this.mask = mask;
+        public ConsumerFields(ConcurrentRingBuffer<E> c) {
+            super(c);
         }
     }
 
@@ -153,32 +107,26 @@ public final class FFBufferWithOfferBatchCq<E> extends FFBufferOfferBatchCqColdF
         long p00, p01, p02, p03, p04, p05, p06, p07;
         long p10, p11, p12, p13, p14, p15, p16, p17;
 
-        private Consumer(E[] buffer, long mask) {
-            super(buffer, mask);
-        }
-
-        private long offset(long index) {
-            return ARRAY_BASE + ((index & mask) << ELEMENT_SHIFT);
+        private Consumer(ConcurrentRingBuffer<E> c) {
+            super(c);
         }
 
         @Override
         public E poll() {
             final long offset = offset(head);
             E[] lb = buffer;
-            @SuppressWarnings("unchecked")
-            final E e = (E) UnsafeAccess.UNSAFE.getObjectVolatile(lb, offset);
+            final E e = loadVolatile(lb, offset);
             if (null == e) {
                 return null;
             }
-            UnsafeAccess.UNSAFE.putOrderedObject(lb, offset, null);
+            storeOrdered(lb, offset, null);
             head++;
             return e;
         }
 
-        @SuppressWarnings("unchecked")
         @Override
         public E peek() {
-            return (E) UnsafeAccess.UNSAFE.getObject(buffer, offset(head));
+            return load(offset(head));
         }
 
         @Override
@@ -211,7 +159,7 @@ public final class FFBufferWithOfferBatchCq<E> extends FFBufferOfferBatchCqColdF
     @Override
     public ConcurrentQueueConsumer<E> consumer() {
         if (consumer == null) {
-            consumer = new Consumer<>(buffer, mask);
+            consumer = new Consumer<>(this);
         }
         return consumer;
     }
@@ -219,7 +167,7 @@ public final class FFBufferWithOfferBatchCq<E> extends FFBufferOfferBatchCqColdF
     @Override
     public ConcurrentQueueProducer<E> producer() {
         if (producer == null) {
-            producer = new Producer<>(buffer, mask);
+            producer = new Producer<>(this);
         }
         return producer;
     }
