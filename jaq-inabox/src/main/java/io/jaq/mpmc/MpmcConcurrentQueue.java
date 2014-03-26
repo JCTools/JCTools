@@ -117,7 +117,8 @@ abstract class MpmcConcurrentQueueL3Pad<E> extends MpmcConcurrentQueueHeadField<
     }
 }
 
-public final class MpmcConcurrentQueue<E> extends MpmcConcurrentQueueL3Pad<E> implements Queue<E>,ConcurrentQueue<E>,ConcurrentQueueProducer<E>,ConcurrentQueueConsumer<E> {
+public final class MpmcConcurrentQueue<E> extends MpmcConcurrentQueueL3Pad<E> implements Queue<E>,
+        ConcurrentQueue<E>, ConcurrentQueueProducer<E>, ConcurrentQueueConsumer<E> {
 
     public MpmcConcurrentQueue(final int capacity) {
         super(capacity);
@@ -163,7 +164,10 @@ public final class MpmcConcurrentQueue<E> extends MpmcConcurrentQueueL3Pad<E> im
                 return false;
             }
         } while (!casTail(currentTail, currentTail + 1));
-        UnsafeAccess.UNSAFE.putOrderedObject(buffer, offset(currentTail), e);
+        final long offset = offset(currentTail);
+        // head may become visible before element is taken
+        while (UnsafeAccess.UNSAFE.getObjectVolatile(buffer, offset) != null);
+        UnsafeAccess.UNSAFE.putOrderedObject(buffer, offset, e);
         return true;
     }
 
@@ -181,10 +185,13 @@ public final class MpmcConcurrentQueue<E> extends MpmcConcurrentQueueL3Pad<E> im
         if (!casTail(currentTail, currentTail + 1)) {
             return -1;
         }
-        UnsafeAccess.UNSAFE.putOrderedObject(buffer, offset(currentTail), e);
+        final long offset = offset(currentTail);
+        // head may become visible before element is taken
+        while (UnsafeAccess.UNSAFE.getObjectVolatile(buffer, offset) != null);
+        UnsafeAccess.UNSAFE.putOrderedObject(buffer, offset, e);
         return 0;
     }
-
+    @SuppressWarnings("unchecked")
     public E poll() {
         final long currentTail = getTailV();
         long currentHead;
@@ -194,9 +201,12 @@ public final class MpmcConcurrentQueue<E> extends MpmcConcurrentQueueL3Pad<E> im
                 return null;
             }
         } while (!casHead(currentHead, currentHead + 1) && currentHead < currentTail);
+        // tail may become visible before element
         final long offset = offset(currentHead);
-        @SuppressWarnings("unchecked")
-        final E e = (E) UnsafeAccess.UNSAFE.getObject(buffer, offset);
+        E e;
+        do {
+            e = (E) UnsafeAccess.UNSAFE.getObjectVolatile(buffer, offset);
+        } while (e == null);
         UnsafeAccess.UNSAFE.putOrderedObject(buffer, offset, null);
         return e;
     }
@@ -320,7 +330,6 @@ public final class MpmcConcurrentQueue<E> extends MpmcConcurrentQueueL3Pad<E> im
             value = poll();
         } while (null != value);
     }
-
 
     @Override
     public ConcurrentQueueConsumer<E> consumer() {
