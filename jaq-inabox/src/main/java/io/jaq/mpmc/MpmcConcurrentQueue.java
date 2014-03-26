@@ -187,8 +187,9 @@ public final class MpmcConcurrentQueue<E> extends MpmcConcurrentQueueL3Pad<E> im
         }
         final long offset = offset(currentTail);
         // head may become visible before element is taken
-        while (UnsafeAccess.UNSAFE.getObjectVolatile(buffer, offset) != null);
-        UnsafeAccess.UNSAFE.putOrderedObject(buffer, offset, e);
+        final E[] lb = buffer;
+        while (UnsafeAccess.UNSAFE.getObjectVolatile(lb, offset) != null);
+        UnsafeAccess.UNSAFE.putOrderedObject(lb, offset, e);
         return 0;
     }
     @SuppressWarnings("unchecked")
@@ -204,31 +205,12 @@ public final class MpmcConcurrentQueue<E> extends MpmcConcurrentQueueL3Pad<E> im
         // tail may become visible before element
         final long offset = offset(currentHead);
         E e;
+        final E[] lb = buffer;
         do {
-            e = (E) UnsafeAccess.UNSAFE.getObjectVolatile(buffer, offset);
+            e = (E) UnsafeAccess.UNSAFE.getObjectVolatile(lb, offset);
         } while (e == null);
-        UnsafeAccess.UNSAFE.putOrderedObject(buffer, offset, null);
+        UnsafeAccess.UNSAFE.putOrderedObject(lb, offset, null);
         return e;
-    }
-
-    interface Poller<E> {
-        void polled(E e, boolean casFail);
-    }
-
-    public void poll(Poller<E> p) {
-        final long currentTail = getTailV();
-        long currentHead;
-        do {
-            currentHead = getHeadV();
-            if (currentHead >= currentTail) {
-                p.polled(null, false);
-            }
-        } while (!casHead(currentHead, currentHead + 1) && currentHead < currentTail);
-        final long offset = offset(currentHead);
-        @SuppressWarnings("unchecked")
-        final E e = (E) UnsafeAccess.UNSAFE.getObject(buffer, offset);
-        UnsafeAccess.UNSAFE.putOrderedObject(buffer, offset, null);
-        p.polled(e, false);
     }
 
     public E remove() {
