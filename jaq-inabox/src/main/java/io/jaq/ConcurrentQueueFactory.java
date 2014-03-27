@@ -45,7 +45,7 @@ public class ConcurrentQueueFactory {
     }
 
     // generic queue solution to fill gaps for now
-    private final static class GenericQueue<E> extends ConcurrentLinkedQueue<E> implements
+    public final static class GenericQueue<E> extends ConcurrentLinkedQueue<E> implements
             ConcurrentQueue<E>, ConcurrentQueueConsumer<E>, ConcurrentQueueProducer<E> {
         private static final long serialVersionUID = -599236378503873292L;
 

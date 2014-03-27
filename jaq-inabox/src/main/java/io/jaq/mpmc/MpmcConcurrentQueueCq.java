@@ -95,7 +95,7 @@ public final class MpmcConcurrentQueueCq<E> extends MpmcConcurrentQueueCqColdFie
                     }
                     else {
                         // head may become visible before element is taken
-                        while (loadVolatile(lb, offset(headCache)) != null);
+                        while (loadVolatile(lb, offset(headCache-1)) != null);
                         // now the coast is clear :)
                     }
                 }

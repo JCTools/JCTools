@@ -1,6 +1,7 @@
 package io.jaq.spsc;
 
 import io.jaq.ConcurrentQueue;
+import io.jaq.ConcurrentQueueFactory;
 import io.jaq.mpmc.MpmcConcurrentQueue;
 import io.jaq.mpmc.MpmcConcurrentQueueCq;
 import io.jaq.mpsc.MpscCompoundQueue;
@@ -13,6 +14,8 @@ public class SPSCConcurrentQueueFactory {
     public static final int QUEUE_TYPE = Integer.getInteger("q.type", 0);
     public static ConcurrentQueue<Integer> createQueue() {
         switch (QUEUE_TYPE) {
+        case -1:
+            return new ConcurrentQueueFactory.GenericQueue();
         case 3:
             return new FFBufferWithOfferBatch<Integer>(QUEUE_CAPACITY);
         case 30:
