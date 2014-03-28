@@ -35,7 +35,7 @@ abstract class MpmcConcurrentQueueL1Pad<E> extends ConcurrentRingBuffer<E> {
 
 abstract class MpmcConcurrentQueueTailField<E> extends MpmcConcurrentQueueL1Pad<E> {
     private final static long TAIL_OFFSET;
-    
+
     static {
         try {
             TAIL_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(MpmcConcurrentQueueTailField.class
@@ -45,13 +45,13 @@ abstract class MpmcConcurrentQueueTailField<E> extends MpmcConcurrentQueueL1Pad<
         }
     }
     private volatile long tail;
-    protected long headCache;
+    private volatile long headCache;
+
     public MpmcConcurrentQueueTailField(int capacity) {
         super(capacity);
     }
 
-
-    protected final long vlTail() {
+    protected final long lvTail() {
         return tail;
     }
 
@@ -59,6 +59,13 @@ abstract class MpmcConcurrentQueueTailField<E> extends MpmcConcurrentQueueL1Pad<
         return UnsafeAccess.UNSAFE.compareAndSwapLong(this, TAIL_OFFSET, expect, newValue);
     }
 
+    protected long lvHeadCache() {
+        return headCache;
+    }
+
+    protected void svHeadCache(long headCache) {
+        this.headCache = headCache;
+    }
 }
 
 abstract class MpmcConcurrentQueueL2Pad<E> extends MpmcConcurrentQueueTailField<E> {
@@ -81,17 +88,26 @@ abstract class MpmcConcurrentQueueHeadField<E> extends MpmcConcurrentQueueL2Pad<
         }
     }
     private volatile long head;
-    protected long tailCache;
+    private volatile long tailCache;
 
     public MpmcConcurrentQueueHeadField(int capacity) {
         super(capacity);
     }
 
-    protected final long vlHead() {
+    protected final long lvHead() {
         return head;
     }
+
     protected final boolean casHead(long expect, long newValue) {
         return UnsafeAccess.UNSAFE.compareAndSwapLong(this, HEAD_OFFSET, expect, newValue);
+    }
+
+    protected long lvTailCache() {
+        return tailCache;
+    }
+
+    protected void svTailCache(long tailCache) {
+        this.tailCache = tailCache;
     }
 }
 
@@ -99,6 +115,7 @@ public final class MpmcConcurrentQueue<E> extends MpmcConcurrentQueueHeadField<E
         ConcurrentQueue<E>, ConcurrentQueueProducer<E>, ConcurrentQueueConsumer<E> {
     public long p40, p41, p42, p43, p44, p45, p46;
     public long p30, p31, p32, p33, p34, p35, p36, p37;
+
     public MpmcConcurrentQueue(final int capacity) {
         super(capacity);
     }
@@ -119,22 +136,24 @@ public final class MpmcConcurrentQueue<E> extends MpmcConcurrentQueueHeadField<E
         E[] lb = buffer;
 
         long currentTail;
+        long lHeadCache = lvHeadCache();
         do {
-            currentTail = vlTail();
+            currentTail = lvTail();
             final long wrapPoint = currentTail - capacity;
-            if (headCache <= wrapPoint) {
-                headCache = vlHead();
-                if (headCache <= wrapPoint) {
+            if (lHeadCache <= wrapPoint) {
+                lHeadCache = lvHead();
+                if (lHeadCache <= wrapPoint) {
                     return false;
-                }
-                else {
-                    // head may become visible before element is taken
-                    while (loadVolatile(lb, offset(headCache-1)) != null);
-                    // now the coast is clear :)
+                } else {
+                    svHeadCache(lHeadCache);
                 }
             }
         } while (!casTail(currentTail, currentTail + 1));
+
         final long offset = offset(currentTail);
+        // head may become visible before element is taken
+        while (loadVolatile(lb, offset) != null)
+            ;
         storeOrdered(lb, offset, e);
         return true;
     }
@@ -144,24 +163,24 @@ public final class MpmcConcurrentQueue<E> extends MpmcConcurrentQueueHeadField<E
         long currentHead;
         E e;
         final E[] lb = buffer;
+        long lTailCache = lvTailCache();
         do {
-            currentHead = vlHead();
-            if (currentHead >= tailCache) {
-                tailCache = vlTail();
-                if (currentHead >= tailCache) {
+            currentHead = lvHead();
+
+            if (currentHead >= lTailCache) {
+                lTailCache = lvTail();
+                if (currentHead >= lTailCache) {
                     return null;
-                }
-                else {
-                    // tail may become visible before element
-                    do {
-                        e = loadVolatile(lb, offset(tailCache-1));
-                    } while (e == null);
+                } else {
+                    svTailCache(lTailCache);
                 }
             }
         } while (!casHead(currentHead, currentHead + 1));
         // tail may become visible before element
         final long offset = offset(currentHead);
-        e = loadVolatile(lb, offset);
+        do {
+            e = loadVolatile(lb, offset);
+        } while (e == null);
         storeOrdered(lb, offset, null);
         return e;
     }
@@ -186,11 +205,11 @@ public final class MpmcConcurrentQueue<E> extends MpmcConcurrentQueueHeadField<E
 
     @Override
     public E peek() {
-        return load(offset(vlHead()));
+        return load(offset(lvHead()));
     }
 
     public int size() {
-        return (int) (vlTail() - vlHead());
+        return (int) (lvTail() - lvHead());
     }
 
     public boolean isEmpty() {
@@ -202,7 +221,7 @@ public final class MpmcConcurrentQueue<E> extends MpmcConcurrentQueueHeadField<E
             return false;
         }
 
-        for (long i = vlHead(), limit = vlTail(); i < limit; i++) {
+        for (long i = lvHead(), limit = lvTail(); i < limit; i++) {
             final E e = load(offset(i));
             if (o.equals(e)) {
                 return true;

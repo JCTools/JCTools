@@ -32,19 +32,27 @@ abstract class MpmcConcurrentQueueCqColdFields<E> extends ConcurrentRingBuffer<E
             }
         }
         private volatile long tail;
-        protected long headCache;
+        private volatile long headCache;
         protected Consumer<E> consumer;
         
         public ProducerFields(MpmcConcurrentQueueCqColdFields<E> c) {
             super(c);
         }
-        
-        final long vlTail() {
+
+        protected final long lvTail() {
             return tail;
         }
 
-        final boolean casTail(long expect, long newValue) {
+        protected final boolean casTail(long expect, long newValue) {
             return UnsafeAccess.UNSAFE.compareAndSwapLong(this, TAIL_OFFSET, expect, newValue);
+        }
+
+        protected long lvHeadCache() {
+            return headCache;
+        }
+
+        protected void svHeadCache(long headCache) {
+            this.headCache = headCache;
         }
     }
 
@@ -65,22 +73,24 @@ abstract class MpmcConcurrentQueueCqColdFields<E> extends ConcurrentRingBuffer<E
             E[] lb = buffer;
 
             long currentTail;
+            long lHeadCache = lvHeadCache();
             do {
-                currentTail = vlTail();
+                currentTail = lvTail();
                 final long wrapPoint = currentTail - capacity;
-                if (headCache <= wrapPoint) {
-                    headCache = consumer.vlHead();
-                    if (headCache <= wrapPoint) {
+                if (lHeadCache <= wrapPoint) {
+                    lHeadCache = consumer.lvHead();
+                    if (lHeadCache <= wrapPoint) {
                         return false;
-                    }
-                    else {
-                        // head may become visible before element is taken
-                        while (loadVolatile(lb, offset(headCache-1)) != null);
-                        // now the coast is clear :)
+                    } else {
+                        svHeadCache(lHeadCache);
                     }
                 }
             } while (!casTail(currentTail, currentTail + 1));
+
             final long offset = offset(currentTail);
+            // head may become visible before element is taken
+            while (loadVolatile(lb, offset) != null)
+                ;
             storeOrdered(lb, offset, e);
             return true;
         }
@@ -97,16 +107,25 @@ abstract class MpmcConcurrentQueueCqColdFields<E> extends ConcurrentRingBuffer<E
             }
         }
         private volatile long head = 0;
-        protected long tailCache = 0;
+        private volatile long tailCache = 0;
         protected Producer<E> producer;
         public ConsumerFields(ConcurrentRingBuffer<E> c) {
             super(c);
         }
-        final long vlHead() {
+        protected final long lvHead() {
             return head;
         }
-        final boolean casHead(long expect, long newValue) {
+
+        protected final boolean casHead(long expect, long newValue) {
             return UnsafeAccess.UNSAFE.compareAndSwapLong(this, HEAD_OFFSET, expect, newValue);
+        }
+
+        protected long lvTailCache() {
+            return tailCache;
+        }
+
+        protected void svTailCache(long tailCache) {
+            this.tailCache = tailCache;
         }
     }
 
@@ -124,31 +143,31 @@ abstract class MpmcConcurrentQueueCqColdFields<E> extends ConcurrentRingBuffer<E
             long currentHead;
             E e;
             final E[] lb = buffer;
+            long lTailCache = lvTailCache();
             do {
-                currentHead = vlHead();
-                if (currentHead >= tailCache) {
-                    tailCache = producer.vlTail();
-                    if (currentHead >= tailCache) {
+                currentHead = lvHead();
+
+                if (currentHead >= lTailCache) {
+                    lTailCache = producer.lvTail();
+                    if (currentHead >= lTailCache) {
                         return null;
-                    }
-                    else {
-                        // tail may become visible before element
-                        do {
-                            e = loadVolatile(lb, offset(tailCache-1));
-                        } while (e == null);
+                    } else {
+                        svTailCache(lTailCache);
                     }
                 }
             } while (!casHead(currentHead, currentHead + 1));
             // tail may become visible before element
             final long offset = offset(currentHead);
-            e = loadVolatile(lb, offset);
+            do {
+                e = loadVolatile(lb, offset);
+            } while (e == null);
             storeOrdered(lb, offset, null);
             return e;
         }
 
         @Override
         public E peek() {
-            return load(offset(vlHead()));
+            return load(offset(lvHead()));
         }
 
         @Override
@@ -181,7 +200,7 @@ public final class MpmcConcurrentQueueCq<E> extends MpmcConcurrentQueueCqColdFie
 
     @Override
     public int size() {
-        return (int) (((Producer<E>) producer).vlTail() - ((Consumer<E>) consumer).vlHead());
+        return (int) (((Producer<E>) producer).lvTail() - ((Consumer<E>) consumer).lvHead());
     }
 
     @Override
