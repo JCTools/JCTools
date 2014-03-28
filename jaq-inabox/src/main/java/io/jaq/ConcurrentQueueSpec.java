@@ -15,7 +15,7 @@ package io.jaq;
 
 /**
  * @author nitsanw
- *
+ * 
  */
 public class ConcurrentQueueSpec {
     public final int producers;
@@ -24,6 +24,7 @@ public class ConcurrentQueueSpec {
     public final Growth growth;
     public final Ordering ordering;
     public final Preference preference;
+
     public ConcurrentQueueSpec(int producers, int consumers, int capacity, Growth growth, Ordering ordering,
             Preference preference) {
         super();

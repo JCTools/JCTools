@@ -133,55 +133,55 @@ public final class MpmcConcurrentQueue<E> extends MpmcConcurrentQueueHeadField<E
             throw new NullPointerException("Null is not a valid element");
         }
 
-        E[] lb = buffer;
-
+        final E[] lb = buffer;
+        long currentHeadCache = lvHeadCache();
         long currentTail;
-        long lHeadCache = lvHeadCache();
         do {
             currentTail = lvTail();
             final long wrapPoint = currentTail - capacity;
-            if (lHeadCache <= wrapPoint) {
-                lHeadCache = lvHead();
-                if (lHeadCache <= wrapPoint) {
+            if (currentHeadCache <= wrapPoint) {
+                currentHeadCache = lvHead();
+                if (currentHeadCache <= wrapPoint) {
                     return false;
                 } else {
-                    svHeadCache(lHeadCache);
+                    // only store if value is useful
+                    svHeadCache(currentHeadCache);
                 }
             }
         } while (!casTail(currentTail, currentTail + 1));
 
-        final long offset = offset(currentTail);
-        // head may become visible before element is taken
-        while (loadVolatile(lb, offset) != null)
+        final long offset = calcOffset(currentTail);
+        // head may become visible before element is taken, verify slot is empty before storing
+        while (lvElement(lb, offset) != null)
             ;
-        storeOrdered(lb, offset, e);
+        soElement(lb, offset, e);
         return true;
     }
 
     @Override
     public E poll() {
-        long currentHead;
-        E e;
         final E[] lb = buffer;
-        long lTailCache = lvTailCache();
+        long currentTailCache = lvTailCache();
+        long currentHead;
         do {
             currentHead = lvHead();
-
-            if (currentHead >= lTailCache) {
-                lTailCache = lvTail();
-                if (currentHead >= lTailCache) {
+            if (currentHead >= currentTailCache) {
+                currentTailCache = lvTail();
+                if (currentHead >= currentTailCache) {
                     return null;
                 } else {
-                    svTailCache(lTailCache);
+                    // only store if value is useful
+                    svTailCache(currentTailCache);
                 }
             }
         } while (!casHead(currentHead, currentHead + 1));
-        // tail may become visible before element
-        final long offset = offset(currentHead);
+        final long offset = calcOffset(currentHead);
+        E e;
         do {
-            e = loadVolatile(lb, offset);
+            e = lvElement(lb, offset);
+            // tail may become visible before element, verify slot is full before reading and nulling
         } while (e == null);
-        storeOrdered(lb, offset, null);
+        soElement(lb, offset, null);
         return e;
     }
 
@@ -205,7 +205,7 @@ public final class MpmcConcurrentQueue<E> extends MpmcConcurrentQueueHeadField<E
 
     @Override
     public E peek() {
-        return load(offset(lvHead()));
+        return lpElement(calcOffset(lvHead()));
     }
 
     public int size() {
@@ -222,7 +222,7 @@ public final class MpmcConcurrentQueue<E> extends MpmcConcurrentQueueHeadField<E
         }
 
         for (long i = lvHead(), limit = lvTail(); i < limit; i++) {
-            final E e = load(offset(i));
+            final E e = lpElement(calcOffset(i));
             if (o.equals(e)) {
                 return true;
             }

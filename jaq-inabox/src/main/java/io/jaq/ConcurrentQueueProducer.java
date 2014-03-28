@@ -15,7 +15,7 @@ package io.jaq;
 
 /**
  * @author nitsanw
- *
+ * 
  */
 public interface ConcurrentQueueProducer<E> {
     /**

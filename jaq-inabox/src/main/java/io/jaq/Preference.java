@@ -15,8 +15,8 @@ package io.jaq;
 
 /**
  * @author nitsanw
- *
+ * 
  */
 public enum Preference {
-    LATENCY,THROUGHPUT,NONE
+    LATENCY, THROUGHPUT, NONE
 }

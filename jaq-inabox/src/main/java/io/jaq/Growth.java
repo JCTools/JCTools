@@ -15,8 +15,8 @@ package io.jaq;
 
 /**
  * @author nitsanw
- *
+ * 
  */
 public enum Growth {
-    BOUNDED,UNBOUNDED
+    BOUNDED, UNBOUNDED
 }

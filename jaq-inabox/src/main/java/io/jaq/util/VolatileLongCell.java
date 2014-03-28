@@ -17,8 +17,7 @@ public final class VolatileLongCell extends VolatileLongCellValue {
     private final static long VALUE_OFFSET;
     static {
         try {
-            VALUE_OFFSET = UNSAFE.objectFieldOffset(VolatileLongCellValue.class
-                    .getDeclaredField("value"));
+            VALUE_OFFSET = UNSAFE.objectFieldOffset(VolatileLongCellValue.class.getDeclaredField("value"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }

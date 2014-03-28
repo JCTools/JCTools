@@ -14,5 +14,5 @@
 package io.jaq;
 
 public enum Ordering {
-    FIFO,KFIFO,PRODUCER_FIFO,NONE
+    FIFO, KFIFO, PRODUCER_FIFO, NONE
 }

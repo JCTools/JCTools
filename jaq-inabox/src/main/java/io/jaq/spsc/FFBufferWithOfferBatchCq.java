@@ -36,13 +36,12 @@ public final class FFBufferWithOfferBatchCq<E> extends FFBufferOfferBatchCqColdF
     long p00, p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
-
     static abstract class ProducerFields<E> extends ConcurrentRingBuffer<E> {
         protected static final long TAIL_OFFSET;
         static {
             try {
-                TAIL_OFFSET = UnsafeAccess.UNSAFE
-                        .objectFieldOffset(ProducerFields.class.getDeclaredField("tail"));
+                TAIL_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(ProducerFields.class
+                        .getDeclaredField("tail"));
             } catch (NoSuchFieldException e) {
                 throw new RuntimeException(e);
             }
@@ -71,12 +70,12 @@ public final class FFBufferWithOfferBatchCq<E> extends FFBufferOfferBatchCqColdF
 
             E[] lb = buffer;
             if (tail >= batchTail) {
-                if (null != loadVolatile(lb, offset(tail + OFFER_BATCH_SIZE))) {
+                if (null != lvElement(lb, calcOffset(tail + OFFER_BATCH_SIZE))) {
                     return false;
                 }
                 batchTail = tail + OFFER_BATCH_SIZE;
             }
-            storeOrdered(lb, offset(tail), e);
+            soElement(lb, calcOffset(tail), e);
             tail++;
 
             return true;
@@ -91,8 +90,8 @@ public final class FFBufferWithOfferBatchCq<E> extends FFBufferOfferBatchCqColdF
         protected static final long HEAD_OFFSET;
         static {
             try {
-                HEAD_OFFSET = UnsafeAccess.UNSAFE
-                        .objectFieldOffset(ConsumerFields.class.getDeclaredField("head"));
+                HEAD_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(ConsumerFields.class
+                        .getDeclaredField("head"));
             } catch (NoSuchFieldException e) {
                 throw new RuntimeException(e);
             }
@@ -114,20 +113,20 @@ public final class FFBufferWithOfferBatchCq<E> extends FFBufferOfferBatchCqColdF
 
         @Override
         public E poll() {
-            final long offset = offset(head);
+            final long offset = calcOffset(head);
             E[] lb = buffer;
-            final E e = loadVolatile(lb, offset);
+            final E e = lvElement(lb, offset);
             if (null == e) {
                 return null;
             }
-            storeOrdered(lb, offset, null);
+            soElement(lb, offset, null);
             head++;
             return e;
         }
 
         @Override
         public E peek() {
-            return load(offset(head));
+            return lpElement(calcOffset(head));
         }
 
         @Override

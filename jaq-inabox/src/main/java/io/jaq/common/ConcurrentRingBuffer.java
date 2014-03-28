@@ -24,11 +24,12 @@ public class ConcurrentRingBuffer<E> extends ConcurrentRingBufferL0Pad {
             throw new IllegalStateException("Unknown pointer size");
         }
         // Including the buffer pad in the array base offset
-        ARRAY_BASE = UnsafeAccess.UNSAFE.arrayBaseOffset(Object[].class) + (BUFFER_PAD << (ELEMENT_SHIFT - SPARSE_SHIFT));
+        ARRAY_BASE = UnsafeAccess.UNSAFE.arrayBaseOffset(Object[].class)
+                + (BUFFER_PAD << (ELEMENT_SHIFT - SPARSE_SHIFT));
     }
     protected final int capacity;
     protected final long mask;
-    //@Stable :(
+    // @Stable :(
     protected final E[] buffer;
 
     @SuppressWarnings("unchecked")
@@ -40,59 +41,61 @@ public class ConcurrentRingBuffer<E> extends ConcurrentRingBufferL0Pad {
         }
         mask = this.capacity - 1;
         // pad data on either end with some empty slots.
-        buffer = (E[]) new Object[(this.capacity<<SPARSE_SHIFT) + BUFFER_PAD * 2];
+        buffer = (E[]) new Object[(this.capacity << SPARSE_SHIFT) + BUFFER_PAD * 2];
     }
-    
+
     public ConcurrentRingBuffer(ConcurrentRingBuffer<E> c) {
         this.capacity = c.capacity;
         this.mask = c.mask;
         // pad data on either end with some empty slots.
         this.buffer = c.buffer;
     }
-    protected final long offset(long index) {
+
+    protected final long calcOffset(long index) {
         return ARRAY_BASE + ((index & mask) << ELEMENT_SHIFT);
     }
 
-    protected final void store(long offset, E e) {
+    protected final void spElement(long offset, E e) {
         UNSAFE.putObject(buffer, offset, e);
     }
 
-    protected final void storeOrdered(long offset, E e) {
+    protected final void soElement(long offset, E e) {
         UNSAFE.putOrderedObject(buffer, offset, e);
     }
 
-    protected final void storeVolatile(long offset, E e) {
+    protected final void svElement(long offset, E e) {
         UNSAFE.putObjectVolatile(buffer, offset, e);
     }
 
     @SuppressWarnings("unchecked")
-    protected final E load(long offset) {
+    protected final E lpElement(long offset) {
         return (E) UNSAFE.getObject(buffer, offset);
     }
 
     @SuppressWarnings("unchecked")
-    protected final E loadVolatile(long offset) {
+    protected final E lvElement(long offset) {
         return (E) UNSAFE.getObjectVolatile(buffer, offset);
     }
-    protected final void store(E[] buffer, long offset, E e) {
+
+    protected final void spElement(E[] buffer, long offset, E e) {
         UNSAFE.putObject(buffer, offset, e);
     }
 
-    protected final void storeOrdered(E[] buffer, long offset, E e) {
+    protected final void soElement(E[] buffer, long offset, E e) {
         UNSAFE.putOrderedObject(buffer, offset, e);
     }
 
-    protected final void storeVolatile(E[] buffer, long offset, E e) {
+    protected final void svElement(E[] buffer, long offset, E e) {
         UNSAFE.putObjectVolatile(buffer, offset, e);
     }
 
     @SuppressWarnings("unchecked")
-    protected final E load(E[] buffer, long offset) {
+    protected final E lpElement(E[] buffer, long offset) {
         return (E) UNSAFE.getObject(buffer, offset);
     }
 
     @SuppressWarnings("unchecked")
-    protected final E loadVolatile(E[] buffer, long offset) {
+    protected final E lvElement(E[] buffer, long offset) {
         return (E) UNSAFE.getObjectVolatile(buffer, offset);
     }
 

@@ -36,7 +36,7 @@ abstract class MpscConcurrentQueueL1Pad<E> extends ConcurrentRingBuffer<E> {
 
 abstract class MpscConcurrentQueueTailField<E> extends MpscConcurrentQueueL1Pad<E> {
     private final static long TAIL_OFFSET;
-    
+
     static {
         try {
             TAIL_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(MpscConcurrentQueueTailField.class
@@ -47,10 +47,10 @@ abstract class MpscConcurrentQueueTailField<E> extends MpscConcurrentQueueL1Pad<
     }
     private volatile long tail;
     protected long headCache;
+
     public MpscConcurrentQueueTailField(int capacity) {
         super(capacity);
     }
-
 
     protected final long vlTail() {
         return tail;
@@ -95,20 +95,22 @@ abstract class MpscConcurrentQueueHeadField<E> extends MpscConcurrentQueueL2Pad<
         UNSAFE.putOrderedLong(this, HEAD_OFFSET, l);
     }
 }
-public final class MpscConcurrentQueue<E> extends MpscConcurrentQueueHeadField<E> implements Queue<E>, ConcurrentQueue<E>, ConcurrentQueueProducer<E>, ConcurrentQueueConsumer<E> {
-	public long p40, p41, p42, p43, p44, p45, p46;
-	public long p30, p31, p32, p33, p34, p35, p36, p37;
 
-	public MpscConcurrentQueue(final int capacity) {
-		super(capacity);
-	}
+public final class MpscConcurrentQueue<E> extends MpscConcurrentQueueHeadField<E> implements Queue<E>,
+        ConcurrentQueue<E>, ConcurrentQueueProducer<E>, ConcurrentQueueConsumer<E> {
+    public long p40, p41, p42, p43, p44, p45, p46;
+    public long p30, p31, p32, p33, p34, p35, p36, p37;
 
-	public boolean add(final E e) {
-		if (offer(e)) {
-			return true;
-		}
-		throw new IllegalStateException("Queue is full");
-	}
+    public MpscConcurrentQueue(final int capacity) {
+        super(capacity);
+    }
+
+    public boolean add(final E e) {
+        if (offer(e)) {
+            return true;
+        }
+        throw new IllegalStateException("Queue is full");
+    }
 
     @Override
     public boolean offer(final E e) {
@@ -128,8 +130,8 @@ public final class MpscConcurrentQueue<E> extends MpscConcurrentQueueHeadField<E
                 }
             }
         } while (!casTail(currentTail, currentTail + 1));
-        final long offset = offset(currentTail);
-        storeOrdered(lb, offset, e);
+        final long offset = calcOffset(currentTail);
+        soElement(lb, offset, e);
         return true;
     }
 
@@ -147,47 +149,48 @@ public final class MpscConcurrentQueue<E> extends MpscConcurrentQueueHeadField<E
                 return 1;
             }
         }
-        if(!casTail(currentTail, currentTail + 1)){
+        if (!casTail(currentTail, currentTail + 1)) {
             return -1;
         }
-        final long offset = offset(currentTail);
-        storeOrdered(lb, offset, e);
+        final long offset = calcOffset(currentTail);
+        soElement(lb, offset, e);
         return 0;
-	}
+    }
+
     @Override
     public E poll() {
-		final long offset = offset(head);
-		final E[] lb = buffer;
-		final E e = loadVolatile(lb, offset);
-		if (null == e) {
-			return null;
-		}
-		store(lb, offset, null);
-		lazySetHead(head + 1);
-		return e;
-	}
+        final long offset = calcOffset(head);
+        final E[] lb = buffer;
+        final E e = lvElement(lb, offset);
+        if (null == e) {
+            return null;
+        }
+        spElement(lb, offset, null);
+        lazySetHead(head + 1);
+        return e;
+    }
 
-	public E remove() {
-		final E e = poll();
-		if (null == e) {
-			throw new NoSuchElementException("Queue is empty");
-		}
+    public E remove() {
+        final E e = poll();
+        if (null == e) {
+            throw new NoSuchElementException("Queue is empty");
+        }
 
-		return e;
-	}
+        return e;
+    }
 
-	public E element() {
-		final E e = peek();
-		if (null == e) {
-			throw new NoSuchElementException("Queue is empty");
-		}
+    public E element() {
+        final E e = peek();
+        if (null == e) {
+            throw new NoSuchElementException("Queue is empty");
+        }
 
-		return e;
-	}
+        return e;
+    }
 
     @Override
     public E peek() {
-        return load(offset(vlHead()));
+        return lpElement(calcOffset(vlHead()));
     }
 
     public int size() {
@@ -204,7 +207,7 @@ public final class MpscConcurrentQueue<E> extends MpscConcurrentQueueHeadField<E
         }
 
         for (long i = vlHead(), limit = vlTail(); i < limit; i++) {
-            final E e = load(offset(i));
+            final E e = lpElement(calcOffset(i));
             if (o.equals(e)) {
                 return true;
             }
@@ -213,55 +216,54 @@ public final class MpscConcurrentQueue<E> extends MpscConcurrentQueueHeadField<E
         return false;
     }
 
+    public Iterator<E> iterator() {
+        throw new UnsupportedOperationException();
+    }
 
-	public Iterator<E> iterator() {
-		throw new UnsupportedOperationException();
-	}
+    public Object[] toArray() {
+        throw new UnsupportedOperationException();
+    }
 
-	public Object[] toArray() {
-		throw new UnsupportedOperationException();
-	}
+    public <T> T[] toArray(final T[] a) {
+        throw new UnsupportedOperationException();
+    }
 
-	public <T> T[] toArray(final T[] a) {
-		throw new UnsupportedOperationException();
-	}
+    public boolean remove(final Object o) {
+        throw new UnsupportedOperationException();
+    }
 
-	public boolean remove(final Object o) {
-		throw new UnsupportedOperationException();
-	}
+    public boolean containsAll(final Collection<?> c) {
+        for (final Object o : c) {
+            if (!contains(o)) {
+                return false;
+            }
+        }
 
-	public boolean containsAll(final Collection<?> c) {
-		for (final Object o : c) {
-			if (!contains(o)) {
-				return false;
-			}
-		}
+        return true;
+    }
 
-		return true;
-	}
+    public boolean addAll(final Collection<? extends E> c) {
+        for (final E e : c) {
+            add(e);
+        }
 
-	public boolean addAll(final Collection<? extends E> c) {
-		for (final E e : c) {
-			add(e);
-		}
+        return true;
+    }
 
-		return true;
-	}
+    public boolean removeAll(final Collection<?> c) {
+        throw new UnsupportedOperationException();
+    }
 
-	public boolean removeAll(final Collection<?> c) {
-		throw new UnsupportedOperationException();
-	}
+    public boolean retainAll(final Collection<?> c) {
+        throw new UnsupportedOperationException();
+    }
 
-	public boolean retainAll(final Collection<?> c) {
-		throw new UnsupportedOperationException();
-	}
-
-	public void clear() {
-		Object value;
-		do {
-			value = poll();
-		} while (null != value);
-	}
+    public void clear() {
+        Object value;
+        do {
+            value = poll();
+        } while (null != value);
+    }
 
     @Override
     public ConcurrentQueueConsumer<E> consumer() {

@@ -13,11 +13,11 @@
  */
 package io.jaq.mpmc;
 
+import static io.jaq.util.UnsafeAccess.UNSAFE;
 import io.jaq.ConcurrentQueue;
 import io.jaq.ConcurrentQueueConsumer;
 import io.jaq.ConcurrentQueueProducer;
 import io.jaq.common.ConcurrentRingBuffer;
-import io.jaq.util.UnsafeAccess;
 
 abstract class MpmcConcurrentQueueCqColdFields<E> extends ConcurrentRingBuffer<E> {
 
@@ -25,8 +25,7 @@ abstract class MpmcConcurrentQueueCqColdFields<E> extends ConcurrentRingBuffer<E
         protected static final long TAIL_OFFSET;
         static {
             try {
-                TAIL_OFFSET = UnsafeAccess.UNSAFE
-                        .objectFieldOffset(ProducerFields.class.getDeclaredField("tail"));
+                TAIL_OFFSET = UNSAFE.objectFieldOffset(ProducerFields.class.getDeclaredField("tail"));
             } catch (NoSuchFieldException e) {
                 throw new RuntimeException(e);
             }
@@ -34,7 +33,7 @@ abstract class MpmcConcurrentQueueCqColdFields<E> extends ConcurrentRingBuffer<E
         private volatile long tail;
         private volatile long headCache;
         protected Consumer<E> consumer;
-        
+
         public ProducerFields(MpmcConcurrentQueueCqColdFields<E> c) {
             super(c);
         }
@@ -44,14 +43,14 @@ abstract class MpmcConcurrentQueueCqColdFields<E> extends ConcurrentRingBuffer<E
         }
 
         protected final boolean casTail(long expect, long newValue) {
-            return UnsafeAccess.UNSAFE.compareAndSwapLong(this, TAIL_OFFSET, expect, newValue);
+            return UNSAFE.compareAndSwapLong(this, TAIL_OFFSET, expect, newValue);
         }
 
-        protected long lvHeadCache() {
+        protected final long lvHeadCache() {
             return headCache;
         }
 
-        protected void svHeadCache(long headCache) {
+        protected final void svHeadCache(long headCache) {
             this.headCache = headCache;
         }
     }
@@ -70,28 +69,28 @@ abstract class MpmcConcurrentQueueCqColdFields<E> extends ConcurrentRingBuffer<E
                 throw new NullPointerException("Null is not a valid element");
             }
 
-            E[] lb = buffer;
-
+            final E[] lb = buffer;
+            long currentHeadCache = lvHeadCache();
             long currentTail;
-            long lHeadCache = lvHeadCache();
             do {
                 currentTail = lvTail();
                 final long wrapPoint = currentTail - capacity;
-                if (lHeadCache <= wrapPoint) {
-                    lHeadCache = consumer.lvHead();
-                    if (lHeadCache <= wrapPoint) {
+                if (currentHeadCache <= wrapPoint) {
+                    currentHeadCache = consumer.lvHead();
+                    if (currentHeadCache <= wrapPoint) {
                         return false;
                     } else {
-                        svHeadCache(lHeadCache);
+                        // only store if value is useful
+                        svHeadCache(currentHeadCache);
                     }
                 }
             } while (!casTail(currentTail, currentTail + 1));
 
-            final long offset = offset(currentTail);
-            // head may become visible before element is taken
-            while (loadVolatile(lb, offset) != null)
+            final long offset = calcOffset(currentTail);
+            // head may become visible before element is taken, verify slot is empty before storing
+            while (lvElement(lb, offset) != null)
                 ;
-            storeOrdered(lb, offset, e);
+            soElement(lb, offset, e);
             return true;
         }
     }
@@ -100,8 +99,7 @@ abstract class MpmcConcurrentQueueCqColdFields<E> extends ConcurrentRingBuffer<E
         protected static final long HEAD_OFFSET;
         static {
             try {
-                HEAD_OFFSET = UnsafeAccess.UNSAFE
-                        .objectFieldOffset(ConsumerFields.class.getDeclaredField("head"));
+                HEAD_OFFSET = UNSAFE.objectFieldOffset(ConsumerFields.class.getDeclaredField("head"));
             } catch (NoSuchFieldException e) {
                 throw new RuntimeException(e);
             }
@@ -109,15 +107,17 @@ abstract class MpmcConcurrentQueueCqColdFields<E> extends ConcurrentRingBuffer<E
         private volatile long head = 0;
         private volatile long tailCache = 0;
         protected Producer<E> producer;
+
         public ConsumerFields(ConcurrentRingBuffer<E> c) {
             super(c);
         }
+
         protected final long lvHead() {
             return head;
         }
 
         protected final boolean casHead(long expect, long newValue) {
-            return UnsafeAccess.UNSAFE.compareAndSwapLong(this, HEAD_OFFSET, expect, newValue);
+            return UNSAFE.compareAndSwapLong(this, HEAD_OFFSET, expect, newValue);
         }
 
         protected long lvTailCache() {
@@ -132,7 +132,6 @@ abstract class MpmcConcurrentQueueCqColdFields<E> extends ConcurrentRingBuffer<E
     static final class Consumer<E> extends ConsumerFields<E> implements ConcurrentQueueConsumer<E> {
         long p00, p01, p02, p03, p04, p05, p06, p07;
         long p10, p11, p12, p13, p14, p15, p16, p17;
-        
 
         private Consumer(ConcurrentRingBuffer<E> c) {
             super(c);
@@ -140,34 +139,35 @@ abstract class MpmcConcurrentQueueCqColdFields<E> extends ConcurrentRingBuffer<E
 
         @Override
         public E poll() {
-            long currentHead;
-            E e;
             final E[] lb = buffer;
-            long lTailCache = lvTailCache();
+            long currentTailCache = lvTailCache();
+            long currentHead;
             do {
                 currentHead = lvHead();
-
-                if (currentHead >= lTailCache) {
-                    lTailCache = producer.lvTail();
-                    if (currentHead >= lTailCache) {
+                if (currentHead >= currentTailCache) {
+                    currentTailCache = producer.lvTail();
+                    if (currentHead >= currentTailCache) {
                         return null;
                     } else {
-                        svTailCache(lTailCache);
+                        // only store if value is useful
+                        svTailCache(currentTailCache);
                     }
                 }
             } while (!casHead(currentHead, currentHead + 1));
-            // tail may become visible before element
-            final long offset = offset(currentHead);
+
+            final long offset = calcOffset(currentHead);
+            E e;
             do {
-                e = loadVolatile(lb, offset);
+                e = lvElement(lb, offset);
+                // tail may become visible before element, verify slot is full before reading and nulling
             } while (e == null);
-            storeOrdered(lb, offset, null);
+            soElement(lb, offset, null);
             return e;
         }
 
         @Override
         public E peek() {
-            return load(offset(lvHead()));
+            return lvElement(calcOffset(lvHead()));
         }
 
         @Override
@@ -176,6 +176,7 @@ abstract class MpmcConcurrentQueueCqColdFields<E> extends ConcurrentRingBuffer<E
                 ;
         }
     }
+
     protected final Consumer<E> consumer;
     protected final Producer<E> producer;
 

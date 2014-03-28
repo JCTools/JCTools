@@ -17,15 +17,15 @@ public class ConcurrentQueueSanityTest {
 
     @Parameterized.Parameters
     public static Collection primeNumbers() {
-       return Arrays.asList(new Object[][] {
-               { new ConcurrentQueueSpec(1, 1, 4096, Growth.BOUNDED, Ordering.FIFO, Preference.NONE)},
-               { new ConcurrentQueueSpec(1, 0, 4096, Growth.BOUNDED, Ordering.FIFO, Preference.NONE)},
-               { new ConcurrentQueueSpec(0, 1, 4096, Growth.BOUNDED, Ordering.FIFO, Preference.NONE)},
-               { new ConcurrentQueueSpec(0, 0, 4096, Growth.BOUNDED, Ordering.FIFO, Preference.NONE)},
-       });
+        return Arrays.asList(new Object[][] {
+                { new ConcurrentQueueSpec(1, 1, 4096, Growth.BOUNDED, Ordering.FIFO, Preference.NONE) },
+                { new ConcurrentQueueSpec(1, 0, 4096, Growth.BOUNDED, Ordering.FIFO, Preference.NONE) },
+                { new ConcurrentQueueSpec(0, 1, 4096, Growth.BOUNDED, Ordering.FIFO, Preference.NONE) },
+                { new ConcurrentQueueSpec(0, 0, 4096, Growth.BOUNDED, Ordering.FIFO, Preference.NONE) }, });
     }
-    
+
     final ConcurrentQueue<Object> q;
+
     public ConcurrentQueueSanityTest(ConcurrentQueueSpec spec) {
         q = ConcurrentQueueFactory.newQueue(spec);
     }
