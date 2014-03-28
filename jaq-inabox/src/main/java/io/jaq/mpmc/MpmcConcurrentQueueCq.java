@@ -16,26 +16,10 @@ package io.jaq.mpmc;
 import io.jaq.ConcurrentQueue;
 import io.jaq.ConcurrentQueueConsumer;
 import io.jaq.ConcurrentQueueProducer;
-import io.jaq.spsc.ConcurrentRingBuffer;
+import io.jaq.common.ConcurrentRingBuffer;
 import io.jaq.util.UnsafeAccess;
 
 abstract class MpmcConcurrentQueueCqColdFields<E> extends ConcurrentRingBuffer<E> {
-    protected ConcurrentQueueConsumer<E> consumer;
-    protected ConcurrentQueueProducer<E> producer;
-
-    public MpmcConcurrentQueueCqColdFields(int capacity) {
-        super(capacity);
-    }
-}
-
-public final class MpmcConcurrentQueueCq<E> extends MpmcConcurrentQueueCqColdFields<E> implements
-        ConcurrentQueue<E> {
-    // Layout field/data offsets are runtime constants
-    protected static final int OFFER_BATCH_SIZE = Integer.getInteger("offer.batch.size", 4096);
-    // post pad queue fields
-    long p00, p01, p02, p03, p04, p05, p06, p07;
-    long p10, p11, p12, p13, p14, p15, p16, p17;
-
 
     private static abstract class ProducerFields<E> extends ConcurrentRingBuffer<E> {
         protected static final long TAIL_OFFSET;
@@ -47,7 +31,7 @@ public final class MpmcConcurrentQueueCq<E> extends MpmcConcurrentQueueCqColdFie
                 throw new RuntimeException(e);
             }
         }
-        protected long tail;
+        private volatile long tail;
         protected long headCache;
         protected Consumer<E> consumer;
         
@@ -56,15 +40,11 @@ public final class MpmcConcurrentQueueCq<E> extends MpmcConcurrentQueueCqColdFie
         }
         
         final long vlTail() {
-            return UnsafeAccess.UNSAFE.getLongVolatile(this, TAIL_OFFSET);
+            return tail;
         }
 
         final boolean casTail(long expect, long newValue) {
             return UnsafeAccess.UNSAFE.compareAndSwapLong(this, TAIL_OFFSET, expect, newValue);
-        }
-
-        final long getTailForSize() {
-            return Math.max(vlTail(), tail);
         }
     }
 
@@ -116,21 +96,17 @@ public final class MpmcConcurrentQueueCq<E> extends MpmcConcurrentQueueCqColdFie
                 throw new RuntimeException(e);
             }
         }
-        protected long head = 0;
+        private volatile long head = 0;
         protected long tailCache = 0;
         protected Producer<E> producer;
         public ConsumerFields(ConcurrentRingBuffer<E> c) {
             super(c);
         }
         final long vlHead() {
-            return UnsafeAccess.UNSAFE.getLongVolatile(this, HEAD_OFFSET);
+            return head;
         }
         final boolean casHead(long expect, long newValue) {
             return UnsafeAccess.UNSAFE.compareAndSwapLong(this, HEAD_OFFSET, expect, newValue);
-        }
-
-        final long getHeadForSize() {
-            return Math.max(UnsafeAccess.UNSAFE.getLongVolatile(this, HEAD_OFFSET), head);
         }
     }
 
@@ -172,7 +148,7 @@ public final class MpmcConcurrentQueueCq<E> extends MpmcConcurrentQueueCqColdFie
 
         @Override
         public E peek() {
-            return load(offset(head));
+            return load(offset(vlHead()));
         }
 
         @Override
@@ -181,25 +157,36 @@ public final class MpmcConcurrentQueueCq<E> extends MpmcConcurrentQueueCqColdFie
                 ;
         }
     }
+    protected final Consumer<E> consumer;
+    protected final Producer<E> producer;
 
-    public MpmcConcurrentQueueCq(final int capacity) {
+    public MpmcConcurrentQueueCqColdFields(int capacity) {
         super(capacity);
         consumer = new Consumer<>(this);
         producer = new Producer<>(this);
-        ((Producer<E>)producer).consumer = (Consumer<E>) consumer;
-        ((Consumer<E>)consumer).producer = (Producer<E>) producer;
+        producer.consumer = consumer;
+        consumer.producer = producer;
+    }
+}
+
+public final class MpmcConcurrentQueueCq<E> extends MpmcConcurrentQueueCqColdFields<E> implements
+        ConcurrentQueue<E> {
+    // post pad queue fields
+    long p00, p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
+
+    public MpmcConcurrentQueueCq(final int capacity) {
+        super(capacity);
     }
 
     @Override
     public int size() {
-        long headForSize = consumer == null ? 0 : ((Consumer<E>) consumer).getHeadForSize();
-        long tailForSize = producer == null ? 0 : ((Producer<E>) producer).getTailForSize();
-        return (int) (tailForSize - headForSize);
+        return (int) (((Producer<E>) producer).vlTail() - ((Consumer<E>) consumer).vlHead());
     }
 
     @Override
     public int capacity() {
-        return capacity - OFFER_BATCH_SIZE;
+        return capacity;
     }
 
     @Override

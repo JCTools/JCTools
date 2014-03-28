@@ -16,6 +16,7 @@ package io.jaq.spsc;
 import io.jaq.ConcurrentQueue;
 import io.jaq.ConcurrentQueueConsumer;
 import io.jaq.ConcurrentQueueProducer;
+import io.jaq.common.ConcurrentRingBuffer;
 import io.jaq.util.UnsafeAccess;
 
 abstract class FFBufferOfferBatchCqColdFields<E> extends ConcurrentRingBuffer<E> {

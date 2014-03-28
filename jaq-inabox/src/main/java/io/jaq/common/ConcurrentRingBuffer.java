@@ -1,4 +1,4 @@
-package io.jaq.spsc;
+package io.jaq.common;
 
 import static io.jaq.util.UnsafeAccess.UNSAFE;
 import io.jaq.util.Pow2;
@@ -53,15 +53,15 @@ public class ConcurrentRingBuffer<E> extends ConcurrentRingBufferL0Pad {
         return ARRAY_BASE + ((index & mask) << ELEMENT_SHIFT);
     }
 
-    protected final void store(E e, long offset) {
+    protected final void store(long offset, E e) {
         UNSAFE.putObject(buffer, offset, e);
     }
 
-    protected final void storeOrdered(E e, long offset) {
+    protected final void storeOrdered(long offset, E e) {
         UNSAFE.putOrderedObject(buffer, offset, e);
     }
 
-    protected final void storeVolatile(E e, long offset) {
+    protected final void storeVolatile(long offset, E e) {
         UNSAFE.putObjectVolatile(buffer, offset, e);
     }
 
@@ -74,7 +74,7 @@ public class ConcurrentRingBuffer<E> extends ConcurrentRingBufferL0Pad {
     protected final E loadVolatile(long offset) {
         return (E) UNSAFE.getObjectVolatile(buffer, offset);
     }
-    protected final void store(E[] buffer, E e, long offset) {
+    protected final void store(E[] buffer, long offset, E e) {
         UNSAFE.putObject(buffer, offset, e);
     }
 

@@ -16,7 +16,7 @@ package io.jaq.mpmc;
 import io.jaq.ConcurrentQueue;
 import io.jaq.ConcurrentQueueConsumer;
 import io.jaq.ConcurrentQueueProducer;
-import io.jaq.util.Pow2;
+import io.jaq.common.ConcurrentRingBuffer;
 import io.jaq.util.UnsafeAccess;
 
 import java.util.Collection;
@@ -24,32 +24,7 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Queue;
 
-abstract class MpmcConcurrentQueueL0Pad {
-    public long p00, p01, p02, p03, p04, p05, p06, p07;
-    public long p30, p31, p32, p33, p34, p35, p36, p37;
-}
-
-abstract class MpmcConcurrentQueueColdFields<E> extends MpmcConcurrentQueueL0Pad {
-    protected static final int BUFFER_PAD = 32;
-    protected static final int SPARSE_SHIFT = Integer.getInteger("sparse.shift", 0);
-    protected final int capacity;
-    protected final long mask;
-    protected final E[] buffer;
-
-    @SuppressWarnings("unchecked")
-    public MpmcConcurrentQueueColdFields(int capacity) {
-        if (Pow2.isPowerOf2(capacity)) {
-            this.capacity = capacity;
-        } else {
-            this.capacity = Pow2.findNextPositivePowerOfTwo(capacity);
-        }
-        mask = this.capacity - 1;
-        // pad data on either end with some empty slots.
-        buffer = (E[]) new Object[(this.capacity << SPARSE_SHIFT) + BUFFER_PAD * 2];
-    }
-}
-
-abstract class MpmcConcurrentQueueL1Pad<E> extends MpmcConcurrentQueueColdFields<E> {
+abstract class MpmcConcurrentQueueL1Pad<E> extends ConcurrentRingBuffer<E> {
     public long p10, p11, p12, p13, p14, p15, p16;
     public long p30, p31, p32, p33, p34, p35, p36, p37;
 
@@ -59,11 +34,31 @@ abstract class MpmcConcurrentQueueL1Pad<E> extends MpmcConcurrentQueueColdFields
 }
 
 abstract class MpmcConcurrentQueueTailField<E> extends MpmcConcurrentQueueL1Pad<E> {
-    protected volatile long tail;
-
+    private final static long TAIL_OFFSET;
+    
+    static {
+        try {
+            TAIL_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(MpmcConcurrentQueueTailField.class
+                    .getDeclaredField("tail"));
+        } catch (NoSuchFieldException e) {
+            throw new RuntimeException(e);
+        }
+    }
+    private volatile long tail;
+    protected long headCache;
     public MpmcConcurrentQueueTailField(int capacity) {
         super(capacity);
     }
+
+
+    protected final long vlTail() {
+        return tail;
+    }
+
+    protected final boolean casTail(long expect, long newValue) {
+        return UnsafeAccess.UNSAFE.compareAndSwapLong(this, TAIL_OFFSET, expect, newValue);
+    }
+
 }
 
 abstract class MpmcConcurrentQueueL2Pad<E> extends MpmcConcurrentQueueTailField<E> {
@@ -76,68 +71,36 @@ abstract class MpmcConcurrentQueueL2Pad<E> extends MpmcConcurrentQueueTailField<
 }
 
 abstract class MpmcConcurrentQueueHeadField<E> extends MpmcConcurrentQueueL2Pad<E> {
-    protected long head;
-
-    public MpmcConcurrentQueueHeadField(int capacity) {
-        super(capacity);
-    }
-}
-
-abstract class MpmcConcurrentQueueL3Pad<E> extends MpmcConcurrentQueueHeadField<E> {
-    protected final static long TAIL_OFFSET;
-    protected final static long HEAD_OFFSET;
-    protected static final long ARRAY_BASE;
-    protected static final int ELEMENT_SHIFT;
+    private final static long HEAD_OFFSET;
     static {
         try {
-            TAIL_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(MpmcConcurrentQueueTailField.class
-                    .getDeclaredField("tail"));
             HEAD_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(MpmcConcurrentQueueHeadField.class
                     .getDeclaredField("head"));
-            final int scale = UnsafeAccess.UNSAFE.arrayIndexScale(Object[].class);
-            if (4 == scale) {
-                ELEMENT_SHIFT = 2 + SPARSE_SHIFT;
-            } else if (8 == scale) {
-                ELEMENT_SHIFT = 3 + SPARSE_SHIFT;
-            } else {
-                throw new IllegalStateException("Unknown pointer size");
-            }
-            // Including the buffer pad in the array base offset
-            ARRAY_BASE = UnsafeAccess.UNSAFE.arrayBaseOffset(Object[].class)
-                    + (BUFFER_PAD << (ELEMENT_SHIFT - SPARSE_SHIFT));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
     }
-    public long p40, p41, p42, p43, p44, p45, p46;
-    public long p30, p31, p32, p33, p34, p35, p36, p37;
+    private volatile long head;
+    protected long tailCache;
 
-    public MpmcConcurrentQueueL3Pad(int capacity) {
+    public MpmcConcurrentQueueHeadField(int capacity) {
         super(capacity);
+    }
+
+    protected final long vlHead() {
+        return head;
+    }
+    protected final boolean casHead(long expect, long newValue) {
+        return UnsafeAccess.UNSAFE.compareAndSwapLong(this, HEAD_OFFSET, expect, newValue);
     }
 }
 
-public final class MpmcConcurrentQueue<E> extends MpmcConcurrentQueueL3Pad<E> implements Queue<E>,
+public final class MpmcConcurrentQueue<E> extends MpmcConcurrentQueueHeadField<E> implements Queue<E>,
         ConcurrentQueue<E>, ConcurrentQueueProducer<E>, ConcurrentQueueConsumer<E> {
-
+    public long p40, p41, p42, p43, p44, p45, p46;
+    public long p30, p31, p32, p33, p34, p35, p36, p37;
     public MpmcConcurrentQueue(final int capacity) {
         super(capacity);
-    }
-
-    private long getHeadV() {
-        return UnsafeAccess.UNSAFE.getLongVolatile(this, HEAD_OFFSET);
-    }
-
-    private long getTailV() {
-        return UnsafeAccess.UNSAFE.getLongVolatile(this, TAIL_OFFSET);
-    }
-
-    private boolean casTail(long expect, long newValue) {
-        return UnsafeAccess.UNSAFE.compareAndSwapLong(this, TAIL_OFFSET, expect, newValue);
-    }
-
-    private boolean casHead(long expect, long newValue) {
-        return UnsafeAccess.UNSAFE.compareAndSwapLong(this, HEAD_OFFSET, expect, newValue);
     }
 
     public boolean add(final E e) {
@@ -147,70 +110,59 @@ public final class MpmcConcurrentQueue<E> extends MpmcConcurrentQueueL3Pad<E> im
         throw new IllegalStateException("Queue is full");
     }
 
-    private long offset(long index) {
-        return ARRAY_BASE + ((index & mask) << ELEMENT_SHIFT);
-    }
-
+    @Override
     public boolean offer(final E e) {
         if (null == e) {
             throw new NullPointerException("Null is not a valid element");
         }
 
+        E[] lb = buffer;
+
         long currentTail;
         do {
-            currentTail = getTailV();
+            currentTail = vlTail();
             final long wrapPoint = currentTail - capacity;
-            if (getHeadV() <= wrapPoint) { // volatile read of head
-                return false;
+            if (headCache <= wrapPoint) {
+                headCache = vlHead();
+                if (headCache <= wrapPoint) {
+                    return false;
+                }
+                else {
+                    // head may become visible before element is taken
+                    while (loadVolatile(lb, offset(headCache-1)) != null);
+                    // now the coast is clear :)
+                }
             }
         } while (!casTail(currentTail, currentTail + 1));
         final long offset = offset(currentTail);
-        // head may become visible before element is taken
-        final E[] lb = buffer;
-        while (UnsafeAccess.UNSAFE.getObjectVolatile(lb, offset) != null);
-        UnsafeAccess.UNSAFE.putOrderedObject(lb, offset, e);
+        storeOrdered(lb, offset, e);
         return true;
     }
 
-    public int offerStatus(final E e) {
-        if (null == e) {
-            throw new NullPointerException("Null is not a valid element");
-        }
-
-        long currentTail;
-        currentTail = getTailV();
-        final long wrapPoint = currentTail - capacity;
-        if (getHeadV() <= wrapPoint) { // volatile read of head
-            return 1;
-        }
-        if (!casTail(currentTail, currentTail + 1)) {
-            return -1;
-        }
-        final long offset = offset(currentTail);
-        // head may become visible before element is taken
-        final E[] lb = buffer;
-        while (UnsafeAccess.UNSAFE.getObjectVolatile(lb, offset) != null);
-        UnsafeAccess.UNSAFE.putOrderedObject(lb, offset, e);
-        return 0;
-    }
-    @SuppressWarnings("unchecked")
+    @Override
     public E poll() {
-        final long currentTail = getTailV();
         long currentHead;
-        do {
-            currentHead = getHeadV();
-            if (currentHead >= currentTail) {
-                return null;
-            }
-        } while (!casHead(currentHead, currentHead + 1) && currentHead < currentTail);
-        // tail may become visible before element
-        final long offset = offset(currentHead);
         E e;
         final E[] lb = buffer;
         do {
-            e = (E) UnsafeAccess.UNSAFE.getObjectVolatile(lb, offset);
-        } while (e == null);
-        UnsafeAccess.UNSAFE.putOrderedObject(lb, offset, null);
+            currentHead = vlHead();
+            if (currentHead >= tailCache) {
+                tailCache = vlTail();
+                if (currentHead >= tailCache) {
+                    return null;
+                }
+                else {
+                    // tail may become visible before element
+                    do {
+                        e = loadVolatile(lb, offset(tailCache-1));
+                    } while (e == null);
+                }
+            }
+        } while (!casHead(currentHead, currentHead + 1));
+        // tail may become visible before element
+        final long offset = offset(currentHead);
+        e = loadVolatile(lb, offset);
+        storeOrdered(lb, offset, null);
         return e;
     }
 
@@ -232,22 +184,17 @@ public final class MpmcConcurrentQueue<E> extends MpmcConcurrentQueueL3Pad<E> im
         return e;
     }
 
+    @Override
     public E peek() {
-        long currentHead = getHeadV();
-        return getElement(currentHead);
-    }
-
-    @SuppressWarnings("unchecked")
-    private E getElement(long index) {
-        return (E) UnsafeAccess.UNSAFE.getObject(buffer, offset(index));
+        return load(offset(vlHead()));
     }
 
     public int size() {
-        return (int) (getTailV() - getHeadV());
+        return (int) (vlTail() - vlHead());
     }
 
     public boolean isEmpty() {
-        return getTailV() == getHeadV();
+        return size() == 0;
     }
 
     public boolean contains(final Object o) {
@@ -255,8 +202,8 @@ public final class MpmcConcurrentQueue<E> extends MpmcConcurrentQueueL3Pad<E> im
             return false;
         }
 
-        for (long i = getHeadV(), limit = getTailV(); i < limit; i++) {
-            final E e = getElement(i);
+        for (long i = vlHead(), limit = vlTail(); i < limit; i++) {
+            final E e = load(offset(i));
             if (o.equals(e)) {
                 return true;
             }

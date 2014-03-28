@@ -202,6 +202,6 @@ public final class MpscCompoundQueue<E> extends MPSCQueue33L3Pad<E> implements Q
 
     @Override
     public int capacity() {
-        return PARALLEL_QUEUES * queues[0].capacity;
+        return PARALLEL_QUEUES * queues[0].capacity();
     }
 }
