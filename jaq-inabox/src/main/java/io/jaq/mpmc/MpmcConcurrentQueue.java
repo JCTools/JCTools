@@ -134,26 +134,23 @@ public final class MpmcConcurrentQueue<E> extends MpmcConcurrentQueueHeadField<E
         }
 
         final E[] lb = buffer;
-        long currentHeadCache = lvHeadCache();
         long currentTail;
-        do {
+        long offset;
+        E currE;
+        for(;;) {
             currentTail = lvTail();
-            final long wrapPoint = currentTail - capacity;
-            if (currentHeadCache <= wrapPoint) {
-                currentHeadCache = lvHead();
-                if (currentHeadCache <= wrapPoint) {
-                    return false;
-                } else {
-                    // only store if value is useful
-                    svHeadCache(currentHeadCache);
+            offset = calcOffset(currentTail);
+            currE = lvElement(lb, offset);
+            if(currE == null) {
+                if (casTail(currentTail, currentTail + 1)) {
+                    break;
                 }
             }
-        } while (!casTail(currentTail, currentTail + 1));
+            else {
+                return false;
+            }
+        }
 
-        final long offset = calcOffset(currentTail);
-        // head may become visible before element is taken, verify slot is empty before storing
-        while (lvElement(lb, offset) != null)
-            ;
         soElement(lb, offset, e);
         return true;
     }
@@ -161,26 +158,22 @@ public final class MpmcConcurrentQueue<E> extends MpmcConcurrentQueueHeadField<E
     @Override
     public E poll() {
         final E[] lb = buffer;
-        long currentTailCache = lvTailCache();
         long currentHead;
-        do {
+        long offset;
+        E e;
+        for(;;) {
             currentHead = lvHead();
-            if (currentHead >= currentTailCache) {
-                currentTailCache = lvTail();
-                if (currentHead >= currentTailCache) {
-                    return null;
-                } else {
-                    // only store if value is useful
-                    svTailCache(currentTailCache);
+            offset = calcOffset(currentHead);
+            e = lvElement(lb, offset);
+            if (e != null) {
+                if (casHead(currentHead, currentHead + 1)) {
+                    break;
                 }
             }
-        } while (!casHead(currentHead, currentHead + 1));
-        final long offset = calcOffset(currentHead);
-        E e;
-        do {
-            e = lvElement(lb, offset);
-            // tail may become visible before element, verify slot is full before reading and nulling
-        } while (e == null);
+            else {
+                return null;
+            }
+        }
         soElement(lb, offset, null);
         return e;
     }

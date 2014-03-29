@@ -15,7 +15,7 @@ public class SPSCConcurrentQueueFactory {
     public static ConcurrentQueue<Integer> createQueue() {
         switch (QUEUE_TYPE) {
         case -1:
-            return new ConcurrentQueueFactory.GenericQueue();
+            return new ConcurrentQueueFactory.GenericQueue<Integer>();
         case 3:
             return new FFBufferWithOfferBatch<Integer>(QUEUE_CAPACITY);
         case 30:
