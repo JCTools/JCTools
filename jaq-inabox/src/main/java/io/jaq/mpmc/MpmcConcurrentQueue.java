@@ -45,7 +45,6 @@ abstract class MpmcConcurrentQueueTailField<E> extends MpmcConcurrentQueueL1Pad<
         }
     }
     private volatile long tail;
-    private volatile long headCache;
 
     public MpmcConcurrentQueueTailField(int capacity) {
         super(capacity);
@@ -57,14 +56,6 @@ abstract class MpmcConcurrentQueueTailField<E> extends MpmcConcurrentQueueL1Pad<
 
     protected final boolean casTail(long expect, long newValue) {
         return UnsafeAccess.UNSAFE.compareAndSwapLong(this, TAIL_OFFSET, expect, newValue);
-    }
-
-    protected long lvHeadCache() {
-        return headCache;
-    }
-
-    protected void svHeadCache(long headCache) {
-        this.headCache = headCache;
     }
 }
 
@@ -88,7 +79,6 @@ abstract class MpmcConcurrentQueueHeadField<E> extends MpmcConcurrentQueueL2Pad<
         }
     }
     private volatile long head;
-    private volatile long tailCache;
 
     public MpmcConcurrentQueueHeadField(int capacity) {
         super(capacity);
@@ -100,14 +90,6 @@ abstract class MpmcConcurrentQueueHeadField<E> extends MpmcConcurrentQueueL2Pad<
 
     protected final boolean casHead(long expect, long newValue) {
         return UnsafeAccess.UNSAFE.compareAndSwapLong(this, HEAD_OFFSET, expect, newValue);
-    }
-
-    protected long lvTailCache() {
-        return tailCache;
-    }
-
-    protected void svTailCache(long tailCache) {
-        this.tailCache = tailCache;
     }
 }
 

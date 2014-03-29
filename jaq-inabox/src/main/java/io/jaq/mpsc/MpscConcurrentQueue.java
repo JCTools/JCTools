@@ -46,13 +46,12 @@ abstract class MpscConcurrentQueueTailField<E> extends MpscConcurrentQueueL1Pad<
         }
     }
     private volatile long tail;
-    protected long headCache;
 
     public MpscConcurrentQueueTailField(int capacity) {
         super(capacity);
     }
 
-    protected final long vlTail() {
+    protected final long lvTail() {
         return tail;
     }
 
@@ -87,11 +86,11 @@ abstract class MpscConcurrentQueueHeadField<E> extends MpscConcurrentQueueL2Pad<
         super(capacity);
     }
 
-    protected final long vlHead() {
+    protected final long lvHead() {
         return UNSAFE.getLongVolatile(this, HEAD_OFFSET);
     }
 
-    protected void lazySetHead(long l) {
+    protected void soHead(long l) {
         UNSAFE.putOrderedLong(this, HEAD_OFFSET, l);
     }
 }
@@ -118,19 +117,24 @@ public final class MpscConcurrentQueue<E> extends MpscConcurrentQueueHeadField<E
             throw new NullPointerException("Null is not a valid element");
         }
 
-        E[] lb = buffer;
+        final E[] lb = buffer;
         long currentTail;
-        do {
-            currentTail = vlTail();
-            final long wrapPoint = currentTail - capacity;
-            if (headCache <= wrapPoint) {
-                headCache = vlHead();
-                if (headCache <= wrapPoint) {
-                    return false;
+        long offset;
+        E currE;
+        for(;;) {
+            currentTail = lvTail();
+            offset = calcOffset(currentTail);
+            currE = lvElement(lb, offset);
+            if(currE == null) {
+                if (casTail(currentTail, currentTail + 1)) {
+                    break;
                 }
             }
-        } while (!casTail(currentTail, currentTail + 1));
-        final long offset = calcOffset(currentTail);
+            else {
+                return false;
+            }
+        }
+
         soElement(lb, offset, e);
         return true;
     }
@@ -140,19 +144,20 @@ public final class MpscConcurrentQueue<E> extends MpscConcurrentQueueHeadField<E
             throw new NullPointerException("Null is not a valid element");
         }
 
-        E[] lb = buffer;
-        long currentTail = vlTail();
-        final long wrapPoint = currentTail - capacity;
-        if (headCache <= wrapPoint) {
-            headCache = vlHead();
-            if (headCache <= wrapPoint) {
-                return 1;
+        final E[] lb = buffer;
+        long currentTail = lvTail();
+        long offset = calcOffset(currentTail);
+        E currE = lvElement(lb, offset);
+        if(currE == null) {
+            if (!casTail(currentTail, currentTail + 1)) {
+                return -1;
             }
+            // continue to exit, collect 200$
         }
-        if (!casTail(currentTail, currentTail + 1)) {
-            return -1;
+        else {
+            return 1;
         }
-        final long offset = calcOffset(currentTail);
+
         soElement(lb, offset, e);
         return 0;
     }
@@ -165,8 +170,8 @@ public final class MpscConcurrentQueue<E> extends MpscConcurrentQueueHeadField<E
         if (null == e) {
             return null;
         }
-        spElement(lb, offset, null);
-        lazySetHead(head + 1);
+        soElement(lb, offset, null);
+        head++;
         return e;
     }
 
@@ -190,11 +195,11 @@ public final class MpscConcurrentQueue<E> extends MpscConcurrentQueueHeadField<E
 
     @Override
     public E peek() {
-        return lpElement(calcOffset(vlHead()));
+        return lpElement(calcOffset(lvHead()));
     }
 
     public int size() {
-        return (int) (vlTail() - vlHead());
+        return (int) (lvTail() - lvHead());
     }
 
     public boolean isEmpty() {
@@ -206,7 +211,7 @@ public final class MpscConcurrentQueue<E> extends MpscConcurrentQueueHeadField<E
             return false;
         }
 
-        for (long i = vlHead(), limit = vlTail(); i < limit; i++) {
+        for (long i = lvHead(), limit = lvTail(); i < limit; i++) {
             final E e = lpElement(calcOffset(i));
             if (o.equals(e)) {
                 return true;
