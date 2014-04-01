@@ -16,7 +16,7 @@ package io.jaq.mpmc;
 import io.jaq.ConcurrentQueue;
 import io.jaq.ConcurrentQueueConsumer;
 import io.jaq.ConcurrentQueueProducer;
-import io.jaq.common.ConcurrentRingBuffer;
+import io.jaq.common.ConcurrentSequencedRingBuffer;
 import io.jaq.util.UnsafeAccess;
 
 import java.util.Collection;
@@ -24,7 +24,7 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Queue;
 
-abstract class MpmcConcurrentQueueL1Pad<E> extends ConcurrentRingBuffer<E> {
+abstract class MpmcConcurrentQueueL1Pad<E> extends ConcurrentSequencedRingBuffer<E> {
     public long p10, p11, p12, p13, p14, p15, p16;
     public long p30, p31, p32, p33, p34, p35, p36, p37;
 
@@ -35,7 +35,6 @@ abstract class MpmcConcurrentQueueL1Pad<E> extends ConcurrentRingBuffer<E> {
 
 abstract class MpmcConcurrentQueueTailField<E> extends MpmcConcurrentQueueL1Pad<E> {
     private final static long TAIL_OFFSET;
-
     static {
         try {
             TAIL_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(MpmcConcurrentQueueTailField.class
@@ -114,49 +113,65 @@ public final class MpmcConcurrentQueue<E> extends MpmcConcurrentQueueHeadField<E
         if (null == e) {
             throw new NullPointerException("Null is not a valid element");
         }
-
-        final E[] lb = buffer;
+        final long[] lsb = sequenceBuffer;
         long currentTail;
-        long offset;
-        E currE;
+        long pOffset;
+        
         for(;;) {
             currentTail = lvTail();
-            offset = calcOffset(currentTail);
-            currE = lvElement(lb, offset);
-            if(currE == null) {
+            pOffset = calcSequenceOffset(currentTail);
+            long seq = lvSequenceElement(lsb, pOffset);
+            long delta = seq - currentTail;
+            if(delta == 0) {
+                // this is expected if we see this first time around
                 if (casTail(currentTail, currentTail + 1)) {
                     break;
                 }
+                // failed cas, retry 1
             }
-            else {
+            else if(delta < 0){
+                // poll has not moved this value forward, 
                 return false;
             }
+            else {
+                // another producer beat us
+            }
         }
-
-        soElement(lb, offset, e);
+        long offset = calcOffset(currentTail);
+        spElement(offset, e);
+        // increment position, seeing this value again should lead to retry 2
+        soSequenceElement(lsb, pOffset, currentTail + 1);
         return true;
     }
 
     @Override
     public E poll() {
-        final E[] lb = buffer;
+        final long[] lsb = sequenceBuffer;
         long currentHead;
-        long offset;
-        E e;
+        long pOffset;
         for(;;) {
             currentHead = lvHead();
-            offset = calcOffset(currentHead);
-            e = lvElement(lb, offset);
-            if (e != null) {
+            pOffset = calcSequenceOffset(currentHead);
+            long seq = lvSequenceElement(lsb, pOffset);
+            long delta = seq - (currentHead + 1);
+            if(delta == 0) {
                 if (casHead(currentHead, currentHead + 1)) {
                     break;
                 }
+             // failed cas, retry 1
             }
-            else {
+            else if (delta < 0){
                 return null;
             }
+            else {
+                
+            }
         }
-        soElement(lb, offset, null);
+        long offset = calcOffset(currentHead);
+        final E[] lb = buffer;
+        E e = lvElement(lb, offset);
+        spElement(lb, offset, null);
+        soSequenceElement(lsb, pOffset, currentHead + capacity);
         return e;
     }
 
