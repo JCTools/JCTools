@@ -34,7 +34,25 @@ abstract class SpmcConcurrentArrayQueueL1Pad<E> extends ConcurrentRingBuffer<E> 
 }
 
 abstract class SpmcConcurrentArrayQueueTailField<E> extends SpmcConcurrentArrayQueueL1Pad<E> {
-    protected long tail;
+    protected final static long TAIL_OFFSET;
+    static {
+        try {
+            TAIL_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(SpmcConcurrentArrayQueueTailField.class
+                    .getDeclaredField("tail"));
+        } catch (NoSuchFieldException e) {
+            throw new RuntimeException(e);
+        }
+    }
+    private volatile long tail;
+
+
+    protected final long lvTail() {
+        return tail;
+    }
+    
+    protected final void soTail(long v) {
+        UnsafeAccess.UNSAFE.putOrderedLong(this, TAIL_OFFSET, v);
+    }
 
     public SpmcConcurrentArrayQueueTailField(int capacity) {
         super(capacity);
@@ -51,26 +69,50 @@ abstract class SpmcConcurrentArrayQueueL2Pad<E> extends SpmcConcurrentArrayQueue
 }
 
 abstract class SpmcConcurrentArrayQueueHeadField<E> extends SpmcConcurrentArrayQueueL2Pad<E> {
-    protected long head;
-
-    public SpmcConcurrentArrayQueueHeadField(int capacity) {
-        super(capacity);
-    }
-}
-
-abstract class SpmcConcurrentArrayQueueL3Pad<E> extends SpmcConcurrentArrayQueueHeadField<E> {
-    protected final static long TAIL_OFFSET;
     protected final static long HEAD_OFFSET;
     static {
         try {
-            TAIL_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(SpmcConcurrentArrayQueueTailField.class
-                    .getDeclaredField("tail"));
             HEAD_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(SpmcConcurrentArrayQueueHeadField.class
                     .getDeclaredField("head"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
     }
+    private volatile long head;
+
+    public SpmcConcurrentArrayQueueHeadField(int capacity) {
+        super(capacity);
+    }
+    protected final long lvHead() {
+        return head;
+    }
+    protected final boolean casHead(long expect, long newValue) {
+        return UnsafeAccess.UNSAFE.compareAndSwapLong(this, HEAD_OFFSET, expect, newValue);
+    }
+}
+abstract class SpmcConcurrentArrayQueueMidPad<E> extends SpmcConcurrentArrayQueueHeadField<E> {
+    public long p20, p21, p22, p23, p24, p25, p26;
+    public long p30, p31, p32, p33, p34, p35, p36, p37;
+
+    public SpmcConcurrentArrayQueueMidPad(int capacity) {
+        super(capacity);
+    }
+}
+abstract class SpmcConcurrentArrayQueueTailCacheField<E> extends SpmcConcurrentArrayQueueMidPad<E> {
+    private volatile long tailCache;
+
+    public SpmcConcurrentArrayQueueTailCacheField(int capacity) {
+        super(capacity);
+    }
+    protected final long lvTailCache() {
+        return tailCache;
+    }
+    protected final void svTailCache(long v) {
+        tailCache = v;
+    }
+}
+
+abstract class SpmcConcurrentArrayQueueL3Pad<E> extends SpmcConcurrentArrayQueueTailCacheField<E> {
     public long p40, p41, p42, p43, p44, p45, p46;
     public long p30, p31, p32, p33, p34, p35, p36, p37;
 
@@ -86,18 +128,6 @@ public final class SpmcConcurrentQueue<E> extends SpmcConcurrentArrayQueueL3Pad<
         super(capacity);
     }
 
-    private long lvHead() {
-        return UnsafeAccess.UNSAFE.getLongVolatile(this, HEAD_OFFSET);
-    }
-
-    private long lvTail() {
-        return UnsafeAccess.UNSAFE.getLongVolatile(this, TAIL_OFFSET);
-    }
-
-    private boolean casHead(long expect, long newValue) {
-        return UnsafeAccess.UNSAFE.compareAndSwapLong(this, HEAD_OFFSET, expect, newValue);
-    }
-
     public boolean add(final E e) {
         if (offer(e)) {
             return true;
@@ -111,38 +141,46 @@ public final class SpmcConcurrentQueue<E> extends SpmcConcurrentArrayQueueL3Pad<
             throw new NullPointerException("Null is not a valid element");
         }
         final E[] lb = buffer;
-        final long offset = calcOffset(tail);
+        final long currTail = lvTail();
+        final long offset = calcOffset(currTail);
         if (null != lvElement(lb, offset)) {
             return false;
         }
-        soElement(lb, offset, e);
-        tail++;
+        spElement(lb, offset, e);
+        // single producer, so store ordered is valid. It is also required to correctly publish the element
+        // and for the consumers to pick up the tail value.
+        soTail(currTail + 1);
         return true;
     }
 
 
     @Override
     public E poll() {
-        final E[] lb = buffer;
         long currentHead;
-        long offset;
-        E e;
-        for(;;) {
+        final long currTailCache = lvTailCache();
+        do {
             currentHead = lvHead();
-            offset = calcOffset(currentHead);
-            e = lvElement(lb, offset);
-            if (e != null) {
-                if (casHead(currentHead, currentHead + 1)) {
-                    break;
+            if (currentHead >= currTailCache) {
+                long currTail = lvTail();
+                if (currentHead >= currTail) {
+                    return null;
+                }
+                else {
+                    svTailCache(currTail);
                 }
             }
-            else {
-                return null;
-            }
-        }
+        } while (!casHead(currentHead, currentHead + 1));
+        // consumers are gated on latest visible tail, and so can't see a null value in the queue or overtake
+        // and wrap to hit same location.
+        final long offset = calcOffset(currentHead);
+        final E[] lb = buffer;
+        // load plain, element happens before it's index becomes visible
+        final E e = lpElement(lb, offset);
+        // store ordered, make sure nulling out is visible. Producer is waiting for this value.
         soElement(lb, offset, null);
         return e;
     }
+
 
     public E remove() {
         final E e = poll();

@@ -61,7 +61,31 @@ abstract class MpscConcurrentQueueTailField<E> extends MpscConcurrentQueueL1Pad<
 
 }
 
-abstract class MpscConcurrentQueueL2Pad<E> extends MpscConcurrentQueueTailField<E> {
+abstract class MpscConcurrentQueueMidPad<E> extends MpscConcurrentQueueTailField<E> {
+    public long p20, p21, p22, p23, p24, p25, p26;
+    public long p30, p31, p32, p33, p34, p35, p36, p37;
+
+    public MpscConcurrentQueueMidPad(int capacity) {
+        super(capacity);
+    }
+}
+abstract class MpscConcurrentQueueHeadCacheField<E> extends MpscConcurrentQueueMidPad<E> {
+    private volatile long headCache;
+
+    public MpscConcurrentQueueHeadCacheField(int capacity) {
+        super(capacity);
+    }
+
+    protected final long lvHeadCache() {
+        return headCache;
+    }
+    protected final void svHeadCache(long v) {
+        headCache = v;
+    }
+    
+}
+
+abstract class MpscConcurrentQueueL2Pad<E> extends MpscConcurrentQueueHeadCacheField<E> {
     public long p20, p21, p22, p23, p24, p25, p26;
     public long p30, p31, p32, p33, p34, p35, p36, p37;
 
@@ -80,14 +104,14 @@ abstract class MpscConcurrentQueueHeadField<E> extends MpscConcurrentQueueL2Pad<
             throw new RuntimeException(e);
         }
     }
-    protected long head;
+    private volatile long head;
 
     public MpscConcurrentQueueHeadField(int capacity) {
         super(capacity);
     }
 
     protected final long lvHead() {
-        return UNSAFE.getLongVolatile(this, HEAD_OFFSET);
+        return head;
     }
 
     protected void soHead(long l) {
@@ -116,26 +140,23 @@ public final class MpscConcurrentQueue<E> extends MpscConcurrentQueueHeadField<E
         if (null == e) {
             throw new NullPointerException("Null is not a valid element");
         }
-
-        final E[] lb = buffer;
+        final long currHeadCache = lvHeadCache();
         long currentTail;
-        long offset;
-        E currE;
-        for(;;) {
+        do {
             currentTail = lvTail();
-            offset = calcOffset(currentTail);
-            currE = lvElement(lb, offset);
-            if(currE == null) {
-                if (casTail(currentTail, currentTail + 1)) {
-                    break;
+            final long wrapPoint = currentTail - capacity;
+            if (currHeadCache <= wrapPoint) {
+                long currHead = lvHead();
+                if (currHead <= wrapPoint) {
+                    return false;
+                }
+                else {
+                    svHeadCache(currHead);
                 }
             }
-            else {
-                return false;
-            }
-        }
-
-        soElement(lb, offset, e);
+        } while (!casTail(currentTail, currentTail + 1));
+        final long offset = calcOffset(currentTail);
+        soElement(offset, e);
         return true;
     }
 
@@ -144,37 +165,39 @@ public final class MpscConcurrentQueue<E> extends MpscConcurrentQueueHeadField<E
             throw new NullPointerException("Null is not a valid element");
         }
 
-        final E[] lb = buffer;
         long currentTail = lvTail();
-        long offset = calcOffset(currentTail);
-        E currE = lvElement(lb, offset);
-        if(currE == null) {
-            if (!casTail(currentTail, currentTail + 1)) {
-                return -1;
+        final long currHeadCache = lvHeadCache();
+        final long wrapPoint = currentTail - capacity;
+        if (currHeadCache <= wrapPoint) {
+            long currHead = lvHead();
+            if (currHead <= wrapPoint) {
+                return 1;
             }
-            // continue to exit, collect 200$
+            else {
+                svHeadCache(currHead);
+            }
         }
-        else {
-            return 1;
+        if(!casTail(currentTail, currentTail + 1)){
+            return -1;
         }
-
-        soElement(lb, offset, e);
+        final long offset = calcOffset(currentTail);
+        soElement(offset, e);
         return 0;
     }
-
     @Override
     public E poll() {
-        final long offset = calcOffset(head);
+        final long currHead = lvHead();
+        final long offset = calcOffset(currHead);
         final E[] lb = buffer;
         final E e = lvElement(lb, offset);
         if (null == e) {
             return null;
         }
-        soElement(lb, offset, null);
-        head++;
+        spElement(lb, offset, null);
+        soHead(currHead + 1);
         return e;
     }
-
+    
     public E remove() {
         final E e = poll();
         if (null == e) {
