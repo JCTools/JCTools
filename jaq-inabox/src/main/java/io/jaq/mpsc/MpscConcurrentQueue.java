@@ -69,6 +69,7 @@ abstract class MpscConcurrentQueueMidPad<E> extends MpscConcurrentQueueTailField
         super(capacity);
     }
 }
+
 abstract class MpscConcurrentQueueHeadCacheField<E> extends MpscConcurrentQueueMidPad<E> {
     private volatile long headCache;
 
@@ -79,10 +80,11 @@ abstract class MpscConcurrentQueueHeadCacheField<E> extends MpscConcurrentQueueM
     protected final long lvHeadCache() {
         return headCache;
     }
+
     protected final void svHeadCache(long v) {
         headCache = v;
     }
-    
+
 }
 
 abstract class MpscConcurrentQueueL2Pad<E> extends MpscConcurrentQueueHeadCacheField<E> {
@@ -149,8 +151,7 @@ public final class MpscConcurrentQueue<E> extends MpscConcurrentQueueHeadField<E
                 long currHead = lvHead();
                 if (currHead <= wrapPoint) {
                     return false;
-                }
-                else {
+                } else {
                     svHeadCache(currHead);
                 }
             }
@@ -160,6 +161,11 @@ public final class MpscConcurrentQueue<E> extends MpscConcurrentQueueHeadField<E
         return true;
     }
 
+    /**
+     * @param e
+     *            a bludgeoned hamster
+     * @return 1 if full, -1 if CAS failed, 0 if successful
+     */
     public int offerStatus(final E e) {
         if (null == e) {
             throw new NullPointerException("Null is not a valid element");
@@ -171,33 +177,34 @@ public final class MpscConcurrentQueue<E> extends MpscConcurrentQueueHeadField<E
         if (currHeadCache <= wrapPoint) {
             long currHead = lvHead();
             if (currHead <= wrapPoint) {
-                return 1;
-            }
-            else {
+                return 1; // FULL
+            } else {
                 svHeadCache(currHead);
             }
         }
-        if(!casTail(currentTail, currentTail + 1)){
-            return -1;
+        if (!casTail(currentTail, currentTail + 1)) {
+            return -1; // CAS FAIL
         }
         final long offset = calcOffset(currentTail);
         soElement(offset, e);
-        return 0;
+        return 0; // AWESOME
     }
+
     @Override
     public E poll() {
         final long currHead = lvHead();
         final long offset = calcOffset(currHead);
         final E[] lb = buffer;
+        // If we can't see the next available element, consider the queue empty
         final E e = lvElement(lb, offset);
         if (null == e) {
-            return null;
+            return null; // EMPTY
         }
         spElement(lb, offset, null);
         soHead(currHead + 1);
         return e;
     }
-    
+
     public E remove() {
         final E e = poll();
         if (null == e) {

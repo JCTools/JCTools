@@ -26,8 +26,8 @@ import java.util.NoSuchElementException;
 import java.util.Queue;
 
 class FFBufferOfferBatchL0Pad {
-    public long p00, p01, p02, p03, p04, p05, p06, p07;
-    public long p30, p31, p32, p33, p34, p35, p36, p37;
+    long p00, p01, p02, p03, p04, p05, p06, p07;
+    long p30, p31, p32, p33, p34, p35, p36, p37;
 }
 
 class FFBufferOfferBatchColdFields<E> extends FFBufferOfferBatchL0Pad {
@@ -51,8 +51,8 @@ class FFBufferOfferBatchColdFields<E> extends FFBufferOfferBatchL0Pad {
 }
 
 class FFBufferOfferBatchL1Pad<E> extends FFBufferOfferBatchColdFields<E> {
-    public long p10, p11, p12, p13, p14, p15, p16;
-    public long p30, p31, p32, p33, p34, p35, p36, p37;
+    long p10, p11, p12, p13, p14, p15, p16;
+    long p30, p31, p32, p33, p34, p35, p36, p37;
 
     public FFBufferOfferBatchL1Pad(int capacity) {
         super(capacity);
@@ -69,8 +69,8 @@ class FFBufferOfferBatchTailField<E> extends FFBufferOfferBatchL1Pad<E> {
 }
 
 class FFBufferOfferBatchL2Pad<E> extends FFBufferOfferBatchTailField<E> {
-    public long p20, p21, p22, p23, p24, p25, p26;
-    public long p30, p31, p32, p33, p34, p35, p36, p37;
+    long p20, p21, p22, p23, p24, p25, p26;
+    long p30, p31, p32, p33, p34, p35, p36, p37;
 
     public FFBufferOfferBatchL2Pad(int capacity) {
         super(capacity);
@@ -86,8 +86,8 @@ class FFBufferOfferBatchHeadField<E> extends FFBufferOfferBatchL2Pad<E> {
 }
 
 class FFBufferOfferBatchL3Pad<E> extends FFBufferOfferBatchHeadField<E> {
-    public long p40, p41, p42, p43, p44, p45, p46;
-    public long p30, p31, p32, p33, p34, p35, p36, p37;
+    long p40, p41, p42, p43, p44, p45, p46;
+    long p30, p31, p32, p33, p34, p35, p36, p37;
 
     public FFBufferOfferBatchL3Pad(int capacity) {
         super(capacity);
