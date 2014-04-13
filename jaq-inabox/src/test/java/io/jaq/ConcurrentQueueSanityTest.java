@@ -16,6 +16,7 @@ public class ConcurrentQueueSanityTest {
 
     private static final int SIZE = 8192 * 2;
 
+    @SuppressWarnings("rawtypes")
     @Parameterized.Parameters
     public static Collection queues() {
         return Arrays
