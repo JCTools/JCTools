@@ -131,7 +131,11 @@ public final class MpscCompoundQueue<E> extends MPSCQueue33L3Pad<E> implements Q
     }
 
     public int size() {
-        throw new UnsupportedOperationException();
+        int size = 0;
+        for (MpscConcurrentQueue<E> lane : queues) {
+            size += lane.size();
+        }
+        return size;
     }
 
     public boolean isEmpty() {
