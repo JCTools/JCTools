@@ -4,6 +4,7 @@ import io.jaq.ConcurrentQueue;
 import io.jaq.ConcurrentQueueFactory;
 import io.jaq.mpmc.MpmcConcurrentQueue;
 import io.jaq.mpmc.MpmcConcurrentQueueCq;
+import io.jaq.mpmc.MpmcConcurrentQueueStateMarkers;
 import io.jaq.mpsc.MpscCompoundQueue;
 import io.jaq.mpsc.MpscConcurrentQueue;
 import io.jaq.mpsc.MpscOnSpscQueue;
@@ -30,8 +31,11 @@ public class SPSCConcurrentQueueFactory {
             return new MpscOnSpscQueue<Integer>(QUEUE_CAPACITY);
         case 7:
             return new MpmcConcurrentQueue<Integer>(QUEUE_CAPACITY);
+        case 71:
+            return new MpmcConcurrentQueueStateMarkers<Integer>(QUEUE_CAPACITY);
         case 70:
             return new MpmcConcurrentQueueCq<Integer>(QUEUE_CAPACITY);
+            
         }
         throw new IllegalArgumentException("Type: " + QUEUE_TYPE);
     }
