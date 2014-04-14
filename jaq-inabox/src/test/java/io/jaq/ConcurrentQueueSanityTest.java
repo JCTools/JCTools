@@ -1,8 +1,5 @@
 package io.jaq;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-
 import java.util.Arrays;
 import java.util.Collection;
 
@@ -10,6 +7,9 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 @RunWith(Parameterized.class)
 public class ConcurrentQueueSanityTest {
@@ -27,7 +27,14 @@ public class ConcurrentQueueSanityTest {
                         { new ConcurrentQueueSpec(0, 1, SIZE, Growth.BOUNDED, Ordering.PRODUCER_FIFO,
                                 Preference.NONE) },
                         { new ConcurrentQueueSpec(0, 1, SIZE, Growth.BOUNDED, Ordering.NONE, Preference.NONE) },
-                        { new ConcurrentQueueSpec(0, 0, SIZE, Growth.BOUNDED, Ordering.FIFO, Preference.NONE) }, });
+                        { new ConcurrentQueueSpec(0, 0, SIZE, Growth.BOUNDED, Ordering.FIFO, Preference.NONE) },
+                        { new ConcurrentQueueSpec(1, 1, 1, Growth.BOUNDED, Ordering.FIFO, Preference.NONE) },
+                        { new ConcurrentQueueSpec(1, 0, 1, Growth.BOUNDED, Ordering.FIFO, Preference.NONE) },
+                        { new ConcurrentQueueSpec(0, 1, 1, Growth.BOUNDED, Ordering.FIFO, Preference.NONE) },
+                        { new ConcurrentQueueSpec(0, 1, 1, Growth.BOUNDED, Ordering.PRODUCER_FIFO,
+                                Preference.NONE) },
+                        { new ConcurrentQueueSpec(0, 1, 1, Growth.BOUNDED, Ordering.NONE, Preference.NONE) },
+                        { new ConcurrentQueueSpec(0, 0, 1, Growth.BOUNDED, Ordering.FIFO, Preference.NONE) }, });
     }
 
     final ConcurrentQueue<Integer> q;
@@ -43,7 +50,7 @@ public class ConcurrentQueueSanityTest {
         q.consumer().clear();
     }
 
-    @Test
+    @Test(timeout = 3001)
     public void testOfferPoll() {
         for (int i = 0; i < SIZE; i++) {
             assertNull(q.consumer().poll());
