@@ -61,25 +61,23 @@ abstract class MpmcConcurrentQueueCqColdFields<E> extends ConcurrentSequencedRin
             final long[] lsb = sequenceBuffer;
             long currentTail;
             long pOffset;
-            
-            for(;;) {
+
+            for (;;) {
                 currentTail = lvTail();
                 pOffset = calcSequenceOffset(currentTail);
                 long seq = lvSequenceElement(lsb, pOffset);
                 long delta = seq - currentTail;
-                if(delta == 0) {
+                if (delta == 0) {
                     // this is expected if we see this first time around
                     if (casTail(currentTail, currentTail + 1)) {
                         break;
                     }
                     // failed cas, retry 1
-                }
-                else if(delta < 0){
-                    // poll has not moved this value forward, 
+                } else if (delta < 0) {
+                    // poll has not moved this value forward,
                     return false;
-                }
-                else {
-                    
+                } else {
+
                 }
             }
             long offset = calcOffset(currentTail);
@@ -122,28 +120,25 @@ abstract class MpmcConcurrentQueueCqColdFields<E> extends ConcurrentSequencedRin
             super(c);
         }
 
-
         @Override
         public E poll() {
             final long[] lsb = sequenceBuffer;
             long currentHead;
             long pOffset;
-            for(;;) {
+            for (;;) {
                 currentHead = lvHead();
                 pOffset = calcSequenceOffset(currentHead);
                 long seq = lvSequenceElement(lsb, pOffset);
                 long delta = seq - (currentHead + 1);
-                if(delta == 0) {
+                if (delta == 0) {
                     if (casHead(currentHead, currentHead + 1)) {
                         break;
                     }
-                 // failed cas, retry 1
-                }
-                else if (delta < 0){
+                    // failed cas, retry 1
+                } else if (delta < 0) {
                     return null;
-                }
-                else {
-                    
+                } else {
+
                 }
             }
             long offset = calcOffset(currentHead);
@@ -153,7 +148,6 @@ abstract class MpmcConcurrentQueueCqColdFields<E> extends ConcurrentSequencedRin
             soSequenceElement(lsb, pOffset, currentHead + capacity);
             return e;
         }
-
 
         @Override
         public E peek() {

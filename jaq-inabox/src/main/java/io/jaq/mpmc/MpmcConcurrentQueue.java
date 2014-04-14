@@ -25,8 +25,8 @@ import java.util.NoSuchElementException;
 import java.util.Queue;
 
 abstract class MpmcConcurrentQueueL1Pad<E> extends ConcurrentSequencedRingBuffer<E> {
-    public long p10, p11, p12, p13, p14, p15, p16;
-    public long p30, p31, p32, p33, p34, p35, p36, p37;
+    long p10, p11, p12, p13, p14, p15, p16;
+    long p30, p31, p32, p33, p34, p35, p36, p37;
 
     public MpmcConcurrentQueueL1Pad(int capacity) {
         super(capacity);
@@ -59,8 +59,8 @@ abstract class MpmcConcurrentQueueTailField<E> extends MpmcConcurrentQueueL1Pad<
 }
 
 abstract class MpmcConcurrentQueueL2Pad<E> extends MpmcConcurrentQueueTailField<E> {
-    public long p20, p21, p22, p23, p24, p25, p26;
-    public long p30, p31, p32, p33, p34, p35, p36, p37;
+    long p20, p21, p22, p23, p24, p25, p26;
+    long p30, p31, p32, p33, p34, p35, p36, p37;
 
     public MpmcConcurrentQueueL2Pad(int capacity) {
         super(capacity);
@@ -94,8 +94,8 @@ abstract class MpmcConcurrentQueueHeadField<E> extends MpmcConcurrentQueueL2Pad<
 
 public final class MpmcConcurrentQueue<E> extends MpmcConcurrentQueueHeadField<E> implements Queue<E>,
         ConcurrentQueue<E>, ConcurrentQueueProducer<E>, ConcurrentQueueConsumer<E> {
-    public long p40, p41, p42, p43, p44, p45, p46;
-    public long p30, p31, p32, p33, p34, p35, p36, p37;
+    long p40, p41, p42, p43, p44, p45, p46;
+    long p30, p31, p32, p33, p34, p35, p36, p37;
 
     public MpmcConcurrentQueue(final int capacity) {
         super(capacity);
@@ -116,24 +116,22 @@ public final class MpmcConcurrentQueue<E> extends MpmcConcurrentQueueHeadField<E
         final long[] lsb = sequenceBuffer;
         long currentTail;
         long pOffset;
-        
-        for(;;) {
+
+        for (;;) {
             currentTail = lvTail();
             pOffset = calcSequenceOffset(currentTail);
             long seq = lvSequenceElement(lsb, pOffset);
             long delta = seq - currentTail;
-            if(delta == 0) {
+            if (delta == 0) {
                 // this is expected if we see this first time around
                 if (casTail(currentTail, currentTail + 1)) {
                     break;
                 }
                 // failed cas, retry 1
-            }
-            else if(delta < 0){
-                // poll has not moved this value forward, 
+            } else if (delta < 0) {
+                // poll has not moved this value forward,
                 return false;
-            }
-            else {
+            } else {
                 // another producer beat us
             }
         }
@@ -149,22 +147,20 @@ public final class MpmcConcurrentQueue<E> extends MpmcConcurrentQueueHeadField<E
         final long[] lsb = sequenceBuffer;
         long currentHead;
         long pOffset;
-        for(;;) {
+        for (;;) {
             currentHead = lvHead();
             pOffset = calcSequenceOffset(currentHead);
             long seq = lvSequenceElement(lsb, pOffset);
             long delta = seq - (currentHead + 1);
-            if(delta == 0) {
+            if (delta == 0) {
                 if (casHead(currentHead, currentHead + 1)) {
                     break;
                 }
-             // failed cas, retry 1
-            }
-            else if (delta < 0){
+                // failed cas, retry 1
+            } else if (delta < 0) {
                 return null;
-            }
-            else {
-                
+            } else {
+
             }
         }
         long offset = calcOffset(currentHead);

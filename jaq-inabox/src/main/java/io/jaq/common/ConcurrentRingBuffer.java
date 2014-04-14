@@ -5,8 +5,8 @@ import io.jaq.util.Pow2;
 import io.jaq.util.UnsafeAccess;
 
 abstract class ConcurrentRingBufferL0Pad {
-    public long p00, p01, p02, p03, p04, p05, p06, p07;
-    public long p30, p31, p32, p33, p34, p35, p36, p37;
+    long p00, p01, p02, p03, p04, p05, p06, p07;
+    long p30, p31, p32, p33, p34, p35, p36, p37;
 }
 
 public class ConcurrentRingBuffer<E> extends ConcurrentRingBufferL0Pad {

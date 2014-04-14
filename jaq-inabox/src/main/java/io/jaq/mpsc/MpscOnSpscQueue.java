@@ -28,8 +28,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Use an SPSC per producer.
  */
 abstract class MpscOnSpscL0Pad {
-    public long p00, p01, p02, p03, p04, p05, p06, p07;
-    public long p30, p31, p32, p33, p34, p35, p36, p37;
+    long p00, p01, p02, p03, p04, p05, p06, p07;
+    long p30, p31, p32, p33, p34, p35, p36, p37;
 }
 
 @SuppressWarnings("unchecked")
@@ -61,8 +61,8 @@ abstract class MpscOnSpscFields<E> extends MpscOnSpscL0Pad {
 
 public final class MpscOnSpscQueue<E> extends MpscOnSpscFields<E> implements Queue<E>, ConcurrentQueue<E>,
         ConcurrentQueueConsumer<E>, ConcurrentQueueProducer<E> {
-    public long p40, p41, p42, p43, p44, p45, p46;
-    public long p30, p31, p32, p33, p34, p35, p36, p37;
+    long p40, p41, p42, p43, p44, p45, p46;
+    long p30, p31, p32, p33, p34, p35, p36, p37;
 
     public MpscOnSpscQueue(final int capacity) {
         super(capacity);

@@ -25,8 +25,8 @@ import java.util.NoSuchElementException;
 import java.util.Queue;
 
 abstract class SpmcConcurrentArrayQueueL1Pad<E> extends ConcurrentRingBuffer<E> {
-    public long p10, p11, p12, p13, p14, p15, p16;
-    public long p30, p31, p32, p33, p34, p35, p36, p37;
+    long p10, p11, p12, p13, p14, p15, p16;
+    long p30, p31, p32, p33, p34, p35, p36, p37;
 
     public SpmcConcurrentArrayQueueL1Pad(int capacity) {
         super(capacity);
@@ -45,11 +45,10 @@ abstract class SpmcConcurrentArrayQueueTailField<E> extends SpmcConcurrentArrayQ
     }
     private volatile long tail;
 
-
     protected final long lvTail() {
         return tail;
     }
-    
+
     protected final void soTail(long v) {
         UnsafeAccess.UNSAFE.putOrderedLong(this, TAIL_OFFSET, v);
     }
@@ -60,8 +59,8 @@ abstract class SpmcConcurrentArrayQueueTailField<E> extends SpmcConcurrentArrayQ
 }
 
 abstract class SpmcConcurrentArrayQueueL2Pad<E> extends SpmcConcurrentArrayQueueTailField<E> {
-    public long p20, p21, p22, p23, p24, p25, p26;
-    public long p30, p31, p32, p33, p34, p35, p36, p37;
+    long p20, p21, p22, p23, p24, p25, p26;
+    long p30, p31, p32, p33, p34, p35, p36, p37;
 
     public SpmcConcurrentArrayQueueL2Pad(int capacity) {
         super(capacity);
@@ -83,38 +82,44 @@ abstract class SpmcConcurrentArrayQueueHeadField<E> extends SpmcConcurrentArrayQ
     public SpmcConcurrentArrayQueueHeadField(int capacity) {
         super(capacity);
     }
+
     protected final long lvHead() {
         return head;
     }
+
     protected final boolean casHead(long expect, long newValue) {
         return UnsafeAccess.UNSAFE.compareAndSwapLong(this, HEAD_OFFSET, expect, newValue);
     }
 }
+
 abstract class SpmcConcurrentArrayQueueMidPad<E> extends SpmcConcurrentArrayQueueHeadField<E> {
-    public long p20, p21, p22, p23, p24, p25, p26;
-    public long p30, p31, p32, p33, p34, p35, p36, p37;
+    long p20, p21, p22, p23, p24, p25, p26;
+    long p30, p31, p32, p33, p34, p35, p36, p37;
 
     public SpmcConcurrentArrayQueueMidPad(int capacity) {
         super(capacity);
     }
 }
+
 abstract class SpmcConcurrentArrayQueueTailCacheField<E> extends SpmcConcurrentArrayQueueMidPad<E> {
     private volatile long tailCache;
 
     public SpmcConcurrentArrayQueueTailCacheField(int capacity) {
         super(capacity);
     }
+
     protected final long lvTailCache() {
         return tailCache;
     }
+
     protected final void svTailCache(long v) {
         tailCache = v;
     }
 }
 
 abstract class SpmcConcurrentArrayQueueL3Pad<E> extends SpmcConcurrentArrayQueueTailCacheField<E> {
-    public long p40, p41, p42, p43, p44, p45, p46;
-    public long p30, p31, p32, p33, p34, p35, p36, p37;
+    long p40, p41, p42, p43, p44, p45, p46;
+    long p30, p31, p32, p33, p34, p35, p36, p37;
 
     public SpmcConcurrentArrayQueueL3Pad(int capacity) {
         super(capacity);
@@ -153,7 +158,6 @@ public final class SpmcConcurrentQueue<E> extends SpmcConcurrentArrayQueueL3Pad<
         return true;
     }
 
-
     @Override
     public E poll() {
         long currentHead;
@@ -164,8 +168,7 @@ public final class SpmcConcurrentQueue<E> extends SpmcConcurrentArrayQueueL3Pad<
                 long currTail = lvTail();
                 if (currentHead >= currTail) {
                     return null;
-                }
-                else {
+                } else {
                     svTailCache(currTail);
                 }
             }
@@ -180,7 +183,6 @@ public final class SpmcConcurrentQueue<E> extends SpmcConcurrentArrayQueueL3Pad<
         soElement(lb, offset, null);
         return e;
     }
-
 
     public E remove() {
         final E e = poll();

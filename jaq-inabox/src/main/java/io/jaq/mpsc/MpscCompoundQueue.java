@@ -29,12 +29,12 @@ import java.util.concurrent.ThreadLocalRandom;
 /**
  * Use a set number of parallel MPSC queues to diffuse the contention on tail.
  */
-abstract class MPSCQueue33L0Pad {
-    public long p00, p01, p02, p03, p04, p05, p06, p07;
-    public long p30, p31, p32, p33, p34, p35, p36, p37;
+abstract class MpscCompoundQueueL0Pad {
+    long p00, p01, p02, p03, p04, p05, p06, p07;
+    long p30, p31, p32, p33, p34, p35, p36, p37;
 }
 
-abstract class MPSCQueue33ColdFields<E> extends MPSCQueue33L0Pad {
+abstract class MpscCompoundQueueColdFields<E> extends MpscCompoundQueueL0Pad {
     private static final int CPUS = Runtime.getRuntime().availableProcessors();
     // must be power of 2
     protected static final int PARALLEL_QUEUES = isPowerOf2(CPUS) ? CPUS
@@ -43,7 +43,7 @@ abstract class MPSCQueue33ColdFields<E> extends MPSCQueue33L0Pad {
     protected final MpscConcurrentQueue<E>[] queues;
 
     @SuppressWarnings("unchecked")
-    public MPSCQueue33ColdFields(int capacity) {
+    public MpscCompoundQueueColdFields(int capacity) {
         queues = new MpscConcurrentQueue[PARALLEL_QUEUES];
         for (int i = 0; i < PARALLEL_QUEUES; i++) {
             queues[i] = new MpscConcurrentQueue<E>(findNextPositivePowerOfTwo(capacity) / PARALLEL_QUEUES);
@@ -51,17 +51,17 @@ abstract class MPSCQueue33ColdFields<E> extends MPSCQueue33L0Pad {
     }
 }
 
-abstract class MPSCQueue33L3Pad<E> extends MPSCQueue33ColdFields<E> {
-    public long p40, p41, p42, p43, p44, p45, p46;
-    public long p30, p31, p32, p33, p34, p35, p36, p37;
+abstract class MpscCompoundQueueL3Pad<E> extends MpscCompoundQueueColdFields<E> {
+    long p40, p41, p42, p43, p44, p45, p46;
+    long p30, p31, p32, p33, p34, p35, p36, p37;
 
-    public MPSCQueue33L3Pad(int capacity) {
+    public MpscCompoundQueueL3Pad(int capacity) {
         super(capacity);
     }
 }
 
-public final class MpscCompoundQueue<E> extends MPSCQueue33L3Pad<E> implements Queue<E>, ConcurrentQueue<E>,
-        ConcurrentQueueConsumer<E>, ConcurrentQueueProducer<E> {
+public final class MpscCompoundQueue<E> extends MpscCompoundQueueL3Pad<E> implements Queue<E>,
+        ConcurrentQueue<E>, ConcurrentQueueConsumer<E>, ConcurrentQueueProducer<E> {
 
     public MpscCompoundQueue(final int capacity) {
         super(capacity);
@@ -131,7 +131,11 @@ public final class MpscCompoundQueue<E> extends MPSCQueue33L3Pad<E> implements Q
     }
 
     public int size() {
-        throw new UnsupportedOperationException();
+        int size = 0;
+        for (MpscConcurrentQueue<E> lane : queues) {
+            size += lane.size();
+        }
+        return size;
     }
 
     public boolean isEmpty() {
