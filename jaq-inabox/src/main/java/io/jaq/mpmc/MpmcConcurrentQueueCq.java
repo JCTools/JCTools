@@ -178,7 +178,7 @@ public final class MpmcConcurrentQueueCq<E> extends MpmcConcurrentQueueCqColdFie
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
     public MpmcConcurrentQueueCq(final int capacity) {
-        super(capacity);
+        super(Math.max(2, capacity));
     }
 
     @Override

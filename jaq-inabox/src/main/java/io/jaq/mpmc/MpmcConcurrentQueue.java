@@ -98,7 +98,7 @@ public final class MpmcConcurrentQueue<E> extends MpmcConcurrentQueueHeadField<E
     long p30, p31, p32, p33, p34, p35, p36, p37;
 
     public MpmcConcurrentQueue(final int capacity) {
-        super(capacity);
+        super(Math.max(2, capacity));
     }
 
     public boolean add(final E e) {

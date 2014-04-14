@@ -141,7 +141,7 @@ public final class FFBufferWithOfferBatchCq<E> extends FFBufferOfferBatchCqColdF
     }
 
     public FFBufferWithOfferBatchCq(final int capacity) {
-        super(capacity);
+        super(Math.max(capacity,2*OFFER_BATCH_SIZE));
     }
 
     @Override
