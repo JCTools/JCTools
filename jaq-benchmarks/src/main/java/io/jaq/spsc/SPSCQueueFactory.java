@@ -29,13 +29,15 @@ public class SPSCQueueFactory {
             return new ConcurrentLinkedQueue<Integer>();
         case 0:
             return new InlinedCountersSpscConcurrentArrayQueue<Integer>(QUEUE_CAPACITY);
-        case 1:
+        case 10:
             return new BQueue<Integer>(QUEUE_CAPACITY);
-        case 2:
+        case 20:
             return new FFBuffer<Integer>(QUEUE_CAPACITY);
         case 3:
             return new FFBufferWithOfferBatch<Integer>(QUEUE_CAPACITY);
-        case 4:
+        case 31:
+            return new SpscLinkedQueue<Integer>();
+        case 40:
             return new FloatingCountersSpscConcurrentArrayQueue<Integer>(QUEUE_CAPACITY);
         case 5:
             return new SpmcConcurrentQueue<Integer>(QUEUE_CAPACITY);
