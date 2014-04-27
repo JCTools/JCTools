@@ -124,7 +124,7 @@ public final class FFBufferWithOfferBatch<E> extends FFBufferOfferBatchL3Pad<E> 
     protected static final int OFFER_BATCH_SIZE = Integer.getInteger("offer.batch.size", 4096);
 
     public FFBufferWithOfferBatch(final int capacity) {
-        super(capacity);
+        super(Math.max(capacity,2*OFFER_BATCH_SIZE));
     }
 
     private long getHeadV() {
