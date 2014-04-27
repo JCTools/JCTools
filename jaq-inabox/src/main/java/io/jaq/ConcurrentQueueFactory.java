@@ -5,6 +5,7 @@ import io.jaq.mpsc.MpscCompoundQueue;
 import io.jaq.mpsc.MpscConcurrentQueue;
 import io.jaq.spmc.SpmcConcurrentQueue;
 import io.jaq.spsc.FFBufferWithOfferBatchCq;
+import io.jaq.spsc.SpscLinkedQueue;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -40,6 +41,13 @@ public class ConcurrentQueueFactory {
             else {
                 return new MpmcConcurrentQueue<>(qs.capacity);
             }
+        }
+        else {
+            if (qs.consumers == 1 && qs.producers == 1) {
+
+                return new SpscLinkedQueue<>();
+            }
+
         }
         return new GenericQueue<E>();
     }

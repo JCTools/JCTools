@@ -21,6 +21,7 @@ public class ConcurrentQueueSanityTest {
     public static Collection queues() {
         return Arrays
                 .asList(new Object[][] {
+                        { new ConcurrentQueueSpec(1, 1, 1, Growth.UNBOUNDED, Ordering.FIFO, Preference.NONE) },
                         { new ConcurrentQueueSpec(1, 1, 1, Growth.BOUNDED, Ordering.FIFO, Preference.NONE) },
                         { new ConcurrentQueueSpec(1, 1, SIZE, Growth.BOUNDED, Ordering.FIFO, Preference.NONE) },
                         { new ConcurrentQueueSpec(1, 0, 1, Growth.BOUNDED, Ordering.FIFO, Preference.NONE) },
@@ -58,9 +59,9 @@ public class ConcurrentQueueSanityTest {
             assertEquals(0, q.size());
         }
         int i = 0;
-        while (q.producer().offer(i++))
-            ;
-        int size = i - 1;
+        while (i < SIZE && q.producer().offer(i))
+            i++;
+        int size = i;
         assertEquals(size, q.size());
         if (spec.ordering == Ordering.FIFO) {
             // expect FIFO
