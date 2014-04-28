@@ -24,20 +24,26 @@ import org.openjdk.jmh.annotations.Warmup;
 @State(Scope.Thread)
 public class SingleThreadedPoll
 {
-    public final Queue<Integer> q = SPSCQueueFactory.createQueue();
+    public static final int CAPACITY = 1 << 15;
+    public static final Integer TOKEN = 1;
+   
+    public final Queue<Integer> q = SPSCQueueFactory.createQueue(CAPACITY);
     @Setup(Level.Invocation)
-    public void empty()
+    public void fill()
     {
-        q.clear();
+        for( int i=0; i<CAPACITY; i++)
+        {
+            q.offer(TOKEN);
+        }
     }
 
     @GenerateMicroBenchmark
-    @OperationsPerInvocation(SPSCQueueFactory.CAPACITY)
-    public void offer()
+    @OperationsPerInvocation(CAPACITY)
+    public void poll()
     {
-        for (int i = 0; i < SPSCQueueFactory.CAPACITY; i++)
+        for (int i = 0; i < CAPACITY; i++)
         {
-            q.offer(Integer.MIN_VALUE);
+            q.poll();
         }
     }
 }

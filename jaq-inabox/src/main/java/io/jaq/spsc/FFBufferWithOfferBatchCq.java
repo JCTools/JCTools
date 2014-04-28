@@ -68,7 +68,7 @@ public final class FFBufferWithOfferBatchCq<E> extends FFBufferOfferBatchCqColdF
                 throw new NullPointerException("Null is not a valid element");
             }
 
-            E[] lb = buffer;
+            final E[] lb = buffer;
             if (tail >= batchTail) {
                 if (null != lvElement(lb, calcOffset(tail + OFFER_BATCH_SIZE))) {
                     return false;
@@ -114,7 +114,7 @@ public final class FFBufferWithOfferBatchCq<E> extends FFBufferOfferBatchCqColdF
         @Override
         public E poll() {
             final long offset = calcOffset(head);
-            E[] lb = buffer;
+            final E[] lb = buffer;
             final E e = lvElement(lb, offset);
             if (null == e) {
                 return null;

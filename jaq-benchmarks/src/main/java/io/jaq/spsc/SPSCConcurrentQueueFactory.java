@@ -21,6 +21,8 @@ public class SPSCConcurrentQueueFactory {
             return new FFBufferWithOfferBatch<Integer>(QUEUE_CAPACITY);
         case 30:
             return new FFBufferWithOfferBatchCq<Integer>(QUEUE_CAPACITY);
+        case 31:
+            return new SpscLinkedQueue<Integer>();
         case 5:
             return new SpmcConcurrentQueue<Integer>(QUEUE_CAPACITY);
         case 6:

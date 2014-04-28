@@ -13,44 +13,17 @@
  */
 package io.jaq.spsc;
 
-import static io.jaq.util.UnsafeAccess.UNSAFE;
 import io.jaq.ConcurrentQueue;
 import io.jaq.ConcurrentQueueConsumer;
 import io.jaq.ConcurrentQueueProducer;
-import io.jaq.util.Pow2;
+import io.jaq.common.ConcurrentRingBuffer;
 import io.jaq.util.UnsafeAccess;
 
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Queue;
-
-class FFBufferOfferBatchL0Pad {
-    long p00, p01, p02, p03, p04, p05, p06, p07;
-    long p30, p31, p32, p33, p34, p35, p36, p37;
-}
-
-class FFBufferOfferBatchColdFields<E> extends FFBufferOfferBatchL0Pad {
-    protected static final int BUFFER_PAD = 32;
-    protected static final int SPARSE_SHIFT = Integer.getInteger("sparse.shift", 2);
-    protected final int capacity;
-    protected final long mask;
-    protected final E[] buffer;
-
-    @SuppressWarnings("unchecked")
-    public FFBufferOfferBatchColdFields(int capacity) {
-        if (Pow2.isPowerOf2(capacity)) {
-            this.capacity = capacity;
-        } else {
-            this.capacity = Pow2.findNextPositivePowerOfTwo(capacity);
-        }
-        mask = this.capacity - 1;
-        // pad data on either end with some empty slots.
-        buffer = (E[]) new Object[(this.capacity << SPARSE_SHIFT) + BUFFER_PAD * 2];
-    }
-}
-
-class FFBufferOfferBatchL1Pad<E> extends FFBufferOfferBatchColdFields<E> {
+class FFBufferOfferBatchL1Pad<E> extends ConcurrentRingBuffer<E> {
     long p10, p11, p12, p13, p14, p15, p16;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 
@@ -98,25 +71,12 @@ public final class FFBufferWithOfferBatch<E> extends FFBufferOfferBatchL3Pad<E> 
         ConcurrentQueue<E>, ConcurrentQueueProducer<E>, ConcurrentQueueConsumer<E> {
     private final static long TAIL_OFFSET;
     private final static long HEAD_OFFSET;
-    private static final long ARRAY_BASE;
-    private static final int ELEMENT_SHIFT;
     static {
         try {
             TAIL_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(FFBufferOfferBatchTailField.class
                     .getDeclaredField("tail"));
             HEAD_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(FFBufferOfferBatchHeadField.class
                     .getDeclaredField("head"));
-            final int scale = UnsafeAccess.UNSAFE.arrayIndexScale(Object[].class);
-            if (4 == scale) {
-                ELEMENT_SHIFT = 2 + SPARSE_SHIFT;
-            } else if (8 == scale) {
-                ELEMENT_SHIFT = 3 + SPARSE_SHIFT;
-            } else {
-                throw new IllegalStateException("Unknown pointer size");
-            }
-            // Including the buffer pad in the array base offset
-            ARRAY_BASE = UnsafeAccess.UNSAFE.arrayBaseOffset(Object[].class)
-                    + (BUFFER_PAD << (ELEMENT_SHIFT - SPARSE_SHIFT));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
@@ -124,7 +84,7 @@ public final class FFBufferWithOfferBatch<E> extends FFBufferOfferBatchL3Pad<E> 
     protected static final int OFFER_BATCH_SIZE = Integer.getInteger("offer.batch.size", 4096);
 
     public FFBufferWithOfferBatch(final int capacity) {
-        super(Math.max(capacity,2*OFFER_BATCH_SIZE));
+        super(capacity);
     }
 
     private long getHeadV() {
@@ -141,11 +101,6 @@ public final class FFBufferWithOfferBatch<E> extends FFBufferOfferBatchL3Pad<E> 
         }
         throw new IllegalStateException("Queue is full");
     }
-
-    private long offset(long index) {
-        return ARRAY_BASE + ((index & mask) << ELEMENT_SHIFT);
-    }
-
     public boolean offer(final E e) {
         if (null == e) {
             throw new NullPointerException("Null is not a valid element");
@@ -153,26 +108,25 @@ public final class FFBufferWithOfferBatch<E> extends FFBufferOfferBatchL3Pad<E> 
 
         E[] lb = buffer;
         if (tail >= batchTail) {
-            if (null != UNSAFE.getObjectVolatile(lb, offset(tail + OFFER_BATCH_SIZE))) {
+            if (null != lvElement(lb, calcOffset(tail + OFFER_BATCH_SIZE))) {
                 return false;
             }
             batchTail = tail + OFFER_BATCH_SIZE;
         }
-        UNSAFE.putOrderedObject(lb, offset(tail), e);
+        soElement(lb, calcOffset(tail), e);
         tail++;
 
         return true;
     }
 
     public E poll() {
-        final long offset = offset(head);
-        E[] lb = buffer;
-        @SuppressWarnings("unchecked")
-        final E e = (E) UnsafeAccess.UNSAFE.getObjectVolatile(lb, offset);
+        final long offset = calcOffset(head);
+        final E[] lb = buffer;
+        final E e = lvElement(lb, offset);
         if (null == e) {
             return null;
         }
-        UnsafeAccess.UNSAFE.putOrderedObject(lb, offset, null);
+        soElement(lb, offset, null);
         head++;
         return e;
     }
@@ -199,9 +153,8 @@ public final class FFBufferWithOfferBatch<E> extends FFBufferOfferBatchL3Pad<E> 
         return getElement(head);
     }
 
-    @SuppressWarnings("unchecked")
     private E getElement(long index) {
-        return (E) UnsafeAccess.UNSAFE.getObject(buffer, offset(index));
+        return lvElement(buffer, calcOffset(index));
     }
 
     public int size() {

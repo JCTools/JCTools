@@ -24,23 +24,23 @@ import org.openjdk.jmh.annotations.Warmup;
 @State(Scope.Thread)
 public class SingleThreadedOffer
 {
-    public final Queue<Integer> q = SPSCQueueFactory.createQueue();
+    public static final int CAPACITY = 1 << 15;
+    public static final Integer TOKEN = 1;
+   
+    public final Queue<Integer> q = SPSCQueueFactory.createQueue(CAPACITY*2);
     @Setup(Level.Invocation)
-    public void fill()
+    public void clear()
     {
-        for( int i=0; i<SPSCQueueFactory.CAPACITY; i++)
-        {
-            q.offer(Integer.MIN_VALUE);
-        }
+        q.clear();
     }
 
     @GenerateMicroBenchmark
-    @OperationsPerInvocation(SPSCQueueFactory.CAPACITY)
-    public void poll()
+    @OperationsPerInvocation(CAPACITY)
+    public void offer()
     {
-        for (int i = 0; i < SPSCQueueFactory.CAPACITY; i++)
+        for (int i = 0; i < CAPACITY; i++)
         {
-            q.poll();
+            q.offer(TOKEN);
         }
     }
 }

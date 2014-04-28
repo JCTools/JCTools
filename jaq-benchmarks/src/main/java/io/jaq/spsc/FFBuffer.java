@@ -13,7 +13,7 @@
  */
 package io.jaq.spsc;
 
-import io.jaq.util.Pow2;
+import io.jaq.common.ConcurrentRingBuffer;
 import io.jaq.util.UnsafeAccess;
 
 import java.util.Collection;
@@ -21,71 +21,58 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Queue;
 
-class FFBufferL0Pad {
-    public long p00, p01, p02, p03, p04, p05, p06, p07;
-    public long p30, p31, p32, p33, p34, p35, p36,p37;
-}
-class FFBufferColdFields<E> extends FFBufferL0Pad {
-    protected static final int BUFFER_PAD = 32;
-    protected static final int SPARSE_SHIFT = Integer.getInteger("sparse.shift", 2);
-    protected final int capacity;
-    protected final long mask;
-    protected final E[] buffer;
-    @SuppressWarnings("unchecked")
-    public FFBufferColdFields(int capacity) {
-        if(Pow2.isPowerOf2(capacity)){
-            this.capacity = capacity;
-        }
-        else{
-            this.capacity = Pow2.findNextPositivePowerOfTwo(capacity);
-        }
-        mask = this.capacity - 1;
-        // pad data on either end with some empty slots.
-        buffer = (E[]) new Object[(this.capacity<<SPARSE_SHIFT) + BUFFER_PAD * 2];
+abstract class FFBufferL1Pad<E> extends ConcurrentRingBuffer<E> {
+    public long p10, p11, p12, p13, p14, p15, p16;
+    public long p30, p31, p32, p33, p34, p35, p36, p37;
+
+    public FFBufferL1Pad(int capacity) {
+        super(capacity);
     }
 }
-class FFBufferL1Pad<E> extends FFBufferColdFields<E> {
-    public long p10, p11, p12, p13, p14, p15, p16;
-    public long p30, p31, p32, p33, p34, p35, p36,p37;
-    public FFBufferL1Pad(int capacity) { super(capacity);}
-}
-class FFBufferTailField<E> extends FFBufferL1Pad<E> {
+
+abstract class FFBufferTailField<E> extends FFBufferL1Pad<E> {
     protected long tail;
-    public FFBufferTailField(int capacity) { super(capacity);}
+
+    public FFBufferTailField(int capacity) {
+        super(capacity);
+    }
 }
-class FFBufferL2Pad<E> extends FFBufferTailField<E> {
+
+abstract class FFBufferL2Pad<E> extends FFBufferTailField<E> {
     public long p20, p21, p22, p23, p24, p25, p26;
-    public long p30, p31, p32, p33, p34, p35, p36,p37;
-    public FFBufferL2Pad(int capacity) { super(capacity);}
+    public long p30, p31, p32, p33, p34, p35, p36, p37;
+
+    public FFBufferL2Pad(int capacity) {
+        super(capacity);
+    }
 }
-class FFBufferHeadField<E> extends FFBufferL2Pad<E> {
+
+abstract class FFBufferHeadField<E> extends FFBufferL2Pad<E> {
     protected long head;
-    public FFBufferHeadField(int capacity) { super(capacity);}
+
+    public FFBufferHeadField(int capacity) {
+        super(capacity);
+    }
 }
-class FFBufferL3Pad<E> extends FFBufferHeadField<E> {
+
+abstract class FFBufferL3Pad<E> extends FFBufferHeadField<E> {
     public long p40, p41, p42, p43, p44, p45, p46;
-    public long p30, p31, p32, p33, p34, p35, p36,p37;
-    public FFBufferL3Pad(int capacity) { super(capacity);}
+    public long p30, p31, p32, p33, p34, p35, p36, p37;
+
+    public FFBufferL3Pad(int capacity) {
+        super(capacity);
+    }
 }
+
 public final class FFBuffer<E> extends FFBufferL3Pad<E> implements Queue<E> {
     private final static long TAIL_OFFSET;
     private final static long HEAD_OFFSET;
-    private static final long ARRAY_BASE;
-    private static final int ELEMENT_SHIFT;
     static {
         try {
-            TAIL_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(FFBufferTailField.class.getDeclaredField("tail"));
-            HEAD_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(FFBufferHeadField.class.getDeclaredField("head"));
-            final int scale = UnsafeAccess.UNSAFE.arrayIndexScale(Object[].class);
-            if (4 == scale) {
-                ELEMENT_SHIFT = 2 + SPARSE_SHIFT;
-            } else if (8 == scale) {
-                ELEMENT_SHIFT = 3 + SPARSE_SHIFT;
-            } else {
-                throw new IllegalStateException("Unknown pointer size");
-            }
-            // Including the buffer pad in the array base offset
-            ARRAY_BASE = UnsafeAccess.UNSAFE.arrayBaseOffset(Object[].class) + (BUFFER_PAD << (ELEMENT_SHIFT - SPARSE_SHIFT));
+            TAIL_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(FFBufferTailField.class
+                    .getDeclaredField("tail"));
+            HEAD_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(FFBufferHeadField.class
+                    .getDeclaredField("head"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
@@ -109,33 +96,29 @@ public final class FFBuffer<E> extends FFBufferL3Pad<E> implements Queue<E> {
         }
         throw new IllegalStateException("Queue is full");
     }
-    private long offset(long index) {
-        return ARRAY_BASE + ((index & mask) << ELEMENT_SHIFT);
-    }
+
     public boolean offer(final E e) {
         if (null == e) {
             throw new NullPointerException("Null is not a valid element");
         }
 
-        final long offset = offset(tail);
-        if (null != UnsafeAccess.UNSAFE.getObjectVolatile(buffer, offset)) {
+        final E[] lb = buffer;
+        if (null != lvElement(lb, calcOffset(tail))) {
             return false;
         }
-        // STORE/STORE barrier, anything that happens before is visible
-        // when the value in the buffer is visible
-        UnsafeAccess.UNSAFE.putOrderedObject(buffer, offset, e);
+        soElement(lb, calcOffset(tail), e);
         tail++;
         return true;
     }
 
     public E poll() {
-        final long offset = offset(head);
-        @SuppressWarnings("unchecked")
-        final E e = (E) UnsafeAccess.UNSAFE.getObjectVolatile(buffer, offset);
+        final long offset = calcOffset(head);
+        final E[] lb = buffer;
+        final E e = lvElement(lb, offset);
         if (null == e) {
             return null;
         }
-        UnsafeAccess.UNSAFE.putOrderedObject(buffer, offset, null);
+        soElement(lb, offset, null);
         head++;
         return e;
     }
@@ -163,11 +146,9 @@ public final class FFBuffer<E> extends FFBufferL3Pad<E> implements Queue<E> {
         return getElement(currentHead);
     }
 
-    @SuppressWarnings("unchecked")
     private E getElement(long index) {
-        return (E) UnsafeAccess.UNSAFE.getObject(buffer, offset(index));
+        return lvElement(calcOffset(index));
     }
-
 
     public int size() {
         return (int) (getTail() - getHead());
