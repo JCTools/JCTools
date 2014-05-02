@@ -38,9 +38,10 @@ public class SingleThreadedOffer
     @OperationsPerInvocation(CAPACITY)
     public void offer()
     {
+        final Queue<Integer> lq = q;
         for (int i = 0; i < CAPACITY; i++)
         {
-            q.offer(TOKEN);
+            lq.offer(TOKEN);
         }
     }
 }

@@ -41,9 +41,10 @@ public class SingleThreadedPoll
     @OperationsPerInvocation(CAPACITY)
     public void poll()
     {
+        final Queue<Integer> lq = q;
         for (int i = 0; i < CAPACITY; i++)
         {
-            q.poll();
+            lq.poll();
         }
     }
 }
