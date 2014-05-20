@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Queue;
+
 class FFBufferOfferBatchL1Pad<E> extends ConcurrentRingBuffer<E> {
     long p10, p11, p12, p13, p14, p15, p16;
     long p30, p31, p32, p33, p34, p35, p36, p37;
@@ -84,7 +85,7 @@ public final class FFBufferWithOfferBatch<E> extends FFBufferOfferBatchL3Pad<E> 
     protected static final int OFFER_BATCH_SIZE = Integer.getInteger("offer.batch.size", 4096);
 
     public FFBufferWithOfferBatch(final int capacity) {
-        super(capacity);
+        super(Math.max(capacity, 2 * OFFER_BATCH_SIZE));
     }
 
     private long getHeadV() {
@@ -101,6 +102,7 @@ public final class FFBufferWithOfferBatch<E> extends FFBufferOfferBatchL3Pad<E> 
         }
         throw new IllegalStateException("Queue is full");
     }
+
     public boolean offer(final E e) {
         if (null == e) {
             throw new NullPointerException("Null is not a valid element");
