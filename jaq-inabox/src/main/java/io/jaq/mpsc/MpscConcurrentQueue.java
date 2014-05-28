@@ -26,8 +26,8 @@ import java.util.NoSuchElementException;
 import java.util.Queue;
 
 abstract class MpscConcurrentQueueL1Pad<E> extends ConcurrentRingBuffer<E> {
-    public long p10, p11, p12, p13, p14, p15, p16;
-    public long p30, p31, p32, p33, p34, p35, p36, p37;
+    long p10, p11, p12, p13, p14, p15, p16;
+    long p30, p31, p32, p33, p34, p35, p36, p37;
 
     public MpscConcurrentQueueL1Pad(int capacity) {
         super(capacity);
@@ -62,8 +62,8 @@ abstract class MpscConcurrentQueueTailField<E> extends MpscConcurrentQueueL1Pad<
 }
 
 abstract class MpscConcurrentQueueMidPad<E> extends MpscConcurrentQueueTailField<E> {
-    public long p20, p21, p22, p23, p24, p25, p26;
-    public long p30, p31, p32, p33, p34, p35, p36, p37;
+    long p20, p21, p22, p23, p24, p25, p26;
+    long p30, p31, p32, p33, p34, p35, p36, p37;
 
     public MpscConcurrentQueueMidPad(int capacity) {
         super(capacity);
@@ -88,8 +88,8 @@ abstract class MpscConcurrentQueueHeadCacheField<E> extends MpscConcurrentQueueM
 }
 
 abstract class MpscConcurrentQueueL2Pad<E> extends MpscConcurrentQueueHeadCacheField<E> {
-    public long p20, p21, p22, p23, p24, p25, p26;
-    public long p30, p31, p32, p33, p34, p35, p36, p37;
+    long p20, p21, p22, p23, p24, p25, p26;
+    long p30, p31, p32, p33, p34, p35, p36, p37;
 
     public MpscConcurrentQueueL2Pad(int capacity) {
         super(capacity);
@@ -123,8 +123,8 @@ abstract class MpscConcurrentQueueHeadField<E> extends MpscConcurrentQueueL2Pad<
 
 public final class MpscConcurrentQueue<E> extends MpscConcurrentQueueHeadField<E> implements Queue<E>,
         ConcurrentQueue<E>, ConcurrentQueueProducer<E>, ConcurrentQueueConsumer<E> {
-    public long p40, p41, p42, p43, p44, p45, p46;
-    public long p30, p31, p32, p33, p34, p35, p36, p37;
+    long p40, p41, p42, p43, p44, p45, p46;
+    long p30, p31, p32, p33, p34, p35, p36, p37;
 
     public MpscConcurrentQueue(final int capacity) {
         super(capacity);
@@ -162,11 +162,10 @@ public final class MpscConcurrentQueue<E> extends MpscConcurrentQueueHeadField<E
     }
 
     /**
-     * @param e
-     *            a bludgeoned hamster
+     * @param e a bludgeoned hamster
      * @return 1 if full, -1 if CAS failed, 0 if successful
      */
-    public int offerStatus(final E e) {
+    public int tryOffer(final E e) {
         if (null == e) {
             throw new NullPointerException("Null is not a valid element");
         }
