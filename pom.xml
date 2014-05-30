@@ -2,11 +2,11 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
-	<groupId>io.jaq</groupId>
-	<artifactId>jaq-parent</artifactId>
+	<groupId>org.jctools</groupId>
+	<artifactId>jctools-parent</artifactId>
 	<packaging>pom</packaging>
 	<version>1.0-SNAPSHOT</version>
-	<name>JAQ Parent</name>
+	<name>JCTools Parent</name>
 	<organization>
 		<url>http://psy-lob-saw.blogspot.com/</url>
 	</organization>
@@ -21,8 +21,8 @@
 	</properties>
 
 	<modules>
-		<module>jaq-inabox</module>
-		<module>jaq-benchmarks</module>
+		<module>jctools-core</module>
+		<module>jctools-benchmarks</module>
 	</modules>
 	<build>
 		<plugins>
@@ -38,5 +38,4 @@
 			</plugin>
 		</plugins>
 	</build>
-
 </project>
