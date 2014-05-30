@@ -4,6 +4,6 @@
 *.jar
 *.war
 *.ear
-/jaq-inabox/target
-/jaq-benchmarks/target
+/jctools-core/target
+/jctools-benchmarks/target
 /.project

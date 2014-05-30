@@ -6,6 +6,12 @@ import static org.junit.Assert.assertNull;
 import java.util.Arrays;
 import java.util.Collection;
 
+import org.jctools.ConcurrentQueue;
+import org.jctools.ConcurrentQueueFactory;
+import org.jctools.ConcurrentQueueSpec;
+import org.jctools.Growth;
+import org.jctools.Ordering;
+import org.jctools.Preference;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
