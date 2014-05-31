@@ -1,4 +1,4 @@
-package io.jaq;
+package org.jctools.queues.alt;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -6,12 +6,12 @@ import static org.junit.Assert.assertNull;
 import java.util.Arrays;
 import java.util.Collection;
 
-import org.jctools.ConcurrentQueue;
-import org.jctools.ConcurrentQueueFactory;
-import org.jctools.ConcurrentQueueSpec;
-import org.jctools.Growth;
-import org.jctools.Ordering;
-import org.jctools.Preference;
+import org.jctools.queues.alt.ConcurrentQueue;
+import org.jctools.queues.alt.ConcurrentQueueFactory;
+import org.jctools.queues.spec.ConcurrentQueueSpec;
+import org.jctools.queues.spec.Growth;
+import org.jctools.queues.spec.Ordering;
+import org.jctools.queues.spec.Preference;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;

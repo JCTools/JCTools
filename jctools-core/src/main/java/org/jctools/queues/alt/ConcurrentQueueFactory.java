@@ -1,13 +1,15 @@
-package org.jctools;
+package org.jctools.queues.alt;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import org.jctools.queues.FFBufferWithOfferBatchCq;
 import org.jctools.queues.MpmcConcurrentQueue;
 import org.jctools.queues.MpscCompoundQueue;
 import org.jctools.queues.MpscConcurrentQueue;
 import org.jctools.queues.SpmcConcurrentQueue;
 import org.jctools.queues.SpscLinkedQueue;
+import org.jctools.queues.spec.ConcurrentQueueSpec;
+import org.jctools.queues.spec.Growth;
+import org.jctools.queues.spec.Ordering;
 
 /**
  * The queue factory produces {@link ConcurrentQueue} instances based on a best fit to the

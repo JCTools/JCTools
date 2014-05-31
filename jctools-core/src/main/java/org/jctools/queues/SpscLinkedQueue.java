@@ -3,9 +3,9 @@ package org.jctools.queues;
 import java.util.AbstractQueue;
 import java.util.Iterator;
 
-import org.jctools.ConcurrentQueue;
-import org.jctools.ConcurrentQueueConsumer;
-import org.jctools.ConcurrentQueueProducer;
+import org.jctools.queues.alt.ConcurrentQueue;
+import org.jctools.queues.alt.ConcurrentQueueConsumer;
+import org.jctools.queues.alt.ConcurrentQueueProducer;
 
 abstract class SpscLinkedQueuePad0<E> extends AbstractQueue<E> {
     long p00, p01, p02, p03, p04, p05, p06, p07;

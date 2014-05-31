@@ -18,64 +18,64 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Queue;
 
-import org.jctools.ConcurrentQueue;
-import org.jctools.ConcurrentQueueConsumer;
-import org.jctools.ConcurrentQueueProducer;
+import org.jctools.queues.alt.ConcurrentQueue;
+import org.jctools.queues.alt.ConcurrentQueueConsumer;
+import org.jctools.queues.alt.ConcurrentQueueProducer;
 import org.jctools.util.UnsafeAccess;
 
-class FFBufferOfferBatchL1Pad<E> extends ConcurrentRingBuffer<E> {
+abstract class SpscConcurrentQueueL1Pad<E> extends ConcurrentCircularArray<E> {
     long p10, p11, p12, p13, p14, p15, p16;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 
-    public FFBufferOfferBatchL1Pad(int capacity) {
+    public SpscConcurrentQueueL1Pad(int capacity) {
         super(capacity);
     }
 }
 
-class FFBufferOfferBatchTailField<E> extends FFBufferOfferBatchL1Pad<E> {
+abstract class SpscConcurrentQueueTailField<E> extends SpscConcurrentQueueL1Pad<E> {
     protected long tail;
     protected long batchTail;
 
-    public FFBufferOfferBatchTailField(int capacity) {
+    public SpscConcurrentQueueTailField(int capacity) {
         super(capacity);
     }
 }
 
-class FFBufferOfferBatchL2Pad<E> extends FFBufferOfferBatchTailField<E> {
+abstract class SpscConcurrentQueueL2Pad<E> extends SpscConcurrentQueueTailField<E> {
     long p20, p21, p22, p23, p24, p25, p26;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 
-    public FFBufferOfferBatchL2Pad(int capacity) {
+    public SpscConcurrentQueueL2Pad(int capacity) {
         super(capacity);
     }
 }
 
-class FFBufferOfferBatchHeadField<E> extends FFBufferOfferBatchL2Pad<E> {
+abstract class SpscConcurrentQueueHeadField<E> extends SpscConcurrentQueueL2Pad<E> {
     protected long head;
 
-    public FFBufferOfferBatchHeadField(int capacity) {
+    public SpscConcurrentQueueHeadField(int capacity) {
         super(capacity);
     }
 }
 
-class FFBufferOfferBatchL3Pad<E> extends FFBufferOfferBatchHeadField<E> {
+abstract class SpscConcurrentQueueL3Pad<E> extends SpscConcurrentQueueHeadField<E> {
     long p40, p41, p42, p43, p44, p45, p46;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 
-    public FFBufferOfferBatchL3Pad(int capacity) {
+    public SpscConcurrentQueueL3Pad(int capacity) {
         super(capacity);
     }
 }
 
-public final class FFBufferWithOfferBatch<E> extends FFBufferOfferBatchL3Pad<E> implements Queue<E>,
+public final class SpscConcurrentQueue<E> extends SpscConcurrentQueueL3Pad<E> implements Queue<E>,
         ConcurrentQueue<E>, ConcurrentQueueProducer<E>, ConcurrentQueueConsumer<E> {
     private final static long TAIL_OFFSET;
     private final static long HEAD_OFFSET;
     static {
         try {
-            TAIL_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(FFBufferOfferBatchTailField.class
+            TAIL_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(SpscConcurrentQueueTailField.class
                     .getDeclaredField("tail"));
-            HEAD_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(FFBufferOfferBatchHeadField.class
+            HEAD_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(SpscConcurrentQueueHeadField.class
                     .getDeclaredField("head"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
@@ -83,7 +83,7 @@ public final class FFBufferWithOfferBatch<E> extends FFBufferOfferBatchL3Pad<E> 
     }
     protected static final int OFFER_BATCH_SIZE = Integer.getInteger("offer.batch.size", 4096);
 
-    public FFBufferWithOfferBatch(final int capacity) {
+    public SpscConcurrentQueue(final int capacity) {
         super(Math.max(capacity, 2 * OFFER_BATCH_SIZE));
     }
 

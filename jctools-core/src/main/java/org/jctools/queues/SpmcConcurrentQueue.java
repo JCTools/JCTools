@@ -18,12 +18,12 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Queue;
 
-import org.jctools.ConcurrentQueue;
-import org.jctools.ConcurrentQueueConsumer;
-import org.jctools.ConcurrentQueueProducer;
+import org.jctools.queues.alt.ConcurrentQueue;
+import org.jctools.queues.alt.ConcurrentQueueConsumer;
+import org.jctools.queues.alt.ConcurrentQueueProducer;
 import org.jctools.util.UnsafeAccess;
 
-abstract class SpmcConcurrentArrayQueueL1Pad<E> extends ConcurrentRingBuffer<E> {
+abstract class SpmcConcurrentArrayQueueL1Pad<E> extends ConcurrentCircularArray<E> {
     long p10, p11, p12, p13, p14, p15, p16;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 

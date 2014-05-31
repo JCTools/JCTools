@@ -2,15 +2,18 @@ package org.jctools.queues;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 
+import java.util.AbstractQueue;
+import java.util.Iterator;
+
 import org.jctools.util.Pow2;
 import org.jctools.util.UnsafeAccess;
 
-abstract class ConcurrentRingBufferL0Pad {
+abstract class ConcurrentCircularArrayL0Pad<E> extends AbstractQueue<E>{
     long p00, p01, p02, p03, p04, p05, p06, p07;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 }
 
-public class ConcurrentRingBuffer<E> extends ConcurrentRingBufferL0Pad {
+public abstract class ConcurrentCircularArray<E> extends ConcurrentCircularArrayL0Pad<E> {
     protected static final int SPARSE_SHIFT = Integer.getInteger("sparse.shift", 2);
     protected static final int BUFFER_PAD = 32;
     private static final long REF_ARRAY_BASE;
@@ -34,18 +37,14 @@ public class ConcurrentRingBuffer<E> extends ConcurrentRingBufferL0Pad {
     protected final E[] buffer;
 
     @SuppressWarnings("unchecked")
-    public ConcurrentRingBuffer(int capacity) {
-        if (Pow2.isPowerOf2(capacity)) {
-            this.capacity = capacity;
-        } else {
-            this.capacity = Pow2.findNextPositivePowerOfTwo(capacity);
-        }
+    public ConcurrentCircularArray(int capacity) {
+        this.capacity = Pow2.findNextPositivePowerOfTwo(capacity);
         mask = this.capacity - 1;
         // pad data on either end with some empty slots.
         buffer = (E[]) new Object[(this.capacity << SPARSE_SHIFT) + BUFFER_PAD * 2];
     }
 
-    public ConcurrentRingBuffer(ConcurrentRingBuffer<E> c) {
+    public ConcurrentCircularArray(ConcurrentCircularArray<E> c) {
         this.capacity = c.capacity;
         this.mask = c.mask;
         // pad data on either end with some empty slots.
@@ -100,4 +99,26 @@ public class ConcurrentRingBuffer<E> extends ConcurrentRingBufferL0Pad {
         return (E) UNSAFE.getObjectVolatile(buffer, offset);
     }
 
+    @Override
+    public boolean offer(E e) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public E poll() {
+        throw new UnsupportedOperationException();
+    }
+    @Override
+    public E peek() {
+        throw new UnsupportedOperationException();
+    }
+    @Override
+    public Iterator<E> iterator() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public int size() {
+        throw new UnsupportedOperationException();
+    }
 }

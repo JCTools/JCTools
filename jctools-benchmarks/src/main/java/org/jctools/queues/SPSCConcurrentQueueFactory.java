@@ -1,17 +1,17 @@
 package org.jctools.queues;
 
-import org.jctools.ConcurrentQueue;
-import org.jctools.ConcurrentQueueFactory;
-import org.jctools.queues.FFBufferWithOfferBatch;
-import org.jctools.queues.FFBufferWithOfferBatchCq;
+import org.jctools.queues.SpscConcurrentQueue;
 import org.jctools.queues.MpmcConcurrentQueue;
-import org.jctools.queues.MpmcConcurrentQueueCq;
 import org.jctools.queues.MpmcConcurrentQueueStateMarkers;
 import org.jctools.queues.MpscCompoundQueue;
 import org.jctools.queues.MpscConcurrentQueue;
 import org.jctools.queues.MpscOnSpscQueue;
 import org.jctools.queues.SpmcConcurrentQueue;
 import org.jctools.queues.SpscLinkedQueue;
+import org.jctools.queues.alt.ConcurrentQueue;
+import org.jctools.queues.alt.ConcurrentQueueFactory;
+import org.jctools.queues.alt.FFBufferWithOfferBatchCq;
+import org.jctools.queues.alt.MpmcConcurrentQueueCq;
 
 public class SPSCConcurrentQueueFactory {
     public static final int QUEUE_CAPACITY = 1 << Integer.getInteger("pow2.capacity", 15);
@@ -21,7 +21,7 @@ public class SPSCConcurrentQueueFactory {
         case -1:
             return new ConcurrentQueueFactory.GenericQueue<Integer>();
         case 3:
-            return new FFBufferWithOfferBatch<Integer>(QUEUE_CAPACITY);
+            return new SpscConcurrentQueue<Integer>(QUEUE_CAPACITY);
         case 30:
             return new FFBufferWithOfferBatchCq<Integer>(QUEUE_CAPACITY);
         case 31:

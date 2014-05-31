@@ -4,7 +4,7 @@ import static org.jctools.util.UnsafeAccess.UNSAFE;
 
 import org.jctools.util.UnsafeAccess;
 
-public class ConcurrentSequencedRingBuffer<E> extends ConcurrentRingBuffer<E> {
+public abstract class ConcurrentSequencedCircularArray<E> extends ConcurrentCircularArray<E> {
     private static final long ARRAY_BASE;
     private static final int ELEMENT_SHIFT;
     static {
@@ -20,7 +20,7 @@ public class ConcurrentSequencedRingBuffer<E> extends ConcurrentRingBuffer<E> {
     }
     protected final long[] sequenceBuffer;
 
-    public ConcurrentSequencedRingBuffer(int capacity) {
+    public ConcurrentSequencedCircularArray(int capacity) {
         super(capacity);
         // pad data on either end with some empty slots.
         sequenceBuffer = new long[(this.capacity << SPARSE_SHIFT) + BUFFER_PAD * 2];
@@ -29,7 +29,7 @@ public class ConcurrentSequencedRingBuffer<E> extends ConcurrentRingBuffer<E> {
         }
     }
 
-    public ConcurrentSequencedRingBuffer(ConcurrentSequencedRingBuffer<E> c) {
+    public ConcurrentSequencedCircularArray(ConcurrentSequencedCircularArray<E> c) {
         super(c);
         this.sequenceBuffer = c.sequenceBuffer;
     }

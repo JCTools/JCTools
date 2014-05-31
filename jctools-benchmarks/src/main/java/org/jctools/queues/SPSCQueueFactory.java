@@ -8,7 +8,7 @@ import java.util.concurrent.LinkedTransferQueue;
 
 import org.jctools.queues.BQueue;
 import org.jctools.queues.FFBuffer;
-import org.jctools.queues.FFBufferWithOfferBatch;
+import org.jctools.queues.SpscConcurrentQueue;
 import org.jctools.queues.FloatingCountersSpscConcurrentArrayQueue;
 import org.jctools.queues.InlinedCountersSpscConcurrentArrayQueue;
 import org.jctools.queues.MpmcConcurrentQueue;
@@ -43,7 +43,7 @@ public class SPSCQueueFactory {
         case 20:
             return new FFBuffer<Integer>(queueCapacity);
         case 3:
-            return new FFBufferWithOfferBatch<Integer>(queueCapacity);
+            return new SpscConcurrentQueue<Integer>(queueCapacity);
         case 31:
             return new SpscLinkedQueue<Integer>();
         case 40:

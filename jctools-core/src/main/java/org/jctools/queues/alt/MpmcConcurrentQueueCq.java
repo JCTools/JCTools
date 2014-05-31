@@ -11,17 +11,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jctools.queues;
+package org.jctools.queues.alt;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 
-import org.jctools.ConcurrentQueue;
-import org.jctools.ConcurrentQueueConsumer;
-import org.jctools.ConcurrentQueueProducer;
+import org.jctools.queues.ConcurrentSequencedCircularArray;
 
-abstract class MpmcConcurrentQueueCqColdFields<E> extends ConcurrentSequencedRingBuffer<E> {
+abstract class MpmcConcurrentQueueCqColdFields<E> extends ConcurrentSequencedCircularArray<E> {
 
-    private static abstract class ProducerFields<E> extends ConcurrentSequencedRingBuffer<E> {
+    private static abstract class ProducerFields<E> extends ConcurrentSequencedCircularArray<E> {
         protected static final long TAIL_OFFSET;
         static {
             try {
@@ -32,7 +30,7 @@ abstract class MpmcConcurrentQueueCqColdFields<E> extends ConcurrentSequencedRin
         }
         private volatile long tail;
 
-        public ProducerFields(ConcurrentSequencedRingBuffer<E> c) {
+        public ProducerFields(ConcurrentSequencedCircularArray<E> c) {
             super(c);
         }
 
@@ -49,7 +47,7 @@ abstract class MpmcConcurrentQueueCqColdFields<E> extends ConcurrentSequencedRin
         long p00, p01, p02, p03, p04, p05, p06, p07;
         long p10, p11, p12, p13, p14, p15, p16, p17;
 
-        public Producer(ConcurrentSequencedRingBuffer<E> c) {
+        public Producer(ConcurrentSequencedCircularArray<E> c) {
             super(c);
         }
 
@@ -88,7 +86,7 @@ abstract class MpmcConcurrentQueueCqColdFields<E> extends ConcurrentSequencedRin
         }
     }
 
-    private static abstract class ConsumerFields<E> extends ConcurrentSequencedRingBuffer<E> {
+    private static abstract class ConsumerFields<E> extends ConcurrentSequencedCircularArray<E> {
         protected static final long HEAD_OFFSET;
         static {
             try {
@@ -99,7 +97,7 @@ abstract class MpmcConcurrentQueueCqColdFields<E> extends ConcurrentSequencedRin
         }
         private volatile long head = 0;
 
-        public ConsumerFields(ConcurrentSequencedRingBuffer<E> c) {
+        public ConsumerFields(ConcurrentSequencedCircularArray<E> c) {
             super(c);
         }
 
@@ -116,7 +114,7 @@ abstract class MpmcConcurrentQueueCqColdFields<E> extends ConcurrentSequencedRin
         long p00, p01, p02, p03, p04, p05, p06, p07;
         long p10, p11, p12, p13, p14, p15, p16, p17;
 
-        private Consumer(ConcurrentSequencedRingBuffer<E> c) {
+        private Consumer(ConcurrentSequencedCircularArray<E> c) {
             super(c);
         }
 

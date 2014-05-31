@@ -19,9 +19,9 @@ import java.util.NoSuchElementException;
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.jctools.ConcurrentQueue;
-import org.jctools.ConcurrentQueueConsumer;
-import org.jctools.ConcurrentQueueProducer;
+import org.jctools.queues.alt.ConcurrentQueue;
+import org.jctools.queues.alt.ConcurrentQueueConsumer;
+import org.jctools.queues.alt.ConcurrentQueueProducer;
 
 /**
  * Use an SPSC per producer.
@@ -48,7 +48,7 @@ abstract class MpscOnSpscFields<E> extends MpscOnSpscL0Pad {
             }
         };
         for (int i = 0; i < queues.length; i++) {
-            queues[i] = new FFBufferWithOfferBatch<E>(capacity);
+            queues[i] = new SpscConcurrentQueue<E>(capacity);
         }
         currentQ = queues[0];
     }

@@ -19,9 +19,9 @@ import static org.jctools.util.Pow2.isPowerOf2;
 import java.util.AbstractQueue;
 import java.util.Iterator;
 
-import org.jctools.ConcurrentQueue;
-import org.jctools.ConcurrentQueueConsumer;
-import org.jctools.ConcurrentQueueProducer;
+import org.jctools.queues.alt.ConcurrentQueue;
+import org.jctools.queues.alt.ConcurrentQueueConsumer;
+import org.jctools.queues.alt.ConcurrentQueueProducer;
 
 /**
  * Use a set number of parallel MPSC queues to diffuse the contention on tail.

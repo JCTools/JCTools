@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jctools;
+package org.jctools.queues.spec;
 
 public enum Ordering {
     FIFO, KFIFO, PRODUCER_FIFO, NONE

@@ -13,17 +13,14 @@
  */
 package org.jctools.queues;
 
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.NoSuchElementException;
 import java.util.Queue;
 
-import org.jctools.ConcurrentQueue;
-import org.jctools.ConcurrentQueueConsumer;
-import org.jctools.ConcurrentQueueProducer;
+import org.jctools.queues.alt.ConcurrentQueue;
+import org.jctools.queues.alt.ConcurrentQueueConsumer;
+import org.jctools.queues.alt.ConcurrentQueueProducer;
 import org.jctools.util.UnsafeAccess;
 
-abstract class MpmcConcurrentQueueL1Pad<E> extends ConcurrentSequencedRingBuffer<E> {
+abstract class MpmcConcurrentQueueL1Pad<E> extends ConcurrentSequencedCircularArray<E> {
     long p10, p11, p12, p13, p14, p15, p16;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 
@@ -100,13 +97,6 @@ public final class MpmcConcurrentQueue<E> extends MpmcConcurrentQueueHeadField<E
         super(Math.max(2, capacity));
     }
 
-    public boolean add(final E e) {
-        if (offer(e)) {
-            return true;
-        }
-        throw new IllegalStateException("Queue is full");
-    }
-
     @Override
     public boolean offer(final E e) {
         if (null == e) {
@@ -170,99 +160,14 @@ public final class MpmcConcurrentQueue<E> extends MpmcConcurrentQueueHeadField<E
         return e;
     }
 
-    public E remove() {
-        final E e = poll();
-        if (null == e) {
-            throw new NoSuchElementException("Queue is empty");
-        }
-
-        return e;
-    }
-
-    public E element() {
-        final E e = peek();
-        if (null == e) {
-            throw new NoSuchElementException("Queue is empty");
-        }
-
-        return e;
-    }
-
     @Override
     public E peek() {
         return lpElement(calcOffset(lvHead()));
     }
 
+    @Override
     public int size() {
         return (int) (lvTail() - lvHead());
-    }
-
-    public boolean isEmpty() {
-        return size() == 0;
-    }
-
-    public boolean contains(final Object o) {
-        if (null == o) {
-            return false;
-        }
-
-        for (long i = lvHead(), limit = lvTail(); i < limit; i++) {
-            final E e = lpElement(calcOffset(i));
-            if (o.equals(e)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    public Iterator<E> iterator() {
-        throw new UnsupportedOperationException();
-    }
-
-    public Object[] toArray() {
-        throw new UnsupportedOperationException();
-    }
-
-    public <T> T[] toArray(final T[] a) {
-        throw new UnsupportedOperationException();
-    }
-
-    public boolean remove(final Object o) {
-        throw new UnsupportedOperationException();
-    }
-
-    public boolean containsAll(final Collection<?> c) {
-        for (final Object o : c) {
-            if (!contains(o)) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    public boolean addAll(final Collection<? extends E> c) {
-        for (final E e : c) {
-            add(e);
-        }
-
-        return true;
-    }
-
-    public boolean removeAll(final Collection<?> c) {
-        throw new UnsupportedOperationException();
-    }
-
-    public boolean retainAll(final Collection<?> c) {
-        throw new UnsupportedOperationException();
-    }
-
-    public void clear() {
-        Object value;
-        do {
-            value = poll();
-        } while (null != value);
     }
 
     @Override

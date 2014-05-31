@@ -11,12 +11,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jctools;
+package org.jctools.queues.alt;
 
 /**
  * @author nitsanw
  * 
  */
-public enum Preference {
-    LATENCY, THROUGHPUT, NONE
+public interface ConcurrentQueueProducer<E> {
+    /**
+     * @param e
+     * @return true if e was successfully offered, false if queue is full
+     */
+    boolean offer(E e);
 }
