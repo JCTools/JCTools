@@ -16,7 +16,7 @@ package org.jctools.jmh.spsc.throughput;
 import java.util.Queue;
 import java.util.concurrent.TimeUnit;
 
-import org.jctools.spsc.SPSCQueueFactory;
+import org.jctools.queues.SPSCQueueFactory;
 import org.openjdk.jmh.annotations.AuxCounters;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.GenerateMicroBenchmark;
@@ -30,7 +30,7 @@ import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Warmup;
-import org.openjdk.jmh.logic.BlackHole;
+import org.openjdk.jmh.infra.Blackhole;
 
 @State(Scope.Group)
 @BenchmarkMode(Mode.Throughput)
@@ -71,7 +71,7 @@ public class QueueThroughputYieldWithThreadCounters {
             Thread.yield();
         } 
         if (DELAY_PRODUCER != 0) {
-            BlackHole.consumeCPU(DELAY_PRODUCER);
+            Blackhole.consumeCPU(DELAY_PRODUCER);
         }
     }
 
@@ -83,7 +83,7 @@ public class QueueThroughputYieldWithThreadCounters {
             Thread.yield();
         } 
         if (DELAY_CONSUMER != 0) {
-            BlackHole.consumeCPU(DELAY_CONSUMER);
+            Blackhole.consumeCPU(DELAY_CONSUMER);
         }
     }
 

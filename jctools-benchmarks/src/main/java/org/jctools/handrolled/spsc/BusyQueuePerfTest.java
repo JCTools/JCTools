@@ -15,7 +15,7 @@ package org.jctools.handrolled.spsc;
 
 import java.util.Queue;
 
-import org.jctools.spsc.SPSCQueueFactory;
+import org.jctools.queues.SPSCQueueFactory;
 
 public class BusyQueuePerfTest {
     // 15 == 32 * 1024

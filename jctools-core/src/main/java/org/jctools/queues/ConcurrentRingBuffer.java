@@ -1,4 +1,4 @@
-package org.jctools.common;
+package org.jctools.queues;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 

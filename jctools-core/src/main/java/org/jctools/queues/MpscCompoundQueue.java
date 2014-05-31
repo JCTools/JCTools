@@ -11,14 +11,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jctools.mpsc;
+package org.jctools.queues;
 
 import static org.jctools.util.Pow2.findNextPositivePowerOfTwo;
 import static org.jctools.util.Pow2.isPowerOf2;
 
 import java.util.AbstractQueue;
 import java.util.Iterator;
-import java.util.concurrent.ThreadLocalRandom;
 
 import org.jctools.ConcurrentQueue;
 import org.jctools.ConcurrentQueueConsumer;

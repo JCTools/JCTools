@@ -18,8 +18,7 @@ import java.util.concurrent.TimeUnit;
 import org.jctools.ConcurrentQueue;
 import org.jctools.ConcurrentQueueConsumer;
 import org.jctools.ConcurrentQueueProducer;
-import org.jctools.spsc.FFBufferWithOfferBatch;
-import org.jctools.spsc.SPSCConcurrentQueueFactory;
+import org.jctools.queues.SPSCConcurrentQueueFactory;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.GenerateMicroBenchmark;
 import org.openjdk.jmh.annotations.Group;
@@ -32,7 +31,7 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
-import org.openjdk.jmh.logic.Control;
+import org.openjdk.jmh.infra.Control;
 
 @State(Scope.Group)
 @BenchmarkMode(Mode.Throughput)

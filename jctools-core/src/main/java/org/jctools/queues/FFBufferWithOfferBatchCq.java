@@ -11,12 +11,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jctools.spsc;
+package org.jctools.queues;
 
 import org.jctools.ConcurrentQueue;
 import org.jctools.ConcurrentQueueConsumer;
 import org.jctools.ConcurrentQueueProducer;
-import org.jctools.common.ConcurrentRingBuffer;
 import org.jctools.util.UnsafeAccess;
 
 abstract class FFBufferOfferBatchCqColdFields<E> extends ConcurrentRingBuffer<E> {

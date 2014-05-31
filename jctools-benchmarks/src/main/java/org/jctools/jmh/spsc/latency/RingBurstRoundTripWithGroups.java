@@ -17,7 +17,7 @@ import java.util.Queue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.jctools.spsc.SPSCQueueFactory;
+import org.jctools.queues.SPSCQueueFactory;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.GenerateMicroBenchmark;
 import org.openjdk.jmh.annotations.Group;
@@ -31,7 +31,7 @@ import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Warmup;
-import org.openjdk.jmh.logic.Control;
+import org.openjdk.jmh.infra.Control;
 
 /**
  * Measure the Round Trip Time between 2 or more threads communicating via chained queues. This is a

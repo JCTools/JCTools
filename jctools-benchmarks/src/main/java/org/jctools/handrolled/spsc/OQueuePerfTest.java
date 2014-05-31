@@ -17,7 +17,7 @@ package org.jctools.handrolled.spsc;
 
 import java.util.Queue;
 
-import org.jctools.spsc.SPSCQueueFactory;
+import org.jctools.queues.SPSCQueueFactory;
 
 
 public class OQueuePerfTest {

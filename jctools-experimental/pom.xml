@@ -1,36 +1,33 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>org.jctools</groupId>
+		<artifactId>jctools-parent</artifactId>
+		<version>1.0-SNAPSHOT</version>
+	</parent>
+	<artifactId>jctools-experimental</artifactId>
+	<packaging>jar</packaging>
+	<name>Experimental implementations</name>
 
-	<groupId>org.jctools</groupId>
-	<artifactId>jctools-parent</artifactId>
-	<packaging>pom</packaging>
-	<version>1.0-SNAPSHOT</version>
-	<name>JCTools Parent</name>
-	<organization>
-		<url>http://psy-lob-saw.blogspot.com/</url>
-	</organization>
-	<inceptionYear>2013</inceptionYear>
-
-	<prerequisites>
-		<maven>3.0</maven>
-	</prerequisites>
+	<dependencies>
+		<dependency>
+			<groupId>org.jctools</groupId>
+			<artifactId>jctools-core</artifactId>
+			<version>1.0-SNAPSHOT</version>
+		</dependency>
+	</dependencies>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
 
-	<modules>
-		<module>jctools-core</module>
-		<module>jctools-benchmarks</module>
-                <module>jctools-experimental</module>
-	</modules>
 	<build>
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
-				<version>2.3.2</version>
+				<version>3.0</version>
 				<configuration>
 					<compilerVersion>1.7</compilerVersion>
 					<source>1.7</source>
@@ -40,3 +37,6 @@
 		</plugins>
 	</build>
 </project>
+
+
+

@@ -16,7 +16,7 @@ package org.jctools.jmh.spsc.latency;
 import java.util.Queue;
 import java.util.concurrent.TimeUnit;
 
-import org.jctools.spsc.SPSCQueueFactory;
+import org.jctools.queues.SPSCQueueFactory;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.GenerateMicroBenchmark;
 import org.openjdk.jmh.annotations.Measurement;

@@ -11,88 +11,82 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jctools.spsc;
+package org.jctools.queues;
 
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Queue;
 
-import org.jctools.ConcurrentQueue;
-import org.jctools.ConcurrentQueueConsumer;
-import org.jctools.ConcurrentQueueProducer;
-import org.jctools.common.ConcurrentRingBuffer;
+import org.jctools.queues.ConcurrentRingBuffer;
 import org.jctools.util.UnsafeAccess;
 
-class FFBufferOfferBatchL1Pad<E> extends ConcurrentRingBuffer<E> {
-    long p10, p11, p12, p13, p14, p15, p16;
-    long p30, p31, p32, p33, p34, p35, p36, p37;
+abstract class FFBufferL1Pad<E> extends ConcurrentRingBuffer<E> {
+    public long p10, p11, p12, p13, p14, p15, p16;
+    public long p30, p31, p32, p33, p34, p35, p36, p37;
 
-    public FFBufferOfferBatchL1Pad(int capacity) {
+    public FFBufferL1Pad(int capacity) {
         super(capacity);
     }
 }
 
-class FFBufferOfferBatchTailField<E> extends FFBufferOfferBatchL1Pad<E> {
+abstract class FFBufferTailField<E> extends FFBufferL1Pad<E> {
     protected long tail;
-    protected long batchTail;
 
-    public FFBufferOfferBatchTailField(int capacity) {
+    public FFBufferTailField(int capacity) {
         super(capacity);
     }
 }
 
-class FFBufferOfferBatchL2Pad<E> extends FFBufferOfferBatchTailField<E> {
-    long p20, p21, p22, p23, p24, p25, p26;
-    long p30, p31, p32, p33, p34, p35, p36, p37;
+abstract class FFBufferL2Pad<E> extends FFBufferTailField<E> {
+    public long p20, p21, p22, p23, p24, p25, p26;
+    public long p30, p31, p32, p33, p34, p35, p36, p37;
 
-    public FFBufferOfferBatchL2Pad(int capacity) {
+    public FFBufferL2Pad(int capacity) {
         super(capacity);
     }
 }
 
-class FFBufferOfferBatchHeadField<E> extends FFBufferOfferBatchL2Pad<E> {
+abstract class FFBufferHeadField<E> extends FFBufferL2Pad<E> {
     protected long head;
 
-    public FFBufferOfferBatchHeadField(int capacity) {
+    public FFBufferHeadField(int capacity) {
         super(capacity);
     }
 }
 
-class FFBufferOfferBatchL3Pad<E> extends FFBufferOfferBatchHeadField<E> {
-    long p40, p41, p42, p43, p44, p45, p46;
-    long p30, p31, p32, p33, p34, p35, p36, p37;
+abstract class FFBufferL3Pad<E> extends FFBufferHeadField<E> {
+    public long p40, p41, p42, p43, p44, p45, p46;
+    public long p30, p31, p32, p33, p34, p35, p36, p37;
 
-    public FFBufferOfferBatchL3Pad(int capacity) {
+    public FFBufferL3Pad(int capacity) {
         super(capacity);
     }
 }
 
-public final class FFBufferWithOfferBatch<E> extends FFBufferOfferBatchL3Pad<E> implements Queue<E>,
-        ConcurrentQueue<E>, ConcurrentQueueProducer<E>, ConcurrentQueueConsumer<E> {
+public final class FFBuffer<E> extends FFBufferL3Pad<E> implements Queue<E> {
     private final static long TAIL_OFFSET;
     private final static long HEAD_OFFSET;
     static {
         try {
-            TAIL_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(FFBufferOfferBatchTailField.class
+            TAIL_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(FFBufferTailField.class
                     .getDeclaredField("tail"));
-            HEAD_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(FFBufferOfferBatchHeadField.class
+            HEAD_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(FFBufferHeadField.class
                     .getDeclaredField("head"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
     }
-    protected static final int OFFER_BATCH_SIZE = Integer.getInteger("offer.batch.size", 4096);
 
-    public FFBufferWithOfferBatch(final int capacity) {
-        super(Math.max(capacity, 2 * OFFER_BATCH_SIZE));
+    public FFBuffer(final int capacity) {
+        super(capacity);
     }
 
-    private long getHeadV() {
+    private long getHead() {
         return UnsafeAccess.UNSAFE.getLongVolatile(this, HEAD_OFFSET);
     }
 
-    private long getTailV() {
+    private long getTail() {
         return UnsafeAccess.UNSAFE.getLongVolatile(this, TAIL_OFFSET);
     }
 
@@ -108,16 +102,12 @@ public final class FFBufferWithOfferBatch<E> extends FFBufferOfferBatchL3Pad<E> 
             throw new NullPointerException("Null is not a valid element");
         }
 
-        E[] lb = buffer;
-        if (tail >= batchTail) {
-            if (null != lvElement(lb, calcOffset(tail + OFFER_BATCH_SIZE))) {
-                return false;
-            }
-            batchTail = tail + OFFER_BATCH_SIZE;
+        final E[] lb = buffer;
+        if (null != lvElement(lb, calcOffset(tail))) {
+            return false;
         }
         soElement(lb, calcOffset(tail), e);
         tail++;
-
         return true;
     }
 
@@ -152,26 +142,20 @@ public final class FFBufferWithOfferBatch<E> extends FFBufferOfferBatchL3Pad<E> 
     }
 
     public E peek() {
-        return getElement(head);
+        long currentHead = getHead();
+        return getElement(currentHead);
     }
 
     private E getElement(long index) {
-        return lvElement(buffer, calcOffset(index));
+        return lvElement(calcOffset(index));
     }
 
     public int size() {
-        // TODO: this is ugly :( the head/tail cannot be counted on to be written out, so must take max
-        return (int) (Math.max(getTailV(), tail) - Math.max(getHeadV(), head));
+        return (int) (getTail() - getHead());
     }
 
     public boolean isEmpty() {
-        // TODO: a better indication from consumer is peek() == null, or from producer get(head-1) == null
-        return size() == 0;
-    }
-
-    @Override
-    public int capacity() {
-        return capacity - OFFER_BATCH_SIZE;
+        return getTail() == getHead();
     }
 
     public boolean contains(final Object o) {
@@ -179,7 +163,7 @@ public final class FFBufferWithOfferBatch<E> extends FFBufferOfferBatchL3Pad<E> 
             return false;
         }
 
-        for (long i = getHeadV(), limit = getTailV(); i < limit; i++) {
+        for (long i = getHead(), limit = getTail(); i < limit; i++) {
             final E e = getElement(i);
             if (o.equals(e)) {
                 return true;
@@ -232,19 +216,9 @@ public final class FFBufferWithOfferBatch<E> extends FFBufferOfferBatchL3Pad<E> 
     }
 
     public void clear() {
-        while (null != poll())
-            ;
-    }
-
-    @Override
-    public ConcurrentQueueConsumer<E> consumer() {
-        // TODO: potential for improved layout for consumer instance with all require fields packed.
-        return this;
-    }
-
-    @Override
-    public ConcurrentQueueProducer<E> producer() {
-        // TODO: potential for improved layout for producer instance with all require fields packed.
-        return this;
+        Object value;
+        do {
+            value = poll();
+        } while (null != value);
     }
 }

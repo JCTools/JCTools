@@ -23,7 +23,7 @@ import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.State;
-import org.openjdk.jmh.logic.Control;
+import org.openjdk.jmh.infra.Control;
 
 @State(Scope.Group)
 @BenchmarkMode(Mode.AverageTime)

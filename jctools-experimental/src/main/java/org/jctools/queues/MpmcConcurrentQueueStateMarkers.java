@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jctools.mpmc;
+package org.jctools.queues;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 
@@ -219,6 +219,7 @@ public final class MpmcConcurrentQueueStateMarkers<E> extends MpmcConcurrentQueu
         return true;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public E poll() {
         E e;
@@ -276,6 +277,7 @@ public final class MpmcConcurrentQueueStateMarkers<E> extends MpmcConcurrentQueu
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public E peek() {
         return (E) lvElement(buffer, calcOffset(lvHead()) + SIZE_OF_ELEMENT);
     }
@@ -294,6 +296,7 @@ public final class MpmcConcurrentQueueStateMarkers<E> extends MpmcConcurrentQueu
         }
 
         for (long i = lvHead(), limit = lvTail(); i < limit; i++) {
+            @SuppressWarnings("unchecked")
             final E e = (E) lvElement(buffer, calcOffset(i) + SIZE_OF_ELEMENT);
             if (o.equals(e)) {
                 return true;

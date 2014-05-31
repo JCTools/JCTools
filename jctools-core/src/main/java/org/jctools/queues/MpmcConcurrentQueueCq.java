@@ -11,14 +11,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jctools.mpmc;
+package org.jctools.queues;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 
 import org.jctools.ConcurrentQueue;
 import org.jctools.ConcurrentQueueConsumer;
 import org.jctools.ConcurrentQueueProducer;
-import org.jctools.common.ConcurrentSequencedRingBuffer;
 
 abstract class MpmcConcurrentQueueCqColdFields<E> extends ConcurrentSequencedRingBuffer<E> {
 

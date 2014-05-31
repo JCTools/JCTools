@@ -1,4 +1,4 @@
-package org.jctools.spsc;
+package org.jctools.queues;
 
 import java.util.ArrayDeque;
 import java.util.Queue;
@@ -6,14 +6,18 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedTransferQueue;
 
-import org.jctools.mpmc.MpmcConcurrentQueue;
-import org.jctools.mpmc.MpmcConcurrentQueueStateMarkers;
-import org.jctools.mpsc.MpscCompoundQueue;
-import org.jctools.mpsc.MpscConcurrentQueue;
-import org.jctools.mpsc.MpscOnSpscQueue;
-import org.jctools.spmc.SpmcConcurrentQueue;
-import org.jctools.spsc.FFBufferWithOfferBatch;
-import org.jctools.spsc.SpscLinkedQueue;
+import org.jctools.queues.BQueue;
+import org.jctools.queues.FFBuffer;
+import org.jctools.queues.FFBufferWithOfferBatch;
+import org.jctools.queues.FloatingCountersSpscConcurrentArrayQueue;
+import org.jctools.queues.InlinedCountersSpscConcurrentArrayQueue;
+import org.jctools.queues.MpmcConcurrentQueue;
+import org.jctools.queues.MpmcConcurrentQueueStateMarkers;
+import org.jctools.queues.MpscCompoundQueue;
+import org.jctools.queues.MpscConcurrentQueue;
+import org.jctools.queues.MpscOnSpscQueue;
+import org.jctools.queues.SpmcConcurrentQueue;
+import org.jctools.queues.SpscLinkedQueue;
 
 public class SPSCQueueFactory {
     public static final int QUEUE_CAPACITY = 1 << Integer.getInteger("pow2.capacity", 15);

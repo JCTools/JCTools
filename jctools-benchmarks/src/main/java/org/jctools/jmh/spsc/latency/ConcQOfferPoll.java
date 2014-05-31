@@ -18,7 +18,7 @@ import java.util.concurrent.TimeUnit;
 import org.jctools.ConcurrentQueue;
 import org.jctools.ConcurrentQueueConsumer;
 import org.jctools.ConcurrentQueueProducer;
-import org.jctools.spsc.SPSCConcurrentQueueFactory;
+import org.jctools.queues.SPSCConcurrentQueueFactory;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.GenerateMicroBenchmark;
 import org.openjdk.jmh.annotations.Measurement;

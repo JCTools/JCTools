@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jctools.spsc;
+package org.jctools.queues;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 

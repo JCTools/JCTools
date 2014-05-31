@@ -18,7 +18,7 @@ package org.jctools.handrolled.spsc;
 import org.jctools.ConcurrentQueue;
 import org.jctools.ConcurrentQueueConsumer;
 import org.jctools.ConcurrentQueueProducer;
-import org.jctools.spsc.SPSCConcurrentQueueFactory;
+import org.jctools.queues.SPSCConcurrentQueueFactory;
 
 public class ConcurrentQueuePerfTest {
     // 15 == 32 * 1024

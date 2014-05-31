@@ -11,9 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jctools.mpsc;
-
-import static org.jctools.util.UnsafeAccess.UNSAFE;
+package org.jctools.queues;
 
 import java.util.Collection;
 import java.util.Iterator;
@@ -23,24 +21,22 @@ import java.util.Queue;
 import org.jctools.ConcurrentQueue;
 import org.jctools.ConcurrentQueueConsumer;
 import org.jctools.ConcurrentQueueProducer;
-import org.jctools.common.ConcurrentRingBuffer;
 import org.jctools.util.UnsafeAccess;
 
-abstract class MpscConcurrentQueueL1Pad<E> extends ConcurrentRingBuffer<E> {
+abstract class SpmcConcurrentArrayQueueL1Pad<E> extends ConcurrentRingBuffer<E> {
     long p10, p11, p12, p13, p14, p15, p16;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 
-    public MpscConcurrentQueueL1Pad(int capacity) {
+    public SpmcConcurrentArrayQueueL1Pad(int capacity) {
         super(capacity);
     }
 }
 
-abstract class MpscConcurrentQueueTailField<E> extends MpscConcurrentQueueL1Pad<E> {
-    private final static long TAIL_OFFSET;
-
+abstract class SpmcConcurrentArrayQueueTailField<E> extends SpmcConcurrentArrayQueueL1Pad<E> {
+    protected final static long TAIL_OFFSET;
     static {
         try {
-            TAIL_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(MpscConcurrentQueueTailField.class
+            TAIL_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(SpmcConcurrentArrayQueueTailField.class
                     .getDeclaredField("tail"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
@@ -48,60 +44,33 @@ abstract class MpscConcurrentQueueTailField<E> extends MpscConcurrentQueueL1Pad<
     }
     private volatile long tail;
 
-    public MpscConcurrentQueueTailField(int capacity) {
-        super(capacity);
-    }
-
     protected final long lvTail() {
         return tail;
     }
 
-    protected final boolean casTail(long expect, long newValue) {
-        return UnsafeAccess.UNSAFE.compareAndSwapLong(this, TAIL_OFFSET, expect, newValue);
+    protected final void soTail(long v) {
+        UnsafeAccess.UNSAFE.putOrderedLong(this, TAIL_OFFSET, v);
     }
 
+    public SpmcConcurrentArrayQueueTailField(int capacity) {
+        super(capacity);
+    }
 }
 
-abstract class MpscConcurrentQueueMidPad<E> extends MpscConcurrentQueueTailField<E> {
+abstract class SpmcConcurrentArrayQueueL2Pad<E> extends SpmcConcurrentArrayQueueTailField<E> {
     long p20, p21, p22, p23, p24, p25, p26;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 
-    public MpscConcurrentQueueMidPad(int capacity) {
+    public SpmcConcurrentArrayQueueL2Pad(int capacity) {
         super(capacity);
     }
 }
 
-abstract class MpscConcurrentQueueHeadCacheField<E> extends MpscConcurrentQueueMidPad<E> {
-    private volatile long headCache;
-
-    public MpscConcurrentQueueHeadCacheField(int capacity) {
-        super(capacity);
-    }
-
-    protected final long lvHeadCache() {
-        return headCache;
-    }
-
-    protected final void svHeadCache(long v) {
-        headCache = v;
-    }
-
-}
-
-abstract class MpscConcurrentQueueL2Pad<E> extends MpscConcurrentQueueHeadCacheField<E> {
-    long p20, p21, p22, p23, p24, p25, p26;
-    long p30, p31, p32, p33, p34, p35, p36, p37;
-
-    public MpscConcurrentQueueL2Pad(int capacity) {
-        super(capacity);
-    }
-}
-
-abstract class MpscConcurrentQueueHeadField<E> extends MpscConcurrentQueueL2Pad<E> {
-    private final static long HEAD_OFFSET;
+abstract class SpmcConcurrentArrayQueueHeadField<E> extends SpmcConcurrentArrayQueueL2Pad<E> {
+    protected final static long HEAD_OFFSET;
     static {
         try {
-            HEAD_OFFSET = UNSAFE.objectFieldOffset(MpscConcurrentQueueHeadField.class
+            HEAD_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(SpmcConcurrentArrayQueueHeadField.class
                     .getDeclaredField("head"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
@@ -109,7 +78,7 @@ abstract class MpscConcurrentQueueHeadField<E> extends MpscConcurrentQueueL2Pad<
     }
     private volatile long head;
 
-    public MpscConcurrentQueueHeadField(int capacity) {
+    public SpmcConcurrentArrayQueueHeadField(int capacity) {
         super(capacity);
     }
 
@@ -117,17 +86,49 @@ abstract class MpscConcurrentQueueHeadField<E> extends MpscConcurrentQueueL2Pad<
         return head;
     }
 
-    protected void soHead(long l) {
-        UNSAFE.putOrderedLong(this, HEAD_OFFSET, l);
+    protected final boolean casHead(long expect, long newValue) {
+        return UnsafeAccess.UNSAFE.compareAndSwapLong(this, HEAD_OFFSET, expect, newValue);
     }
 }
 
-public final class MpscConcurrentQueue<E> extends MpscConcurrentQueueHeadField<E> implements Queue<E>,
-        ConcurrentQueue<E>, ConcurrentQueueProducer<E>, ConcurrentQueueConsumer<E> {
+abstract class SpmcConcurrentArrayQueueMidPad<E> extends SpmcConcurrentArrayQueueHeadField<E> {
+    long p20, p21, p22, p23, p24, p25, p26;
+    long p30, p31, p32, p33, p34, p35, p36, p37;
+
+    public SpmcConcurrentArrayQueueMidPad(int capacity) {
+        super(capacity);
+    }
+}
+
+abstract class SpmcConcurrentArrayQueueTailCacheField<E> extends SpmcConcurrentArrayQueueMidPad<E> {
+    private volatile long tailCache;
+
+    public SpmcConcurrentArrayQueueTailCacheField(int capacity) {
+        super(capacity);
+    }
+
+    protected final long lvTailCache() {
+        return tailCache;
+    }
+
+    protected final void svTailCache(long v) {
+        tailCache = v;
+    }
+}
+
+abstract class SpmcConcurrentArrayQueueL3Pad<E> extends SpmcConcurrentArrayQueueTailCacheField<E> {
     long p40, p41, p42, p43, p44, p45, p46;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 
-    public MpscConcurrentQueue(final int capacity) {
+    public SpmcConcurrentArrayQueueL3Pad(int capacity) {
+        super(capacity);
+    }
+}
+
+public final class SpmcConcurrentQueue<E> extends SpmcConcurrentArrayQueueL3Pad<E> implements Queue<E>,
+        ConcurrentQueue<E>, ConcurrentQueueConsumer<E>, ConcurrentQueueProducer<E> {
+
+    public SpmcConcurrentQueue(final int capacity) {
         super(capacity);
     }
 
@@ -143,65 +144,42 @@ public final class MpscConcurrentQueue<E> extends MpscConcurrentQueueHeadField<E
         if (null == e) {
             throw new NullPointerException("Null is not a valid element");
         }
-        final long currHeadCache = lvHeadCache();
-        long currentTail;
-        do {
-            currentTail = lvTail();
-            final long wrapPoint = currentTail - capacity;
-            if (currHeadCache <= wrapPoint) {
-                long currHead = lvHead();
-                if (currHead <= wrapPoint) {
-                    return false;
-                } else {
-                    svHeadCache(currHead);
-                }
-            }
-        } while (!casTail(currentTail, currentTail + 1));
-        final long offset = calcOffset(currentTail);
-        soElement(offset, e);
+        final E[] lb = buffer;
+        final long currTail = lvTail();
+        final long offset = calcOffset(currTail);
+        if (null != lvElement(lb, offset)) {
+            return false;
+        }
+        spElement(lb, offset, e);
+        // single producer, so store ordered is valid. It is also required to correctly publish the element
+        // and for the consumers to pick up the tail value.
+        soTail(currTail + 1);
         return true;
-    }
-
-    /**
-     * @param e a bludgeoned hamster
-     * @return 1 if full, -1 if CAS failed, 0 if successful
-     */
-    public int tryOffer(final E e) {
-        if (null == e) {
-            throw new NullPointerException("Null is not a valid element");
-        }
-
-        long currentTail = lvTail();
-        final long currHeadCache = lvHeadCache();
-        final long wrapPoint = currentTail - capacity;
-        if (currHeadCache <= wrapPoint) {
-            long currHead = lvHead();
-            if (currHead <= wrapPoint) {
-                return 1; // FULL
-            } else {
-                svHeadCache(currHead);
-            }
-        }
-        if (!casTail(currentTail, currentTail + 1)) {
-            return -1; // CAS FAIL
-        }
-        final long offset = calcOffset(currentTail);
-        soElement(offset, e);
-        return 0; // AWESOME
     }
 
     @Override
     public E poll() {
-        final long currHead = lvHead();
-        final long offset = calcOffset(currHead);
+        long currentHead;
+        final long currTailCache = lvTailCache();
+        do {
+            currentHead = lvHead();
+            if (currentHead >= currTailCache) {
+                long currTail = lvTail();
+                if (currentHead >= currTail) {
+                    return null;
+                } else {
+                    svTailCache(currTail);
+                }
+            }
+        } while (!casHead(currentHead, currentHead + 1));
+        // consumers are gated on latest visible tail, and so can't see a null value in the queue or overtake
+        // and wrap to hit same location.
+        final long offset = calcOffset(currentHead);
         final E[] lb = buffer;
-        // If we can't see the next available element, consider the queue empty
-        final E e = lvElement(lb, offset);
-        if (null == e) {
-            return null; // EMPTY
-        }
-        spElement(lb, offset, null);
-        soHead(currHead + 1);
+        // load plain, element happens before it's index becomes visible
+        final E e = lpElement(lb, offset);
+        // store ordered, make sure nulling out is visible. Producer is waiting for this value.
+        soElement(lb, offset, null);
         return e;
     }
 
@@ -223,9 +201,9 @@ public final class MpscConcurrentQueue<E> extends MpscConcurrentQueueHeadField<E
         return e;
     }
 
-    @Override
     public E peek() {
-        return lpElement(calcOffset(lvHead()));
+        long currentHead = lvHead();
+        return lvElement(calcOffset(currentHead));
     }
 
     public int size() {
@@ -233,7 +211,7 @@ public final class MpscConcurrentQueue<E> extends MpscConcurrentQueueHeadField<E
     }
 
     public boolean isEmpty() {
-        return size() == 0;
+        return lvTail() == lvHead();
     }
 
     public boolean contains(final Object o) {
@@ -242,7 +220,7 @@ public final class MpscConcurrentQueue<E> extends MpscConcurrentQueueHeadField<E
         }
 
         for (long i = lvHead(), limit = lvTail(); i < limit; i++) {
-            final E e = lpElement(calcOffset(i));
+            final E e = lvElement(calcOffset(i));
             if (o.equals(e)) {
                 return true;
             }
