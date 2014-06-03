@@ -13,9 +13,6 @@
  */
 package org.jctools.queues;
 
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.NoSuchElementException;
 import java.util.Queue;
 
 import org.jctools.queues.alt.ConcurrentQueue;
@@ -23,20 +20,20 @@ import org.jctools.queues.alt.ConcurrentQueueConsumer;
 import org.jctools.queues.alt.ConcurrentQueueProducer;
 import org.jctools.util.UnsafeAccess;
 
-abstract class SpmcConcurrentArrayQueueL1Pad<E> extends ConcurrentCircularArray<E> {
+abstract class SpmcArrayQueueL1Pad<E> extends ConcurrentCircularArrayQueue<E> {
     long p10, p11, p12, p13, p14, p15, p16;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 
-    public SpmcConcurrentArrayQueueL1Pad(int capacity) {
+    public SpmcArrayQueueL1Pad(int capacity) {
         super(capacity);
     }
 }
 
-abstract class SpmcConcurrentArrayQueueTailField<E> extends SpmcConcurrentArrayQueueL1Pad<E> {
+abstract class SpmcArrayQueueTailField<E> extends SpmcArrayQueueL1Pad<E> {
     protected final static long TAIL_OFFSET;
     static {
         try {
-            TAIL_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(SpmcConcurrentArrayQueueTailField.class
+            TAIL_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(SpmcArrayQueueTailField.class
                     .getDeclaredField("tail"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
@@ -52,25 +49,25 @@ abstract class SpmcConcurrentArrayQueueTailField<E> extends SpmcConcurrentArrayQ
         UnsafeAccess.UNSAFE.putOrderedLong(this, TAIL_OFFSET, v);
     }
 
-    public SpmcConcurrentArrayQueueTailField(int capacity) {
+    public SpmcArrayQueueTailField(int capacity) {
         super(capacity);
     }
 }
 
-abstract class SpmcConcurrentArrayQueueL2Pad<E> extends SpmcConcurrentArrayQueueTailField<E> {
+abstract class SpmcArrayQueueL2Pad<E> extends SpmcArrayQueueTailField<E> {
     long p20, p21, p22, p23, p24, p25, p26;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 
-    public SpmcConcurrentArrayQueueL2Pad(int capacity) {
+    public SpmcArrayQueueL2Pad(int capacity) {
         super(capacity);
     }
 }
 
-abstract class SpmcConcurrentArrayQueueHeadField<E> extends SpmcConcurrentArrayQueueL2Pad<E> {
+abstract class SpmcArrayQueueHeadField<E> extends SpmcArrayQueueL2Pad<E> {
     protected final static long HEAD_OFFSET;
     static {
         try {
-            HEAD_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(SpmcConcurrentArrayQueueHeadField.class
+            HEAD_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(SpmcArrayQueueHeadField.class
                     .getDeclaredField("head"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
@@ -78,7 +75,7 @@ abstract class SpmcConcurrentArrayQueueHeadField<E> extends SpmcConcurrentArrayQ
     }
     private volatile long head;
 
-    public SpmcConcurrentArrayQueueHeadField(int capacity) {
+    public SpmcArrayQueueHeadField(int capacity) {
         super(capacity);
     }
 
@@ -91,19 +88,19 @@ abstract class SpmcConcurrentArrayQueueHeadField<E> extends SpmcConcurrentArrayQ
     }
 }
 
-abstract class SpmcConcurrentArrayQueueMidPad<E> extends SpmcConcurrentArrayQueueHeadField<E> {
+abstract class SpmcArrayQueueMidPad<E> extends SpmcArrayQueueHeadField<E> {
     long p20, p21, p22, p23, p24, p25, p26;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 
-    public SpmcConcurrentArrayQueueMidPad(int capacity) {
+    public SpmcArrayQueueMidPad(int capacity) {
         super(capacity);
     }
 }
 
-abstract class SpmcConcurrentArrayQueueTailCacheField<E> extends SpmcConcurrentArrayQueueMidPad<E> {
+abstract class SpmcArrayQueueTailCacheField<E> extends SpmcArrayQueueMidPad<E> {
     private volatile long tailCache;
 
-    public SpmcConcurrentArrayQueueTailCacheField(int capacity) {
+    public SpmcArrayQueueTailCacheField(int capacity) {
         super(capacity);
     }
 
@@ -116,27 +113,19 @@ abstract class SpmcConcurrentArrayQueueTailCacheField<E> extends SpmcConcurrentA
     }
 }
 
-abstract class SpmcConcurrentArrayQueueL3Pad<E> extends SpmcConcurrentArrayQueueTailCacheField<E> {
+abstract class SpmcArrayQueueL3Pad<E> extends SpmcArrayQueueTailCacheField<E> {
     long p40, p41, p42, p43, p44, p45, p46;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 
-    public SpmcConcurrentArrayQueueL3Pad(int capacity) {
+    public SpmcArrayQueueL3Pad(int capacity) {
         super(capacity);
     }
 }
 
-public final class SpmcConcurrentQueue<E> extends SpmcConcurrentArrayQueueL3Pad<E> implements Queue<E>,
-        ConcurrentQueue<E>, ConcurrentQueueConsumer<E>, ConcurrentQueueProducer<E> {
+public final class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements Queue<E> {
 
-    public SpmcConcurrentQueue(final int capacity) {
+    public SpmcArrayQueue(final int capacity) {
         super(capacity);
-    }
-
-    public boolean add(final E e) {
-        if (offer(e)) {
-            return true;
-        }
-        throw new IllegalStateException("Queue is full");
     }
 
     @Override
@@ -182,114 +171,13 @@ public final class SpmcConcurrentQueue<E> extends SpmcConcurrentArrayQueueL3Pad<
         soElement(lb, offset, null);
         return e;
     }
-
-    public E remove() {
-        final E e = poll();
-        if (null == e) {
-            throw new NoSuchElementException("Queue is empty");
-        }
-
-        return e;
-    }
-
-    public E element() {
-        final E e = peek();
-        if (null == e) {
-            throw new NoSuchElementException("Queue is empty");
-        }
-
-        return e;
-    }
-
+    
+    @Override
     public E peek() {
-        long currentHead = lvHead();
-        return lvElement(calcOffset(currentHead));
+        return lvElement(calcOffset(lvHead()));
     }
-
+    @Override
     public int size() {
         return (int) (lvTail() - lvHead());
-    }
-
-    public boolean isEmpty() {
-        return lvTail() == lvHead();
-    }
-
-    public boolean contains(final Object o) {
-        if (null == o) {
-            return false;
-        }
-
-        for (long i = lvHead(), limit = lvTail(); i < limit; i++) {
-            final E e = lvElement(calcOffset(i));
-            if (o.equals(e)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    public Iterator<E> iterator() {
-        throw new UnsupportedOperationException();
-    }
-
-    public Object[] toArray() {
-        throw new UnsupportedOperationException();
-    }
-
-    public <T> T[] toArray(final T[] a) {
-        throw new UnsupportedOperationException();
-    }
-
-    public boolean remove(final Object o) {
-        throw new UnsupportedOperationException();
-    }
-
-    public boolean containsAll(final Collection<?> c) {
-        for (final Object o : c) {
-            if (!contains(o)) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    public boolean addAll(final Collection<? extends E> c) {
-        for (final E e : c) {
-            add(e);
-        }
-
-        return true;
-    }
-
-    public boolean removeAll(final Collection<?> c) {
-        throw new UnsupportedOperationException();
-    }
-
-    public boolean retainAll(final Collection<?> c) {
-        throw new UnsupportedOperationException();
-    }
-
-    public void clear() {
-        Object value;
-        do {
-            value = poll();
-        } while (null != value);
-    }
-
-    @Override
-    public ConcurrentQueueConsumer<E> consumer() {
-        return this;
-    }
-
-    @Override
-    public ConcurrentQueueProducer<E> producer() {
-        return this;
-    }
-
-    @Override
-    public int capacity() {
-        return capacity;
     }
 }

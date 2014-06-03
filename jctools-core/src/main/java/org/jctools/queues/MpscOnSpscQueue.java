@@ -48,7 +48,7 @@ abstract class MpscOnSpscFields<E> extends MpscOnSpscL0Pad {
             }
         };
         for (int i = 0; i < queues.length; i++) {
-            queues[i] = new SpscConcurrentQueue<E>(capacity);
+            queues[i] = new SpscArrayQueue<E>(capacity);
         }
         currentQ = queues[0];
     }
@@ -58,8 +58,7 @@ abstract class MpscOnSpscFields<E> extends MpscOnSpscL0Pad {
     }
 }
 
-public final class MpscOnSpscQueue<E> extends MpscOnSpscFields<E> implements Queue<E>, ConcurrentQueue<E>,
-        ConcurrentQueueConsumer<E>, ConcurrentQueueProducer<E> {
+public final class MpscOnSpscQueue<E> extends MpscOnSpscFields<E> implements Queue<E> {
     long p40, p41, p42, p43, p44, p45, p46;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 
@@ -176,20 +175,5 @@ public final class MpscOnSpscQueue<E> extends MpscOnSpscFields<E> implements Que
         do {
             value = poll();
         } while (null != value);
-    }
-
-    @Override
-    public ConcurrentQueueConsumer<E> consumer() {
-        return this;
-    }
-
-    @Override
-    public ConcurrentQueueProducer<E> producer() {
-        return this;
-    }
-
-    @Override
-    public int capacity() {
-        throw new UnsupportedOperationException();
     }
 }

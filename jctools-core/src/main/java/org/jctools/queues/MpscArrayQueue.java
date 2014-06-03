@@ -20,31 +20,29 @@ import java.util.Queue;
 import org.jctools.queues.alt.ConcurrentQueue;
 import org.jctools.queues.alt.ConcurrentQueueConsumer;
 import org.jctools.queues.alt.ConcurrentQueueProducer;
-import org.jctools.util.UnsafeAccess;
 
-abstract class MpscConcurrentQueueL1Pad<E> extends ConcurrentCircularArray<E> {
+abstract class MpscArrayQueueL1Pad<E> extends ConcurrentCircularArrayQueue<E> {
     long p10, p11, p12, p13, p14, p15, p16;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 
-    public MpscConcurrentQueueL1Pad(int capacity) {
+    public MpscArrayQueueL1Pad(int capacity) {
         super(capacity);
     }
 }
 
-abstract class MpscConcurrentQueueTailField<E> extends MpscConcurrentQueueL1Pad<E> {
+abstract class MpscArrayQueueTailField<E> extends MpscArrayQueueL1Pad<E> {
     private final static long TAIL_OFFSET;
 
     static {
         try {
-            TAIL_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(MpscConcurrentQueueTailField.class
-                    .getDeclaredField("tail"));
+            TAIL_OFFSET = UNSAFE.objectFieldOffset(MpscArrayQueueTailField.class.getDeclaredField("tail"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
     }
     private volatile long tail;
 
-    public MpscConcurrentQueueTailField(int capacity) {
+    public MpscArrayQueueTailField(int capacity) {
         super(capacity);
     }
 
@@ -53,24 +51,23 @@ abstract class MpscConcurrentQueueTailField<E> extends MpscConcurrentQueueL1Pad<
     }
 
     protected final boolean casTail(long expect, long newValue) {
-        return UnsafeAccess.UNSAFE.compareAndSwapLong(this, TAIL_OFFSET, expect, newValue);
+        return UNSAFE.compareAndSwapLong(this, TAIL_OFFSET, expect, newValue);
     }
-
 }
 
-abstract class MpscConcurrentQueueMidPad<E> extends MpscConcurrentQueueTailField<E> {
+abstract class MpscArrayQueueMidPad<E> extends MpscArrayQueueTailField<E> {
     long p20, p21, p22, p23, p24, p25, p26;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 
-    public MpscConcurrentQueueMidPad(int capacity) {
+    public MpscArrayQueueMidPad(int capacity) {
         super(capacity);
     }
 }
 
-abstract class MpscConcurrentQueueHeadCacheField<E> extends MpscConcurrentQueueMidPad<E> {
+abstract class MpscArrayQueueHeadCacheField<E> extends MpscArrayQueueMidPad<E> {
     private volatile long headCache;
 
-    public MpscConcurrentQueueHeadCacheField(int capacity) {
+    public MpscArrayQueueHeadCacheField(int capacity) {
         super(capacity);
     }
 
@@ -81,31 +78,29 @@ abstract class MpscConcurrentQueueHeadCacheField<E> extends MpscConcurrentQueueM
     protected final void svHeadCache(long v) {
         headCache = v;
     }
-
 }
 
-abstract class MpscConcurrentQueueL2Pad<E> extends MpscConcurrentQueueHeadCacheField<E> {
+abstract class MpscArrayQueueL2Pad<E> extends MpscArrayQueueHeadCacheField<E> {
     long p20, p21, p22, p23, p24, p25, p26;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 
-    public MpscConcurrentQueueL2Pad(int capacity) {
+    public MpscArrayQueueL2Pad(int capacity) {
         super(capacity);
     }
 }
 
-abstract class MpscConcurrentQueueHeadField<E> extends MpscConcurrentQueueL2Pad<E> {
+abstract class MpscArrayQueueHeadField<E> extends MpscArrayQueueL2Pad<E> {
     private final static long HEAD_OFFSET;
     static {
         try {
-            HEAD_OFFSET = UNSAFE.objectFieldOffset(MpscConcurrentQueueHeadField.class
-                    .getDeclaredField("head"));
+            HEAD_OFFSET = UNSAFE.objectFieldOffset(MpscArrayQueueHeadField.class.getDeclaredField("head"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
     }
     private volatile long head;
 
-    public MpscConcurrentQueueHeadField(int capacity) {
+    public MpscArrayQueueHeadField(int capacity) {
         super(capacity);
     }
 
@@ -118,12 +113,11 @@ abstract class MpscConcurrentQueueHeadField<E> extends MpscConcurrentQueueL2Pad<
     }
 }
 
-public final class MpscConcurrentQueue<E> extends MpscConcurrentQueueHeadField<E> implements Queue<E>,
-        ConcurrentQueue<E>, ConcurrentQueueProducer<E>, ConcurrentQueueConsumer<E> {
+public final class MpscArrayQueue<E> extends MpscArrayQueueHeadField<E> implements Queue<E> {
     long p40, p41, p42, p43, p44, p45, p46;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 
-    public MpscConcurrentQueue(final int capacity) {
+    public MpscArrayQueue(final int capacity) {
         super(capacity);
     }
 
@@ -202,20 +196,5 @@ public final class MpscConcurrentQueue<E> extends MpscConcurrentQueueHeadField<E
     @Override
     public int size() {
         return (int) (lvTail() - lvHead());
-    }
-
-    @Override
-    public ConcurrentQueueConsumer<E> consumer() {
-        return this;
-    }
-
-    @Override
-    public ConcurrentQueueProducer<E> producer() {
-        return this;
-    }
-
-    @Override
-    public int capacity() {
-        return capacity;
     }
 }

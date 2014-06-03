@@ -15,9 +15,7 @@ package org.jctools.queues.alt;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 
-import org.jctools.queues.ConcurrentSequencedCircularArray;
-
-abstract class MpmcConcurrentQueueCqColdFields<E> extends ConcurrentSequencedCircularArray<E> {
+abstract class MpmcArrayConcurrentQueueColdFields<E> extends ConcurrentSequencedCircularArray<E> {
 
     private static abstract class ProducerFields<E> extends ConcurrentSequencedCircularArray<E> {
         protected static final long TAIL_OFFSET;
@@ -162,20 +160,20 @@ abstract class MpmcConcurrentQueueCqColdFields<E> extends ConcurrentSequencedCir
     protected final Consumer<E> consumer;
     protected final Producer<E> producer;
 
-    public MpmcConcurrentQueueCqColdFields(int capacity) {
+    public MpmcArrayConcurrentQueueColdFields(int capacity) {
         super(capacity);
         consumer = new Consumer<>(this);
         producer = new Producer<>(this);
     }
 }
 
-public final class MpmcConcurrentQueueCq<E> extends MpmcConcurrentQueueCqColdFields<E> implements
+public final class MpmcArrayConcurrentQueue<E> extends MpmcArrayConcurrentQueueColdFields<E> implements
         ConcurrentQueue<E> {
     // post pad queue fields
     long p00, p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
-    public MpmcConcurrentQueueCq(final int capacity) {
+    public MpmcArrayConcurrentQueue(final int capacity) {
         super(Math.max(2, capacity));
     }
 

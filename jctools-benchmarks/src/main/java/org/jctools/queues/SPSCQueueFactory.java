@@ -8,15 +8,15 @@ import java.util.concurrent.LinkedTransferQueue;
 
 import org.jctools.queues.BQueue;
 import org.jctools.queues.FFBuffer;
-import org.jctools.queues.SpscConcurrentQueue;
+import org.jctools.queues.SpscArrayQueue;
 import org.jctools.queues.FloatingCountersSpscConcurrentArrayQueue;
 import org.jctools.queues.InlinedCountersSpscConcurrentArrayQueue;
-import org.jctools.queues.MpmcConcurrentQueue;
+import org.jctools.queues.MpmcArrayQueue;
 import org.jctools.queues.MpmcConcurrentQueueStateMarkers;
 import org.jctools.queues.MpscCompoundQueue;
-import org.jctools.queues.MpscConcurrentQueue;
+import org.jctools.queues.MpscArrayQueue;
 import org.jctools.queues.MpscOnSpscQueue;
-import org.jctools.queues.SpmcConcurrentQueue;
+import org.jctools.queues.SpmcArrayQueue;
 import org.jctools.queues.SpscLinkedQueue;
 
 public class SPSCQueueFactory {
@@ -43,21 +43,21 @@ public class SPSCQueueFactory {
         case 20:
             return new FFBuffer<Integer>(queueCapacity);
         case 3:
-            return new SpscConcurrentQueue<Integer>(queueCapacity);
+            return new SpscArrayQueue<Integer>(queueCapacity);
         case 31:
             return new SpscLinkedQueue<Integer>();
         case 40:
             return new FloatingCountersSpscConcurrentArrayQueue<Integer>(queueCapacity);
         case 5:
-            return new SpmcConcurrentQueue<Integer>(queueCapacity);
+            return new SpmcArrayQueue<Integer>(queueCapacity);
         case 6:
-            return new MpscConcurrentQueue<Integer>(queueCapacity);
+            return new MpscArrayQueue<Integer>(queueCapacity);
         case 61:
             return new MpscCompoundQueue<Integer>(queueCapacity);
         case 62:
             return new MpscOnSpscQueue<Integer>(queueCapacity);
         case 7:
-            return new MpmcConcurrentQueue<Integer>(queueCapacity);
+            return new MpmcArrayQueue<Integer>(queueCapacity);
         case 71:
             return new MpmcConcurrentQueueStateMarkers<Integer>(queueCapacity);
         }

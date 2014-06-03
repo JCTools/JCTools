@@ -13,35 +13,35 @@
  */
 package org.jctools.queues;
 
+import static org.jctools.util.UnsafeAccess.UNSAFE;
+
 import java.util.Queue;
 
 import org.jctools.queues.alt.ConcurrentQueue;
 import org.jctools.queues.alt.ConcurrentQueueConsumer;
 import org.jctools.queues.alt.ConcurrentQueueProducer;
-import org.jctools.util.UnsafeAccess;
 
-abstract class MpmcConcurrentQueueL1Pad<E> extends ConcurrentSequencedCircularArray<E> {
+abstract class MpmcArrayQueueL1Pad<E> extends ConcurrentSequencedCircularArrayQueue<E> {
     long p10, p11, p12, p13, p14, p15, p16;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 
-    public MpmcConcurrentQueueL1Pad(int capacity) {
+    public MpmcArrayQueueL1Pad(int capacity) {
         super(capacity);
     }
 }
 
-abstract class MpmcConcurrentQueueTailField<E> extends MpmcConcurrentQueueL1Pad<E> {
+abstract class MpmcArrayQueueTailField<E> extends MpmcArrayQueueL1Pad<E> {
     private final static long TAIL_OFFSET;
     static {
         try {
-            TAIL_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(MpmcConcurrentQueueTailField.class
-                    .getDeclaredField("tail"));
+            TAIL_OFFSET = UNSAFE.objectFieldOffset(MpmcArrayQueueTailField.class.getDeclaredField("tail"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
     }
     private volatile long tail;
 
-    public MpmcConcurrentQueueTailField(int capacity) {
+    public MpmcArrayQueueTailField(int capacity) {
         super(capacity);
     }
 
@@ -50,32 +50,31 @@ abstract class MpmcConcurrentQueueTailField<E> extends MpmcConcurrentQueueL1Pad<
     }
 
     protected final boolean casTail(long expect, long newValue) {
-        return UnsafeAccess.UNSAFE.compareAndSwapLong(this, TAIL_OFFSET, expect, newValue);
+        return UNSAFE.compareAndSwapLong(this, TAIL_OFFSET, expect, newValue);
     }
 }
 
-abstract class MpmcConcurrentQueueL2Pad<E> extends MpmcConcurrentQueueTailField<E> {
+abstract class MpmcArrayQueueL2Pad<E> extends MpmcArrayQueueTailField<E> {
     long p20, p21, p22, p23, p24, p25, p26;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 
-    public MpmcConcurrentQueueL2Pad(int capacity) {
+    public MpmcArrayQueueL2Pad(int capacity) {
         super(capacity);
     }
 }
 
-abstract class MpmcConcurrentQueueHeadField<E> extends MpmcConcurrentQueueL2Pad<E> {
+abstract class MpmcArrayQueueHeadField<E> extends MpmcArrayQueueL2Pad<E> {
     private final static long HEAD_OFFSET;
     static {
         try {
-            HEAD_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(MpmcConcurrentQueueHeadField.class
-                    .getDeclaredField("head"));
+            HEAD_OFFSET = UNSAFE.objectFieldOffset(MpmcArrayQueueHeadField.class.getDeclaredField("head"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
     }
     private volatile long head;
 
-    public MpmcConcurrentQueueHeadField(int capacity) {
+    public MpmcArrayQueueHeadField(int capacity) {
         super(capacity);
     }
 
@@ -84,16 +83,15 @@ abstract class MpmcConcurrentQueueHeadField<E> extends MpmcConcurrentQueueL2Pad<
     }
 
     protected final boolean casHead(long expect, long newValue) {
-        return UnsafeAccess.UNSAFE.compareAndSwapLong(this, HEAD_OFFSET, expect, newValue);
+        return UNSAFE.compareAndSwapLong(this, HEAD_OFFSET, expect, newValue);
     }
 }
 
-public final class MpmcConcurrentQueue<E> extends MpmcConcurrentQueueHeadField<E> implements Queue<E>,
-        ConcurrentQueue<E>, ConcurrentQueueProducer<E>, ConcurrentQueueConsumer<E> {
+public class MpmcArrayQueue<E> extends MpmcArrayQueueHeadField<E> implements Queue<E> {
     long p40, p41, p42, p43, p44, p45, p46;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 
-    public MpmcConcurrentQueue(final int capacity) {
+    public MpmcArrayQueue(final int capacity) {
         super(Math.max(2, capacity));
     }
 
@@ -118,13 +116,13 @@ public final class MpmcConcurrentQueue<E> extends MpmcConcurrentQueueHeadField<E
                 }
                 // failed cas, retry 1
             } else if (delta < 0) {
-                // poll has not moved this value forward,
+                // poll has not moved this value forward
                 return false;
             } else {
                 // another producer beat us
             }
         }
-        long offset = calcOffset(currentTail);
+        final long offset = calcOffset(currentTail);
         spElement(offset, e);
         // increment position, seeing this value again should lead to retry 2
         soSequenceElement(lsb, pOffset, currentTail + 1);
@@ -147,12 +145,13 @@ public final class MpmcConcurrentQueue<E> extends MpmcConcurrentQueueHeadField<E
                 }
                 // failed cas, retry 1
             } else if (delta < 0) {
+                // queue is empty
                 return null;
             } else {
-
+                // another consumer beat us
             }
         }
-        long offset = calcOffset(currentHead);
+        final long offset = calcOffset(currentHead);
         final E[] lb = buffer;
         E e = lvElement(lb, offset);
         spElement(lb, offset, null);
@@ -168,20 +167,5 @@ public final class MpmcConcurrentQueue<E> extends MpmcConcurrentQueueHeadField<E
     @Override
     public int size() {
         return (int) (lvTail() - lvHead());
-    }
-
-    @Override
-    public ConcurrentQueueConsumer<E> consumer() {
-        return this;
-    }
-
-    @Override
-    public ConcurrentQueueProducer<E> producer() {
-        return this;
-    }
-
-    @Override
-    public int capacity() {
-        return capacity;
     }
 }

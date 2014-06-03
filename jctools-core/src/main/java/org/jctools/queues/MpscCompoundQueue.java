@@ -26,7 +26,7 @@ import org.jctools.queues.alt.ConcurrentQueueProducer;
 /**
  * Use a set number of parallel MPSC queues to diffuse the contention on tail.
  */
-abstract class MpscCompoundQueueL0Pad<E> extends AbstractQueue<E>{
+abstract class MpscCompoundQueueL0Pad<E> extends AbstractQueue<E> {
     long p00, p01, p02, p03, p04, p05, p06;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 }
@@ -35,16 +35,16 @@ abstract class MpscCompoundQueueColdFields<E> extends MpscCompoundQueueL0Pad<E> 
     // must be power of 2
     protected final int parallelQueues;
     protected final int parallelQueuesMask;
-    protected final MpscConcurrentQueue<E>[] queues;
+    protected final MpscArrayQueue<E>[] queues;
 
     @SuppressWarnings("unchecked")
     public MpscCompoundQueueColdFields(int capacity, int queueParallelism) {
         parallelQueues = isPowerOf2(queueParallelism) ? queueParallelism
                 : findNextPositivePowerOfTwo(queueParallelism) / 2;
         parallelQueuesMask = parallelQueues - 1;
-        queues = new MpscConcurrentQueue[parallelQueues];
+        queues = new MpscArrayQueue[parallelQueues];
         for (int i = 0; i < parallelQueues; i++) {
-            queues[i] = new MpscConcurrentQueue<E>(findNextPositivePowerOfTwo(capacity) / parallelQueues);
+            queues[i] = new MpscArrayQueue<E>(findNextPositivePowerOfTwo(capacity) / parallelQueues);
         }
     }
 }
@@ -57,6 +57,7 @@ abstract class MpscCompoundQueueMidPad<E> extends MpscCompoundQueueColdFields<E>
         super(capacity, queueParallelism);
     }
 }
+
 abstract class MpscCompoundQueueConsumerQueueIndex<E> extends MpscCompoundQueueMidPad<E> {
     int consumerQueueIndex;
 
@@ -65,8 +66,7 @@ abstract class MpscCompoundQueueConsumerQueueIndex<E> extends MpscCompoundQueueM
     }
 }
 
-public final class MpscCompoundQueue<E> extends MpscCompoundQueueConsumerQueueIndex<E> implements
-        ConcurrentQueue<E>, ConcurrentQueueConsumer<E>, ConcurrentQueueProducer<E> {
+public final class MpscCompoundQueue<E> extends MpscCompoundQueueConsumerQueueIndex<E> {
     private static final int CPUS = Runtime.getRuntime().availableProcessors();
     long p00, p01, p02, p03, p04, p05, p06;
     long p30, p31, p32, p33, p34, p35, p36, p37;
@@ -111,7 +111,7 @@ public final class MpscCompoundQueue<E> extends MpscCompoundQueueConsumerQueueIn
         consumerQueueIndex = qIndex;
         return e;
     }
-    
+
     @Override
     public E peek() {
         throw new UnsupportedOperationException();
@@ -120,7 +120,7 @@ public final class MpscCompoundQueue<E> extends MpscCompoundQueueConsumerQueueIn
     @Override
     public int size() {
         int size = 0;
-        for (MpscConcurrentQueue<E> lane : queues) {
+        for (MpscArrayQueue<E> lane : queues) {
             size += lane.size();
         }
         return size;
@@ -129,20 +129,5 @@ public final class MpscCompoundQueue<E> extends MpscCompoundQueueConsumerQueueIn
     @Override
     public Iterator<E> iterator() {
         throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public ConcurrentQueueConsumer<E> consumer() {
-        return this;
-    }
-
-    @Override
-    public ConcurrentQueueProducer<E> producer() {
-        return this;
-    }
-
-    @Override
-    public int capacity() {
-        return parallelQueues * queues[0].capacity();
     }
 }

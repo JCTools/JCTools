@@ -18,10 +18,10 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Queue;
 
-import org.jctools.queues.ConcurrentCircularArray;
+import org.jctools.queues.ConcurrentCircularArrayQueue;
 import org.jctools.util.UnsafeAccess;
 
-abstract class FFBufferL1Pad<E> extends ConcurrentCircularArray<E> {
+abstract class FFBufferL1Pad<E> extends ConcurrentCircularArrayQueue<E> {
     public long p10, p11, p12, p13, p14, p15, p16;
     public long p30, p31, p32, p33, p34, p35, p36, p37;
 

@@ -2,14 +2,9 @@ package org.jctools.queues.alt;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import org.jctools.queues.MpmcConcurrentQueue;
-import org.jctools.queues.MpscCompoundQueue;
-import org.jctools.queues.MpscConcurrentQueue;
-import org.jctools.queues.SpmcConcurrentQueue;
 import org.jctools.queues.SpscLinkedQueue;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Growth;
-import org.jctools.queues.spec.Ordering;
 
 /**
  * The queue factory produces {@link ConcurrentQueue} instances based on a best fit to the
@@ -25,26 +20,26 @@ public class ConcurrentQueueFactory {
             // SPSC
             if (qs.consumers == 1 && qs.producers == 1) {
 
-                return new FFBufferWithOfferBatchCq<>(qs.capacity);
+                return new SpscArrayConcurrentQueue<>(qs.capacity);
             }
+            // In flux, for now it is correct to return MPMC...
             // MPSC
-            else if (qs.consumers == 1) {
-                if (qs.ordering != Ordering.NONE) {
-                    return new MpscConcurrentQueue<>(qs.capacity);
-                } else {
-                    return new MpscCompoundQueue<>(qs.capacity);
-                }
-            }
-            // SPMC
-            else if (qs.producers == 1) {
-                return new SpmcConcurrentQueue<>(qs.capacity);
-            }
+            // else if (qs.consumers == 1) {
+            // if (qs.ordering != Ordering.NONE) {
+            // return new MpscArrayQueue<>(qs.capacity);
+            // } else {
+            // return new MpscCompoundQueue<>(qs.capacity);
+            // }
+            // }
+            // // SPMC
+            // else if (qs.producers == 1) {
+            // return new SpmcArrayQueue<>(qs.capacity);
+            // }
             // MPMC
             else {
-                return new MpmcConcurrentQueue<>(qs.capacity);
+                return new MpmcArrayConcurrentQueue<>(qs.capacity);
             }
-        }
-        else {
+        } else {
             if (qs.consumers == 1 && qs.producers == 1) {
 
                 return new SpscLinkedQueue<>();

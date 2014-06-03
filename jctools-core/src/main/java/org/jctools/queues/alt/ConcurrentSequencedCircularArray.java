@@ -1,4 +1,4 @@
-package org.jctools.queues;
+package org.jctools.queues.alt;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 

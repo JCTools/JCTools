@@ -13,7 +13,7 @@
  */
 package org.jctools.queues.alt;
 
-import org.jctools.queues.ConcurrentCircularArray;
+import org.jctools.queues.ConcurrentCircularArrayQueue;
 import org.jctools.util.UnsafeAccess;
 abstract class ProducerFields<E> extends ConcurrentCircularArray<E> {
     protected static final long TAIL_OFFSET;
@@ -49,10 +49,10 @@ final class Producer<E> extends ProducerFields<E> implements ConcurrentQueueProd
 
         final E[] lb = buffer;
         if (tail >= batchTail) {
-            if (null != lvElement(lb, calcOffset(tail + FFBufferWithOfferBatchCq.OFFER_BATCH_SIZE))) {
+            if (null != lvElement(lb, calcOffset(tail + SpscArrayConcurrentQueue.OFFER_BATCH_SIZE))) {
                 return false;
             }
-            batchTail = tail + FFBufferWithOfferBatchCq.OFFER_BATCH_SIZE;
+            batchTail = tail + SpscArrayConcurrentQueue.OFFER_BATCH_SIZE;
         }
         soElement(lb, calcOffset(tail), e);
         tail++;
@@ -119,18 +119,18 @@ final class Consumer<E> extends ConsumerFields<E> implements ConcurrentQueueCons
     }
 }
 
-abstract class FFBufferOfferBatchCqColdFields<E> extends ConcurrentCircularArray<E> {
+abstract class SpscArrayConcurrentQueueColdFields<E> extends ConcurrentCircularArray<E> {
     protected final Consumer<E> consumer;
     protected final Producer<E> producer;
 
-    public FFBufferOfferBatchCqColdFields(int capacity) {
+    public SpscArrayConcurrentQueueColdFields(int capacity) {
         super(capacity);
         consumer = new Consumer<E>(this);
         producer = new Producer<E>(this);
     }
 }
 
-public final class FFBufferWithOfferBatchCq<E> extends FFBufferOfferBatchCqColdFields<E> implements
+public final class SpscArrayConcurrentQueue<E> extends SpscArrayConcurrentQueueColdFields<E> implements
         ConcurrentQueue<E> {
     // Layout field/data offsets are runtime constants
     protected static final int OFFER_BATCH_SIZE = Integer.getInteger("offer.batch.size", 4096);
@@ -138,7 +138,7 @@ public final class FFBufferWithOfferBatchCq<E> extends FFBufferOfferBatchCqColdF
     long p00, p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
-    public FFBufferWithOfferBatchCq(final int capacity) {
+    public SpscArrayConcurrentQueue(final int capacity) {
         super(Math.max(capacity,2*OFFER_BATCH_SIZE));
     }
 
