@@ -40,11 +40,9 @@ public class ConcurrentQueueFactory {
                 return new MpmcArrayConcurrentQueue<>(qs.capacity);
             }
         } else {
-            if (qs.consumers == 1 && qs.producers == 1) {
-
-                return new SpscLinkedQueue<>();
-            }
-
+//            if (qs.consumers == 1 && qs.producers == 1) {
+//                return new SpscLinkedQueue<>();
+//            }
         }
         return new GenericQueue<E>();
     }

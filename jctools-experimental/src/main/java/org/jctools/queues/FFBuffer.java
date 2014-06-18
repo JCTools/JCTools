@@ -103,16 +103,16 @@ public final class FFBuffer<E> extends FFBufferL3Pad<E> implements Queue<E> {
         }
 
         final E[] lb = buffer;
-        if (null != lvElement(lb, calcOffset(tail))) {
+        if (null != lvElement(lb, calcElementOffset(tail))) {
             return false;
         }
-        soElement(lb, calcOffset(tail), e);
+        soElement(lb, calcElementOffset(tail), e);
         tail++;
         return true;
     }
 
     public E poll() {
-        final long offset = calcOffset(head);
+        final long offset = calcElementOffset(head);
         final E[] lb = buffer;
         final E e = lvElement(lb, offset);
         if (null == e) {
@@ -147,7 +147,7 @@ public final class FFBuffer<E> extends FFBufferL3Pad<E> implements Queue<E> {
     }
 
     private E getElement(long index) {
-        return lvElement(calcOffset(index));
+        return lvElement(calcElementOffset(index));
     }
 
     public int size() {

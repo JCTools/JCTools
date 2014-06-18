@@ -62,7 +62,7 @@ public abstract class ConcurrentSequencedCircularArrayQueue<E> extends Concurren
         UNSAFE.putLong(buffer, offset, e);
     }
 
-    protected final void soSequenceElement(long[] buffer, long offset, long e) {
+    protected final void soSequence(long[] buffer, long offset, long e) {
         UNSAFE.putOrderedLong(buffer, offset, e);
     }
 
@@ -74,7 +74,7 @@ public abstract class ConcurrentSequencedCircularArrayQueue<E> extends Concurren
         return UNSAFE.getLong(buffer, offset);
     }
 
-    protected final long lvSequenceElement(long[] buffer, long offset) {
+    protected final long lvSequence(long[] buffer, long offset) {
         return UNSAFE.getLongVolatile(buffer, offset);
     }
 

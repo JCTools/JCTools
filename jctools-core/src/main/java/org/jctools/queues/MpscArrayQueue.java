@@ -140,7 +140,7 @@ public final class MpscArrayQueue<E> extends MpscArrayQueueHeadField<E> implemen
                 }
             }
         } while (!casTail(currentTail, currentTail + 1));
-        final long offset = calcOffset(currentTail);
+        final long offset = calcElementOffset(currentTail);
         soElement(offset, e);
         return true;
     }
@@ -168,7 +168,7 @@ public final class MpscArrayQueue<E> extends MpscArrayQueueHeadField<E> implemen
         if (!casTail(currentTail, currentTail + 1)) {
             return -1; // CAS FAIL
         }
-        final long offset = calcOffset(currentTail);
+        final long offset = calcElementOffset(currentTail);
         soElement(offset, e);
         return 0; // AWESOME
     }
@@ -176,7 +176,7 @@ public final class MpscArrayQueue<E> extends MpscArrayQueueHeadField<E> implemen
     @Override
     public E poll() {
         final long currHead = lvHead();
-        final long offset = calcOffset(currHead);
+        final long offset = calcElementOffset(currHead);
         final E[] lb = buffer;
         // If we can't see the next available element, consider the queue empty
         final E e = lvElement(lb, offset);
@@ -190,7 +190,7 @@ public final class MpscArrayQueue<E> extends MpscArrayQueueHeadField<E> implemen
 
     @Override
     public E peek() {
-        return lpElement(calcOffset(lvHead()));
+        return lpElement(calcElementOffset(lvHead()));
     }
 
     @Override

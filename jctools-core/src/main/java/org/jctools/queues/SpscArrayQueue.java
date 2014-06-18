@@ -99,12 +99,12 @@ public final class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E> implements Q
 
         E[] lb = buffer;
         if (tail >= batchTail) {
-            if (null != lvElement(lb, calcOffset(tail + OFFER_BATCH_SIZE))) {
+            if (null != lvElement(lb, calcElementOffset(tail + OFFER_BATCH_SIZE))) {
                 return false;
             }
             batchTail = tail + OFFER_BATCH_SIZE;
         }
-        soElement(lb, calcOffset(tail), e);
+        soElement(lb, calcElementOffset(tail), e);
         tail++;
 
         return true;
@@ -112,7 +112,7 @@ public final class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E> implements Q
 
     @Override
     public E poll() {
-        final long offset = calcOffset(head);
+        final long offset = calcElementOffset(head);
         final E[] lb = buffer;
         final E e = lvElement(lb, offset);
         if (null == e) {
@@ -125,7 +125,7 @@ public final class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E> implements Q
 
     @Override
     public E peek() {
-        return lvElement(calcOffset(head));
+        return lvElement(calcElementOffset(head));
     }
 
     @Override

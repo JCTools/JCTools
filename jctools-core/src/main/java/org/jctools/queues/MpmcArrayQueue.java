@@ -15,12 +15,6 @@ package org.jctools.queues;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 
-import java.util.Queue;
-
-import org.jctools.queues.alt.ConcurrentQueue;
-import org.jctools.queues.alt.ConcurrentQueueConsumer;
-import org.jctools.queues.alt.ConcurrentQueueProducer;
-
 abstract class MpmcArrayQueueL1Pad<E> extends ConcurrentSequencedCircularArrayQueue<E> {
     long p10, p11, p12, p13, p14, p15, p16;
     long p30, p31, p32, p33, p34, p35, p36, p37;
@@ -30,31 +24,32 @@ abstract class MpmcArrayQueueL1Pad<E> extends ConcurrentSequencedCircularArrayQu
     }
 }
 
-abstract class MpmcArrayQueueTailField<E> extends MpmcArrayQueueL1Pad<E> {
-    private final static long TAIL_OFFSET;
+abstract class MpmcArrayQueueProducerField<E> extends MpmcArrayQueueL1Pad<E> {
+    private final static long P_INDEX_OFFSET;
     static {
         try {
-            TAIL_OFFSET = UNSAFE.objectFieldOffset(MpmcArrayQueueTailField.class.getDeclaredField("tail"));
+            P_INDEX_OFFSET = UNSAFE.objectFieldOffset(MpmcArrayQueueProducerField.class
+                    .getDeclaredField("producerIndex"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
     }
-    private volatile long tail;
+    private volatile long producerIndex;
 
-    public MpmcArrayQueueTailField(int capacity) {
+    public MpmcArrayQueueProducerField(int capacity) {
         super(capacity);
     }
 
-    protected final long lvTail() {
-        return tail;
+    protected final long lvProducerIndex() {
+        return producerIndex;
     }
 
-    protected final boolean casTail(long expect, long newValue) {
-        return UNSAFE.compareAndSwapLong(this, TAIL_OFFSET, expect, newValue);
+    protected final boolean casProducerIndex(long expect, long newValue) {
+        return UNSAFE.compareAndSwapLong(this, P_INDEX_OFFSET, expect, newValue);
     }
 }
 
-abstract class MpmcArrayQueueL2Pad<E> extends MpmcArrayQueueTailField<E> {
+abstract class MpmcArrayQueueL2Pad<E> extends MpmcArrayQueueProducerField<E> {
     long p20, p21, p22, p23, p24, p25, p26;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 
@@ -63,31 +58,52 @@ abstract class MpmcArrayQueueL2Pad<E> extends MpmcArrayQueueTailField<E> {
     }
 }
 
-abstract class MpmcArrayQueueHeadField<E> extends MpmcArrayQueueL2Pad<E> {
-    private final static long HEAD_OFFSET;
+abstract class MpmcArrayQueueConsumerField<E> extends MpmcArrayQueueL2Pad<E> {
+    private final static long C_INDEX_OFFSET;
     static {
         try {
-            HEAD_OFFSET = UNSAFE.objectFieldOffset(MpmcArrayQueueHeadField.class.getDeclaredField("head"));
+            C_INDEX_OFFSET = UNSAFE.objectFieldOffset(MpmcArrayQueueConsumerField.class
+                    .getDeclaredField("consumerIndex"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
     }
-    private volatile long head;
+    private volatile long consumerIndex;
 
-    public MpmcArrayQueueHeadField(int capacity) {
+    public MpmcArrayQueueConsumerField(int capacity) {
         super(capacity);
     }
 
-    protected final long lvHead() {
-        return head;
+    protected final long lvConsumerIndex() {
+        return consumerIndex;
     }
 
-    protected final boolean casHead(long expect, long newValue) {
-        return UNSAFE.compareAndSwapLong(this, HEAD_OFFSET, expect, newValue);
+    protected final boolean casConsumerIndex(long expect, long newValue) {
+        return UNSAFE.compareAndSwapLong(this, C_INDEX_OFFSET, expect, newValue);
     }
 }
 
-public class MpmcArrayQueue<E> extends MpmcArrayQueueHeadField<E> implements Queue<E> {
+/**
+ * A Multi-Producer-Multi-Consumer queue based on a {@link ConcurrentCircularArrayQueue}. This implies that
+ * any and all threads may call the offer/poll/peek methods and correctness is maintained. <br>
+ * This implementation follows patterns documented on the package level for False Sharing protection.<br>
+ * The algorithm for offer/poll is an adaptation of the one put forward by D. Yukov (See <a
+ * href="http://www.1024cores.net/home/lock-free-algorithms/queues/bounded-mpmc-queue">here</a>). The original
+ * algorithm uses an array of structs which should offer nice locality properties but is sadly not possible in
+ * Java (waiting on Value Types or similar). The alternative explored here utilizes 2 arrays, one for each
+ * field of the struct.<br>
+ * Tradeoffs to keep in mind: <li>Padding for false sharing: counter fields and queue fields are all padded as
+ * well as either side of both arrays. We are trading memory to avoid false sharing(active and passive). <li>2
+ * arrays instead of one: The algorithm requires an extra array of longs matching the size of the elements
+ * array. This is doubling/tripling the memory allocated for the buffer. <li>Power of 2 capacity: Actual
+ * elements buffer (and therefore sequence buffer) is the closest power of 2 larger or equal to the requested
+ * capacity. </lu>
+ * 
+ * @author nitsanw
+ * 
+ * @param <E>
+ */
+public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> implements MessagePassingQueue<E> {
     long p40, p41, p42, p43, p44, p45, p46;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 
@@ -100,18 +116,20 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueHeadField<E> implements Que
         if (null == e) {
             throw new NullPointerException("Null is not a valid element");
         }
-        final long[] lsb = sequenceBuffer;
-        long currentTail;
-        long pOffset;
+        // local load of field to avoid repeated loads after volatile reads
+        final long[] lSequenceBuffer = sequenceBuffer;
+        long currentProducerIndex;
+        long seqOffset;
 
         for (;;) {
-            currentTail = lvTail();
-            pOffset = calcSequenceOffset(currentTail);
-            long seq = lvSequenceElement(lsb, pOffset);
-            long delta = seq - currentTail;
+            currentProducerIndex = lvProducerIndex(); // LoadLoad
+            seqOffset = calcSequenceOffset(currentProducerIndex);
+            final long seq = lvSequence(lSequenceBuffer, seqOffset); // LoadLoad
+            final long delta = seq - currentProducerIndex;
             if (delta == 0) {
                 // this is expected if we see this first time around
-                if (casTail(currentTail, currentTail + 1)) {
+                if (casProducerIndex(currentProducerIndex, currentProducerIndex + 1)) {
+                    // Successful CAS: full barrier
                     break;
                 }
                 // failed cas, retry 1
@@ -119,28 +137,32 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueHeadField<E> implements Que
                 // poll has not moved this value forward
                 return false;
             } else {
-                // another producer beat us
+                // another producer has moved the sequence by one, retry 2
             }
         }
-        final long offset = calcOffset(currentTail);
-        spElement(offset, e);
-        // increment position, seeing this value again should lead to retry 2
-        soSequenceElement(lsb, pOffset, currentTail + 1);
+        // on 64bit(no compressed oops) JVM this is the same as seqOffset
+        final long elementOffset = calcElementOffset(currentProducerIndex);
+        spElement(elementOffset, e);
+        // increment sequence by 1, the value expected by consumer (seeing this value from a producer will
+        // lead to retry 2)
+        soSequence(lSequenceBuffer, seqOffset, currentProducerIndex + 1); // StoreStore
         return true;
     }
 
     @Override
     public E poll() {
-        final long[] lsb = sequenceBuffer;
-        long currentHead;
-        long pOffset;
+        // local load of field to avoid repeated loads after volatile reads
+        final long[] lSequenceBuffer = sequenceBuffer;
+        long currentConsumerIndex;
+        long seqOffset;
         for (;;) {
-            currentHead = lvHead();
-            pOffset = calcSequenceOffset(currentHead);
-            long seq = lvSequenceElement(lsb, pOffset);
-            long delta = seq - (currentHead + 1);
+            currentConsumerIndex = lvConsumerIndex();// LoadLoad
+            seqOffset = calcSequenceOffset(currentConsumerIndex);
+            final long seq = lvSequence(lSequenceBuffer, seqOffset);// LoadLoad
+            final long delta = seq - (currentConsumerIndex + 1);
             if (delta == 0) {
-                if (casHead(currentHead, currentHead + 1)) {
+                if (casConsumerIndex(currentConsumerIndex, currentConsumerIndex + 1)) {
+                    // Successful CAS: full barrier
                     break;
                 }
                 // failed cas, retry 1
@@ -148,24 +170,29 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueHeadField<E> implements Que
                 // queue is empty
                 return null;
             } else {
-                // another consumer beat us
+                // another consumer beat us and moved sequence ahead, retry 2
             }
         }
-        final long offset = calcOffset(currentHead);
-        final E[] lb = buffer;
-        E e = lvElement(lb, offset);
-        spElement(lb, offset, null);
-        soSequenceElement(lsb, pOffset, currentHead + capacity);
+        // on 64bit(no compressed oops) JVM this is the same as seqOffset
+        final long offset = calcElementOffset(currentConsumerIndex);
+        // local load of field to avoid repeated loads after volatile reads
+        final E[] lElementBuffer = buffer;
+        final E e = lvElement(lElementBuffer, offset);
+        spElement(lElementBuffer, offset, null);
+        // Move sequence ahead by $capacity, preparing it for next offer (seeing this value from a consumer
+        // will
+        // lead to retry 2)
+        soSequence(lSequenceBuffer, seqOffset, currentConsumerIndex + capacity);// StoreStore
         return e;
     }
 
     @Override
     public E peek() {
-        return lpElement(calcOffset(lvHead()));
+        return lpElement(calcElementOffset(lvConsumerIndex()));
     }
 
     @Override
     public int size() {
-        return (int) (lvTail() - lvHead());
+        return (int) (lvProducerIndex() - lvConsumerIndex());
     }
 }

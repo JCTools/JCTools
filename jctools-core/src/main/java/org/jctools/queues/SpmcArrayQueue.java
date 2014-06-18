@@ -135,7 +135,7 @@ public final class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements Q
         }
         final E[] lb = buffer;
         final long currTail = lvTail();
-        final long offset = calcOffset(currTail);
+        final long offset = calcElementOffset(currTail);
         if (null != lvElement(lb, offset)) {
             return false;
         }
@@ -163,7 +163,7 @@ public final class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements Q
         } while (!casHead(currentHead, currentHead + 1));
         // consumers are gated on latest visible tail, and so can't see a null value in the queue or overtake
         // and wrap to hit same location.
-        final long offset = calcOffset(currentHead);
+        final long offset = calcElementOffset(currentHead);
         final E[] lb = buffer;
         // load plain, element happens before it's index becomes visible
         final E e = lpElement(lb, offset);
@@ -174,7 +174,7 @@ public final class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements Q
     
     @Override
     public E peek() {
-        return lvElement(calcOffset(lvHead()));
+        return lvElement(calcElementOffset(lvHead()));
     }
     @Override
     public int size() {

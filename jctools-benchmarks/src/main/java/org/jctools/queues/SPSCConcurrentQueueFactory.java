@@ -16,8 +16,8 @@ public class SPSCConcurrentQueueFactory {
 //            return new SpscArrayQueue<Integer>(QUEUE_CAPACITY);
         case 30:
             return new SpscArrayConcurrentQueue<Integer>(QUEUE_CAPACITY);
-        case 31:
-            return new SpscLinkedQueue<Integer>();
+//        case 31:
+//            return new SpscLinkedQueue<Integer>();
 //        case 5:
 //            return new SpmcArrayQueue<Integer>(QUEUE_CAPACITY);
 //        case 6:

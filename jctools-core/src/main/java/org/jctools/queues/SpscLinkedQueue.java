@@ -3,7 +3,6 @@ package org.jctools.queues;
 import java.util.AbstractQueue;
 import java.util.Iterator;
 
-import org.jctools.queues.alt.ConcurrentQueue;
 import org.jctools.queues.alt.ConcurrentQueueConsumer;
 import org.jctools.queues.alt.ConcurrentQueueProducer;
 
@@ -25,7 +24,7 @@ abstract class SpscLinkedQueueTail<E> extends SpscLinkedQueuePad1<E> {
     protected LinkedQueueNode<E> tail = head;
 }
 
-public final class SpscLinkedQueue<E> extends SpscLinkedQueueTail<E> implements ConcurrentQueue<E>, ConcurrentQueueConsumer<E>, ConcurrentQueueProducer<E>{
+public final class SpscLinkedQueue<E> extends SpscLinkedQueueTail<E> {
     long p00, p01, p02, p03, p04, p05, p06, p07;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 
@@ -69,20 +68,5 @@ public final class SpscLinkedQueue<E> extends SpscLinkedQueueTail<E> implements 
             size++;
         }
         return size;
-    }
-
-    @Override
-    public ConcurrentQueueConsumer<E> consumer() {
-        return this;
-    }
-
-    @Override
-    public ConcurrentQueueProducer<E> producer() {
-        return this;
-    }
-
-    @Override
-    public int capacity() {
-        return Integer.MAX_VALUE;
     }
 }
