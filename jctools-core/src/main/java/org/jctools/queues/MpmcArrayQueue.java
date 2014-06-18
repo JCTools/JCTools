@@ -92,12 +92,15 @@ abstract class MpmcArrayQueueConsumerField<E> extends MpmcArrayQueueL2Pad<E> {
  * algorithm uses an array of structs which should offer nice locality properties but is sadly not possible in
  * Java (waiting on Value Types or similar). The alternative explored here utilizes 2 arrays, one for each
  * field of the struct.<br>
- * Tradeoffs to keep in mind: <li>Padding for false sharing: counter fields and queue fields are all padded as
- * well as either side of both arrays. We are trading memory to avoid false sharing(active and passive). <li>2
- * arrays instead of one: The algorithm requires an extra array of longs matching the size of the elements
- * array. This is doubling/tripling the memory allocated for the buffer. <li>Power of 2 capacity: Actual
- * elements buffer (and therefore sequence buffer) is the closest power of 2 larger or equal to the requested
- * capacity. </lu>
+ * Tradeoffs to keep in mind:
+ * <ol>
+ * <li>Padding for false sharing: counter fields and queue fields are all padded as well as either side of
+ * both arrays. We are trading memory to avoid false sharing(active and passive).
+ * <li>2 arrays instead of one: The algorithm requires an extra array of longs matching the size of the
+ * elements array. This is doubling/tripling the memory allocated for the buffer.
+ * <li>Power of 2 capacity: Actual elements buffer (and therefore sequence buffer) is the closest power of 2
+ * larger or equal to the requested capacity.
+ * </ol>
  * 
  * @author nitsanw
  * 
