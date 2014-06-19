@@ -72,8 +72,11 @@ public class QueueSanityTest {
         if (spec.ordering == Ordering.FIFO) {
             // expect FIFO
             i = 0;
+            Integer p;
             Integer e;
-            while ((e = q.poll()) != null) {
+            while ((p = q.peek()) != null) {
+                e = q.poll();
+                assertEquals(p, e);
                 assertEquals(size - (i + 1), q.size());
                 assertEquals(e.intValue(),i++);
             }

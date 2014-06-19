@@ -13,31 +13,37 @@ public final class LinkedQueueNode<E> {
             throw new RuntimeException(e);
         }
     }
-    private final E value;
-    private LinkedQueueNode<E> next;
+    private volatile E value;
+    private volatile LinkedQueueNode<E> next;
 
     LinkedQueueNode(){
         this(null);
     }
     LinkedQueueNode(E val) {
-        value = val;
+        soValue(val);
     }
 
-    public E lpValue() {
+    /**
+     * Gets the current value and nulls out the reference to it from this node.
+     * @return value
+     */
+    public E evacuateValue() {
+        E temp = value;
+        soValue(null);
+        return temp;
+    }
+
+    public E lvValue() {
         return value;
     }
-
-    @SuppressWarnings("unchecked")
-    public E lvValue() {
-        return (E) UNSAFE.getObjectVolatile(this, VALUE_OFFSET);
+    public void soValue(E newValue) {
+        UNSAFE.putOrderedObject(this, VALUE_OFFSET, newValue);
     }
-
     public void soNext(LinkedQueueNode<E> n) {
         UNSAFE.putOrderedObject(this, NEXT_OFFSET, n);
     }
 
-    @SuppressWarnings("unchecked")
     public LinkedQueueNode<E> lvNext() {
-        return (LinkedQueueNode<E>) UNSAFE.getObjectVolatile(this, NEXT_OFFSET);
+        return next;
     }
 }
