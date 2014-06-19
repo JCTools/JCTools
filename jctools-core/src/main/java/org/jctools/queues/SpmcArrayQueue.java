@@ -13,11 +13,6 @@
  */
 package org.jctools.queues;
 
-import java.util.Queue;
-
-import org.jctools.queues.alt.ConcurrentQueue;
-import org.jctools.queues.alt.ConcurrentQueueConsumer;
-import org.jctools.queues.alt.ConcurrentQueueProducer;
 import org.jctools.util.UnsafeAccess;
 
 abstract class SpmcArrayQueueL1Pad<E> extends ConcurrentCircularArrayQueue<E> {
@@ -122,7 +117,7 @@ abstract class SpmcArrayQueueL3Pad<E> extends SpmcArrayQueueTailCacheField<E> {
     }
 }
 
-public final class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements Queue<E> {
+public final class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> {
 
     public SpmcArrayQueue(final int capacity) {
         super(capacity);

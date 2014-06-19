@@ -19,14 +19,10 @@ import static org.jctools.util.Pow2.isPowerOf2;
 import java.util.AbstractQueue;
 import java.util.Iterator;
 
-import org.jctools.queues.alt.ConcurrentQueue;
-import org.jctools.queues.alt.ConcurrentQueueConsumer;
-import org.jctools.queues.alt.ConcurrentQueueProducer;
-
 /**
  * Use a set number of parallel MPSC queues to diffuse the contention on tail.
  */
-abstract class MpscCompoundQueueL0Pad<E> extends AbstractQueue<E> {
+abstract class MpscCompoundQueueL0Pad<E> extends AbstractQueue<E> implements MessagePassingQueue<E> {
     long p00, p01, p02, p03, p04, p05, p06;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 }
@@ -72,7 +68,11 @@ public final class MpscCompoundQueue<E> extends MpscCompoundQueueConsumerQueueIn
     long p30, p31, p32, p33, p34, p35, p36, p37;
 
     public MpscCompoundQueue(int capacity) {
-        super(capacity, CPUS);
+        this(capacity, CPUS);
+    }
+    
+    public MpscCompoundQueue(int capacity, int queueParallelism) {
+        super(capacity, queueParallelism);
     }
 
     @Override

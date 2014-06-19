@@ -87,11 +87,13 @@ abstract class MpmcArrayQueueConsumerField<E> extends MpmcArrayQueueL2Pad<E> {
  * A Multi-Producer-Multi-Consumer queue based on a {@link ConcurrentCircularArrayQueue}. This implies that
  * any and all threads may call the offer/poll/peek methods and correctness is maintained. <br>
  * This implementation follows patterns documented on the package level for False Sharing protection.<br>
- * The algorithm for offer/poll is an adaptation of the one put forward by D. Yukov (See <a
+ * The algorithm for offer/poll is an adaptation of the one put forward by D. Vyukov (See <a
  * href="http://www.1024cores.net/home/lock-free-algorithms/queues/bounded-mpmc-queue">here</a>). The original
  * algorithm uses an array of structs which should offer nice locality properties but is sadly not possible in
  * Java (waiting on Value Types or similar). The alternative explored here utilizes 2 arrays, one for each
- * field of the struct.<br>
+ * field of the struct. There is a further alternative in the experimental project which uses iteration
+ * phase markers to achieve the same algo and is closer structuraly to the original, but sadly does not
+ * perform as well as this implementation.<br>
  * Tradeoffs to keep in mind:
  * <ol>
  * <li>Padding for false sharing: counter fields and queue fields are all padded as well as either side of
@@ -106,7 +108,7 @@ abstract class MpmcArrayQueueConsumerField<E> extends MpmcArrayQueueL2Pad<E> {
  * 
  * @param <E>
  */
-public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> implements MessagePassingQueue<E> {
+public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> {
     long p40, p41, p42, p43, p44, p45, p46;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 

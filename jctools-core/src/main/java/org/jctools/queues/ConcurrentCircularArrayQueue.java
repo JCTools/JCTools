@@ -8,7 +8,8 @@ import java.util.Iterator;
 import org.jctools.util.Pow2;
 import org.jctools.util.UnsafeAccess;
 
-abstract class ConcurrentCircularArrayQueueL0Pad<E> extends AbstractQueue<E> {
+abstract class ConcurrentCircularArrayQueueL0Pad<E> extends AbstractQueue<E> implements
+        MessagePassingQueue<E> {
     long p00, p01, p02, p03, p04, p05, p06, p07;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 }
@@ -44,13 +45,6 @@ public abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircular
         buffer = (E[]) new Object[(this.capacity << SPARSE_SHIFT) + BUFFER_PAD * 2];
     }
 
-    public ConcurrentCircularArrayQueue(ConcurrentCircularArrayQueue<E> c) {
-        this.capacity = c.capacity;
-        this.mask = c.mask;
-        // pad data on either end with some empty slots.
-        this.buffer = c.buffer;
-    }
-
     protected final long calcElementOffset(long index) {
         return REF_ARRAY_BASE + ((index & mask) << REF_ELEMENT_SHIFT);
     }
@@ -61,10 +55,6 @@ public abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircular
 
     protected final void soElement(long offset, E e) {
         UNSAFE.putOrderedObject(buffer, offset, e);
-    }
-
-    protected final void svElement(long offset, E e) {
-        UNSAFE.putObjectVolatile(buffer, offset, e);
     }
 
     @SuppressWarnings("unchecked")
@@ -85,10 +75,6 @@ public abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircular
         UNSAFE.putOrderedObject(buffer, offset, e);
     }
 
-    protected final void svElement(E[] buffer, long offset, E e) {
-        UNSAFE.putObjectVolatile(buffer, offset, e);
-    }
-
     @SuppressWarnings("unchecked")
     protected final E lpElement(E[] buffer, long offset) {
         return (E) UNSAFE.getObject(buffer, offset);
@@ -100,27 +86,7 @@ public abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircular
     }
 
     @Override
-    public boolean offer(E e) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public E poll() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public E peek() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public Iterator<E> iterator() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public int size() {
         throw new UnsupportedOperationException();
     }
 }

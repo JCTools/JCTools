@@ -25,53 +25,16 @@ public abstract class ConcurrentSequencedCircularArrayQueue<E> extends Concurren
         // pad data on either end with some empty slots.
         sequenceBuffer = new long[(this.capacity << SPARSE_SHIFT) + BUFFER_PAD * 2];
         for (long i = 0; i < this.capacity; i++) {
-            soSequenceElement(calcSequenceOffset(i), i);
+            soSequence(sequenceBuffer, calcSequenceOffset(i), i);
         }
-    }
-
-    public ConcurrentSequencedCircularArrayQueue(ConcurrentSequencedCircularArrayQueue<E> c) {
-        super(c);
-        this.sequenceBuffer = c.sequenceBuffer;
     }
 
     protected final long calcSequenceOffset(long index) {
         return ARRAY_BASE + ((index & mask) << ELEMENT_SHIFT);
     }
 
-    protected final void spSequenceElement(long offset, long e) {
-        UNSAFE.putLong(sequenceBuffer, offset, e);
-    }
-
-    protected final void soSequenceElement(long offset, long e) {
-        UNSAFE.putOrderedLong(sequenceBuffer, offset, e);
-    }
-
-    protected final void svSequenceElement(long offset, long e) {
-        UNSAFE.putLongVolatile(sequenceBuffer, offset, e);
-    }
-
-    protected final long lpSequenceElement(long offset) {
-        return UNSAFE.getLong(sequenceBuffer, offset);
-    }
-
-    protected final long lvSequenceElement(long offset) {
-        return UNSAFE.getLongVolatile(sequenceBuffer, offset);
-    }
-
-    protected final void spSequenceElement(long[] buffer, long offset, long e) {
-        UNSAFE.putLong(buffer, offset, e);
-    }
-
     protected final void soSequence(long[] buffer, long offset, long e) {
         UNSAFE.putOrderedLong(buffer, offset, e);
-    }
-
-    protected final void svSequenceElement(long[] buffer, long offset, long e) {
-        UNSAFE.putLongVolatile(buffer, offset, e);
-    }
-
-    protected final long lpSequenceElement(long[] buffer, long offset) {
-        return UNSAFE.getLong(buffer, offset);
     }
 
     protected final long lvSequence(long[] buffer, long offset) {

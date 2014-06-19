@@ -13,11 +13,6 @@
  */
 package org.jctools.queues;
 
-import java.util.Queue;
-
-import org.jctools.queues.alt.ConcurrentQueue;
-import org.jctools.queues.alt.ConcurrentQueueConsumer;
-import org.jctools.queues.alt.ConcurrentQueueProducer;
 import org.jctools.util.UnsafeAccess;
 
 abstract class SpscArrayQueueL1Pad<E> extends ConcurrentCircularArrayQueue<E> {
@@ -64,7 +59,7 @@ abstract class SpscArrayQueueL3Pad<E> extends SpscArrayQueueHeadField<E> {
     }
 }
 
-public final class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E> implements Queue<E> {
+public final class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E> {
     private final static long TAIL_OFFSET;
     private final static long HEAD_OFFSET;
     static {

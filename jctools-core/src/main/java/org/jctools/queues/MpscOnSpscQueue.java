@@ -19,10 +19,6 @@ import java.util.NoSuchElementException;
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.jctools.queues.alt.ConcurrentQueue;
-import org.jctools.queues.alt.ConcurrentQueueConsumer;
-import org.jctools.queues.alt.ConcurrentQueueProducer;
-
 /**
  * Use an SPSC per producer.
  */
