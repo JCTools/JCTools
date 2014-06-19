@@ -6,19 +6,6 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedTransferQueue;
 
-import org.jctools.queues.BQueue;
-import org.jctools.queues.FFBuffer;
-import org.jctools.queues.SpscArrayQueue;
-import org.jctools.queues.FloatingCountersSpscConcurrentArrayQueue;
-import org.jctools.queues.InlinedCountersSpscConcurrentArrayQueue;
-import org.jctools.queues.MpmcArrayQueue;
-import org.jctools.queues.MpmcConcurrentQueueStateMarkers;
-import org.jctools.queues.MpscCompoundQueue;
-import org.jctools.queues.MpscArrayQueue;
-import org.jctools.queues.MpscOnSpscQueue;
-import org.jctools.queues.SpmcArrayQueue;
-import org.jctools.queues.SpscLinkedQueue;
-
 public class SPSCQueueFactory {
     public static final int QUEUE_CAPACITY = 1 << Integer.getInteger("pow2.capacity", 15);
     public static final int QUEUE_TYPE = Integer.getInteger("q.type", 0);
@@ -56,6 +43,8 @@ public class SPSCQueueFactory {
             return new MpscCompoundQueue<Integer>(queueCapacity);
         case 62:
             return new MpscOnSpscQueue<Integer>(queueCapacity);
+        case 63:
+            return new MpscLinkedQueue<Integer>();
         case 7:
             return new MpmcArrayQueue<Integer>(queueCapacity);
         case 71:

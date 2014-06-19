@@ -19,12 +19,12 @@ public class QueueFactory {
     public static <E> Queue<E> newQueue(ConcurrentQueueSpec qs) {
         if (qs.growth == Growth.BOUNDED) {
             // SPSC
-            if (qs.consumers == 1 && qs.producers == 1) {
+            if (qs.isSpsc()) {
 
                 return new SpscArrayQueue<>(qs.capacity);
             }
             // MPSC
-            else if (qs.consumers == 1) {
+            else if (qs.isMpsc()) {
                 if (qs.ordering != Ordering.NONE) {
                     return new MpscArrayQueue<E>(qs.capacity);
                 } else {
@@ -32,16 +32,21 @@ public class QueueFactory {
                 }
             }
             // SPMC
-            else if (qs.producers == 1) {
+            else if (qs.isSpmc()) {
                 return new SpmcArrayQueue<E>(qs.capacity);
             }
             // MPMC
             else {
                 return new MpmcArrayQueue<E>(qs.capacity);
             }
-        } else {
-            if (qs.consumers == 1 && qs.producers == 1) {
+        } else if (qs.growth == Growth.UNBOUNDED){
+            // SPSC
+            if (qs.isSpsc()) {
                 return new SpscLinkedQueue<E>();
+            }
+            // MPSC
+            else if(qs.isMpsc()){
+                return new MpscLinkedQueue<E>();
             }
         }
         return new ConcurrentLinkedQueue<E>();

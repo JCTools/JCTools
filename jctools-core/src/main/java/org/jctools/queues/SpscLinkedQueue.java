@@ -30,8 +30,7 @@ public final class SpscLinkedQueue<E> extends SpscLinkedQueueTail<E> {
         if(e == null) {
             throw new IllegalArgumentException("null elements not allowed");
         }
-        LinkedQueueNode<E> n = new LinkedQueueNode<>();
-        n.spValue(e);
+        LinkedQueueNode<E> n = new LinkedQueueNode<E>(e);
         head.soNext(n);
         head = n;
         return true;

@@ -35,4 +35,17 @@ public class ConcurrentQueueSpec {
         this.ordering = ordering;
         this.preference = preference;
     }
+
+    public boolean isSpsc() {
+        return consumers == 1 && producers == 1;
+    }
+    public boolean isMpsc() {
+        return consumers == 1 && producers != 1;
+    }
+    public boolean isSpmc() {
+        return consumers != 1 && producers == 1;
+    }
+    public boolean isMpmc() {
+        return consumers != 1 && producers != 1;
+    }
 }
