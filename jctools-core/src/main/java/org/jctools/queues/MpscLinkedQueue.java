@@ -17,6 +17,7 @@ abstract class MpscLinkedQueueProducerNodeRef<E> extends MpscLinkedQueuePad0<E> 
 
     @SuppressWarnings("unchecked")
     protected final LinkedQueueNode<E> xchgProducerNode(LinkedQueueNode<E> newVal) {
+        // LOCK XCHG in JDK8, a CAS loop in JDK 7/6
         return (LinkedQueueNode<E>) UPDATER.getAndSet(this, newVal);
     }
 }
@@ -51,9 +52,8 @@ public final class MpscLinkedQueue<E> extends MpscLinkedQueueConsumerNodeRef<E> 
     long p30, p31, p32, p33, p34, p35, p36, p37;
 
     public MpscLinkedQueue() {
-        producerNode = new LinkedQueueNode<>();
-        consumerNode = producerNode;
-        consumerNode.soNext(null); // this ensures correct construction: StoreStore
+        consumerNode = new LinkedQueueNode<>();
+        producerNode = consumerNode;// this ensures correct construction: StoreLoad
     }
 
     /**
@@ -70,15 +70,15 @@ public final class MpscLinkedQueue<E> extends MpscLinkedQueueConsumerNodeRef<E> 
      * @see java.util.Queue#offer(java.lang.Object)
      */
     @Override
-    public boolean offer(E e) {
-        if (e == null) {
+    public boolean offer(final E nextValue) {
+        if (nextValue == null) {
             throw new IllegalArgumentException("null elements not allowed");
         }
-        LinkedQueueNode<E> n = new LinkedQueueNode<E>(e);
-        LinkedQueueNode<E> prev = xchgProducerNode(n); // LOCK XCHG in JDK8, a CAS loop in JDK 7/6
+        final LinkedQueueNode<E> nextNode = new LinkedQueueNode<E>(nextValue);
+        final LinkedQueueNode<E> prevProducerNode = xchgProducerNode(nextNode);
         // Should a producer thread get interrupted here the chain WILL be broken until that thread is resumed
         // and completes the store in prev.next.
-        prev.soNext(n); // StoreStore
+        prevProducerNode.soNext(nextNode); // StoreStore
         return true;
     }
 
@@ -98,19 +98,22 @@ public final class MpscLinkedQueue<E> extends MpscLinkedQueueConsumerNodeRef<E> 
      */
     @Override
     public E poll() {
-        LinkedQueueNode<E> n = consumerNode.lvNext();
-        if (n != null) {
-            consumerNode = n;
-            return n.evacuateValue();
+        final LinkedQueueNode<E> nextNode = consumerNode.lvNext();
+        if (nextNode != null) {
+            // we have to null out the value because we are going to hang on to the node
+            final E nextValue = nextNode.evacuateValue();
+            consumerNode = nextNode;
+            return nextValue;
         }
         return null;
     }
 
+
     @Override
     public E peek() {
-        LinkedQueueNode<E> n = consumerNode.lvNext();
-        if (n != null) {
-            return n.lvValue();
+        final LinkedQueueNode<E> nextNode = consumerNode.lvNext();
+        if (nextNode != null) {
+            return nextNode.lvValue();
         } else {
             return null;
         }
