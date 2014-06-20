@@ -16,15 +16,17 @@ public final class LinkedQueueNode<E> {
     private volatile E value;
     private volatile LinkedQueueNode<E> next;
 
-    LinkedQueueNode(){
+    LinkedQueueNode() {
         this(null);
     }
+
     LinkedQueueNode(E val) {
         soValue(val);
     }
 
     /**
      * Gets the current value and nulls out the reference to it from this node.
+     * 
      * @return value
      */
     public E evacuateValue() {
@@ -36,9 +38,11 @@ public final class LinkedQueueNode<E> {
     public E lvValue() {
         return value;
     }
+
     public void soValue(E newValue) {
         UNSAFE.putOrderedObject(this, VALUE_OFFSET, newValue);
     }
+
     public void soNext(LinkedQueueNode<E> n) {
         UNSAFE.putOrderedObject(this, NEXT_OFFSET, n);
     }

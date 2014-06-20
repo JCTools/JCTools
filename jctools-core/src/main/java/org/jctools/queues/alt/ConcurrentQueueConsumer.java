@@ -16,8 +16,8 @@ package org.jctools.queues.alt;
 import java.util.Queue;
 
 /**
- * Consumers are local to the threads which use them. A thread should therefore call
- * {@link ConcurrentQueue#consumer()} to obtain an instance and should only use it's own instance to poll.
+ * Consumers are local to the threads which use them. A thread should therefore call {@link ConcurrentQueue#consumer()}
+ * to obtain an instance and should only use it's own instance to poll.
  * 
  * @author nitsanw
  * 
@@ -38,8 +38,8 @@ public interface ConcurrentQueueConsumer<E> {
     E peek();
 
     /**
-     * Remove all elements from the queue. This will not stop the producers from adding new elements, so only
-     * guarantees elements visible to the consumer on first sweep are removed.
+     * Remove all elements from the queue. This will not stop the producers from adding new elements, so only guarantees
+     * elements visible to the consumer on first sweep are removed.
      */
     void clear();
 }

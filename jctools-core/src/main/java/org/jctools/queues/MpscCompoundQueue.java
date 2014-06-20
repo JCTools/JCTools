@@ -70,7 +70,7 @@ public final class MpscCompoundQueue<E> extends MpscCompoundQueueConsumerQueueIn
     public MpscCompoundQueue(int capacity) {
         this(capacity, CPUS);
     }
-    
+
     public MpscCompoundQueue(int capacity, int queueParallelism) {
         super(capacity, queueParallelism);
     }

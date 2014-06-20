@@ -8,8 +8,7 @@ import java.util.Iterator;
 import org.jctools.util.Pow2;
 import org.jctools.util.UnsafeAccess;
 
-abstract class ConcurrentCircularArrayQueueL0Pad<E> extends AbstractQueue<E> implements
-        MessagePassingQueue<E> {
+abstract class ConcurrentCircularArrayQueueL0Pad<E> extends AbstractQueue<E> implements MessagePassingQueue<E> {
     long p00, p01, p02, p03, p04, p05, p06, p07;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 }

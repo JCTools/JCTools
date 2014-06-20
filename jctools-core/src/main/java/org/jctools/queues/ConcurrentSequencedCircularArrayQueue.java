@@ -15,8 +15,7 @@ public abstract class ConcurrentSequencedCircularArrayQueue<E> extends Concurren
             throw new IllegalStateException("Unexpected long[] element size");
         }
         // Including the buffer pad in the array base offset
-        ARRAY_BASE = UnsafeAccess.UNSAFE.arrayBaseOffset(long[].class)
-                + (BUFFER_PAD << (ELEMENT_SHIFT - SPARSE_SHIFT));
+        ARRAY_BASE = UnsafeAccess.UNSAFE.arrayBaseOffset(long[].class) + (BUFFER_PAD << (ELEMENT_SHIFT - SPARSE_SHIFT));
     }
     protected final long[] sequenceBuffer;
 

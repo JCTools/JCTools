@@ -64,10 +64,8 @@ public final class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E> {
     private final static long HEAD_OFFSET;
     static {
         try {
-            TAIL_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(SpscArrayQueueTailField.class
-                    .getDeclaredField("tail"));
-            HEAD_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(SpscArrayQueueHeadField.class
-                    .getDeclaredField("head"));
+            TAIL_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(SpscArrayQueueTailField.class.getDeclaredField("tail"));
+            HEAD_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(SpscArrayQueueHeadField.class.getDeclaredField("head"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }

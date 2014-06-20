@@ -1,4 +1,3 @@
-
 /**
  * Memory layout controls and False Sharing:<br>
  * The classes in this package use what is considered at the moment the most reliable method of controlling
@@ -19,3 +18,4 @@
  * @author nitsanw
  */
 package org.jctools.queues;
+

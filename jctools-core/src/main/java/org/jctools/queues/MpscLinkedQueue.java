@@ -33,15 +33,15 @@ abstract class MpscLinkedQueueConsumerNodeRef<E> extends MpscLinkedQueuePad1<E> 
 
 /**
  * This is a direct Java port of the MPSC algorithm as presented <a
- * href="http://www.1024cores.net/home/lock-free-algorithms/queues/non-intrusive-mpsc-node-based-queue"> on
- * 1024 Cores</a> by D. Vyukov. The original has been adapted to Java and it's quirks with regards to memory
- * model and layout:
+ * href="http://www.1024cores.net/home/lock-free-algorithms/queues/non-intrusive-mpsc-node-based-queue"> on 1024
+ * Cores</a> by D. Vyukov. The original has been adapted to Java and it's quirks with regards to memory model and
+ * layout:
  * <ol>
  * <li>Use inheritance to ensure no false sharing occurs between producer/consumer node reference fields.
  * <li>Use {@link AtomicReferenceFieldUpdater} to provide XCHG functionality to the best of the JDK ability.
  * </ol>
- * The queue is initialized with a stub node which is set to both the producer and consumer node references.
- * From this point follow the notes on offer/poll.
+ * The queue is initialized with a stub node which is set to both the producer and consumer node references. From this
+ * point follow the notes on offer/poll.
  * 
  * @author nitsanw
  * 
@@ -57,14 +57,17 @@ public final class MpscLinkedQueue<E> extends MpscLinkedQueueConsumerNodeRef<E> 
     }
 
     /**
+     * {@inheritDoc} <br>
+     * 
+     * IMPLEMENTATION NOTES:<br>
      * Offer is allowed from multiple threads.<br>
      * Offer allocates a new node and:
      * <ol>
      * <li>Swaps it atomically with current producer node (only one producer 'wins')
      * <li>Sets the new node as the node following from the swapped producer node
      * </ol>
-     * This works because each producer is guaranteed to 'plant' a new node and link the old node. No 2
-     * producers can get the same producer node as part of XCHG guarantee.
+     * This works because each producer is guaranteed to 'plant' a new node and link the old node. No 2 producers can
+     * get the same producer node as part of XCHG guarantee.
      * 
      * @see MessagePassingQueue#offer(Object)
      * @see java.util.Queue#offer(java.lang.Object)
@@ -83,15 +86,17 @@ public final class MpscLinkedQueue<E> extends MpscLinkedQueueConsumerNodeRef<E> 
     }
 
     /**
+     * {@inheritDoc} <br>
+     * 
+     * IMPLEMENTATION NOTES:<br>
      * Poll is allowed from a SINGLE thread.<br>
      * Poll reads the next node from the consumerNode and:
      * <ol>
      * <li>If it is null, the queue is empty.
      * <li>If it is not null set it as the consumer node and return it's now evacuated value.
      * </ol>
-     * This means the consumerNode.value is always null, which is also the starting point for the queue.
-     * Because null values are not allowed to be offered this is the only node with it's value set to null at
-     * any one time.
+     * This means the consumerNode.value is always null, which is also the starting point for the queue. Because null
+     * values are not allowed to be offered this is the only node with it's value set to null at any one time.
      * 
      * @see MessagePassingQueue#poll(Object)
      * @see java.util.Queue#poll(java.lang.Object)
@@ -108,7 +113,6 @@ public final class MpscLinkedQueue<E> extends MpscLinkedQueueConsumerNodeRef<E> 
         return null;
     }
 
-
     @Override
     public E peek() {
         final LinkedQueueNode<E> nextNode = consumerNode.lvNext();
@@ -124,6 +128,14 @@ public final class MpscLinkedQueue<E> extends MpscLinkedQueueConsumerNodeRef<E> 
         throw new UnsupportedOperationException();
     }
 
+    /**
+     * {@inheritDoc} <br>
+     * 
+     * IMPLEMENTATION NOTES:<br>
+     * This is an O(n) operation as we run through all the nodes and count them.<br>
+     * 
+     * @see java.util.Queue#size()
+     */
     @Override
     public int size() {
         LinkedQueueNode<E> temp = consumerNode;

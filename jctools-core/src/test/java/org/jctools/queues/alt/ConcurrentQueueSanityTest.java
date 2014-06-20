@@ -25,24 +25,20 @@ public class ConcurrentQueueSanityTest {
     @SuppressWarnings("rawtypes")
     @Parameterized.Parameters
     public static Collection queues() {
-        return Arrays
-                .asList(new Object[][] {
-                        { new ConcurrentQueueSpec(1, 1, 1, Growth.UNBOUNDED, Ordering.FIFO, Preference.NONE) },
-                        { new ConcurrentQueueSpec(1, 1, 1, Growth.BOUNDED, Ordering.FIFO, Preference.NONE) },
-                        { new ConcurrentQueueSpec(1, 1, SIZE, Growth.BOUNDED, Ordering.FIFO, Preference.NONE) },
-                        { new ConcurrentQueueSpec(1, 0, 1, Growth.BOUNDED, Ordering.FIFO, Preference.NONE) },
-                        { new ConcurrentQueueSpec(1, 0, SIZE, Growth.BOUNDED, Ordering.FIFO, Preference.NONE) },
-                        { new ConcurrentQueueSpec(0, 1, 1, Growth.BOUNDED, Ordering.FIFO, Preference.NONE) },
-                        { new ConcurrentQueueSpec(0, 1, SIZE, Growth.BOUNDED, Ordering.FIFO, Preference.NONE) },
-                        { new ConcurrentQueueSpec(0, 1, 1, Growth.BOUNDED, Ordering.PRODUCER_FIFO,
-                                Preference.NONE) },
-                        { new ConcurrentQueueSpec(0, 1, SIZE, Growth.BOUNDED, Ordering.PRODUCER_FIFO,
-                                Preference.NONE) },
-                        { new ConcurrentQueueSpec(0, 1, 1, Growth.BOUNDED, Ordering.NONE, Preference.NONE) },
-                        { new ConcurrentQueueSpec(0, 1, SIZE, Growth.BOUNDED, Ordering.NONE, Preference.NONE) },
-                        { new ConcurrentQueueSpec(0, 0, 1, Growth.BOUNDED, Ordering.FIFO, Preference.NONE) }, 
-                        { new ConcurrentQueueSpec(0, 0, SIZE, Growth.BOUNDED, Ordering.FIFO, Preference.NONE) }, 
-                        });
+        return Arrays.asList(new Object[][] {
+                { new ConcurrentQueueSpec(1, 1, 1, Growth.UNBOUNDED, Ordering.FIFO, Preference.NONE) },
+                { new ConcurrentQueueSpec(1, 1, 1, Growth.BOUNDED, Ordering.FIFO, Preference.NONE) },
+                { new ConcurrentQueueSpec(1, 1, SIZE, Growth.BOUNDED, Ordering.FIFO, Preference.NONE) },
+                { new ConcurrentQueueSpec(1, 0, 1, Growth.BOUNDED, Ordering.FIFO, Preference.NONE) },
+                { new ConcurrentQueueSpec(1, 0, SIZE, Growth.BOUNDED, Ordering.FIFO, Preference.NONE) },
+                { new ConcurrentQueueSpec(0, 1, 1, Growth.BOUNDED, Ordering.FIFO, Preference.NONE) },
+                { new ConcurrentQueueSpec(0, 1, SIZE, Growth.BOUNDED, Ordering.FIFO, Preference.NONE) },
+                { new ConcurrentQueueSpec(0, 1, 1, Growth.BOUNDED, Ordering.PRODUCER_FIFO, Preference.NONE) },
+                { new ConcurrentQueueSpec(0, 1, SIZE, Growth.BOUNDED, Ordering.PRODUCER_FIFO, Preference.NONE) },
+                { new ConcurrentQueueSpec(0, 1, 1, Growth.BOUNDED, Ordering.NONE, Preference.NONE) },
+                { new ConcurrentQueueSpec(0, 1, SIZE, Growth.BOUNDED, Ordering.NONE, Preference.NONE) },
+                { new ConcurrentQueueSpec(0, 0, 1, Growth.BOUNDED, Ordering.FIFO, Preference.NONE) },
+                { new ConcurrentQueueSpec(0, 0, SIZE, Growth.BOUNDED, Ordering.FIFO, Preference.NONE) }, });
     }
 
     final ConcurrentQueue<Integer> q;
@@ -75,7 +71,7 @@ public class ConcurrentQueueSanityTest {
             Integer e;
             while ((e = q.consumer().poll()) != null) {
                 assertEquals(size - (i + 1), q.size());
-                assertEquals(e.intValue(),i++);
+                assertEquals(e.intValue(), i++);
             }
             assertEquals(size, i);
         } else {

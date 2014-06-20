@@ -87,7 +87,8 @@ abstract class MpscArrayQueueConsumerField<E> extends MpscArrayQueueL2Pad<E> {
     private final static long C_INDEX_OFFSET;
     static {
         try {
-            C_INDEX_OFFSET = UNSAFE.objectFieldOffset(MpscArrayQueueConsumerField.class.getDeclaredField("consumerIndex"));
+            C_INDEX_OFFSET = UNSAFE.objectFieldOffset(MpscArrayQueueConsumerField.class
+                    .getDeclaredField("consumerIndex"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
@@ -108,13 +109,12 @@ abstract class MpscArrayQueueConsumerField<E> extends MpscArrayQueueL2Pad<E> {
 }
 
 /**
- * A Multi-Producer-Single-Consumer queue based on a {@link ConcurrentCircularArrayQueue}. This implies that
- * any thread may call the offer method, but only a single thread may call poll/peek for correctness to
- * maintained. <br>
+ * A Multi-Producer-Single-Consumer queue based on a {@link ConcurrentCircularArrayQueue}. This implies that any thread
+ * may call the offer method, but only a single thread may call poll/peek for correctness to maintained. <br>
  * This implementation follows patterns documented on the package level for False Sharing protection.<br>
- * This implementation is using the <a href="http://sourceforge.net/projects/mc-fastflow/">Fast Flow</a>
- * method for polling from the queue (with minor change to correctly publish the index) and an extension of
- * the Leslie Lamport concurrent queue algorithm (originated by Martin Thompson) on the producer side.<br>
+ * This implementation is using the <a href="http://sourceforge.net/projects/mc-fastflow/">Fast Flow</a> method for
+ * polling from the queue (with minor change to correctly publish the index) and an extension of the Leslie Lamport
+ * concurrent queue algorithm (originated by Martin Thompson) on the producer side.<br>
  * 
  * @author nitsanw
  * 
@@ -129,8 +129,10 @@ public final class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> {
     }
 
     /**
-     * Lock free offer using a single CAS. As class name suggests access is permitted to many threads
-     * concurrently.
+     * {@inheritDoc} <br>
+     * 
+     * IMPLEMENTATION NOTES:<br>
+     * Lock free offer using a single CAS. As class name suggests access is permitted to many threads concurrently.
      * 
      * @see java.util.Queue#offer(java.lang.Object)
      * @see MessagePassingQueue#offer(Object)
@@ -160,8 +162,8 @@ public final class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> {
             }
         } while (!casProducerIndex(currentProducerIndex, currentProducerIndex + 1));
         /*
-         * NOTE: the new producer index value is made visible BEFORE the element in the array. If we relied on
-         * the index visibility to poll() we would need to handle the case where the element is not visible.
+         * NOTE: the new producer index value is made visible BEFORE the element in the array. If we relied on the index
+         * visibility to poll() we would need to handle the case where the element is not visible.
          */
 
         // Won CAS, move on to storing
@@ -173,8 +175,7 @@ public final class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> {
     /**
      * A wait free alternative to offer which fails on CAS failure.
      * 
-     * @param e
-     *            new element, not null
+     * @param e new element, not null
      * @return 1 if full, -1 if CAS failed, 0 if successful
      */
     public int tryOffer(final E e) {
@@ -216,10 +217,10 @@ public final class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> {
         if (null == e) {
             return null; // EMPTY
             /*
-             * NOTE: Queue may not actually be empty in the case of a producer (P1) being interrupted after
-             * winning the CAS on offer but before storing the element in the queue. Other producers may go on
-             * to fill up the queue after this element. We can detect this state by observing size() != 0. An
-             * alternative in this case is to busy spin until element becomes visible.
+             * NOTE: Queue may not actually be empty in the case of a producer (P1) being interrupted after winning the
+             * CAS on offer but before storing the element in the queue. Other producers may go on to fill up the queue
+             * after this element. We can detect this state by observing size() != 0. An alternative in this case is to
+             * busy spin until element becomes visible.
              */
         }
 

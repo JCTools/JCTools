@@ -7,9 +7,9 @@ import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Growth;
 
 /**
- * The queue factory produces {@link ConcurrentQueue} instances based on a best fit to the
- * {@link ConcurrentQueueSpec}. This allows minimal dependencies between user code and the queue
- * implementations and gives users a way to express their requirements on a higher level.
+ * The queue factory produces {@link ConcurrentQueue} instances based on a best fit to the {@link ConcurrentQueueSpec}.
+ * This allows minimal dependencies between user code and the queue implementations and gives users a way to express
+ * their requirements on a higher level.
  * 
  * @author nitsanw
  * 
@@ -40,9 +40,9 @@ public class ConcurrentQueueFactory {
                 return new MpmcArrayConcurrentQueue<>(qs.capacity);
             }
         } else {
-//            if (qs.consumers == 1 && qs.producers == 1) {
-//                return new SpscLinkedQueue<>();
-//            }
+            // if (qs.consumers == 1 && qs.producers == 1) {
+            // return new SpscLinkedQueue<>();
+            // }
         }
         return new GenericQueue<E>();
     }

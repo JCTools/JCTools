@@ -28,8 +28,7 @@ abstract class SpmcArrayQueueTailField<E> extends SpmcArrayQueueL1Pad<E> {
     protected final static long TAIL_OFFSET;
     static {
         try {
-            TAIL_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(SpmcArrayQueueTailField.class
-                    .getDeclaredField("tail"));
+            TAIL_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(SpmcArrayQueueTailField.class.getDeclaredField("tail"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
@@ -62,8 +61,7 @@ abstract class SpmcArrayQueueHeadField<E> extends SpmcArrayQueueL2Pad<E> {
     protected final static long HEAD_OFFSET;
     static {
         try {
-            HEAD_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(SpmcArrayQueueHeadField.class
-                    .getDeclaredField("head"));
+            HEAD_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(SpmcArrayQueueHeadField.class.getDeclaredField("head"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
@@ -166,11 +164,12 @@ public final class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> {
         soElement(lb, offset, null);
         return e;
     }
-    
+
     @Override
     public E peek() {
         return lvElement(calcElementOffset(lvHead()));
     }
+
     @Override
     public int size() {
         return (int) (lvTail() - lvHead());

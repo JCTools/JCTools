@@ -15,12 +15,12 @@ package org.jctools.queues.alt;
 
 import org.jctools.queues.ConcurrentCircularArrayQueue;
 import org.jctools.util.UnsafeAccess;
+
 abstract class ProducerFields<E> extends ConcurrentCircularArray<E> {
     protected static final long TAIL_OFFSET;
     static {
         try {
-            TAIL_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(ProducerFields.class
-                    .getDeclaredField("tail"));
+            TAIL_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(ProducerFields.class.getDeclaredField("tail"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
@@ -69,8 +69,7 @@ abstract class ConsumerFields<E> extends ConcurrentCircularArray<E> {
     protected static final long HEAD_OFFSET;
     static {
         try {
-            HEAD_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(ConsumerFields.class
-                    .getDeclaredField("head"));
+            HEAD_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(ConsumerFields.class.getDeclaredField("head"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
@@ -139,7 +138,7 @@ public final class SpscArrayConcurrentQueue<E> extends SpscArrayConcurrentQueueC
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
     public SpscArrayConcurrentQueue(final int capacity) {
-        super(Math.max(capacity,2*OFFER_BATCH_SIZE));
+        super(Math.max(capacity, 2 * OFFER_BATCH_SIZE));
     }
 
     @Override

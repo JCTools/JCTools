@@ -8,9 +8,9 @@ import org.jctools.queues.spec.Growth;
 import org.jctools.queues.spec.Ordering;
 
 /**
- * The queue factory produces {@link java.util.Queue} instances based on a best fit to the
- * {@link ConcurrentQueueSpec}. This allows minimal dependencies between user code and the queue
- * implementations and gives users a way to express their requirements on a higher level.
+ * The queue factory produces {@link java.util.Queue} instances based on a best fit to the {@link ConcurrentQueueSpec}.
+ * This allows minimal dependencies between user code and the queue implementations and gives users a way to express
+ * their requirements on a higher level.
  * 
  * @author nitsanw
  * 
@@ -39,13 +39,13 @@ public class QueueFactory {
             else {
                 return new MpmcArrayQueue<E>(qs.capacity);
             }
-        } else if (qs.growth == Growth.UNBOUNDED){
+        } else if (qs.growth == Growth.UNBOUNDED) {
             // SPSC
             if (qs.isSpsc()) {
                 return new SpscLinkedQueue<E>();
             }
             // MPSC
-            else if(qs.isMpsc()){
+            else if (qs.isMpsc()) {
                 return new MpscLinkedQueue<E>();
             }
         }

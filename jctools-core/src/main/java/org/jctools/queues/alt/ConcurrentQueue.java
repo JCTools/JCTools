@@ -18,8 +18,7 @@ package org.jctools.queues.alt;
  * 
  * @author nitsanw
  * 
- * @param <E>
- *            element type
+ * @param <E> element type
  */
 public interface ConcurrentQueue<E> {
     /**
