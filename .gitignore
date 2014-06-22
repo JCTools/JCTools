@@ -7,7 +7,7 @@
 /jctools-core/target
 /jctools-benchmarks/target
 /.project
-JCTools.iml
+jctools-parent.iml
 .idea
 
 
