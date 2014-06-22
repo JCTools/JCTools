@@ -40,6 +40,6 @@ in the JMH help.
 Running the handrolled benchmarks
 -----
 The handrolled benchmarks are currently only covering SPSC throughput. These can be run by directly invoking the class:
-    java -Dq.type=7 -cp target/microbenchmarks.jar org.jctools.handrolled.throughput.QueuePerfTest
+    java -Dq.type=7 -cp target/microbenchmarks.jar org.jctools.handrolled.throughput.spsc.QueuePerfTest
 
 
