@@ -11,47 +11,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jctools.jmh.spsc.latency;
+package org.jctools.jmh.latency.spsc;
 
-import java.util.Queue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.jctools.queues.SPSCQueueFactory;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.GenerateMicroBenchmark;
-import org.openjdk.jmh.annotations.Measurement;
+import org.openjdk.jmh.annotations.Group;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.State;
-import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.infra.Control;
 
-/**
- * Measure cost of offer/poll on single thread.
- * 
- * @author nitsanw
- * 
- */
-@State(Scope.Thread)
+@State(Scope.Group)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
-@Warmup(iterations = 10, time = 1, timeUnit = TimeUnit.SECONDS)
-@Measurement(iterations = 10, time = 1, timeUnit = TimeUnit.SECONDS)
-public class QueueOfferPoll {
-    private static final int BURST_SIZE = Integer.getInteger("burst.size", 1);
-    private static final Integer DUMMY_MESSAGE = 1;
-    private final Queue<Integer> q = SPSCQueueFactory.createQueue();
-    
+public class BaselinePingPong {
+
+    public final AtomicBoolean flag = new AtomicBoolean();
 
     @GenerateMicroBenchmark
-    public int offerAndPoll() {
-        for (int i = 0; i < BURST_SIZE; i++) {
-            q.offer(DUMMY_MESSAGE);
+    @Group("pingpong")
+    public void ping(Control cnt) {
+        while (!cnt.stopMeasurement && !flag.compareAndSet(false, true)) {
+            // this body is intentionally left blank
         }
-        Integer result = null;
-        for (int i = 0; i < BURST_SIZE; i++) {
-            result = q.poll();
+    }
+
+    @GenerateMicroBenchmark
+    @Group("pingpong")
+    public void pong(Control cnt) {
+        while (!cnt.stopMeasurement && !flag.compareAndSet(true, false)) {
+            // this body is intentionally left blank
         }
-        return result.intValue();
     }
 }

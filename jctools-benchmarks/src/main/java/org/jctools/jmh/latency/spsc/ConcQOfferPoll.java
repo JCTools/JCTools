@@ -11,11 +11,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jctools.jmh.spsc.latency;
+package org.jctools.jmh.latency.spsc;
 
 import java.util.concurrent.TimeUnit;
 
-import org.jctools.queues.SPSCConcurrentQueueFactory;
+import org.jctools.queues.TypeConcurrentQueueFactory;
 import org.jctools.queues.alt.ConcurrentQueue;
 import org.jctools.queues.alt.ConcurrentQueueConsumer;
 import org.jctools.queues.alt.ConcurrentQueueProducer;
@@ -42,7 +42,7 @@ import org.openjdk.jmh.annotations.Warmup;
 public class ConcQOfferPoll {
     private static final int BURST_SIZE = Integer.getInteger("burst.size", 1);
     private static final Integer DUMMY_MESSAGE = 1;
-    private final ConcurrentQueue<Integer> q = SPSCConcurrentQueueFactory.createQueue();
+    private final ConcurrentQueue<Integer> q = TypeConcurrentQueueFactory.createQueue();
     private final ConcurrentQueueConsumer<Integer> c = q.consumer();
     private final ConcurrentQueueProducer<Integer> p = q.producer();
     

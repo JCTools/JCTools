@@ -6,8 +6,8 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedTransferQueue;
 
-public class SPSCQueueFactory {
-    public static final int QUEUE_CAPACITY = 1 << Integer.getInteger("pow2.capacity", 15);
+public class TypeQueueFactory {
+    public static final int QUEUE_CAPACITY = 1 << Integer.getInteger("pow2.capacity", 17);
     public static final int QUEUE_TYPE = Integer.getInteger("q.type", 0);
     public static Queue<Integer> createQueue() {
         final int queueCapacity = QUEUE_CAPACITY;

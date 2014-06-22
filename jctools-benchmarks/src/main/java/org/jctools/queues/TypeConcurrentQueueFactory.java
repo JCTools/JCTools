@@ -5,9 +5,9 @@ import org.jctools.queues.alt.ConcurrentQueueFactory;
 import org.jctools.queues.alt.MpmcArrayConcurrentQueue;
 import org.jctools.queues.alt.SpscArrayConcurrentQueue;
 
-public class SPSCConcurrentQueueFactory {
-    public static final int QUEUE_CAPACITY = 1 << Integer.getInteger("pow2.capacity", 15);
-    public static final int QUEUE_TYPE = Integer.getInteger("q.type", 0);
+public class TypeConcurrentQueueFactory {
+    public static final int QUEUE_CAPACITY = 1 << Integer.getInteger("pow2.capacity", 17);
+    public static final int QUEUE_TYPE = Integer.getInteger("q.type", 30);
     public static ConcurrentQueue<Integer> createQueue() {
         switch (QUEUE_TYPE) {
         case -1:

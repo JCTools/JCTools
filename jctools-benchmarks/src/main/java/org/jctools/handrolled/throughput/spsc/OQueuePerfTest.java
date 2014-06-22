@@ -13,22 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jctools.handrolled.spsc;
+package org.jctools.handrolled.throughput.spsc;
 
 import java.util.Queue;
 
-import org.jctools.queues.SPSCQueueFactory;
+import org.jctools.queues.TypeQueueFactory;
 
 
 public class OQueuePerfTest {
 	// 15 == 32 * 1024
-	public static final int QUEUE_CAPACITY = 1 << Integer.getInteger("scale", 15);
 	public static final int REPETITIONS = Integer.getInteger("reps", 50) * 1000 * 1000;
 	public static final Integer TEST_VALUE = Integer.valueOf(777);
 
 	public static void main(final String[] args) throws Exception {
-		System.out.println("capacity:" + QUEUE_CAPACITY + " reps:" + REPETITIONS);
-		final Queue<Integer> queue = SPSCQueueFactory.createQueue();
+		System.out.println("capacity:" + TypeQueueFactory.QUEUE_CAPACITY + " reps:" + REPETITIONS);
+		final Queue<Integer> queue = TypeQueueFactory.createQueue();
 
 		final long[] results = new long[20];
 		for (int i = 0; i < 20; i++) {

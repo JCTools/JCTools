@@ -11,13 +11,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jctools.jmh.spsc.latency;
+package org.jctools.jmh.latency.spsc;
 
-import java.util.Queue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.jctools.queues.SPSCQueueFactory;
+import org.jctools.queues.TypeConcurrentQueueFactory;
+import org.jctools.queues.alt.ConcurrentQueue;
+import org.jctools.queues.alt.ConcurrentQueueConsumer;
+import org.jctools.queues.alt.ConcurrentQueueProducer;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.GenerateMicroBenchmark;
 import org.openjdk.jmh.annotations.Group;
@@ -71,12 +73,12 @@ import org.openjdk.jmh.infra.Control;
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @Warmup(iterations = 10, time = 1, timeUnit = TimeUnit.SECONDS)
 @Measurement(iterations = 10, time = 1, timeUnit = TimeUnit.SECONDS)
-public class RingBurstRoundTripWithGroups {
+public class RingCqBurstRoundTripWithGroups {
     private static final int CHAIN_LENGTH = Integer.getInteger("chain.length", 2);
     private static final int BURST_SIZE = Integer.getInteger("burst.size", 1);
     private static final Integer DUMMY_MESSAGE = 1;
     @SuppressWarnings("unchecked")
-    private final static Queue<Integer>[] chain = new Queue[CHAIN_LENGTH];
+    private final static ConcurrentQueue<Integer>[] chain = new ConcurrentQueue[CHAIN_LENGTH];
     /**
      * This is a bit annoying, I need the threads to keep their queues, so each thread needs an index. The id
      * is used to pick the in/out queues.
@@ -96,14 +98,14 @@ public class RingBurstRoundTripWithGroups {
      */
     @State(Scope.Thread)
     public static class Link {
-        final Queue<Integer> in;
-        final Queue<Integer> out;
+        final ConcurrentQueueConsumer<Integer> in;
+        final ConcurrentQueueProducer<Integer> out;
 
         public Link() {
             int id = tlIndex.get();
             // the old in out, in out
-            this.in = chain[id % CHAIN_LENGTH];
-            this.out = chain[(id + 1) % CHAIN_LENGTH];
+            this.in = chain[id % CHAIN_LENGTH].consumer();
+            this.out = chain[(id + 1) % CHAIN_LENGTH].producer();
         }
 
         public void link() {
@@ -134,14 +136,14 @@ public class RingBurstRoundTripWithGroups {
      */
     @State(Scope.Thread)
     public static class Source {
-        final Queue<Integer> start;
-        final Queue<Integer> end;
+        final ConcurrentQueueProducer<Integer> start;
+        final ConcurrentQueueConsumer<Integer> end;
 
         public Source() {
             int id = tlIndex.get();
             // the source ties the knot in our ring
-            this.end = chain[id % CHAIN_LENGTH];
-            this.start = chain[(id + 1) % CHAIN_LENGTH];
+            this.end = chain[id % CHAIN_LENGTH].consumer();
+            this.start = chain[(id + 1) % CHAIN_LENGTH].producer();
         }
 
         public void ping(Control ctl) {
@@ -172,12 +174,12 @@ public class RingBurstRoundTripWithGroups {
         }
         // This is an estimate, but for bounded queues if the burst size is more than actual ring capacity
         // the benchmark will hang/
-        if (BURST_SIZE > SPSCQueueFactory.QUEUE_CAPACITY * CHAIN_LENGTH >> 1) {
+        if (BURST_SIZE > TypeConcurrentQueueFactory.QUEUE_CAPACITY * CHAIN_LENGTH >> 1) {
             throw new IllegalArgumentException("Batch size exceeds estimated capacity");
         }
         // initialize the chain
         for (int i = 0; i < CHAIN_LENGTH; i++) {
-            chain[i] = SPSCQueueFactory.createQueue();
+            chain[i] = TypeConcurrentQueueFactory.createQueue();
         }
     }
 

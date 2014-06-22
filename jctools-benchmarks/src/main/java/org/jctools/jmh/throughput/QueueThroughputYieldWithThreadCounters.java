@@ -11,12 +11,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jctools.jmh.spsc.throughput;
+package org.jctools.jmh.throughput;
 
 import java.util.Queue;
 import java.util.concurrent.TimeUnit;
 
-import org.jctools.queues.SPSCQueueFactory;
+import org.jctools.queues.TypeQueueFactory;
 import org.openjdk.jmh.annotations.AuxCounters;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.GenerateMicroBenchmark;
@@ -41,7 +41,7 @@ public class QueueThroughputYieldWithThreadCounters {
     private static final long DELAY_PRODUCER = Long.getLong("delay.p", 0L);
     private static final long DELAY_CONSUMER = Long.getLong("delay.c", 0L);
     private static final Integer ONE = 777;
-    public final Queue<Integer> q = SPSCQueueFactory.createQueue();
+    public final Queue<Integer> q = TypeQueueFactory.createQueue();
 
     @AuxCounters
     @State(Scope.Thread)

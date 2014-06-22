@@ -1,9 +1,9 @@
-package org.jctools.jmh.spsc.throughput;
+package org.jctools.jmh.throughput;
 
 import java.util.Queue;
 import java.util.concurrent.TimeUnit;
 
-import org.jctools.queues.SPSCQueueFactory;
+import org.jctools.queues.TypeQueueFactory;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.GenerateMicroBenchmark;
 import org.openjdk.jmh.annotations.Level;
@@ -21,26 +21,29 @@ import org.openjdk.jmh.annotations.Warmup;
 @Warmup(iterations = 3, time = 1, timeUnit = TimeUnit.SECONDS)
 @Measurement(iterations = 5, time = 1, timeUnit = TimeUnit.SECONDS)
 @State(Scope.Thread)
-public class SingleThreadedOffer
+public class SingleThreadedPoll
 {
     public static final int CAPACITY = 1 << 15;
     public static final Integer TOKEN = 1;
    
-    public final Queue<Integer> q = SPSCQueueFactory.createQueue(CAPACITY*2);
+    public final Queue<Integer> q = TypeQueueFactory.createQueue(CAPACITY);
     @Setup(Level.Invocation)
-    public void clear()
+    public void fill()
     {
-        q.clear();
+        for( int i=0; i<CAPACITY; i++)
+        {
+            q.offer(TOKEN);
+        }
     }
 
     @GenerateMicroBenchmark
     @OperationsPerInvocation(CAPACITY)
-    public void offer()
+    public void poll()
     {
         final Queue<Integer> lq = q;
         for (int i = 0; i < CAPACITY; i++)
         {
-            lq.offer(TOKEN);
+            lq.poll();
         }
     }
 }
