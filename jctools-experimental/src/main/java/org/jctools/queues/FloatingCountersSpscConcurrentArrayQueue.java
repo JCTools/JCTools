@@ -42,7 +42,7 @@ abstract class FloatingCaqColdFields<E> extends InlinedRingBufferL0Pad {
 
     @SuppressWarnings("unchecked")
     FloatingCaqColdFields(int capacity) {
-        if (Pow2.isPowerOf2(capacity)) {
+        if (Pow2.isPowerOfTwo(capacity)) {
             this.capacity = capacity;
         } else {
             this.capacity = Pow2.findNextPositivePowerOfTwo(capacity);

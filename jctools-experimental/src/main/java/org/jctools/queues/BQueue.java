@@ -53,7 +53,7 @@ abstract class BQueueColdFields<E> extends BQueueL0Pad {
 
     @SuppressWarnings("unchecked")
     protected BQueueColdFields(int capacity) {
-        if (Pow2.isPowerOf2(capacity)) {
+        if (Pow2.isPowerOfTwo(capacity)) {
             this.capacity = capacity;
         } else {
             this.capacity = Pow2.findNextPositivePowerOfTwo(capacity);
