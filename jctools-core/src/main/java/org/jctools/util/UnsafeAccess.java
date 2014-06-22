@@ -13,7 +13,7 @@ public class UnsafeAccess {
             // This is not playing nice, but as an established back door it is
             // not likely to be
             // taken away.
-            Field field = Unsafe.class.getDeclaredField("theUnsafe");
+            final Field field = Unsafe.class.getDeclaredField("theUnsafe");
             field.setAccessible(true);
             UNSAFE = (Unsafe) field.get(null);
         } catch (Exception e) {

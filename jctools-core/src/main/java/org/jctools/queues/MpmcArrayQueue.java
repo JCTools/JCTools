@@ -28,8 +28,8 @@ abstract class MpmcArrayQueueProducerField<E> extends MpmcArrayQueueL1Pad<E> {
     private final static long P_INDEX_OFFSET;
     static {
         try {
-            P_INDEX_OFFSET = UNSAFE.objectFieldOffset(MpmcArrayQueueProducerField.class
-                    .getDeclaredField("producerIndex"));
+            P_INDEX_OFFSET =
+                UNSAFE.objectFieldOffset(MpmcArrayQueueProducerField.class.getDeclaredField("producerIndex"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
@@ -62,8 +62,8 @@ abstract class MpmcArrayQueueConsumerField<E> extends MpmcArrayQueueL2Pad<E> {
     private final static long C_INDEX_OFFSET;
     static {
         try {
-            C_INDEX_OFFSET = UNSAFE.objectFieldOffset(MpmcArrayQueueConsumerField.class
-                    .getDeclaredField("consumerIndex"));
+            C_INDEX_OFFSET =
+                UNSAFE.objectFieldOffset(MpmcArrayQueueConsumerField.class.getDeclaredField("consumerIndex"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
@@ -92,20 +92,18 @@ abstract class MpmcArrayQueueConsumerField<E> extends MpmcArrayQueueL2Pad<E> {
  * uses an array of structs which should offer nice locality properties but is sadly not possible in Java (waiting on
  * Value Types or similar). The alternative explored here utilizes 2 arrays, one for each field of the struct. There is
  * a further alternative in the experimental project which uses iteration phase markers to achieve the same algo and is
- * closer structuraly to the original, but sadly does not perform as well as this implementation.<br>
+ * closer structurally to the original, but sadly does not perform as well as this implementation.<br>
  * Tradeoffs to keep in mind:
  * <ol>
  * <li>Padding for false sharing: counter fields and queue fields are all padded as well as either side of both arrays.
  * We are trading memory to avoid false sharing(active and passive).
  * <li>2 arrays instead of one: The algorithm requires an extra array of longs matching the size of the elements array.
  * This is doubling/tripling the memory allocated for the buffer.
- * <li>Power of 2 capacity: Actual elements buffer (and therefore sequence buffer) is the closest power of 2 larger or
+ * <li>Power of 2 capacity: Actual elements buffer (and sequence buffer) is the closest power of 2 larger or
  * equal to the requested capacity.
  * </ol>
  * 
- * @author nitsanw
- * 
- * @param <E>
+ * @param <E> type of the element stored in the {@link java.util.Queue}
  */
 public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> {
     long p40, p41, p42, p43, p44, p45, p46;
@@ -120,16 +118,18 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> {
         if (null == e) {
             throw new NullPointerException("Null is not a valid element");
         }
+
         // local load of field to avoid repeated loads after volatile reads
         final long[] lSequenceBuffer = sequenceBuffer;
         long currentProducerIndex;
         long seqOffset;
 
-        for (;;) {
+        while (true) {
             currentProducerIndex = lvProducerIndex(); // LoadLoad
             seqOffset = calcSequenceOffset(currentProducerIndex);
             final long seq = lvSequence(lSequenceBuffer, seqOffset); // LoadLoad
             final long delta = seq - currentProducerIndex;
+
             if (delta == 0) {
                 // this is expected if we see this first time around
                 if (casProducerIndex(currentProducerIndex, currentProducerIndex + 1)) {
@@ -140,16 +140,19 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> {
             } else if (delta < 0) {
                 // poll has not moved this value forward
                 return false;
-            } else {
-                // another producer has moved the sequence by one, retry 2
             }
+
+            // another producer has moved the sequence by one, retry 2
         }
+
         // on 64bit(no compressed oops) JVM this is the same as seqOffset
         final long elementOffset = calcElementOffset(currentProducerIndex);
         spElement(elementOffset, e);
-        // increment sequence by 1, the value expected by consumer (seeing this value from a producer will
-        // lead to retry 2)
+
+        // increment sequence by 1, the value expected by consumer
+        // (seeing this value from a producer will lead to retry 2)
         soSequence(lSequenceBuffer, seqOffset, currentProducerIndex + 1); // StoreStore
+
         return true;
     }
 
@@ -159,11 +162,13 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> {
         final long[] lSequenceBuffer = sequenceBuffer;
         long currentConsumerIndex;
         long seqOffset;
-        for (;;) {
+
+        while (true) {
             currentConsumerIndex = lvConsumerIndex();// LoadLoad
             seqOffset = calcSequenceOffset(currentConsumerIndex);
             final long seq = lvSequence(lSequenceBuffer, seqOffset);// LoadLoad
             final long delta = seq - (currentConsumerIndex + 1);
+
             if (delta == 0) {
                 if (casConsumerIndex(currentConsumerIndex, currentConsumerIndex + 1)) {
                     // Successful CAS: full barrier
@@ -173,20 +178,22 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> {
             } else if (delta < 0) {
                 // queue is empty
                 return null;
-            } else {
-                // another consumer beat us and moved sequence ahead, retry 2
             }
+
+            // another consumer beat us and moved sequence ahead, retry 2
         }
+
         // on 64bit(no compressed oops) JVM this is the same as seqOffset
         final long offset = calcElementOffset(currentConsumerIndex);
         // local load of field to avoid repeated loads after volatile reads
         final E[] lElementBuffer = buffer;
         final E e = lvElement(lElementBuffer, offset);
         spElement(lElementBuffer, offset, null);
-        // Move sequence ahead by $capacity, preparing it for next offer (seeing this value from a consumer
-        // will
-        // lead to retry 2)
+
+        // Move sequence ahead by capacity, preparing it for next offer
+        // (seeing this value from a consumer will lead to retry 2)
         soSequence(lSequenceBuffer, seqOffset, currentConsumerIndex + capacity);// StoreStore
+
         return e;
     }
 
@@ -197,6 +204,13 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> {
 
     @Override
     public int size() {
-        return (int) (lvProducerIndex() - lvConsumerIndex());
+        int size;
+        do {
+            final long currentConsumerIndex = lvConsumerIndex();
+            final long currentProducerIndex = lvProducerIndex();
+            size = (int)(currentProducerIndex - currentConsumerIndex);
+        } while (size > capacity);
+
+        return size;
     }
 }
