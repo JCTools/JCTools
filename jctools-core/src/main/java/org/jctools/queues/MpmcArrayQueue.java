@@ -185,10 +185,8 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> {
 
         // on 64bit(no compressed oops) JVM this is the same as seqOffset
         final long offset = calcElementOffset(currentConsumerIndex);
-        // local load of field to avoid repeated loads after volatile reads
-        final E[] lElementBuffer = buffer;
-        final E e = lvElement(lElementBuffer, offset);
-        spElement(lElementBuffer, offset, null);
+        final E e = lpElement(offset);
+        spElement(offset, null);
 
         // Move sequence ahead by capacity, preparing it for next offer
         // (seeing this value from a consumer will lead to retry 2)
