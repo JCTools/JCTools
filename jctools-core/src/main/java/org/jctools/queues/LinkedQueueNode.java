@@ -2,7 +2,7 @@ package org.jctools.queues;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 
-public final class LinkedQueueNode<E> {
+final class LinkedQueueNode<E> {
     private final static long VALUE_OFFSET;
     private final static long NEXT_OFFSET;
     static {

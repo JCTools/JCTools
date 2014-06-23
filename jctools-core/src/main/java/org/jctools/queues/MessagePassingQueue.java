@@ -11,9 +11,9 @@ import java.util.Queue;
  * 
  * @author nitsanw
  * 
- * @param <E>
+ * @param <M> the event/message type
  */
-public interface MessagePassingQueue<M> {
+interface MessagePassingQueue<M> {
     /**
      * Called from a producer thread subject to the restrictions appropriate to the implementation and according to the
      * {@link Queue#offer(Object)} interface.
