@@ -206,6 +206,10 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> {
     public int size() {
         int size;
         do {
+            /*
+             * It is possible for a thread to be interrupted or reschedule between the read of the producer
+             * and consumer indices, therefore protection is required to ensure size is within valid range.
+             */
             final long currentConsumerIndex = lvConsumerIndex();
             final long currentProducerIndex = lvProducerIndex();
             size = (int)(currentProducerIndex - currentConsumerIndex);
