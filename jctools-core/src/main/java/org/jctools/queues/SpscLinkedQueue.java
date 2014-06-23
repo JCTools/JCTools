@@ -9,7 +9,7 @@ abstract class SpscLinkedQueuePad0<E> extends AbstractQueue<E> {
 }
 
 abstract class SpscLinkedQueueProducerNodeRef<E> extends SpscLinkedQueuePad0<E> {
-    protected LinkedQueueNode<E> producerNode = new LinkedQueueNode<>();;
+    protected LinkedQueueNode<E> producerNode;
 }
 
 abstract class SpscLinkedQueuePad1<E> extends SpscLinkedQueueProducerNodeRef<E> {
@@ -18,7 +18,7 @@ abstract class SpscLinkedQueuePad1<E> extends SpscLinkedQueueProducerNodeRef<E> 
 }
 
 abstract class SpscLinkedQueueConsumerNodeRef<E> extends SpscLinkedQueuePad1<E> {
-    protected LinkedQueueNode<E> consumerNode = producerNode;
+    protected LinkedQueueNode<E> consumerNode;
 }
 
 /**
@@ -42,6 +42,8 @@ public final class SpscLinkedQueue<E> extends SpscLinkedQueueConsumerNodeRef<E> 
     long p30, p31, p32, p33, p34, p35, p36, p37;
 
     public SpscLinkedQueue() {
+        producerNode = new LinkedQueueNode<>();
+        consumerNode = producerNode;
         consumerNode.soNext(null); // this ensures correct construction: StoreStore
     }
 
