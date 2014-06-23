@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit;
 import org.jctools.queues.TypeQueueFactory;
 import org.openjdk.jmh.annotations.AuxCounters;
 import org.openjdk.jmh.annotations.BenchmarkMode;
-import org.openjdk.jmh.annotations.GenerateMicroBenchmark;
+import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Group;
 import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Measurement;
@@ -63,7 +63,7 @@ public class QueueThroughputBusyWithThreadCounters {
         }
     }
 
-    @GenerateMicroBenchmark
+    @Benchmark
     @Group("tpt")
     public void offer(OpCounters counters) {
         if (!q.offer(ONE)) {
@@ -74,7 +74,7 @@ public class QueueThroughputBusyWithThreadCounters {
         }
     }
 
-    @GenerateMicroBenchmark
+    @Benchmark
     @Group("tpt")
     public void poll(OpCounters counters, ConsumerMarker cm) {
         if (q.poll() == null) {

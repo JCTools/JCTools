@@ -20,7 +20,7 @@ import org.jctools.queues.alt.ConcurrentQueue;
 import org.jctools.queues.alt.ConcurrentQueueConsumer;
 import org.jctools.queues.alt.ConcurrentQueueProducer;
 import org.openjdk.jmh.annotations.BenchmarkMode;
-import org.openjdk.jmh.annotations.GenerateMicroBenchmark;
+import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Group;
 import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Measurement;
@@ -45,7 +45,7 @@ public class ConcurrentQueueThroughputYield {
     private final ConcurrentQueueConsumer<Integer> consumer = q.consumer();
     private final static Integer ONE = 777;
 
-    @GenerateMicroBenchmark
+    @Benchmark
     @Group("tpt")
     public void offer(Control cnt) {
         while (!producer.offer(ONE) && !cnt.stopMeasurement) {
@@ -53,7 +53,7 @@ public class ConcurrentQueueThroughputYield {
         }
     }
 
-    @GenerateMicroBenchmark
+    @Benchmark
     @Group("tpt")
     public void poll(Control cnt, ConsumerMarker cm) {
         while (consumer.poll() == null && !cnt.stopMeasurement) {

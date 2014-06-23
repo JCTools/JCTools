@@ -20,7 +20,7 @@ import org.jctools.queues.alt.ConcurrentQueue;
 import org.jctools.queues.alt.ConcurrentQueueConsumer;
 import org.jctools.queues.alt.ConcurrentQueueProducer;
 import org.openjdk.jmh.annotations.BenchmarkMode;
-import org.openjdk.jmh.annotations.GenerateMicroBenchmark;
+import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
@@ -47,7 +47,7 @@ public class ConcQOfferPoll {
     private final ConcurrentQueueProducer<Integer> p = q.producer();
     
 
-    @GenerateMicroBenchmark
+    @Benchmark
     public void offerAndPoll() {
         for (int i = 0; i < BURST_SIZE; i++) {
             p.offer(DUMMY_MESSAGE);

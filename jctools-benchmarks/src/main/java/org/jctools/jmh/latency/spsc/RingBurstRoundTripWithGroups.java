@@ -19,7 +19,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.jctools.queues.TypeQueueFactory;
 import org.openjdk.jmh.annotations.BenchmarkMode;
-import org.openjdk.jmh.annotations.GenerateMicroBenchmark;
+import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Group;
 import org.openjdk.jmh.annotations.GroupThreads;
 import org.openjdk.jmh.annotations.Level;
@@ -181,7 +181,7 @@ public class RingBurstRoundTripWithGroups {
         }
     }
 
-    @GenerateMicroBenchmark
+    @Benchmark
     @Group("ring")
     @GroupThreads(1)
     public void ping(Control ctl, Source s) {
@@ -191,7 +191,7 @@ public class RingBurstRoundTripWithGroups {
     /**
      * @param ctl required here to make the benchmark generate code correctly(JMH 0.2 issue, fixed on main)
      */
-    @GenerateMicroBenchmark
+    @Benchmark
     @Group("ring")
     @GroupThreads(1)
     public void loop(Control ctl, Link l) {

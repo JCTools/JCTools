@@ -16,7 +16,7 @@ package org.jctools.util;
 import java.util.Arrays;
 
 import org.openjdk.jmh.annotations.BenchmarkMode;
-import org.openjdk.jmh.annotations.GenerateMicroBenchmark;
+import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.State;
@@ -36,12 +36,12 @@ public class RefArrayFill {
     protected static final Object[] NULLS = new Object[N_LENGTH];
     private final Object[] refs = new Object[R_LENGTH];
 
-    @GenerateMicroBenchmark
+    @Benchmark
     public void fill() {
         Arrays.fill(refs, null);
     }
 
-    @GenerateMicroBenchmark
+    @Benchmark
     public void copy() {
         int i = 0;
         for (; i < refs.length - N_LENGTH; i += N_LENGTH) {

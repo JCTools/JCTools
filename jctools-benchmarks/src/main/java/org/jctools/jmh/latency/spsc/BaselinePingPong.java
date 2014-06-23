@@ -16,8 +16,8 @@ package org.jctools.jmh.latency.spsc;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
-import org.openjdk.jmh.annotations.GenerateMicroBenchmark;
 import org.openjdk.jmh.annotations.Group;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
@@ -32,7 +32,7 @@ public class BaselinePingPong {
 
     public final AtomicBoolean flag = new AtomicBoolean();
 
-    @GenerateMicroBenchmark
+    @Benchmark
     @Group("pingpong")
     public void ping(Control cnt) {
         while (!cnt.stopMeasurement && !flag.compareAndSet(false, true)) {
@@ -40,7 +40,7 @@ public class BaselinePingPong {
         }
     }
 
-    @GenerateMicroBenchmark
+    @Benchmark
     @Group("pingpong")
     public void pong(Control cnt) {
         while (!cnt.stopMeasurement && !flag.compareAndSet(true, false)) {

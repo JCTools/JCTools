@@ -5,7 +5,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.jctools.queues.TypeQueueFactory;
 import org.openjdk.jmh.annotations.BenchmarkMode;
-import org.openjdk.jmh.annotations.GenerateMicroBenchmark;
+import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
@@ -33,7 +33,7 @@ public class SingleThreadedOffer
         q.clear();
     }
 
-    @GenerateMicroBenchmark
+    @Benchmark
     @OperationsPerInvocation(CAPACITY)
     public void offer()
     {

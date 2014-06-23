@@ -21,7 +21,7 @@ import org.jctools.queues.alt.ConcurrentQueue;
 import org.jctools.queues.alt.ConcurrentQueueConsumer;
 import org.jctools.queues.alt.ConcurrentQueueProducer;
 import org.openjdk.jmh.annotations.BenchmarkMode;
-import org.openjdk.jmh.annotations.GenerateMicroBenchmark;
+import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Group;
 import org.openjdk.jmh.annotations.GroupThreads;
 import org.openjdk.jmh.annotations.Level;
@@ -183,7 +183,7 @@ public class RingCqBurstRoundTripWithGroups {
         }
     }
 
-    @GenerateMicroBenchmark
+    @Benchmark
     @Group("ring")
     @GroupThreads(1)
     public void ping(Control ctl, Source s) {
@@ -193,7 +193,7 @@ public class RingCqBurstRoundTripWithGroups {
     /**
      * @param ctl required here to make the benchmark generate code correctly(JMH 0.2 issue, fixed on main)
      */
-    @GenerateMicroBenchmark
+    @Benchmark
     @Group("ring")
     @GroupThreads(1)
     public void loop(Control ctl, Link l) {

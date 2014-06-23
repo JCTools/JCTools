@@ -18,7 +18,7 @@ import static org.jctools.util.UnsafeAccess.UNSAFE;
 import java.util.Arrays;
 
 import org.openjdk.jmh.annotations.BenchmarkMode;
-import org.openjdk.jmh.annotations.GenerateMicroBenchmark;
+import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.State;
@@ -57,12 +57,12 @@ public class ByteArrayFill {
     protected static final int Z_SIZE = Z_LENGTH << ARRAY_ELEMENT_SHIFT;
     private final byte[] data = new byte[D_LENGTH];
 
-    @GenerateMicroBenchmark
+    @Benchmark
     public void fill() {
         Arrays.fill(data, (byte)0);
     }
 
-    @GenerateMicroBenchmark
+    @Benchmark
     public void copy() {
         int i = 0;
         for (; i < data.length - Z_LENGTH; i += Z_LENGTH) {
@@ -70,7 +70,7 @@ public class ByteArrayFill {
         }
         System.arraycopy(ZEROS, 0, data, i, data.length - i);
     }
-    @GenerateMicroBenchmark
+    @Benchmark
     public void unsafe() {
         long fromOffset = ARRAY_BASE_OFFSET;
         long toOffset = ARRAY_BASE_OFFSET + data.length << ARRAY_ELEMENT_SHIFT;

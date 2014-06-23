@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.jctools.queues.TypeQueueFactory;
 import org.openjdk.jmh.annotations.BenchmarkMode;
-import org.openjdk.jmh.annotations.GenerateMicroBenchmark;
+import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
@@ -139,7 +139,7 @@ public class RingBurstRoundTripWithThreads {
         start.await();
     }
 
-    @GenerateMicroBenchmark
+    @Benchmark
     public void ping(Control ctl) {
         for (int i = 0; i < BURST_SIZE; i++) {
             start.offer(ONE);

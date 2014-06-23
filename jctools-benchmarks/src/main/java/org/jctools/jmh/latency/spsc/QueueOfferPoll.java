@@ -18,7 +18,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.jctools.queues.TypeQueueFactory;
 import org.openjdk.jmh.annotations.BenchmarkMode;
-import org.openjdk.jmh.annotations.GenerateMicroBenchmark;
+import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
@@ -43,7 +43,7 @@ public class QueueOfferPoll {
     private final Queue<Integer> q = TypeQueueFactory.createQueue();
     
 
-    @GenerateMicroBenchmark
+    @Benchmark
     public int offerAndPoll() {
         for (int i = 0; i < BURST_SIZE; i++) {
             q.offer(DUMMY_MESSAGE);
