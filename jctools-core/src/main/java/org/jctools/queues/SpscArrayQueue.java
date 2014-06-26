@@ -13,7 +13,6 @@
  */
 package org.jctools.queues;
 
-import org.jctools.util.UnsafeAccess;
 
 abstract class SpscArrayQueueL1Pad<E> extends ConcurrentCircularArrayQueue<E> {
     long p10, p11, p12, p13, p14, p15, p16;
@@ -24,16 +23,16 @@ abstract class SpscArrayQueueL1Pad<E> extends ConcurrentCircularArrayQueue<E> {
     }
 }
 
-abstract class SpscArrayQueueTailField<E> extends SpscArrayQueueL1Pad<E> {
-    protected long tail;
-    protected long batchTail;
+abstract class SpscArrayQueueProducerFields<E> extends SpscArrayQueueL1Pad<E> {
+    protected long producerIndex;
+    protected long producerLookAhead;
 
-    public SpscArrayQueueTailField(int capacity) {
+    public SpscArrayQueueProducerFields(int capacity) {
         super(capacity);
     }
 }
 
-abstract class SpscArrayQueueL2Pad<E> extends SpscArrayQueueTailField<E> {
+abstract class SpscArrayQueueL2Pad<E> extends SpscArrayQueueProducerFields<E> {
     long p20, p21, p22, p23, p24, p25, p26;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 
@@ -42,15 +41,15 @@ abstract class SpscArrayQueueL2Pad<E> extends SpscArrayQueueTailField<E> {
     }
 }
 
-abstract class SpscArrayQueueHeadField<E> extends SpscArrayQueueL2Pad<E> {
-    protected long head;
+abstract class SpscArrayQueueConsumerField<E> extends SpscArrayQueueL2Pad<E> {
+    protected long consumerIndex;
 
-    public SpscArrayQueueHeadField(int capacity) {
+    public SpscArrayQueueConsumerField(int capacity) {
         super(capacity);
     }
 }
 
-abstract class SpscArrayQueueL3Pad<E> extends SpscArrayQueueHeadField<E> {
+abstract class SpscArrayQueueL3Pad<E> extends SpscArrayQueueConsumerField<E> {
     long p40, p41, p42, p43, p44, p45, p46;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 
@@ -59,71 +58,82 @@ abstract class SpscArrayQueueL3Pad<E> extends SpscArrayQueueHeadField<E> {
     }
 }
 
+/**
+ * A Single-Producer-Single-Consumer queue backed by a pre-allocated buffer.</br> This implementation is a mashup of the
+ * <a href="http://sourceforge.net/projects/mc-fastflow/">Fast Flow</a> algorithm with an optimization of the offer
+ * method taken from the <a href="http://staff.ustc.edu.cn/~bhua/publications/IJPP_draft.pdf">BQueue</a> algorithm (a
+ * variation on Fast Flow).<br>
+ * This implementation is wait free.
+ * 
+ * @author nitsanw
+ * 
+ * @param <E>
+ */
 public final class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E> {
-    private final static long TAIL_OFFSET;
-    private final static long HEAD_OFFSET;
-    static {
-        try {
-            TAIL_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(SpscArrayQueueTailField.class.getDeclaredField("tail"));
-            HEAD_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(SpscArrayQueueHeadField.class.getDeclaredField("head"));
-        } catch (NoSuchFieldException e) {
-            throw new RuntimeException(e);
-        }
-    }
     protected static final int OFFER_BATCH_SIZE = Integer.getInteger("offer.batch.size", 4096);
 
     public SpscArrayQueue(final int capacity) {
         super(Math.max(capacity, 2 * OFFER_BATCH_SIZE));
     }
 
-    private long getHeadV() {
-        return UnsafeAccess.UNSAFE.getLongVolatile(this, HEAD_OFFSET);
-    }
-
-    private long getTailV() {
-        return UnsafeAccess.UNSAFE.getLongVolatile(this, TAIL_OFFSET);
-    }
-
+    /**
+     * {@inheritDoc}
+     * <p>
+     * This implementation is correct for single producer thread use only.
+     */
     @Override
     public boolean offer(final E e) {
         if (null == e) {
             throw new NullPointerException("Null is not a valid element");
         }
-
-        E[] lb = buffer;
-        if (tail >= batchTail) {
-            if (null != lvElement(lb, calcElementOffset(tail + OFFER_BATCH_SIZE))) {
+        // local load of field to avoid repeated loads after volatile reads
+        final E[] lElementBuffer = buffer;
+        if (producerIndex >= producerLookAhead) {
+            if (null != lvElement(lElementBuffer, calcElementOffset(producerIndex + OFFER_BATCH_SIZE))) {// LoadLoad
                 return false;
             }
-            batchTail = tail + OFFER_BATCH_SIZE;
+            producerLookAhead = producerIndex + OFFER_BATCH_SIZE;
         }
-        soElement(lb, calcElementOffset(tail), e);
-        tail++;
+        soElement(lElementBuffer, calcElementOffset(producerIndex), e);// StoreStore
+        producerIndex++;
 
         return true;
     }
-
+    
+    /**
+     * {@inheritDoc}
+     * <p>
+     * This implementation is correct for single consumer thread use only.
+     */
     @Override
     public E poll() {
-        final long offset = calcElementOffset(head);
-        final E[] lb = buffer;
-        final E e = lvElement(lb, offset);
+        final long offset = calcElementOffset(consumerIndex);
+        // local load of field to avoid repeated loads after volatile reads
+        final E[] lElementBuffer = buffer;
+        final E e = lvElement(lElementBuffer, offset);// LoadLoad
         if (null == e) {
             return null;
         }
-        soElement(lb, offset, null);
-        head++;
+        soElement(lElementBuffer, offset, null);// StoreStore
+        consumerIndex++;
         return e;
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * This implementation is correct for single consumer thread use only.
+     */
     @Override
     public E peek() {
-        return lvElement(calcElementOffset(head));
+        return lvElement(calcElementOffset(consumerIndex));
     }
 
     @Override
     public int size() {
-        // TODO: this is ugly :( the head/tail cannot be counted on to be written out, so must take max
-        return (int) (Math.max(getTailV(), tail) - Math.max(getHeadV(), head));
+        if(peek() == null) {// LoadLoad -> will force load of indexes from memory.
+            return 0;
+        }
+        return (int) (producerIndex - consumerIndex);
     }
 }
