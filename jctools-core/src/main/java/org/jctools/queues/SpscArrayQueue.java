@@ -30,7 +30,7 @@ abstract class SpscArrayQueueProducerFields<E> extends SpscArrayQueueL1Pad<E> {
     static {
         try {
             P_INDEX_OFFSET =
-                UNSAFE.objectFieldOffset(SpscArrayQueueConsumerField.class.getDeclaredField("producerIndex"));
+                UNSAFE.objectFieldOffset(SpscArrayQueueProducerFields.class.getDeclaredField("producerIndex"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
