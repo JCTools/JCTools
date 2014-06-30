@@ -1,5 +1,6 @@
 package org.jctools.queues;
 
+import java.lang.reflect.Constructor;
 import java.util.ArrayDeque;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -56,5 +57,44 @@ public class QueueByTypeFactory {
         }
         throw new IllegalArgumentException("Type: " + queueType);
     }
-
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    public static Queue<Integer> createQueue(String queueType, final int queueCapacity) {
+        Class qClass = queueClass(queueType);
+        Constructor constructor;
+        Exception ex;
+        try {
+            constructor = qClass.getConstructor(Integer.TYPE);
+            return (Queue<Integer>) constructor.newInstance(queueCapacity);
+        } catch (Exception e) {
+            ex = e;
+        }
+        try {
+            constructor = qClass.getConstructor();
+            return (Queue<Integer>) constructor.newInstance();
+        } catch (Exception e) {
+            ex = e;
+        }
+        throw new IllegalArgumentException("Failed to construct queue:"+qClass.getName(), ex);
+    }
+    @SuppressWarnings("rawtypes")
+    private static Class queueClass(String queueType) {
+        try {
+            return Class.forName("org.jctools.queues."+queueType);
+        } catch (ClassNotFoundException e) {
+        }
+        
+        try {
+            return Class.forName("java.util."+queueType);
+        } catch (ClassNotFoundException e) {
+        }
+        try {
+            return Class.forName("java.util.concurrent."+queueType);
+        } catch (ClassNotFoundException e) {
+        }
+        try {
+            return Class.forName(queueType);
+        } catch (ClassNotFoundException e) {
+        }
+        throw new IllegalArgumentException("class not found:");
+    }
 }

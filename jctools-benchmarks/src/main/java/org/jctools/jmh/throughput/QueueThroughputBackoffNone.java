@@ -25,6 +25,7 @@ import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
+import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
@@ -35,32 +36,44 @@ import org.openjdk.jmh.infra.Blackhole;
 @State(Scope.Group)
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
-@Warmup(iterations = 5, time = 1, timeUnit = TimeUnit.SECONDS)
+@Warmup(iterations = 5, time = 3, timeUnit = TimeUnit.SECONDS)
 @Measurement(iterations = 5, time = 3, timeUnit = TimeUnit.SECONDS)
-public class QueueThroughputYieldWithThreadCounters {
+public class QueueThroughputBackoffNone {
     private static final long DELAY_PRODUCER = Long.getLong("delay.p", 0L);
     private static final long DELAY_CONSUMER = Long.getLong("delay.c", 0L);
     private static final Integer ONE = 777;
-    public final Queue<Integer> q = QueueByTypeFactory.createQueue();
+    @Param(value = { "SpscArrayQueue", "MpscArrayQueue", "SpmcArrayQueue", "MpmcArrayQueue" })
+    String qType;
+    @Param(value = { "132000" })
+    int qCapacity;
+    Queue<Integer> q;
+
+    @Setup()
+    public void createQ() {
+        q = QueueByTypeFactory.createQueue(qType, qCapacity);
+    }
 
     @AuxCounters
     @State(Scope.Thread)
     public static class PollCounters {
-        public int pollFail;
+        public int pollsFailed;
+        public int pollsMade;
 
         @Setup(Level.Iteration)
         public void clean() {
-            pollFail = 0;
+            pollsFailed = pollsMade = 0;
         }
     }
+
     @AuxCounters
     @State(Scope.Thread)
     public static class OfferCounters {
-        public int offerFail;
+        public int offersFailed;
+        public int offersMade;
 
         @Setup(Level.Iteration)
         public void clean() {
-            offerFail = 0;
+            offersFailed = offersMade = 0;
         }
     }
 
@@ -77,24 +90,36 @@ public class QueueThroughputYieldWithThreadCounters {
     @Group("tpt")
     public void offer(OfferCounters counters) {
         if (!q.offer(ONE)) {
-            counters.offerFail++;
-            Thread.yield();
-        } 
+            counters.offersFailed++;
+            backoff();
+        }
+        else {
+            counters.offersMade++;
+        }
         if (DELAY_PRODUCER != 0) {
             Blackhole.consumeCPU(DELAY_PRODUCER);
         }
     }
 
+    protected void backoff() {
+    }
+
     @Benchmark
     @Group("tpt")
-    public void poll(PollCounters counters, ConsumerMarker cm) {
-        if (q.poll() == null) {
-            counters.pollFail++;
-            Thread.yield();
-        } 
+    public int poll(PollCounters counters, ConsumerMarker cm) {
+        Integer e = q.poll();
+        if (e == null) {
+            counters.pollsFailed++;
+            backoff();
+            e = 0;
+        }
+        else {
+            counters.pollsMade++;
+        }
         if (DELAY_CONSUMER != 0) {
             Blackhole.consumeCPU(DELAY_CONSUMER);
         }
+        return e.intValue();
     }
 
     @TearDown(Level.Iteration)
