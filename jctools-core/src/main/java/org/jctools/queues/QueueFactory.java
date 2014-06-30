@@ -4,7 +4,6 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.jctools.queues.spec.ConcurrentQueueSpec;
-import org.jctools.queues.spec.Growth;
 import org.jctools.queues.spec.Ordering;
 
 /**
@@ -17,7 +16,7 @@ import org.jctools.queues.spec.Ordering;
  */
 public class QueueFactory {
     public static <E> Queue<E> newQueue(ConcurrentQueueSpec qs) {
-        if (qs.growth == Growth.BOUNDED) {
+        if (qs.isBounded()) {
             // SPSC
             if (qs.isSpsc()) {
 
@@ -39,7 +38,7 @@ public class QueueFactory {
             else {
                 return new MpmcArrayQueue<E>(qs.capacity);
             }
-        } else if (qs.growth == Growth.UNBOUNDED) {
+        } else {
             // SPSC
             if (qs.isSpsc()) {
                 return new SpscLinkedQueue<E>();

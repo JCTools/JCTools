@@ -2,9 +2,6 @@ package org.jctools.queues.alt;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 
-import java.util.AbstractQueue;
-import java.util.Iterator;
-
 import org.jctools.util.Pow2;
 import org.jctools.util.UnsafeAccess;
 

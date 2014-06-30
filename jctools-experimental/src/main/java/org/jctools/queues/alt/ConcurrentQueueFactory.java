@@ -2,9 +2,7 @@ package org.jctools.queues.alt;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import org.jctools.queues.SpscLinkedQueue;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
-import org.jctools.queues.spec.Growth;
 
 /**
  * The queue factory produces {@link ConcurrentQueue} instances based on a best fit to the {@link ConcurrentQueueSpec}.
@@ -16,7 +14,7 @@ import org.jctools.queues.spec.Growth;
  */
 public class ConcurrentQueueFactory {
     public static <E> ConcurrentQueue<E> newQueue(ConcurrentQueueSpec qs) {
-        if (qs.growth == Growth.BOUNDED) {
+        if (qs.isBounded()) {
             // SPSC
             if (qs.consumers == 1 && qs.producers == 1) {
 

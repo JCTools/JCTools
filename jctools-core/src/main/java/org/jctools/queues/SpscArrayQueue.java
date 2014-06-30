@@ -13,6 +13,8 @@
  */
 package org.jctools.queues;
 
+import static org.jctools.util.UnsafeAccess.UNSAFE;
+
 
 abstract class SpscArrayQueueL1Pad<E> extends ConcurrentCircularArrayQueue<E> {
     long p10, p11, p12, p13, p14, p15, p16;
@@ -24,11 +26,23 @@ abstract class SpscArrayQueueL1Pad<E> extends ConcurrentCircularArrayQueue<E> {
 }
 
 abstract class SpscArrayQueueProducerFields<E> extends SpscArrayQueueL1Pad<E> {
+    private final static long P_INDEX_OFFSET;
+    static {
+        try {
+            P_INDEX_OFFSET =
+                UNSAFE.objectFieldOffset(SpscArrayQueueConsumerField.class.getDeclaredField("producerIndex"));
+        } catch (NoSuchFieldException e) {
+            throw new RuntimeException(e);
+        }
+    }
     protected long producerIndex;
     protected long producerLookAhead;
 
     public SpscArrayQueueProducerFields(int capacity) {
         super(capacity);
+    }
+    protected final long lvProducerIndex() {
+        return UNSAFE.getLongVolatile(this, P_INDEX_OFFSET);
     }
 }
 
@@ -43,9 +57,20 @@ abstract class SpscArrayQueueL2Pad<E> extends SpscArrayQueueProducerFields<E> {
 
 abstract class SpscArrayQueueConsumerField<E> extends SpscArrayQueueL2Pad<E> {
     protected long consumerIndex;
-
+    private final static long C_INDEX_OFFSET;
+    static {
+        try {
+            C_INDEX_OFFSET =
+                UNSAFE.objectFieldOffset(SpscArrayQueueConsumerField.class.getDeclaredField("consumerIndex"));
+        } catch (NoSuchFieldException e) {
+            throw new RuntimeException(e);
+        }
+    }
     public SpscArrayQueueConsumerField(int capacity) {
         super(capacity);
+    }
+    protected final long lvConsumerIndex() {
+        return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
     }
 }
 
@@ -131,9 +156,21 @@ public final class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E> {
 
     @Override
     public int size() {
-        if(peek() == null) {// LoadLoad -> will force load of indexes from memory.
-            return 0;
-        }
-        return (int) (producerIndex - consumerIndex);
+        
+        int size;
+        do {
+            if(peek() == null) {// LoadLoad -> will force load of indexes from memory.
+                return 0;
+            }
+            /*
+             * It is possible for a thread to be interrupted or reschedule between the read of the producer
+             * and consumer indices, therefore protection is required to ensure size is within valid range.
+             */
+            final long currentConsumerIndex = lvConsumerIndex();
+            final long currentProducerIndex = lvProducerIndex();
+            size = (int)(currentProducerIndex - currentConsumerIndex);
+        } while (size > capacity);
+
+        return size;
     }
 }

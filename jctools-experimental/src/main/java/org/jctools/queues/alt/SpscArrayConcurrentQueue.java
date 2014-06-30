@@ -13,7 +13,6 @@
  */
 package org.jctools.queues.alt;
 
-import org.jctools.queues.ConcurrentCircularArrayQueue;
 import org.jctools.util.UnsafeAccess;
 
 abstract class ProducerFields<E> extends ConcurrentCircularArray<E> {

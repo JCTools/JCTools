@@ -21,17 +21,15 @@ public class ConcurrentQueueSpec {
     public final int producers;
     public final int consumers;
     public final int capacity;
-    public final Growth growth;
     public final Ordering ordering;
     public final Preference preference;
 
-    public ConcurrentQueueSpec(int producers, int consumers, int capacity, Growth growth, Ordering ordering,
+    public ConcurrentQueueSpec(int producers, int consumers, int capacity, Ordering ordering,
             Preference preference) {
         super();
         this.producers = producers;
         this.consumers = consumers;
         this.capacity = capacity;
-        this.growth = growth;
         this.ordering = ordering;
         this.preference = preference;
     }
@@ -50,5 +48,8 @@ public class ConcurrentQueueSpec {
 
     public boolean isMpmc() {
         return consumers != 1 && producers != 1;
+    }
+    public boolean isBounded(){
+        return capacity != 0;
     }
 }
