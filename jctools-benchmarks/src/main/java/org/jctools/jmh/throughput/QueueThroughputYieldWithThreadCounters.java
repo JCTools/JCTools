@@ -16,7 +16,7 @@ package org.jctools.jmh.throughput;
 import java.util.Queue;
 import java.util.concurrent.TimeUnit;
 
-import org.jctools.queues.TypeQueueFactory;
+import org.jctools.queues.QueueByTypeFactory;
 import org.openjdk.jmh.annotations.AuxCounters;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -41,16 +41,26 @@ public class QueueThroughputYieldWithThreadCounters {
     private static final long DELAY_PRODUCER = Long.getLong("delay.p", 0L);
     private static final long DELAY_CONSUMER = Long.getLong("delay.c", 0L);
     private static final Integer ONE = 777;
-    public final Queue<Integer> q = TypeQueueFactory.createQueue();
+    public final Queue<Integer> q = QueueByTypeFactory.createQueue();
 
     @AuxCounters
     @State(Scope.Thread)
-    public static class OpCounters {
-        public int pollFail, offerFail;
+    public static class PollCounters {
+        public int pollFail;
 
         @Setup(Level.Iteration)
         public void clean() {
-            pollFail = offerFail = 0;
+            pollFail = 0;
+        }
+    }
+    @AuxCounters
+    @State(Scope.Thread)
+    public static class OfferCounters {
+        public int offerFail;
+
+        @Setup(Level.Iteration)
+        public void clean() {
+            offerFail = 0;
         }
     }
 
@@ -65,7 +75,7 @@ public class QueueThroughputYieldWithThreadCounters {
 
     @Benchmark
     @Group("tpt")
-    public void offer(OpCounters counters) {
+    public void offer(OfferCounters counters) {
         if (!q.offer(ONE)) {
             counters.offerFail++;
             Thread.yield();
@@ -77,7 +87,7 @@ public class QueueThroughputYieldWithThreadCounters {
 
     @Benchmark
     @Group("tpt")
-    public void poll(OpCounters counters, ConsumerMarker cm) {
+    public void poll(PollCounters counters, ConsumerMarker cm) {
         if (q.poll() == null) {
             counters.pollFail++;
             Thread.yield();

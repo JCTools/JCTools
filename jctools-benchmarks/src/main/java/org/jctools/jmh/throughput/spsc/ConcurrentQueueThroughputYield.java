@@ -15,8 +15,8 @@ package org.jctools.jmh.throughput.spsc;
 
 import java.util.concurrent.TimeUnit;
 
-import org.jctools.queues.TypeConcurrentQueueFactory;
 import org.jctools.queues.alt.ConcurrentQueue;
+import org.jctools.queues.alt.ConcurrentQueueByTypeFactory;
 import org.jctools.queues.alt.ConcurrentQueueConsumer;
 import org.jctools.queues.alt.ConcurrentQueueProducer;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -40,7 +40,7 @@ import org.openjdk.jmh.infra.Control;
 @Warmup(iterations = 5, time = 1, timeUnit = TimeUnit.SECONDS)
 @Measurement(iterations = 5, time = 3, timeUnit = TimeUnit.SECONDS)
 public class ConcurrentQueueThroughputYield {
-    private final ConcurrentQueue<Integer> q = TypeConcurrentQueueFactory.createQueue();
+    private final ConcurrentQueue<Integer> q = ConcurrentQueueByTypeFactory.createQueue();
     private final ConcurrentQueueProducer<Integer> producer = q.producer();
     private final ConcurrentQueueConsumer<Integer> consumer = q.consumer();
     private final static Integer ONE = 777;

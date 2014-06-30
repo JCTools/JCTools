@@ -15,8 +15,8 @@
  */
 package org.jctools.handrolled.throughput.spsc;
 
-import org.jctools.queues.TypeConcurrentQueueFactory;
 import org.jctools.queues.alt.ConcurrentQueue;
+import org.jctools.queues.alt.ConcurrentQueueByTypeFactory;
 import org.jctools.queues.alt.ConcurrentQueueConsumer;
 import org.jctools.queues.alt.ConcurrentQueueProducer;
 
@@ -26,8 +26,8 @@ public class BusyConcurrentQueuePerfTest {
     public static final Integer TEST_VALUE = Integer.valueOf(777);
 
     public static void main(final String[] args) throws Exception {
-        System.out.println("capacity:" + TypeConcurrentQueueFactory.QUEUE_CAPACITY + " reps:" + REPETITIONS);
-        final ConcurrentQueue<Integer> queue = TypeConcurrentQueueFactory.createQueue();
+        System.out.println("capacity:" + ConcurrentQueueByTypeFactory.QUEUE_CAPACITY + " reps:" + REPETITIONS);
+        final ConcurrentQueue<Integer> queue = ConcurrentQueueByTypeFactory.createQueue();
 
         final long[] results = new long[20];
         for (int i = 0; i < 20; i++) {

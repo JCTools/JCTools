@@ -11,14 +11,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jctools.jmh.latency.spsc;
+package org.jctools.jmh.baseline;
 
+import java.util.Queue;
 import java.util.concurrent.TimeUnit;
 
-import org.jctools.queues.TypeConcurrentQueueFactory;
-import org.jctools.queues.alt.ConcurrentQueue;
-import org.jctools.queues.alt.ConcurrentQueueConsumer;
-import org.jctools.queues.alt.ConcurrentQueueProducer;
+import org.jctools.queues.QueueByTypeFactory;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Measurement;
@@ -39,21 +37,21 @@ import org.openjdk.jmh.annotations.Warmup;
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @Warmup(iterations = 10, time = 1, timeUnit = TimeUnit.SECONDS)
 @Measurement(iterations = 10, time = 1, timeUnit = TimeUnit.SECONDS)
-public class ConcQOfferPoll {
+public class QueueOfferPoll {
     private static final int BURST_SIZE = Integer.getInteger("burst.size", 1);
     private static final Integer DUMMY_MESSAGE = 1;
-    private final ConcurrentQueue<Integer> q = TypeConcurrentQueueFactory.createQueue();
-    private final ConcurrentQueueConsumer<Integer> c = q.consumer();
-    private final ConcurrentQueueProducer<Integer> p = q.producer();
+    private final Queue<Integer> q = QueueByTypeFactory.createQueue();
     
 
     @Benchmark
-    public void offerAndPoll() {
+    public int offerAndPollLoops() {
         for (int i = 0; i < BURST_SIZE; i++) {
-            p.offer(DUMMY_MESSAGE);
+            q.offer(DUMMY_MESSAGE);
         }
+        Integer result = null;
         for (int i = 0; i < BURST_SIZE; i++) {
-            c.poll();
+            result = q.poll();
         }
+        return result.intValue();
     }
 }

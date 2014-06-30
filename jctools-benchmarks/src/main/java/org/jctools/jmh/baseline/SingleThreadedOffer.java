@@ -1,9 +1,9 @@
-package org.jctools.jmh.throughput;
+package org.jctools.jmh.baseline;
 
 import java.util.Queue;
 import java.util.concurrent.TimeUnit;
 
-import org.jctools.queues.TypeQueueFactory;
+import org.jctools.queues.QueueByTypeFactory;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Level;
@@ -23,10 +23,11 @@ import org.openjdk.jmh.annotations.Warmup;
 @State(Scope.Thread)
 public class SingleThreadedOffer
 {
-    public static final int CAPACITY = 1 << 15;
+    public static final int OPS = 1 << 15;
     public static final Integer TOKEN = 1;
    
-    public final Queue<Integer> q = TypeQueueFactory.createQueue(CAPACITY*2);
+    Queue<Integer> q = QueueByTypeFactory.createQueue(OPS*2);
+    volatile boolean preventUnrolling = true;
     @Setup(Level.Invocation)
     public void clear()
     {
@@ -34,11 +35,11 @@ public class SingleThreadedOffer
     }
 
     @Benchmark
-    @OperationsPerInvocation(CAPACITY)
-    public void offer()
+    @OperationsPerInvocation(OPS)
+    public void offerLoop()
     {
         final Queue<Integer> lq = q;
-        for (int i = 0; i < CAPACITY; i++)
+        for (int i = 0; i < OPS && preventUnrolling; i++)
         {
             lq.offer(TOKEN);
         }

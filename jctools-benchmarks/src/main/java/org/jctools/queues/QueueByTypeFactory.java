@@ -6,7 +6,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedTransferQueue;
 
-public class TypeQueueFactory {
+public class QueueByTypeFactory {
     public static final int QUEUE_CAPACITY = 1 << Integer.getInteger("pow2.capacity", 17);
     public static final int QUEUE_TYPE = Integer.getInteger("q.type", 0);
     public static Queue<Integer> createQueue() {
@@ -14,7 +14,11 @@ public class TypeQueueFactory {
         return createQueue(queueCapacity);
     }
     public static Queue<Integer> createQueue(final int queueCapacity) {
-        switch (QUEUE_TYPE) {
+        int queueType = QUEUE_TYPE;
+        return createQueue(queueType, queueCapacity);
+    }
+    public static Queue<Integer> createQueue(int queueType, final int queueCapacity) {
+        switch (queueType) {
         case -99:
             return new ArrayDeque<Integer>(queueCapacity);
         case -3:
@@ -50,7 +54,7 @@ public class TypeQueueFactory {
         case 71:
             return new MpmcConcurrentQueueStateMarkers<Integer>(queueCapacity);
         }
-        throw new IllegalArgumentException("Type: " + QUEUE_TYPE);
+        throw new IllegalArgumentException("Type: " + queueType);
     }
 
 }

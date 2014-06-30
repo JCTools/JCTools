@@ -1,11 +1,12 @@
-package org.jctools.queues;
+package org.jctools.queues.alt;
 
+import org.jctools.queues.MpmcConcurrentQueueStateMarkers;
 import org.jctools.queues.alt.ConcurrentQueue;
 import org.jctools.queues.alt.ConcurrentQueueFactory;
 import org.jctools.queues.alt.MpmcArrayConcurrentQueue;
 import org.jctools.queues.alt.SpscArrayConcurrentQueue;
 
-public class TypeConcurrentQueueFactory {
+public class ConcurrentQueueByTypeFactory {
     public static final int QUEUE_CAPACITY = 1 << Integer.getInteger("pow2.capacity", 17);
     public static final int QUEUE_TYPE = Integer.getInteger("q.type", 30);
     public static ConcurrentQueue<Integer> createQueue() {

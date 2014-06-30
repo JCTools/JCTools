@@ -16,8 +16,8 @@ package org.jctools.jmh.latency.spsc;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.jctools.queues.TypeConcurrentQueueFactory;
 import org.jctools.queues.alt.ConcurrentQueue;
+import org.jctools.queues.alt.ConcurrentQueueByTypeFactory;
 import org.jctools.queues.alt.ConcurrentQueueConsumer;
 import org.jctools.queues.alt.ConcurrentQueueProducer;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -174,12 +174,12 @@ public class RingCqBurstRoundTripWithGroups {
         }
         // This is an estimate, but for bounded queues if the burst size is more than actual ring capacity
         // the benchmark will hang/
-        if (BURST_SIZE > TypeConcurrentQueueFactory.QUEUE_CAPACITY * CHAIN_LENGTH >> 1) {
+        if (BURST_SIZE > ConcurrentQueueByTypeFactory.QUEUE_CAPACITY * CHAIN_LENGTH >> 1) {
             throw new IllegalArgumentException("Batch size exceeds estimated capacity");
         }
         // initialize the chain
         for (int i = 0; i < CHAIN_LENGTH; i++) {
-            chain[i] = TypeConcurrentQueueFactory.createQueue();
+            chain[i] = ConcurrentQueueByTypeFactory.createQueue();
         }
     }
 

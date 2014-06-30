@@ -17,7 +17,7 @@ package org.jctools.handrolled.throughput.spsc;
 
 import java.util.Queue;
 
-import org.jctools.queues.TypeQueueFactory;
+import org.jctools.queues.QueueByTypeFactory;
 
 
 public class OQueuePerfTest {
@@ -26,8 +26,8 @@ public class OQueuePerfTest {
 	public static final Integer TEST_VALUE = Integer.valueOf(777);
 
 	public static void main(final String[] args) throws Exception {
-		System.out.println("capacity:" + TypeQueueFactory.QUEUE_CAPACITY + " reps:" + REPETITIONS);
-		final Queue<Integer> queue = TypeQueueFactory.createQueue();
+		System.out.println("capacity:" + QueueByTypeFactory.QUEUE_CAPACITY + " reps:" + REPETITIONS);
+		final Queue<Integer> queue = QueueByTypeFactory.createQueue();
 
 		final long[] results = new long[20];
 		for (int i = 0; i < 20; i++) {

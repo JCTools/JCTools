@@ -19,7 +19,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import org.jctools.queues.TypeQueueFactory;
+import org.jctools.queues.QueueByTypeFactory;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Level;
@@ -56,8 +56,8 @@ public class RingBurstRoundTripWithThreads {
             : null;
     private final Queue<Integer>[] chain = new Queue[CHAIN_LENGTH];
     private final Control linkThreadsControl = new Control();
-    private final Queue<Integer> start = TypeQueueFactory.createQueue();
-    private final Queue<Integer> end = CHAIN_LENGTH == 1 ? start : TypeQueueFactory.createQueue();
+    private final Queue<Integer> start = QueueByTypeFactory.createQueue();
+    private final Queue<Integer> end = CHAIN_LENGTH == 1 ? start : QueueByTypeFactory.createQueue();
     private final Link[] links = new Link[CHAIN_LENGTH - 1];
 
     static class Link implements Runnable {
@@ -108,11 +108,11 @@ public class RingBurstRoundTripWithThreads {
         if (CHAIN_LENGTH < 1) {
             throw new IllegalArgumentException("Chain length must be 1 or more");
         }
-        if (BURST_SIZE > TypeQueueFactory.QUEUE_CAPACITY * CHAIN_LENGTH / 2.0) {
+        if (BURST_SIZE > QueueByTypeFactory.QUEUE_CAPACITY * CHAIN_LENGTH / 2.0) {
             throw new IllegalArgumentException("Batch size exceeds estimated capacity");
         }
         for (int i = 1; i < CHAIN_LENGTH - 1; i++) {
-            chain[i] = TypeQueueFactory.createQueue();
+            chain[i] = QueueByTypeFactory.createQueue();
         }
         chain[0] = start;
         chain[CHAIN_LENGTH - 1] = end;
