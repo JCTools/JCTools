@@ -20,9 +20,9 @@ import org.openjdk.jmh.infra.Blackhole;
 public class QueueThroughputBackoffConsume extends QueueThroughputBackoffNone {
     
     @Param({"1","10","100","1000"})
-    private long consumeAmmount;
+    private long consumeAmount;
     @Override
     protected void backoff() {
-        Blackhole.consumeCPU(consumeAmmount);
+        Blackhole.consumeCPU(consumeAmount);
     }
 }
