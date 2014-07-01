@@ -49,7 +49,7 @@ public class QueueByTypeFactory {
         case 62:
             return new MpscOnSpscQueue<Integer>(queueCapacity);
         case 63:
-            return new MpscLinkedQueue<Integer>();
+            return new MpscLinkedQueue8<Integer>();
         case 7:
             return new MpmcArrayQueue<Integer>(queueCapacity);
         case 71:
