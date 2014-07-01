@@ -1,33 +1,44 @@
 package org.jctools.queues;
 
+import static org.jctools.util.UnsafeAccess.UNSAFE;
+
 import java.util.AbstractQueue;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
-abstract class MpscLinkedQueuePad0<E> extends AbstractQueue<E> {
+abstract class MpscLinkedQueue7Pad0<E> extends AbstractQueue<E> {
     long p00, p01, p02, p03, p04, p05, p06, p07;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 }
 
-abstract class MpscLinkedQueueProducerNodeRef<E> extends MpscLinkedQueuePad0<E> {
-    @SuppressWarnings("rawtypes")
-    private static final AtomicReferenceFieldUpdater<MpscLinkedQueueProducerNodeRef, LinkedQueueNode> UPDATER = AtomicReferenceFieldUpdater
-            .newUpdater(MpscLinkedQueueProducerNodeRef.class, LinkedQueueNode.class, "producerNode");
+abstract class MpscLinkedQueue7ProducerNodeRef<E> extends MpscLinkedQueue7Pad0<E> {
+    protected final static long P_NODE_OFFSET;
+
+    static {
+        try {
+            P_NODE_OFFSET = UNSAFE.objectFieldOffset(MpscLinkedQueue7ProducerNodeRef.class.getDeclaredField("producerNode"));
+        } catch (NoSuchFieldException e) {
+            throw new RuntimeException(e);
+        }
+    }
     protected volatile LinkedQueueNode<E> producerNode;
 
     @SuppressWarnings("unchecked")
     protected final LinkedQueueNode<E> xchgProducerNode(LinkedQueueNode<E> newVal) {
-        // LOCK XCHG in JDK8, a CAS loop in JDK 7/6
-        return (LinkedQueueNode<E>) UPDATER.getAndSet(this, newVal);
+        Object oldVal;
+        do {
+            oldVal = producerNode;
+        } while(!UNSAFE.compareAndSwapObject(this, P_NODE_OFFSET, oldVal, newVal));
+        return (LinkedQueueNode<E>) oldVal;
     }
 }
 
-abstract class MpscLinkedQueuePad1<E> extends MpscLinkedQueueProducerNodeRef<E> {
+abstract class MpscLinkedQueue7Pad1<E> extends MpscLinkedQueue7ProducerNodeRef<E> {
     long p00, p01, p02, p03, p04, p05, p06, p07;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 }
 
-abstract class MpscLinkedQueueConsumerNodeRef<E> extends MpscLinkedQueuePad1<E> {
+abstract class MpscLinkedQueue7ConsumerNodeRef<E> extends MpscLinkedQueue7Pad1<E> {
     protected LinkedQueueNode<E> consumerNode;
 }
 
@@ -47,11 +58,11 @@ abstract class MpscLinkedQueueConsumerNodeRef<E> extends MpscLinkedQueuePad1<E> 
  * 
  * @param <E>
  */
-public final class MpscLinkedQueue<E> extends MpscLinkedQueueConsumerNodeRef<E> {
+public final class MpscLinkedQueue7<E> extends MpscLinkedQueue7ConsumerNodeRef<E> {
     long p00, p01, p02, p03, p04, p05, p06, p07;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 
-    public MpscLinkedQueue() {
+    public MpscLinkedQueue7() {
         consumerNode = new LinkedQueueNode<>();
         producerNode = consumerNode;// this ensures correct construction: StoreLoad
     }
