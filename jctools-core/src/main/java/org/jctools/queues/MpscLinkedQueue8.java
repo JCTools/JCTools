@@ -25,7 +25,6 @@ abstract class MpscLinkedQueue8ProducerNodeRef<E> extends MpscLinkedQueue8Pad0<E
 
     @SuppressWarnings("unchecked")
     protected final LinkedQueueNode<E> xchgProducerNode(LinkedQueueNode<E> newVal) {
-        // LOCK XCHG in JDK8, a CAS loop in JDK 7/6
         return (LinkedQueueNode<E>) UNSAFE.getAndSetObject(this, P_NODE_OFFSET, newVal);
     }
 }

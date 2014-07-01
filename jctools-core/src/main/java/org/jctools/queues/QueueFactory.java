@@ -45,7 +45,7 @@ public class QueueFactory {
             }
             // MPSC
             else if (qs.isMpsc()) {
-                return new MpscLinkedQueue<E>();
+                return new MpscLinkedQueue8<E>();
             }
         }
         return new ConcurrentLinkedQueue<E>();
