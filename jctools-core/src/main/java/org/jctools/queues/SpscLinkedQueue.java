@@ -103,7 +103,7 @@ public final class SpscLinkedQueue<E> extends SpscLinkedQueueConsumerNodeRef<E> 
     public E peek() {
         final LinkedQueueNode<E> nextNode = consumerNode.lvNext();
         if (nextNode != null) {
-            return nextNode.lvValue();
+            return nextNode.lpValue();
         } else {
             return null;
         }

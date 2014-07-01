@@ -3,17 +3,15 @@ package org.jctools.queues;
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 
 final class LinkedQueueNode<E> {
-    private final static long VALUE_OFFSET;
     private final static long NEXT_OFFSET;
     static {
         try {
-            VALUE_OFFSET = UNSAFE.objectFieldOffset(LinkedQueueNode.class.getDeclaredField("value"));
             NEXT_OFFSET = UNSAFE.objectFieldOffset(LinkedQueueNode.class.getDeclaredField("next"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
     }
-    private volatile E value;
+    private E value;
     private volatile LinkedQueueNode<E> next;
 
     LinkedQueueNode() {
@@ -21,7 +19,7 @@ final class LinkedQueueNode<E> {
     }
 
     LinkedQueueNode(E val) {
-        soValue(val);
+        spValue(val);
     }
 
     /**
@@ -31,16 +29,16 @@ final class LinkedQueueNode<E> {
      */
     public E evacuateValue() {
         E temp = value;
-        soValue(null);
+        spValue(null);
         return temp;
     }
 
-    public E lvValue() {
+    public E lpValue() {
         return value;
     }
 
-    public void soValue(E newValue) {
-        UNSAFE.putOrderedObject(this, VALUE_OFFSET, newValue);
+    public void spValue(E newValue) {
+        value =  newValue;
     }
 
     public void soNext(LinkedQueueNode<E> n) {

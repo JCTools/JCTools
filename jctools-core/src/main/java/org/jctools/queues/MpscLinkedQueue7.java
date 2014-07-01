@@ -114,23 +114,45 @@ public final class MpscLinkedQueue7<E> extends MpscLinkedQueue7ConsumerNodeRef<E
      */
     @Override
     public E poll() {
-        final LinkedQueueNode<E> nextNode = consumerNode.lvNext();
+        LinkedQueueNode<E> nextNode = consumerNode.lvNext();
         if (nextNode != null) {
             // we have to null out the value because we are going to hang on to the node
             final E nextValue = nextNode.evacuateValue();
             consumerNode = nextNode;
             return nextValue;
         }
-        return null;
+        // if the queue is truly empty these 2 are the same. Sadly this means we spin on the producer field...
+        else if (producerNode == consumerNode) {
+            return null;
+        }
+        // we can't just return null as interface demands peek() == null iff isEmpty()
+        else {
+            // nodes are not equal, which means the next node should be here any minute now...
+            while ((nextNode = consumerNode.lvNext()) == null)
+                ;
+            // we have to null out the value because we are going to hang on to the node
+            final E nextValue = nextNode.evacuateValue();
+            consumerNode = nextNode;
+            return nextValue;
+        }
     }
 
     @Override
     public E peek() {
-        final LinkedQueueNode<E> nextNode = consumerNode.lvNext();
+        LinkedQueueNode<E> nextNode = consumerNode.lvNext();
         if (nextNode != null) {
-            return nextNode.lvValue();
-        } else {
+            return nextNode.lpValue();
+        }
+        // if the queue is truly empty these 2 are the same. Sadly this means we spin on the producer field...
+        else if (producerNode == consumerNode) {
             return null;
+        }
+        // we can't just return null as interface demands peek() == null iff isEmpty()
+        else {
+            // nodes are not equal, which means the next node should be here any minute now...
+            while ((nextNode = consumerNode.lvNext()) == null)
+                ;
+            return nextNode.lpValue();
         }
     }
 

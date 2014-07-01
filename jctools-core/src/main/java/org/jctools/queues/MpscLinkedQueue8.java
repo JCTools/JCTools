@@ -16,7 +16,8 @@ abstract class MpscLinkedQueue8ProducerNodeRef<E> extends MpscLinkedQueue8Pad0<E
 
     static {
         try {
-            P_NODE_OFFSET = UNSAFE.objectFieldOffset(MpscLinkedQueue8ProducerNodeRef.class.getDeclaredField("producerNode"));
+            P_NODE_OFFSET = UNSAFE.objectFieldOffset(MpscLinkedQueue8ProducerNodeRef.class
+                    .getDeclaredField("producerNode"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
@@ -85,6 +86,7 @@ public final class MpscLinkedQueue8<E> extends MpscLinkedQueue8ConsumerNodeRef<E
             throw new IllegalArgumentException("null elements not allowed");
         }
         final LinkedQueueNode<E> nextNode = new LinkedQueueNode<E>(nextValue);
+        // XCHG gives the write barrier
         final LinkedQueueNode<E> prevProducerNode = xchgProducerNode(nextNode);
         // Should a producer thread get interrupted here the chain WILL be broken until that thread is resumed
         // and completes the store in prev.next.
@@ -110,23 +112,45 @@ public final class MpscLinkedQueue8<E> extends MpscLinkedQueue8ConsumerNodeRef<E
      */
     @Override
     public E poll() {
-        final LinkedQueueNode<E> nextNode = consumerNode.lvNext();
+        LinkedQueueNode<E> nextNode = consumerNode.lvNext();
         if (nextNode != null) {
             // we have to null out the value because we are going to hang on to the node
             final E nextValue = nextNode.evacuateValue();
             consumerNode = nextNode;
             return nextValue;
         }
-        return null;
+        // if the queue is truly empty these 2 are the same. Sadly this means we spin on the producer field...
+        else if (producerNode == consumerNode) {
+            return null;
+        }
+        // we can't just return null as interface demands peek() == null iff isEmpty()
+        else {
+            // nodes are not equal, which means the next node should be here any minute now...
+            while ((nextNode = consumerNode.lvNext()) == null)
+                ;
+            // we have to null out the value because we are going to hang on to the node
+            final E nextValue = nextNode.evacuateValue();
+            consumerNode = nextNode;
+            return nextValue;
+        }
     }
 
     @Override
     public E peek() {
-        final LinkedQueueNode<E> nextNode = consumerNode.lvNext();
+        LinkedQueueNode<E> nextNode = consumerNode.lvNext();
         if (nextNode != null) {
-            return nextNode.lvValue();
-        } else {
+            return nextNode.lpValue();
+        }
+        // if the queue is truly empty these 2 are the same. Sadly this means we spin on the producer field...
+        else if (producerNode == consumerNode) {
             return null;
+        }
+        // we can't just return null as interface demands peek() == null iff isEmpty()
+        else {
+            // nodes are not equal, which means the next node should be here any minute now...
+            while ((nextNode = consumerNode.lvNext()) == null)
+                ;
+            return nextNode.lpValue();
         }
     }
 
