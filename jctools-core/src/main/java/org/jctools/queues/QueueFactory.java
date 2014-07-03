@@ -5,6 +5,9 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
+import org.jctools.util.UnsafeAccess;
+
+import sun.misc.Unsafe;
 
 /**
  * The queue factory produces {@link java.util.Queue} instances based on a best fit to the {@link ConcurrentQueueSpec}.
@@ -45,7 +48,12 @@ public class QueueFactory {
             }
             // MPSC
             else if (qs.isMpsc()) {
-                return new MpscLinkedQueue8<E>();
+                if (UnsafeAccess.SUPPORTS_GET_AND_SET) {
+                    return new MpscLinkedQueue8<E>();
+                }
+                else {
+                    return new MpscLinkedQueue8<E>();
+                }
             }
         }
         return new ConcurrentLinkedQueue<E>();
