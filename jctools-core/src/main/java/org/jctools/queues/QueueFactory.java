@@ -52,7 +52,7 @@ public class QueueFactory {
                     return new MpscLinkedQueue8<E>();
                 }
                 else {
-                    return new MpscLinkedQueue8<E>();
+                    return new MpscLinkedQueue7<E>();
                 }
             }
         }
