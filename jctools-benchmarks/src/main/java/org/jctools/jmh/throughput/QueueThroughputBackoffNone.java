@@ -111,7 +111,6 @@ public class QueueThroughputBackoffNone {
         if (e == null) {
             counters.pollsFailed++;
             backoff();
-            e = 0;
         }
         else {
             counters.pollsMade++;
@@ -119,7 +118,7 @@ public class QueueThroughputBackoffNone {
         if (DELAY_CONSUMER != 0) {
             Blackhole.consumeCPU(DELAY_CONSUMER);
         }
-        return e.intValue();
+        return e;
     }
 
     @TearDown(Level.Iteration)
