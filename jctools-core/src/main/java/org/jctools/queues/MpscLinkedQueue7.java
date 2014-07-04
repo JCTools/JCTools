@@ -114,46 +114,41 @@ public final class MpscLinkedQueue7<E> extends MpscLinkedQueue7ConsumerNodeRef<E
      */
     @Override
     public E poll() {
-        LinkedQueueNode<E> nextNode = consumerNode.lvNext();
-        if (nextNode != null) {
-            // we have to null out the value because we are going to hang on to the node
-            final E nextValue = nextNode.evacuateValue();
-            consumerNode = nextNode;
-            return nextValue;
-        }
+        E e;
         // if the queue is truly empty these 2 are the same. Sadly this means we spin on the producer field...
-        else if (producerNode == consumerNode) {
-            return null;
+        while ((e = tryPoll()) == null && producerNode != consumerNode) {
+            // spin
         }
-        // we can't just return null as interface demands peek() == null iff isEmpty()
-        else {
-            // nodes are not equal, which means the next node should be here any minute now...
-            while ((nextNode = consumerNode.lvNext()) == null)
-                ;
-            // we have to null out the value because we are going to hang on to the node
-            final E nextValue = nextNode.evacuateValue();
-            consumerNode = nextNode;
-            return nextValue;
-        }
+        return e;
     }
 
+    public E tryPoll() {
+        LinkedQueueNode<E> nextNode = consumerNode.lvNext();
+        if (nextNode != null) {
+            // we have to null out the value because we are going to hang on to the node
+            final E nextValue = nextNode.evacuateValue();
+            consumerNode = nextNode;
+            return nextValue;
+        }
+        return null;
+    }
+    
     @Override
     public E peek() {
+        E e;
+        // if the queue is truly empty these 2 are the same. Sadly this means we spin on the producer field...
+        while ((e = tryPeek()) == null && producerNode != consumerNode) {
+            // spin
+        }
+        return e;
+    }
+    
+    public E tryPeek() {
         LinkedQueueNode<E> nextNode = consumerNode.lvNext();
         if (nextNode != null) {
             return nextNode.lpValue();
         }
-        // if the queue is truly empty these 2 are the same. Sadly this means we spin on the producer field...
-        else if (producerNode == consumerNode) {
-            return null;
-        }
-        // we can't just return null as interface demands peek() == null iff isEmpty()
-        else {
-            // nodes are not equal, which means the next node should be here any minute now...
-            while ((nextNode = consumerNode.lvNext()) == null)
-                ;
-            return nextNode.lpValue();
-        }
+        return null;
     }
 
     @Override
@@ -173,7 +168,7 @@ public final class MpscLinkedQueue7<E> extends MpscLinkedQueue7ConsumerNodeRef<E
     public int size() {
         LinkedQueueNode<E> temp = consumerNode;
         int size = 0;
-        while ((temp = temp.lvNext()) != null) {
+        while ((temp = temp.lvNext()) != null && size < Integer.MAX_VALUE) {
             size++;
         }
         return size;

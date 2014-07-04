@@ -129,7 +129,7 @@ public final class SpscLinkedQueue<E> extends SpscLinkedQueueConsumerNodeRef<E> 
     public int size() {
         LinkedQueueNode<E> temp = consumerNode;
         int size = 0;
-        while ((temp = temp.lvNext()) != null) {
+        while ((temp = temp.lvNext()) != null && size < Integer.MAX_VALUE) {
             size++;
         }
         return size;
