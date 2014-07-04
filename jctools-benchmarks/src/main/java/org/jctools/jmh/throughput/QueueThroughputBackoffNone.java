@@ -106,7 +106,7 @@ public class QueueThroughputBackoffNone {
 
     @Benchmark
     @Group("tpt")
-    public int poll(PollCounters counters, ConsumerMarker cm) {
+    public Integer poll(PollCounters counters, ConsumerMarker cm) {
         Integer e = q.poll();
         if (e == null) {
             counters.pollsFailed++;
