@@ -206,8 +206,27 @@ public final class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> {
         return 0; // AWESOME :)
     }
 
+    /**
+     * {@inheritDoc}
+     * Because return null indicates queue is empty we cannot simply rely on next element visibility for poll and must
+     * test producer index when next element is not visible.
+     */
     @Override
     public E poll() {
+        E e = tryPoll();
+        if(e == null && !isEmpty()) {
+            // Spin wait for the element to appear. This buggers up wait freedom.
+            do {
+                e = tryPoll();
+            } while (e == null);
+        }
+        return e;
+    }
+    
+    /**
+     * @return E if next element is visible, null otherwise
+     */
+    public E tryPoll() {
         final long consumerIndex = lvConsumerIndex(); // LoadLoad
         final long offset = calcElementOffset(consumerIndex);
         // Copy field to avoid re-reading after volatile load
@@ -220,7 +239,7 @@ public final class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> {
              * NOTE: Queue may not actually be empty in the case of a producer (P1) being interrupted after winning the
              * CAS on offer but before storing the element in the queue. Other producers may go on to fill up the queue
              * after this element. We can detect this state by observing size() != 0. An alternative in this case is to
-             * busy spin until element becomes visible.
+             * busy spin until element becomes visible, which is what poll does.
              */
         }
 
@@ -236,6 +255,28 @@ public final class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> {
 
     @Override
     public int size() {
-        return (int) (lvProducerIndex() - lvConsumerIndex());
+        int size;
+        do {
+            /*
+             * It is possible for a thread to be interrupted or reschedule between the read of the producer
+             * and consumer indices, therefore protection is required to ensure size is within valid range. In the
+             * event of concurrent polls/offers to this method the size is OVER estimated as we read consumer index
+             * BEFORE the producer index.
+             */
+            final long currentConsumerIndex = lvConsumerIndex();
+            final long currentProducerIndex = lvProducerIndex();
+            size = (int)(currentProducerIndex - currentConsumerIndex);
+        } while (size > capacity);
+
+        return size;
+    }
+    
+    @Override
+    public boolean isEmpty() {
+        // Order matters! 
+        // Loading consumer before producer allows for producer increments after consumer index is read.
+        // This ensures the correctness of this method at least for the consumer thread. Other threads POV is not really
+        // something we can fix here.
+        return (lvConsumerIndex() == lvProducerIndex());
     }
 }

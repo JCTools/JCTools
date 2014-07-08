@@ -114,10 +114,12 @@ public final class MpscLinkedQueue7<E> extends MpscLinkedQueue7ConsumerNodeRef<E
      */
     @Override
     public E poll() {
-        E e;
-        // if the queue is truly empty these 2 are the same. Sadly this means we spin on the producer field...
-        while ((e = tryPoll()) == null && producerNode != consumerNode) {
-            // spin
+        E e = tryPoll();
+        if(e == null && !isEmpty()) {
+            // Spin wait for the element to appear. This buggers up wait freedom.
+            do {
+                e = tryPoll();
+            } while (e == null);
         }
         return e;
     }
@@ -172,5 +174,10 @@ public final class MpscLinkedQueue7<E> extends MpscLinkedQueue7ConsumerNodeRef<E
             size++;
         }
         return size;
+    }
+    
+    @Override
+    public boolean isEmpty() {
+        return consumerNode == producerNode;
     }
 }

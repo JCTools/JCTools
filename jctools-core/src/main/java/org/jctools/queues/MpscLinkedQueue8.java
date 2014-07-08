@@ -96,7 +96,7 @@ public final class MpscLinkedQueue8<E> extends MpscLinkedQueue8ConsumerNodeRef<E
 
     /**
      * {@inheritDoc} <br>
-     * 
+     * <p>
      * IMPLEMENTATION NOTES:<br>
      * Poll is allowed from a SINGLE thread.<br>
      * Poll reads the next node from the consumerNode and:
@@ -112,10 +112,12 @@ public final class MpscLinkedQueue8<E> extends MpscLinkedQueue8ConsumerNodeRef<E
      */
     @Override
     public E poll() {
-        E e;
-        // if the queue is truly empty these 2 are the same. Sadly this means we spin on the producer field...
-        while ((e = tryPoll()) == null && producerNode != consumerNode) {
-            // spin
+        E e = tryPoll();
+        if (e == null && !isEmpty()) {
+            // Spin wait for the element to appear. This buggers up wait freedom.
+            do {
+                e = tryPoll();
+            } while (e == null);
         }
         return e;
     }
@@ -130,17 +132,19 @@ public final class MpscLinkedQueue8<E> extends MpscLinkedQueue8ConsumerNodeRef<E
         }
         return null;
     }
-    
+
     @Override
     public E peek() {
-        E e;
-        // if the queue is truly empty these 2 are the same. Sadly this means we spin on the producer field...
-        while ((e = tryPeek()) == null && producerNode != consumerNode) {
-            // spin
+        E e = tryPeek();
+        if (e == null && !isEmpty()) {
+            // Spin wait for the element to appear. This buggers up wait freedom.
+            do {
+                e = tryPeek();
+            } while (e == null);
         }
         return e;
     }
-    
+
     public E tryPeek() {
         LinkedQueueNode<E> nextNode = consumerNode.lvNext();
         if (nextNode != null) {
@@ -166,9 +170,14 @@ public final class MpscLinkedQueue8<E> extends MpscLinkedQueue8ConsumerNodeRef<E
     public int size() {
         LinkedQueueNode<E> temp = consumerNode;
         int size = 0;
-        while ((temp = temp.lvNext()) != null  && size < Integer.MAX_VALUE) {
+        while ((temp = temp.lvNext()) != null && size < Integer.MAX_VALUE) {
             size++;
         }
         return size;
+    }
+
+    @Override
+    public boolean isEmpty() {
+        return consumerNode == producerNode;
     }
 }

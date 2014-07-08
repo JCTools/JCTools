@@ -2,6 +2,7 @@ package org.jctools.queues;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -87,5 +88,19 @@ public class QueueSanityTest {
             }
             assertEquals(0, sum);
         }
+    }
+    
+    @Test
+    public void shortSanity() {
+        assertEquals(0, q.size());
+        assertTrue(q.isEmpty());
+        Integer e = 1;
+        q.offer(e);
+        assertEquals(1, q.size());
+        assertTrue(!q.isEmpty());
+        Integer oh = q.poll();
+        assertEquals(e, oh);
+        assertEquals(0, q.size());
+        assertTrue(q.isEmpty());
     }
 }

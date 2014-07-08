@@ -156,8 +156,27 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> {
         return true;
     }
 
+    /**
+     * {@inheritDoc}
+     * Because return null indicates queue is empty we cannot simply rely on next element visibility for poll and must
+     * test producer index when next element is not visible.
+     */
     @Override
     public E poll() {
+        E e = tryPoll();
+        if(e == null && !isEmpty()) {
+            // Spin wait for the element to appear. This buggers up wait freedom.
+            do {
+                e = tryPoll();
+            } while (e == null);
+        }
+        return e;
+    }
+    
+    /**
+     * @return E if next element is visible, null otherwise
+     */
+    public E tryPoll() {
         // local load of field to avoid repeated loads after volatile reads
         final long[] lSequenceBuffer = sequenceBuffer;
         long currentConsumerIndex;
@@ -206,7 +225,9 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> {
         do {
             /*
              * It is possible for a thread to be interrupted or reschedule between the read of the producer
-             * and consumer indices, therefore protection is required to ensure size is within valid range.
+             * and consumer indices, therefore protection is required to ensure size is within valid range. In the
+             * event of concurrent polls/offers to this method the size is OVER estimated as we read consumer index
+             * BEFORE the producer index.
              */
             final long currentConsumerIndex = lvConsumerIndex();
             final long currentProducerIndex = lvProducerIndex();
@@ -214,5 +235,14 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> {
         } while (size > capacity);
 
         return size;
+    }
+    
+    @Override
+    public boolean isEmpty() {
+        // Order matters! 
+        // Loading consumer before producer allows for producer increments after consumer index is read.
+        // This ensures this method is conservative in it's estimate. Note that as this is an MPMC there is nothing we
+        // can do to make this an exact method.
+        return (lvConsumerIndex() == lvProducerIndex());
     }
 }
