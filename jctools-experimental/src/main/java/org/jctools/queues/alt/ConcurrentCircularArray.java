@@ -35,7 +35,7 @@ public abstract class ConcurrentCircularArray<E> extends ConcurrentCircularArray
 
     @SuppressWarnings("unchecked")
     public ConcurrentCircularArray(int capacity) {
-        this.capacity = Pow2.findNextPositivePowerOfTwo(capacity);
+        this.capacity = Pow2.roundToPowerOfTwo(capacity);
         mask = this.capacity - 1;
         // pad data on either end with some empty slots.
         buffer = (E[]) new Object[(this.capacity << SPARSE_SHIFT) + BUFFER_PAD * 2];

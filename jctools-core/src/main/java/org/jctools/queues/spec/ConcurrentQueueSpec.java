@@ -17,15 +17,27 @@ package org.jctools.queues.spec;
  * @author nitsanw
  * 
  */
-public class ConcurrentQueueSpec {
+public final class ConcurrentQueueSpec {
     public final int producers;
     public final int consumers;
     public final int capacity;
     public final Ordering ordering;
     public final Preference preference;
 
-    public ConcurrentQueueSpec(int producers, int consumers, int capacity, Ordering ordering,
-            Preference preference) {
+    public static ConcurrentQueueSpec createBoundedSpsc(int capacity) {
+        return new ConcurrentQueueSpec(1, 1, capacity, Ordering.FIFO, Preference.NONE);
+    }
+    public static ConcurrentQueueSpec createBoundedMpsc(int capacity) {
+        return new ConcurrentQueueSpec(0, 1, capacity, Ordering.FIFO, Preference.NONE);
+    }
+    public static ConcurrentQueueSpec createBoundedSpmc(int capacity) {
+        return new ConcurrentQueueSpec(1, 0, capacity, Ordering.FIFO, Preference.NONE);
+    }
+    public static ConcurrentQueueSpec createBoundedMpmc(int capacity) {
+        return new ConcurrentQueueSpec(0, 0, capacity, Ordering.FIFO, Preference.NONE);
+    }
+
+    public ConcurrentQueueSpec(int producers, int consumers, int capacity, Ordering ordering, Preference preference) {
         super();
         this.producers = producers;
         this.consumers = consumers;
@@ -49,7 +61,8 @@ public class ConcurrentQueueSpec {
     public boolean isMpmc() {
         return consumers != 1 && producers != 1;
     }
-    public boolean isBounded(){
+
+    public boolean isBounded() {
         return capacity != 0;
     }
 }

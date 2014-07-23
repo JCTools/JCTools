@@ -156,7 +156,7 @@ public final class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> {
                 } else {
                     // update shared cached value of the consumerIndex
                     svConsumerIndexCache(currHead); // StoreLoad
-                    // update on stack copy
+                    // update on stack copy, we might need this value again if we lose the CAS.
                     consumerIndexCache = currHead;
                 }
             }
@@ -176,9 +176,9 @@ public final class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> {
      * A wait free alternative to offer which fails on CAS failure.
      * 
      * @param e new element, not null
-     * @return 1 if full, -1 if CAS failed, 0 if successful
+     * @return 1 if next element cannot be filled, -1 if CAS failed, 0 if successful
      */
-    public int tryOffer(final E e) {
+    public int weakOffer(final E e) {
         if (null == e) {
             throw new NullPointerException("Null is not a valid element");
         }
@@ -208,67 +208,101 @@ public final class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> {
 
     /**
      * {@inheritDoc}
-     * Because return null indicates queue is empty we cannot simply rely on next element visibility for poll and must
-     * test producer index when next element is not visible.
+     * <p>
+     * IMPLEMENTATION NOTES:<br>
+     * Wait free poll using ordered loads/stores. As class name suggests access is limited to a single thread.
+     * 
+     * @see java.util.Queue#poll()
+     * @see MessagePassingQueue#poll()
      */
     @Override
     public E poll() {
-        E e = tryPoll();
-        if(e == null && !isEmpty()) {
-            // Spin wait for the element to appear. This buggers up wait freedom.
-            do {
-                e = tryPoll();
-            } while (e == null);
-        }
-        return e;
-    }
-    
-    /**
-     * @return E if next element is visible, null otherwise
-     */
-    public E tryPoll() {
         final long consumerIndex = lvConsumerIndex(); // LoadLoad
         final long offset = calcElementOffset(consumerIndex);
         // Copy field to avoid re-reading after volatile load
         final E[] lElementBuffer = buffer;
-        // If we can't see the next available element, consider the queue empty
+        
+        // If we can't see the next available element we can't poll
         final E e = lvElement(lElementBuffer, offset); // LoadLoad
         if (null == e) {
-            return null; // EMPTY
             /*
              * NOTE: Queue may not actually be empty in the case of a producer (P1) being interrupted after winning the
              * CAS on offer but before storing the element in the queue. Other producers may go on to fill up the queue
-             * after this element. We can detect this state by observing size() != 0. An alternative in this case is to
-             * busy spin until element becomes visible, which is what poll does.
+             * after this element. We can detect this state by observing isEmpty(). Consumers which require this
+             * behavior can implement it using isEmpty() + poll().
              */
+            // COMMENTED OUT: strict empty check.
+//            if (consumerIndex != lvProducerIndex()) {
+//                while((e = lvElement(lElementBuffer, offset)) == null);
+//            }
+//            else {
+//                return null;
+//            }
+            return null; // can't load, probably empty
         }
-
-        spElement(lElementBuffer, offset, null); // StoreStore
-        soConsumerIndex(consumerIndex + 1);
+        
+        spElement(lElementBuffer, offset, null);
+        soConsumerIndex(consumerIndex + 1); // StoreStore
         return e;
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * IMPLEMENTATION NOTES:<br>
+     * Wait free peek using ordered loads. As class name suggests access is limited to a single thread. As per poll()
+     * documentation observing null is in all probability indicative of an empty queue, but not necessarily.
+     * 
+     * @see java.util.Queue#poll()
+     * @see MessagePassingQueue#poll()
+     */
     @Override
     public E peek() {
-        return lpElement(calcElementOffset(lvConsumerIndex()));
+        final long consumerIndex = lvConsumerIndex(); // LoadLoad
+        final long offset = calcElementOffset(consumerIndex);
+        // Copy field to avoid re-reading after volatile load
+        final E[] lElementBuffer = buffer;
+        final E e = lvElement(lElementBuffer, offset);
+        if (null == e) {
+            /*
+             * NOTE: Queue may not actually be empty in the case of a producer (P1) being interrupted after winning the
+             * CAS on offer but before storing the element in the queue. Other producers may go on to fill up the queue
+             * after this element. We can detect this state by observing isEmpty(). Consumers which require this
+             * behavior can implement it using isEmpty() + poll().
+             */
+            // COMMENTED OUT: strict empty check.
+//            if (consumerIndex != lvProducerIndex()) {
+//                while((e = lvElement(lElementBuffer, offset)) == null);
+//            }
+//            else {
+//                return null;
+//            }
+            return null; // can't load, probably empty
+        }
+        return e;
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * 
+     */
     @Override
     public int size() {
-        int size;
-        do {
-            /*
-             * It is possible for a thread to be interrupted or reschedule between the read of the producer
-             * and consumer indices, therefore protection is required to ensure size is within valid range. In the
-             * event of concurrent polls/offers to this method the size is OVER estimated as we read consumer index
-             * BEFORE the producer index.
-             */
-            final long currentConsumerIndex = lvConsumerIndex();
+        /*
+         * It is possible for a thread to be interrupted or reschedule between the read of the producer and consumer
+         * indices, therefore protection is required to ensure size is within valid range. In the event of concurrent
+         * polls/offers to this method the size is OVER estimated as we read consumer index BEFORE the producer index.
+         */
+        long after = lvConsumerIndex();
+        while (true) {
+            final long before = after;
             final long currentProducerIndex = lvProducerIndex();
-            size = (int)(currentProducerIndex - currentConsumerIndex);
-        } while (size > capacity);
-
-        return size;
+            after = lvConsumerIndex();
+            if (before == after) {
+                return (int) (currentProducerIndex - after);
+            }
+        }
     }
     
     @Override

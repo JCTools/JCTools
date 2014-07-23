@@ -163,20 +163,6 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> {
      */
     @Override
     public E poll() {
-        E e = tryPoll();
-        if(e == null && !isEmpty()) {
-            // Spin wait for the element to appear. This buggers up wait freedom.
-            do {
-                e = tryPoll();
-            } while (e == null);
-        }
-        return e;
-    }
-    
-    /**
-     * @return E if next element is visible, null otherwise
-     */
-    public E tryPoll() {
         // local load of field to avoid repeated loads after volatile reads
         final long[] lSequenceBuffer = sequenceBuffer;
         long currentConsumerIndex;
@@ -195,7 +181,11 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> {
                 }
                 // failed cas, retry 1
             } else if (delta < 0) {
-                // queue is empty
+                // COMMENTED OUT: strict empty check.
+//                if (currentConsumerIndex == lvProducerIndex()) {
+//                    return null;
+//                }
+                // next element is not visible, probably empty
                 return null;
             }
 
@@ -221,20 +211,20 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> {
 
     @Override
     public int size() {
-        int size;
-        do {
-            /*
-             * It is possible for a thread to be interrupted or reschedule between the read of the producer
-             * and consumer indices, therefore protection is required to ensure size is within valid range. In the
-             * event of concurrent polls/offers to this method the size is OVER estimated as we read consumer index
-             * BEFORE the producer index.
-             */
-            final long currentConsumerIndex = lvConsumerIndex();
+        /*
+         * It is possible for a thread to be interrupted or reschedule between the read of the producer and consumer
+         * indices, therefore protection is required to ensure size is within valid range. In the event of concurrent
+         * polls/offers to this method the size is OVER estimated as we read consumer index BEFORE the producer index.
+         */
+        long after = lvConsumerIndex();
+        while (true) {
+            final long before = after;
             final long currentProducerIndex = lvProducerIndex();
-            size = (int)(currentProducerIndex - currentConsumerIndex);
-        } while (size > capacity);
-
-        return size;
+            after = lvConsumerIndex();
+            if (before == after) {
+                return (int) (currentProducerIndex - after);
+            }
+        }
     }
     
     @Override

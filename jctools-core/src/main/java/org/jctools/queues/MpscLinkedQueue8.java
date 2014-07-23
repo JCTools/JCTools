@@ -66,7 +66,7 @@ public final class MpscLinkedQueue8<E> extends MpscLinkedQueue8ConsumerNodeRef<E
 
     /**
      * {@inheritDoc} <br>
-     * 
+     * <p>
      * IMPLEMENTATION NOTES:<br>
      * Offer is allowed from multiple threads.<br>
      * Offer allocates a new node and:
@@ -112,44 +112,40 @@ public final class MpscLinkedQueue8<E> extends MpscLinkedQueue8ConsumerNodeRef<E
      */
     @Override
     public E poll() {
-        E e = tryPoll();
-        if (e == null && !isEmpty()) {
-            // Spin wait for the element to appear. This buggers up wait freedom.
-            do {
-                e = tryPoll();
-            } while (e == null);
-        }
-        return e;
-    }
-
-    public E tryPoll() {
         LinkedQueueNode<E> nextNode = consumerNode.lvNext();
         if (nextNode != null) {
             // we have to null out the value because we are going to hang on to the node
-            final E nextValue = nextNode.evacuateValue();
+            final E nextValue = nextNode.getAndNullValue();
             consumerNode = nextNode;
             return nextValue;
         }
+     // COMMENTED OUT: strict empty check.
+//        else if (!isEmpty()) {
+//            // spin, we are no longer wait free
+//            while((nextNode = consumerNode.lvNext()) == null);
+//            // got the next node...
+//            
+//            // we have to null out the value because we are going to hang on to the node
+//            final E nextValue = nextNode.getAndNullValue();
+//            consumerNode = nextNode;
+//            return nextValue;
+//        }
         return null;
     }
 
     @Override
     public E peek() {
-        E e = tryPeek();
-        if (e == null && !isEmpty()) {
-            // Spin wait for the element to appear. This buggers up wait freedom.
-            do {
-                e = tryPeek();
-            } while (e == null);
-        }
-        return e;
-    }
-
-    public E tryPeek() {
         LinkedQueueNode<E> nextNode = consumerNode.lvNext();
         if (nextNode != null) {
             return nextNode.lpValue();
         }
+     // COMMENTED OUT: strict empty check.
+//        else if (!isEmpty()) {
+//            // spin, we are no longer wait free
+//            while((nextNode = consumerNode.lvNext()) == null);
+//            // got the next node...
+//            return nextNode.lpValue();
+//        }
         return null;
     }
 
@@ -160,7 +156,7 @@ public final class MpscLinkedQueue8<E> extends MpscLinkedQueue8ConsumerNodeRef<E
 
     /**
      * {@inheritDoc} <br>
-     * 
+     * <p>
      * IMPLEMENTATION NOTES:<br>
      * This is an O(n) operation as we run through all the nodes and count them.<br>
      * 
@@ -176,6 +172,16 @@ public final class MpscLinkedQueue8<E> extends MpscLinkedQueue8ConsumerNodeRef<E
         return size;
     }
 
+    /**
+     * {@inheritDoc} <br>
+     * <p>
+     * IMPLEMENTATION NOTES:<br>
+     * Queue is empty when producerNode is the same as consumerNode. An alternative implementation would be to observe
+     * the producerNode.value is null, which also means an empty queue because only the consumerNode.value is allowed to
+     * be null.
+     * 
+     * @see MessagePassingQueue#isEmpty()
+     */
     @Override
     public boolean isEmpty() {
         return consumerNode == producerNode;

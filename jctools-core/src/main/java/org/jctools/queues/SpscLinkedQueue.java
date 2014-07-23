@@ -92,7 +92,7 @@ public final class SpscLinkedQueue<E> extends SpscLinkedQueueConsumerNodeRef<E> 
         final LinkedQueueNode<E> nextNode = consumerNode.lvNext();
         if (nextNode != null) {
             // we have to null out the value because we are going to hang on to the node
-            final E nextValue = nextNode.evacuateValue();
+            final E nextValue = nextNode.getAndNullValue();
             consumerNode = nextNode;
             return nextValue;
         }

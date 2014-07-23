@@ -12,7 +12,7 @@ public class Pow2 {
      * @param value from which next positive power of two will be found.
      * @return the next positive power of 2 or this value if it is a power of 2.
      */
-    public static int findNextPositivePowerOfTwo(final int value) {
+    public static int roundToPowerOfTwo(final int value) {
         return 1 << (32 - Integer.numberOfLeadingZeros(value - 1));
     }
 

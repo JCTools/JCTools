@@ -54,7 +54,7 @@ public abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircular
 
     @SuppressWarnings("unchecked")
     public ConcurrentCircularArrayQueue(int capacity) {
-        this.capacity = Pow2.findNextPositivePowerOfTwo(capacity);
+        this.capacity = Pow2.roundToPowerOfTwo(capacity);
         mask = this.capacity - 1;
         // pad data on either end with some empty slots.
         buffer = (E[]) new Object[(this.capacity << SPARSE_SHIFT) + BUFFER_PAD * 2];

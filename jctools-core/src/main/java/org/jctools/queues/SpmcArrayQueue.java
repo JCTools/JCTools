@@ -92,10 +92,12 @@ abstract class SpmcArrayQueueMidPad<E> extends SpmcArrayQueueConsumerField<E> {
     }
 }
 
-abstract class SpmcArrayQueueTailCacheField<E> extends SpmcArrayQueueMidPad<E> {
+abstract class SpmcArrayQueueProducerIndexCacheField<E> extends SpmcArrayQueueMidPad<E> {
+    // This is separated from the consumerIndex which will be highly contended in the hope that this value spends most
+    // of it's time in a cache line that is Shared(and rarely invalidated)
     private volatile long producerIndexCache;
 
-    public SpmcArrayQueueTailCacheField(int capacity) {
+    public SpmcArrayQueueProducerIndexCacheField(int capacity) {
         super(capacity);
     }
 
@@ -108,7 +110,7 @@ abstract class SpmcArrayQueueTailCacheField<E> extends SpmcArrayQueueMidPad<E> {
     }
 }
 
-abstract class SpmcArrayQueueL3Pad<E> extends SpmcArrayQueueTailCacheField<E> {
+abstract class SpmcArrayQueueL3Pad<E> extends SpmcArrayQueueProducerIndexCacheField<E> {
     long p40, p41, p42, p43, p44, p45, p46;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 
@@ -182,20 +184,20 @@ public final class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> {
 
     @Override
     public int size() {
-        int size;
-        do {
-            /*
-             * It is possible for a thread to be interrupted or reschedule between the read of the producer
-             * and consumer indices, therefore protection is required to ensure size is within valid range. In the
-             * event of concurrent polls/offers to this method the size is OVER estimated as we read consumer index
-             * BEFORE the producer index.
-             */
-            final long currentConsumerIndex = lvConsumerIndex();
+        /*
+         * It is possible for a thread to be interrupted or reschedule between the read of the producer and consumer
+         * indices, therefore protection is required to ensure size is within valid range. In the event of concurrent
+         * polls/offers to this method the size is OVER estimated as we read consumer index BEFORE the producer index.
+         */
+        long after = lvConsumerIndex();
+        while (true) {
+            final long before = after;
             final long currentProducerIndex = lvProducerIndex();
-            size = (int)(currentProducerIndex - currentConsumerIndex);
-        } while (size > capacity);
-
-        return size;
+            after = lvConsumerIndex();
+            if (before == after) {
+                return (int) (currentProducerIndex - after);
+            }
+        }
     }
     
     @Override

@@ -165,17 +165,19 @@ public final class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E> {
 
     @Override
     public int size() {
-        int size;
-        do {
-            /*
-             * It is possible for the invoking thread to be interrupted or reschedule between the read of the producer
-             * and consumer indices, therefore protection is required to ensure size is within valid range.
-             */
-            final long currentConsumerIndex = lvConsumerIndex();
+        /*
+         * It is possible for a thread to be interrupted or reschedule between the read of the producer and consumer
+         * indices, therefore protection is required to ensure size is within valid range. In the event of concurrent
+         * polls/offers to this method the size is OVER estimated as we read consumer index BEFORE the producer index.
+         */
+        long after = lvConsumerIndex();
+        while (true) {
+            final long before = after;
             final long currentProducerIndex = lvProducerIndex();
-            size = (int)(currentProducerIndex - currentConsumerIndex);
-        } while (size > capacity);
-
-        return size;
+            after = lvConsumerIndex();
+            if (before == after) {
+                return (int) (currentProducerIndex - after);
+            }
+        }
     }
 }

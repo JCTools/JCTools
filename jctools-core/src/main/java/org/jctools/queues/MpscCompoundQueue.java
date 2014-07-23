@@ -13,7 +13,7 @@
  */
 package org.jctools.queues;
 
-import static org.jctools.util.Pow2.findNextPositivePowerOfTwo;
+import static org.jctools.util.Pow2.roundToPowerOfTwo;
 import static org.jctools.util.Pow2.isPowerOfTwo;
 
 import java.util.AbstractQueue;
@@ -36,11 +36,11 @@ abstract class MpscCompoundQueueColdFields<E> extends MpscCompoundQueueL0Pad<E> 
     @SuppressWarnings("unchecked")
     public MpscCompoundQueueColdFields(int capacity, int queueParallelism) {
         parallelQueues = isPowerOfTwo(queueParallelism) ? queueParallelism
-                : findNextPositivePowerOfTwo(queueParallelism) / 2;
+                : roundToPowerOfTwo(queueParallelism) / 2;
         parallelQueuesMask = parallelQueues - 1;
         queues = new MpscArrayQueue[parallelQueues];
         for (int i = 0; i < parallelQueues; i++) {
-            queues[i] = new MpscArrayQueue<E>(findNextPositivePowerOfTwo(capacity) / parallelQueues);
+            queues[i] = new MpscArrayQueue<E>(roundToPowerOfTwo(capacity) / parallelQueues);
         }
     }
 }
@@ -84,7 +84,7 @@ public final class MpscCompoundQueue<E> extends MpscCompoundQueueConsumerQueueIn
             for (;;) {
                 int status = 0;
                 for (int i = start; i < start + parallelQueues; i++) {
-                    int s = queues[i & parallelQueuesMask].tryOffer(e);
+                    int s = queues[i & parallelQueuesMask].weakOffer(e);
                     if (s == 0) {
                         return true;
                     }

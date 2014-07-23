@@ -6,11 +6,23 @@
  * the full range of {@link java.util.Queue} methods. In this package we offer a range of implementations:
  * <ol>
  * <li> Bounded/Unbounded SPSC queues - Serving the Single Producer Single Consumer use case.
- * <li> Bounded/Unbounded MPSC queues - The Multi Producer Single Consumer case also had a multi lane implementation on
- * offer which trades the FIFO ordering for reduced contention.
+ * <li> Bounded/Unbounded MPSC queues - The Multi Producer Single Consumer case also has a multi-lane implementation on
+ * offer which trades the FIFO ordering(re-ordering is not limited) for reduced contention and increased throughput
+ * under contention.
  * <li> Bounded SPMC/MPMC queues
- * </ol> 
- * 
+ * </ol>
+ * <p>
+ * <b>Limited Queue methods support:</b><br>
+ * The queues implement a subset of the {@link java.util.Queue} interface which is documented under the
+ * {@link org.jctools.queues.MessagePassingQueue} interface. In particular:
+ * <ol>
+ * <li> {@link java.util.Queue#iterator()} is not supported
+ * <li> {@link java.util.Queue#poll()} may return null when queue is not empty but no further elements are currently
+ * visible to consumer threads.
+ * <li> {@link java.util.Queue#offer()} may return false when queue has less than <i>capacity</i> elements in it.
+ * </ol>
+ * Since {@link java.util.Queue#isEmpty()} and {@link java.util.Queue#size()} are supported it is still possible to
+ * query the queue state to arrive at same conclusions if required.
  * <p>
  * <b>Memory layout controls and False Sharing:</b><br>
  * The classes in this package use what is considered at the moment the most reliable method of controlling

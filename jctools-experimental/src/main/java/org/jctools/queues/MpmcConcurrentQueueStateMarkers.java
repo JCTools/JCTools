@@ -59,7 +59,7 @@ abstract class MpmcConcurrentQueueSMBuffer<E> extends MpmcConcurrentQueueSMBuffe
         if (Pow2.isPowerOfTwo(capacity)) {
             this.capacity = capacity;
         } else {
-            this.capacity = Pow2.findNextPositivePowerOfTwo(capacity);
+            this.capacity = Pow2.roundToPowerOfTwo(capacity);
         }
         mask = this.capacity - 1;
         // pad data on either end with some empty slots.

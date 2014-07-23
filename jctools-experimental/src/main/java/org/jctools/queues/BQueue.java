@@ -56,7 +56,7 @@ abstract class BQueueColdFields<E> extends BQueueL0Pad {
         if (Pow2.isPowerOfTwo(capacity)) {
             this.capacity = capacity;
         } else {
-            this.capacity = Pow2.findNextPositivePowerOfTwo(capacity);
+            this.capacity = Pow2.roundToPowerOfTwo(capacity);
         }
         mask = this.capacity - 1;
         buffer = (E[]) new Object[this.capacity + BUFFER_PAD * 2];

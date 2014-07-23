@@ -7,8 +7,6 @@ import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
 import org.jctools.util.UnsafeAccess;
 
-import sun.misc.Unsafe;
-
 /**
  * The queue factory produces {@link java.util.Queue} instances based on a best fit to the {@link ConcurrentQueueSpec}.
  * This allows minimal dependencies between user code and the queue implementations and gives users a way to express

@@ -27,7 +27,7 @@ final class LinkedQueueNode<E> {
      * 
      * @return value
      */
-    public E evacuateValue() {
+    public E getAndNullValue() {
         E temp = value;
         spValue(null);
         return temp;
