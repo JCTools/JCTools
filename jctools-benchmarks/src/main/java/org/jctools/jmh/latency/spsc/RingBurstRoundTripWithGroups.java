@@ -35,7 +35,7 @@ import org.openjdk.jmh.infra.Control;
 
 /**
  * Measure the Round Trip Time between 2 or more threads communicating via chained queues. This is a
- * performance edge case for queues as there is no scope for batching. The size of the batch will hopefully
+ * performance edge case for queues as there is less scope for batching. The size of the batch will hopefully
  * expose near empty performance boundary cases.
  * <p>
  * Parameters must obey the following rules:<br>
@@ -188,13 +188,10 @@ public class RingBurstRoundTripWithGroups {
         s.ping(ctl);
     }
 
-    /**
-     * @param ctl required here to make the benchmark generate code correctly(JMH 0.2 issue, fixed on main)
-     */
     @Benchmark
     @Group("ring")
     @GroupThreads(1)
-    public void loop(Control ctl, Link l) {
+    public void loop(Link l) {
         l.link();
     }
 }
