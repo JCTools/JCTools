@@ -152,14 +152,6 @@ public final class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> {
         return true;
     }
 
-    /**
-     * {@inheritDoc}
-     * <p>
-     * Note that we are not doing the the whole poll/tryPoll thing here like we do in MPMC/MPSC, that is because the
-     * problem we try to solve there is caused by having multiple producers making progress concurrently which can
-     * create 'bubbles' of claimed but not fully visible elements in the queue. For a single producer the problem
-     * doesn't exist.
-     */
     @Override
     public E poll() {
         long currentConsumerIndex;
