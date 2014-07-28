@@ -6,6 +6,7 @@
 *.ear
 /jctools-core/target
 /jctools-benchmarks/target
+/jctools-experimental/target/
 /.project
 jctools-parent.iml
 /jctools-core/jctools-core.iml
