@@ -13,7 +13,6 @@
  */
 package org.jctools.channels;
 
-import org.jctools.queues.alt.ConcurrentQueueProducer;
 
 /**
  * A minimal top level queue interface which allows producer/consumers access via separate interfaces.
