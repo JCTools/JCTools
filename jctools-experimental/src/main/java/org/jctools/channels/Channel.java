@@ -21,19 +21,18 @@ import org.jctools.queues.alt.ConcurrentQueueProducer;
  * @param <E> element type
  */
 public interface Channel<E> {
+    
 
     /**
-     * Read a message from the channel.
-     *
-     * @param consumer the handler interface for messages
-     * @return true if a message was read, false otherwise
+     * @param callback the accept function for this consumer
+     * @return a consumer instance to be used for this particular thread.
      */
-    boolean read(ChannelConsumer<E> consumer);
-
+    ChannelConsumer<E> consumer(ChannelConsumer.Callback<E> callback);
+    
     /**
      * @return a producer instance to be used for this particular thread.
      */
-    ConcurrentQueueProducer<E> producer();
+    ChannelProducer<E> producer();
 
     /**
      * This method may be O(n) or O(1) and may not be accurate.

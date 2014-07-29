@@ -20,13 +20,24 @@ package org.jctools.channels;
  */
 public interface ChannelConsumer<E> {
 
+    interface Callback<E> {
+
+        /**
+         * New elements are passed into this method.
+         *
+         * NB: the element is only readable for the lifecycle of this callback.
+         *
+         * @param element the element which is being accepted by the consumer.
+         */
+        void accept(E element);
+
+    }
     /**
-     * New elements are passed into this method.
+     * Read a message from the channel.
      *
-     * NB: the element is only readable for the lifecycle of this callback.
-     *
-     * @param element the element which is being accepted by the consumer.
+     * @param consumer the handler interface for messages
+     * @return true if a message was read, false otherwise
      */
-    void accept(E element);
+    boolean read();
 
 }
