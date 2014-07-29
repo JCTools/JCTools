@@ -26,7 +26,7 @@ public interface Channel<E> {
      * @param callback the accept function for this consumer
      * @return a consumer instance to be used for this particular thread.
      */
-    ChannelConsumer<E> consumer(ChannelReceiver<E> callback);
+    ChannelConsumer consumer(ChannelReceiver<E> callback);
     
     /**
      * @return a producer instance to be used for this particular thread.
@@ -44,5 +44,8 @@ public interface Channel<E> {
      * @return the maximum number of elements that can fit in this queue, or MAX_INT if unbounded.
      */
     int capacity();
+
+    
+    boolean isEmpty();
 
 }

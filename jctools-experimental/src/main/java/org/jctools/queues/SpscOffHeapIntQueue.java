@@ -52,15 +52,15 @@ public final class SpscOffHeapIntQueue extends AbstractQueue<Integer> {
 	/**
 	 * This is to be used for an IPC queue with the direct buffer used being a memory
 	 * mapped file.
-	 * 
+	 *
 	 * @param buff
 	 * @param capacity
-	 * @param viewMask 
+	 * @param viewMask
 	 */
-	public SpscOffHeapIntQueue(final ByteBuffer buff, 
+	public SpscOffHeapIntQueue(final ByteBuffer buff,
 			final int capacity, byte viewMask) {
 		this.capacity = Pow2.roundToPowerOfTwo(capacity);
-		buffy = alignedSlice(4 * CACHE_LINE_SIZE + (this.capacity << INT_ELEMENT_SCALE), 
+		buffy = alignedSlice(4 * CACHE_LINE_SIZE + (this.capacity << INT_ELEMENT_SCALE),
 									CACHE_LINE_SIZE, buff);
 
 		long alignedAddress = UnsafeDirectByteBuffer.getAddress(buffy);
@@ -75,7 +75,7 @@ public final class SpscOffHeapIntQueue extends AbstractQueue<Integer> {
     		setHeadCache(0);
     		setTail(0);
 		}
-		// consumer owns head and tailCache 
+		// consumer owns head and tailCache
 		if((viewMask & CONSUMER) == CONSUMER){
 	    	setTailCache(0);
 			setHead(0);
@@ -104,7 +104,6 @@ public final class SpscOffHeapIntQueue extends AbstractQueue<Integer> {
 
 		return true;
 	}
-
 	public boolean offerInt(final int e) {
         final long currentTail = getTailPlain();
         final long wrapPoint = currentTail - capacity;
@@ -122,15 +121,15 @@ public final class SpscOffHeapIntQueue extends AbstractQueue<Integer> {
 
         return true;
     }
-	
+
 	public Integer poll() {
 		int i = pollInt();
 		if(i == Integer.MIN_VALUE) {
 		    return null;
 		}
-		return i;    
+		return i;
 	}
-	
+
 	public int pollInt() {
 		final long currentHead = getHeadPlain();
 		if (currentHead >= getTailCache()) {
@@ -154,9 +153,9 @@ public final class SpscOffHeapIntQueue extends AbstractQueue<Integer> {
         if(i == Integer.MIN_VALUE) {
             return null;
         }
-        return i;    
+        return i;
     }
-    
+
     public int peekInt() {
         final long currentHead = getHeadPlain();
         if (currentHead >= getTailCache()) {

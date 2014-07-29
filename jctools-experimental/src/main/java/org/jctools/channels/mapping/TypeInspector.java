@@ -111,15 +111,11 @@ public class TypeInspector {
 	}
 
 	public int getSizeInBytes() {
-        int total = 0;
+        int total = Flyweight.TAG_SIZE_IN_BYTES;
         for (Method getter : getters) {
             total += getReturn(getter).sizeInBytes;
         }
         return total;
-    }
-
-    public int getFieldCount() {
-        return getters.size();
     }
 
 	public Method setterFor(Method getter) {

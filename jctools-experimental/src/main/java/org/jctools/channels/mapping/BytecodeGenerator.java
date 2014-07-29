@@ -61,7 +61,7 @@ public class BytecodeGenerator<E> implements Opcodes {
     	ClassWriter out = new ClassWriter(ClassWriter.COMPUTE_MAXS);
     	CheckClassAdapter writer = new CheckClassAdapter(out);
     	
-		int offset = 0;
+		int offset = Flyweight.TAG_SIZE_IN_BYTES;
     	declareClass(writer);
     	declareConstructor(writer);
     	for (Method getter : inspector.getters) {

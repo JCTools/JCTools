@@ -24,7 +24,7 @@ import static org.junit.Assert.assertTrue;
 
 public class MapperTest {
 
-    private static final int EXAMPLE_SIZE_IN_BYTES = 12;
+    private static final int EXAMPLE_SIZE_IN_BYTES = 13;
 
     private long startAddress;
     private Mapper<Example> mapper;
