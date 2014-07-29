@@ -13,17 +13,15 @@
  */
 package org.jctools.queues;
 
-import static org.jctools.util.UnsafeDirectByteBuffer.CACHE_LINE_SIZE;
-import static org.jctools.util.UnsafeDirectByteBuffer.alignedSlice;
-import static org.jctools.util.UnsafeDirectByteBuffer.allocateAlignedByteBuffer;
+import org.jctools.util.Pow2;
+import org.jctools.util.UnsafeAccess;
+import org.jctools.util.UnsafeDirectByteBuffer;
 
 import java.nio.ByteBuffer;
 import java.util.AbstractQueue;
 import java.util.Iterator;
 
-import org.jctools.util.Pow2;
-import org.jctools.util.UnsafeAccess;
-import org.jctools.util.UnsafeDirectByteBuffer;
+import static org.jctools.util.UnsafeDirectByteBuffer.*;
 
 public final class SpscOffHeapIntQueue extends AbstractQueue<Integer> {
 	public final static byte PRODUCER = 1;
@@ -46,9 +44,11 @@ public final class SpscOffHeapIntQueue extends AbstractQueue<Integer> {
 		        CACHE_LINE_SIZE),
 		        Pow2.roundToPowerOfTwo(capacity),(byte)(PRODUCER | CONSUMER));
 	}
+
 	public static int getRequiredBufferSize(final int capacity) {
 	    return 4 * CACHE_LINE_SIZE + (Pow2.roundToPowerOfTwo(capacity) << INT_ELEMENT_SCALE);
     }
+
 	/**
 	 * This is to be used for an IPC queue with the direct buffer used being a memory
 	 * mapped file.
@@ -104,6 +104,7 @@ public final class SpscOffHeapIntQueue extends AbstractQueue<Integer> {
 
 		return true;
 	}
+
 	public boolean offerInt(final int e) {
         final long currentTail = getTailPlain();
         final long wrapPoint = currentTail - capacity;
@@ -166,9 +167,9 @@ public final class SpscOffHeapIntQueue extends AbstractQueue<Integer> {
         }
 
         final long offset = calcElementOffset(currentHead);
-        final int e = UnsafeAccess.UNSAFE.getInt(offset);
-        return e;
+        return UnsafeAccess.UNSAFE.getInt(offset);
     }
+
 	public int size() {
 		return (int) (getTail() - getHead());
 	}

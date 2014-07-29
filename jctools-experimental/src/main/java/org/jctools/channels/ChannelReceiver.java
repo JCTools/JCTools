@@ -14,18 +14,19 @@
 package org.jctools.channels;
 
 /**
- * The consumer is the object which controls the reading of messages from a
- * channel. Each consumer should only be assigned to a single thread.
+ * The receiver interface is implemented by end users in order to receiver data from the channel.
  *
  * @param <E> element type
  */
-public interface ChannelConsumer<E> {
+public interface ChannelReceiver<E> {
 
     /**
-     * Read a message from the channel.
+     * New elements are passed into this method.
      *
-     * @return true if a message was read, false otherwise
+     * NB: the element is only readable for the lifecycle of this callback.
+     *
+     * @param element the element which is being accepted by the consumer.
      */
-    boolean read();
+    void accept(E element);
 
 }

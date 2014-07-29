@@ -26,7 +26,7 @@ public interface Channel<E> {
      * @param callback the accept function for this consumer
      * @return a consumer instance to be used for this particular thread.
      */
-    ChannelConsumer<E> consumer(ChannelConsumer.Callback<E> callback);
+    ChannelConsumer<E> consumer(ChannelReceiver<E> callback);
     
     /**
      * @return a producer instance to be used for this particular thread.
