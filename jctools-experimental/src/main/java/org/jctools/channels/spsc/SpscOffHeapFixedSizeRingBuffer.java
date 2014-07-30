@@ -13,15 +13,13 @@
  */
 package org.jctools.channels.spsc;
 
-import static org.jctools.util.UnsafeAccess.UNSAFE;
-import static org.jctools.util.UnsafeDirectByteBuffer.CACHE_LINE_SIZE;
-import static org.jctools.util.UnsafeDirectByteBuffer.alignedSlice;
-import static org.jctools.util.UnsafeDirectByteBuffer.allocateAlignedByteBuffer;
+import org.jctools.util.Pow2;
+import org.jctools.util.UnsafeDirectByteBuffer;
 
 import java.nio.ByteBuffer;
 
-import org.jctools.util.Pow2;
-import org.jctools.util.UnsafeDirectByteBuffer;
+import static org.jctools.util.UnsafeAccess.UNSAFE;
+import static org.jctools.util.UnsafeDirectByteBuffer.*;
 
 /**
  * Channel protocol:
@@ -32,13 +30,13 @@ import org.jctools.util.UnsafeDirectByteBuffer;
  *
  */
 public class SpscOffHeapFixedSizeRingBuffer {
+
 	private static final byte NULL_MESSAGE_INDICATOR = 0;
-    public final static byte PRODUCER = 1;
-	public final static byte CONSUMER = 2;
-	public final static byte INIT = 4;
+
     public static final long EOF = 0;
+
     private static final Integer MAX_LOOK_AHEAD_STEP = Integer.getInteger("jctoolts.spsc.max.lookahead.step", 4096);
-    
+
 	protected final int lookAheadStep;
 	// 24b,8b,8b,24b | pad | 24b,8b,8b,24b | pad
 	private final ByteBuffer buffy;
@@ -59,7 +57,7 @@ public class SpscOffHeapFixedSizeRingBuffer {
 		this(allocateAlignedByteBuffer(
 		        getRequiredBufferSize(capacity, messageSize),
 		        CACHE_LINE_SIZE),
-		        Pow2.roundToPowerOfTwo(capacity),(byte)(PRODUCER | CONSUMER | INIT), messageSize);
+		        Pow2.roundToPowerOfTwo(capacity), true, true, true, messageSize);
 	}
 	
 	/**
@@ -68,14 +66,18 @@ public class SpscOffHeapFixedSizeRingBuffer {
 	 * 
 	 * @param buff
 	 * @param capacity
-	 * @param viewMask 
 	 */
-	private SpscOffHeapFixedSizeRingBuffer(final ByteBuffer buff, 
-			final int capacity, final byte viewMask, final int messageSize) {
+	private SpscOffHeapFixedSizeRingBuffer(
+            final ByteBuffer buff,
+			final int capacity,
+            final boolean isProducer,
+            final boolean isConsumer,
+            final boolean initialize,
+            final int messageSize) {
+
 		this.capacity = Pow2.roundToPowerOfTwo(capacity);
 		this.messageSize = messageSize +1;
-		buffy = alignedSlice(4 * CACHE_LINE_SIZE + (this.capacity * (this.messageSize)), 
-									CACHE_LINE_SIZE, buff);
+		buffy = alignedSlice(4 * CACHE_LINE_SIZE + (this.capacity * (this.messageSize)), CACHE_LINE_SIZE, buff);
 
 		long alignedAddress = UnsafeDirectByteBuffer.getAddress(buffy);
 		lookAheadStep = Math.min(this.capacity/4, MAX_LOOK_AHEAD_STEP);
@@ -84,16 +86,16 @@ public class SpscOffHeapFixedSizeRingBuffer {
 		producerLookAheadCacheAddress = producerIndexAddress + 8;
 		arrayBase = alignedAddress + 4 * CACHE_LINE_SIZE;
 		// producer owns tail and headCache
-		if((viewMask & (PRODUCER | INIT)) == (PRODUCER | INIT)){
+		if(isProducer) {
     		spLookAheadCache(0);
     		soProducerIndex(0);
 		}
 		// consumer owns head and tailCache 
-		if((viewMask & (CONSUMER | INIT)) == (CONSUMER| INIT)){
+		if(isConsumer) {
 			soConsumerIndex(0);
 		}
 		mask = this.capacity - 1;
-        if ((viewMask & INIT) == INIT) {
+        if (initialize) {
         	// mark all messages as null
             for (int i=0;i< this.capacity;i++) {
                 final long offset = offsetForIdx(i);
@@ -139,6 +141,7 @@ public class SpscOffHeapFixedSizeRingBuffer {
 	    UNSAFE.putByte(offset, NULL_MESSAGE_INDICATOR);
 	    soConsumerIndex(currentHead + 1); // StoreStore
 	}
+
     private long offsetForIdx(final long currentHead) {
         return arrayBase + ((currentHead & mask) * messageSize);
     }
