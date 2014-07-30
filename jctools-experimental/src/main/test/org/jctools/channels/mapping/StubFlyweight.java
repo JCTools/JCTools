@@ -13,38 +13,16 @@
  */
 package org.jctools.channels.mapping;
 
-import org.jctools.util.UnsafeAccess;
-
-/**
- * Parent class of the generated flyweight objects.
- */
-public abstract class Flyweight {
-
-    public static final int TAG_SIZE_IN_BYTES = 1;
-
-    public static final byte CLAIMED = 1;
-    public static final byte COMMITTED = 2;
+public abstract class StubFlyweight {
 
     protected long pointer;
 
-    public Flyweight(final long pointer) {
+    public StubFlyweight(final long pointer) {
         this.pointer = pointer;
     }
 
     public void moveTo(final long pointer) {
         this.pointer = pointer;
-    }
-
-    public boolean isCommitted() {
-        return UnsafeAccess.UNSAFE.getByte(pointer) == COMMITTED;
-    }
-
-    public void claim() {
-        UnsafeAccess.UNSAFE.putByte(pointer, CLAIMED);
-    }
-
-    public void commit() {
-        UnsafeAccess.UNSAFE.putByte(pointer, COMMITTED);
     }
 
 }

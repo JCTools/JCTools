@@ -51,7 +51,7 @@ public class SpscOffHeapFixedSizeRingBuffer {
     private final int messageSize;
 
     public static int getRequiredBufferSize(final int capacity, final int messageSize) {
-        return 4 * CACHE_LINE_SIZE + (Pow2.roundToPowerOfTwo(capacity) * (messageSize + 1));
+        return HEADER_SIZE + (Pow2.roundToPowerOfTwo(capacity) * (messageSize + 1));
     }
 
     public SpscOffHeapFixedSizeRingBuffer(final int capacity, final int messageSize) {
@@ -99,7 +99,7 @@ public class SpscOffHeapFixedSizeRingBuffer {
         if (initialize) {
             // mark all messages as null
             for (int i = 0; i < this.capacity; i++) {
-                final long offset = offsetForIdx(i);
+                final long offset = offsetForIndex(i);
                 UNSAFE.putByte(offset, NULL_MESSAGE_INDICATOR);
             }
         }
@@ -111,13 +111,13 @@ public class SpscOffHeapFixedSizeRingBuffer {
         // verify next lookAheadStep messages are clear to write
         if (producerIndex >= producerLookAhead) {
             final long nextLookAhead = producerIndex + lookAheadStep;
-            if (UNSAFE.getByteVolatile(null, offsetForIdx(nextLookAhead)) != NULL_MESSAGE_INDICATOR) {
+            if (UNSAFE.getByteVolatile(null, offsetForIndex(nextLookAhead)) != NULL_MESSAGE_INDICATOR) {
                 return EOF;
             }
             spLookAheadCache(nextLookAhead);
         }
         // return offset for current producer index
-        return offsetForIdx(producerIndex);
+        return offsetForIndex(producerIndex);
     }
 
     protected final void writeRelease(long offset) {
@@ -131,7 +131,7 @@ public class SpscOffHeapFixedSizeRingBuffer {
 
     protected final long readAcquire() {
         final long currentHead = lpConsumerIndex();
-        final long offset = offsetForIdx(currentHead);
+        final long offset = offsetForIndex(currentHead);
         if (UNSAFE.getByteVolatile(null, offset) == NULL_MESSAGE_INDICATOR) {
             return EOF;
         }
@@ -144,7 +144,7 @@ public class SpscOffHeapFixedSizeRingBuffer {
         soConsumerIndex(currentHead + 1); // StoreStore
     }
 
-    private long offsetForIdx(final long currentHead) {
+    private long offsetForIndex(final long currentHead) {
         return arrayBase + ((currentHead & mask) * messageSize);
     }
 

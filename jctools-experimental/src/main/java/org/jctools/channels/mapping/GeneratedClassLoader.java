@@ -29,7 +29,7 @@ class GeneratedClassLoader extends ClassLoader {
     GeneratedClassLoader(final boolean classFileDebugEnabled) {
         this.classFileDebugEnabled = classFileDebugEnabled;
     }
-
+    
 	synchronized Class<?> defineClass(final String binaryName, final ClassWriter cw) {
 		final byte[] bytecode = cw.toByteArray();
 		logDebugInfo(binaryName, bytecode);

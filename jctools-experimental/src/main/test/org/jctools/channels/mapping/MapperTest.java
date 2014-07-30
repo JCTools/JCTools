@@ -24,7 +24,7 @@ import static org.junit.Assert.assertTrue;
 
 public class MapperTest {
 
-    private static final int EXAMPLE_SIZE_IN_BYTES = 13;
+    private static final int EXAMPLE_SIZE_IN_BYTES = 12;
 
     private long startAddress;
     private Mapper<Example> mapper;
@@ -43,15 +43,15 @@ public class MapperTest {
     @Test
     public void shouldUnderstandInterfaceFields() {
         assertEquals(EXAMPLE_SIZE_IN_BYTES, mapper.getSizeInBytes());
-        Example example = mapper.newFlyweight(startAddress);
+        StubFlyweight example = mapper.newInstance(StubFlyweight.class, startAddress);
         assertNotNull(example);
-        assertTrue(example instanceof Flyweight);
+        assertTrue(example instanceof Example);
     }
 
     @Test
     public void shouldBeAbleToReadAndWriteData() {
-        Example writer = mapper.newFlyweight(startAddress);
-        Example reader = mapper.newFlyweight(startAddress);
+        Example writer = (Example) mapper.newInstance(StubFlyweight.class, startAddress);
+        Example reader = (Example) mapper.newInstance(StubFlyweight.class, startAddress);
 
         writer.setFoo(5);
         assertEquals(5, reader.getFoo());
@@ -62,11 +62,11 @@ public class MapperTest {
 
     @Test
     public void shouldBeAbleToMoveFlyweights() {
-        Example writer = mapper.newFlyweight(startAddress);
-        Example reader = mapper.newFlyweight(startAddress);
+        Example writer = (Example) mapper.newInstance(StubFlyweight.class, startAddress);
+        Example reader = (Example) mapper.newInstance(StubFlyweight.class, startAddress);
 
-        Flyweight writeCursor = (Flyweight) writer;
-        Flyweight readCursor = (Flyweight) reader;
+        StubFlyweight writeCursor = (StubFlyweight) writer;
+        StubFlyweight readCursor = (StubFlyweight) reader;
 
         writeCursor.moveTo(startAddress + EXAMPLE_SIZE_IN_BYTES);
         readCursor.moveTo(startAddress + EXAMPLE_SIZE_IN_BYTES);

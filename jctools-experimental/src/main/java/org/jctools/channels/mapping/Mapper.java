@@ -13,29 +13,28 @@
  */
 package org.jctools.channels.mapping;
 
+import org.jctools.channels.ChannelReceiver;
+
 import java.lang.reflect.Constructor;
+import java.nio.ByteBuffer;
+
+import static org.jctools.channels.mapping.Primitive.replaceWithPrimitive;
 
 /**
  * Entry class into type mapping code. Does flyweight generation.
  *
- * @param <E>
+ * @param <S> the struct element type
  */
-public final class Mapper<E> {
+public final class Mapper<S> {
 
 	private final TypeInspector inspector;
-    private final Class<E> implementation;
-	private final Constructor<E> constructor;
+    private final Class<S> structInterface;
+    private final boolean classFileDebugEnabled;
 
-    public Mapper(Class<E> representingClass, boolean classFileDebugEnabled) {
-		inspector = new TypeInspector(representingClass);
-        implementation = new BytecodeGenerator<E>(inspector, representingClass, classFileDebugEnabled).generate();
-        try {
-        	constructor = implementation.getConstructor(Long.TYPE);
-        } catch (RuntimeException e) {
-        	throw e;
-        } catch (Exception e) {
-			throw new RuntimeException(e);
-		}
+    public Mapper(Class<S> structInterface, boolean classFileDebugEnabled) {
+        this.structInterface = structInterface;
+        this.classFileDebugEnabled = classFileDebugEnabled;
+        inspector = new TypeInspector(structInterface);
     }
 
     /**
@@ -45,19 +44,40 @@ public final class Mapper<E> {
         return inspector.getSizeInBytes();
     }
 
-    /**
-     * @see org.jctools.channels.mapping.Flyweight
-     * @param address the pointer to initially set the flyweight to
-     * @return the flyweight, it also implements org.jctools.channels.mapping.Flyweight
-     */
-	public E newFlyweight(long address) {
-		try {
-			return constructor.newInstance(address);
-		} catch (RuntimeException e) {
-        	throw e;
+    public <I> I newInstance(Class<I> type, Object... args) {
+        try {
+            Class<?>[] constructorParameterTypes = getTypes(args);
+            Class<I> implementation = new BytecodeGenerator<>(inspector, type, constructorParameterTypes,
+                                                              structInterface, classFileDebugEnabled).generate();
+
+            Constructor<I> constructor = implementation.getConstructor(constructorParameterTypes);
+            return constructor.newInstance(args);
+        } catch (RuntimeException e) {
+            throw e;
         } catch (Exception e) {
-			throw new RuntimeException(e);
-		}
+            throw new RuntimeException(e);
+        }
 	}
+
+    private Class<?>[] getTypes(Object... args) {
+        Class<?>[] types = new Class<?>[args.length];
+        for (int i = 0; i < args.length; i++) {
+            Class<?> type = args[i].getClass();
+            type = replaceWithPrimitive(type);
+            type = usePublicApiClass(type);
+            types[i] = type;
+        }
+        return types;
+    }
+
+    private Class<?> usePublicApiClass(Class<?> type) {
+        if ("DirectByteBuffer".equals(type.getSimpleName()))
+            return ByteBuffer.class;
+
+        if (ChannelReceiver.class.isAssignableFrom(type))
+            return ChannelReceiver.class;
+
+        return type;
+    }
 
 }

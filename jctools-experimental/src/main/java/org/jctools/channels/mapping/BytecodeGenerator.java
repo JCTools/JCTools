@@ -23,45 +23,57 @@ import java.lang.reflect.Method;
 
 import static org.objectweb.asm.Type.LONG_TYPE;
 
+/**
+ * The generated subclass of I implements S
+ *
+ * @param <S> the struct interface type
+ * @param <I> the implementation type
+ */
 @SuppressWarnings("restriction")
-public class BytecodeGenerator<E> implements Opcodes {
+public class BytecodeGenerator<S, I> implements Opcodes {
 
-	private static final String GENERATED_CONSTRUCTOR = "(J)V";
-	private static final String UNSAFE_NAME = Type.getInternalName(Unsafe.class);
-	private static final String UNSAFE_DESCRIPTOR = Type.getType(Unsafe.class).getDescriptor();
-	private static final String DIRECT_CLASS_NAME = Type.getInternalName(Flyweight.class);
-    private static final String DIRECT_CLASS_CONSTRUCTOR;
-
+    private static final int MARKER_SIZE = 1;
+    private static final String UNSAFE_NAME = Type.getInternalName(Unsafe.class);
+    private static final String UNSAFE_DESCRIPTOR = Type.getType(Unsafe.class).getDescriptor();
     private static final String UNSAFE_ACCESS_CLASS_NAME = Type.getInternalName(UnsafeAccess.class);
     private static final String UNSAFE_ACCESS_FIELD_NAME = "UNSAFE";
-
-    static {
-		Constructor<?> constructor = Flyweight.class.getConstructors()[0];
-		DIRECT_CLASS_CONSTRUCTOR = Type.getConstructorDescriptor(constructor);
-	}
 
     private final TypeInspector inspector;
     private final String classExtended;
     private final String constructorExtended;
 	private final String implementationName;
 	private final String[] interfacesImplemented;
+    private final Class<?>[] constructorParameterTypes;
     private final boolean classFileDebugEnabled;
 
-    public BytecodeGenerator(TypeInspector inspector, Class<E> representingKlass, boolean classFileDebugEnabled) {
+    public BytecodeGenerator(
+            final TypeInspector inspector,
+            final Class<I> implementationClass,
+            final Class<?>[] constructorParameterTypes,
+            final Class<S> structInterface,
+            final boolean classFileDebugEnabled) {
+
         this.inspector = inspector;
+        this.constructorParameterTypes = constructorParameterTypes;
         this.classFileDebugEnabled = classFileDebugEnabled;
-        implementationName = "DirectMemory" + representingKlass.getSimpleName();
-        classExtended = DIRECT_CLASS_NAME;
-        constructorExtended =  DIRECT_CLASS_CONSTRUCTOR;
-        interfacesImplemented = new String[] { Type.getInternalName(representingKlass) };
+        implementationName = "DirectMemory" + implementationClass.getSimpleName();
+        classExtended = Type.getInternalName(implementationClass);
+
+        try {
+            Constructor<?> constructor = implementationClass.getConstructor(constructorParameterTypes);
+            constructorExtended =  Type.getConstructorDescriptor(constructor);
+            interfacesImplemented = new String[] { Type.getInternalName(structInterface) };
+        } catch (NoSuchMethodException e) {
+            throw new InvalidInterfaceException(e);
+        }
     }
 
     @SuppressWarnings("unchecked")
-	public Class<E> generate() {
+	public Class<I> generate() {
     	ClassWriter out = new ClassWriter(ClassWriter.COMPUTE_MAXS);
     	CheckClassAdapter writer = new CheckClassAdapter(out);
     	
-		int offset = Flyweight.TAG_SIZE_IN_BYTES;
+		int offset = MARKER_SIZE;
     	declareClass(writer);
     	declareConstructor(writer);
     	for (Method getter : inspector.getters) {
@@ -70,18 +82,19 @@ public class BytecodeGenerator<E> implements Opcodes {
     	
     	writer.visitEnd();
 
-        return (Class<E>) new GeneratedClassLoader(classFileDebugEnabled).defineClass(implementationName, out);    }
+        return (Class<I>) new GeneratedClassLoader(classFileDebugEnabled).defineClass(implementationName, out);
+    }
 
     private void declareClass(ClassVisitor writer) {
     	writer.visit(V1_6, ACC_PUBLIC + ACC_SUPER, implementationName, null, classExtended, interfacesImplemented);
     }
 
     private void declareConstructor(CheckClassAdapter writer) {
-    	MethodVisitor method = writer.visitMethod(ACC_PUBLIC, "<init>", GENERATED_CONSTRUCTOR, null, null);
+    	MethodVisitor method = writer.visitMethod(ACC_PUBLIC, "<init>", constructorExtended, null, null);
     	method.visitCode();
-		method.visitVarInsn(ALOAD, 0);
-		method.visitVarInsn(LLOAD, 1);
-		method.visitMethodInsn(INVOKESPECIAL,
+        method.visitVarInsn(ALOAD, 0);
+        pushParametersOnStack(method);
+        method.visitMethodInsn(INVOKESPECIAL,
 				classExtended,
 				"<init>",
 				constructorExtended);
@@ -90,7 +103,18 @@ public class BytecodeGenerator<E> implements Opcodes {
 		method.visitEnd();
     }
 
-	private int declareField(Method getter, ClassVisitor writer, int fieldOffset) {
+    private void pushParametersOnStack(MethodVisitor method) {
+        for (int i = 0; i < constructorParameterTypes.length; i++) {
+            Class<?> parameter = constructorParameterTypes[i];
+            if (parameter.isPrimitive()) {
+                method.visitVarInsn(Primitive.of(parameter).loadOpcode, i + 1);
+            } else {
+                method.visitVarInsn(ALOAD, i + 1);
+            }
+        }
+    }
+
+    private int declareField(Method getter, ClassVisitor writer, int fieldOffset) {
 		Primitive type = inspector.getReturn(getter);
 
 		MethodVisitor implementingGetter = declareMethod(getter, writer);

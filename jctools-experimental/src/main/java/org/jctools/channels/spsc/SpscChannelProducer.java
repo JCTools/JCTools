@@ -14,53 +14,39 @@
 package org.jctools.channels.spsc;
 
 import org.jctools.channels.ChannelProducer;
-import org.jctools.channels.mapping.Flyweight;
+
+import java.nio.ByteBuffer;
 
 /**
  * Package Scoped: not part of public API.
  *
  * @param <E> element type.
  */
-final class SpscChannelProducer<E> implements ChannelProducer<E> {
+public abstract class SpscChannelProducer<E> extends SpscOffHeapFixedSizeRingBuffer implements ChannelProducer<E> {
 
-    private final E element;
-    private final Flyweight flyweight;
-    private final SpscChannel<E> channel;
+    protected long pointer;
 
-    public SpscChannelProducer(E element, Flyweight flyweight, SpscChannel<E> channel) {
-        this.element = element;
-        this.flyweight = flyweight;
-        this.channel = channel;
+    public SpscChannelProducer(
+        final ByteBuffer buffer,
+        final int capacity,
+        final int messageSize) {
 
-        // producer owns tail and headCache
-        channel.setHeadCache(0);
-        channel.setTail(0);
+        super(buffer, capacity, true, false, true, messageSize);
+        pointer = EOF;
     }
 
-    public boolean claim() {
-        final long currentTail = channel.getTailPlain();
-        final long wrapPoint = currentTail - channel.capacity();
-        if (channel.getHeadCache() <= wrapPoint) {
-            channel.setHeadCache(channel.getHead());
-            if (channel.getHeadCache() <= wrapPoint) {
-                return false;
-            }
-        }
-
-        channel.setTail(currentTail + 1);
-        flyweight.moveTo(channel.calcElementOffset(currentTail));
-        flyweight.claim();
-
-        return true;
+    public final boolean claim() {
+        pointer = writeAcquire();
+        return pointer != EOF;
     }
 
     public E getWriter() {
-        return element;
+        return (E) this;
     }
 
-    public boolean commit() {
-        // TODO: figure out if this can ever fail?
-        flyweight.commit();
+    public final boolean commit() {
+        writeRelease(pointer);
+        // can we ever fail to commit?
         return true;
     }
 

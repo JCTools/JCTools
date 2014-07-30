@@ -21,4 +21,7 @@ public final class InvalidInterfaceException extends RuntimeException {
 		super(message);
 	}
 
+    public InvalidInterfaceException(Throwable cause) {
+        super(cause);
+    }
 }

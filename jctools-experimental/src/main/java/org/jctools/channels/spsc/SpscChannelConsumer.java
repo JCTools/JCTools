@@ -15,51 +15,40 @@ package org.jctools.channels.spsc;
 
 import org.jctools.channels.ChannelConsumer;
 import org.jctools.channels.ChannelReceiver;
-import org.jctools.channels.mapping.Flyweight;
+
+import java.nio.ByteBuffer;
 
 /**
  * Package Scoped: not part of public API.
  */
-final class SpscChannelConsumer<E> implements ChannelConsumer {
+public abstract class SpscChannelConsumer<E> extends SpscOffHeapFixedSizeRingBuffer implements ChannelConsumer {
 
-    private final E element;
-    private final Flyweight flyweight;
     private final ChannelReceiver<E> receiver;
-    private final SpscChannel<E> channel;
 
-    SpscChannelConsumer(
-            final E element,
-            final Flyweight flyweight,
-            final ChannelReceiver<E> receiver,
-            final SpscChannel<E> channel) {
+    protected long pointer;
 
-        this.element = element;
-        this.flyweight = flyweight;
+    public SpscChannelConsumer(
+            final ByteBuffer buffer,
+            final int capacity,
+            final int messageSize,
+            final ChannelReceiver<E> receiver) {
+
+        super(buffer, capacity, false, true, false, messageSize);
+
         this.receiver = receiver;
-        this.channel = channel;
-
-        // consumer owns head and tailCache
-        channel.setTailCache(0);
-        channel.setHead(0);
+        this.pointer = EOF;
     }
 
+    // TODO: generate this in the subclasses,
+    // to avoid the megamorphic accept and the checkcast.
     public boolean read() {
-        final long currentHead = channel.getHeadPlain();
-        if (currentHead >= channel.getTailCache()) {
-            channel.setTailCache(channel.getTail());
-            if (currentHead >= channel.getTailCache()) {
-                return false;
-            }
-        }
-
-        final long offset = channel.calcElementOffset(currentHead);
-        flyweight.moveTo(offset);
-        if (!flyweight.isCommitted()) {
+        pointer = readAcquire();
+        if (pointer == EOF)
             return false;
-        }
 
-        receiver.accept(element);
-        channel.setHead(currentHead + 1);
+        receiver.accept((E) this);
+
+        readRelease(pointer);
         return true;
     }
 

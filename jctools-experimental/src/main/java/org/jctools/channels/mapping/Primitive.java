@@ -17,24 +17,26 @@ import org.objectweb.asm.Opcodes;
 
 enum Primitive implements Opcodes {
 
-	BYTE(1, Byte.TYPE, ILOAD, IRETURN),
-	SHORT(2, Short.TYPE, ILOAD, IRETURN),
-    INT(4, Integer.TYPE, ILOAD, IRETURN),
-    LONG(8, Long.TYPE, LLOAD, LRETURN),
-	FLOAT(4, Float.TYPE, FLOAD, FRETURN),
-    DOUBLE(8, Double.TYPE, DLOAD, DRETURN),
-    BOOLEAN(1, Byte.TYPE, ILOAD, IRETURN),
-    CHAR(2, Character.TYPE, ILOAD, IRETURN);
+	BYTE(1, Byte.TYPE, Byte.class, ILOAD, IRETURN),
+	SHORT(2, Short.TYPE, Short.class, ILOAD, IRETURN),
+    INT(4, Integer.TYPE, Integer.class, ILOAD, IRETURN),
+    LONG(8, Long.TYPE, Long.class, LLOAD, LRETURN),
+	FLOAT(4, Float.TYPE, Float.class, FLOAD, FRETURN),
+    DOUBLE(8, Double.TYPE, Double.class, DLOAD, DRETURN),
+    BOOLEAN(1, Byte.TYPE, Byte.class, ILOAD, IRETURN),
+    CHAR(2, Character.TYPE, Character.class, ILOAD, IRETURN);
 
     final int sizeInBytes;
     final Class<?> javaEquivalent;
-	int loadOpcode;
-	int returnOpcode;
+    final Class<?> boxedJavaType;
+    final int loadOpcode;
+    final int returnOpcode;
 
-    private Primitive(int size, Class<?> javaType, int loadOpcode, int returnOpcode) {
+    private Primitive(int size, Class<?> javaType, Class<?> boxedJavaType, int loadOpcode, int returnOpcode) {
         this.sizeInBytes = size;
 		this.javaEquivalent = javaType;
-		this.loadOpcode = loadOpcode;
+        this.boxedJavaType = boxedJavaType;
+        this.loadOpcode = loadOpcode;
 		this.returnOpcode = returnOpcode;
     }
 
@@ -51,5 +53,13 @@ enum Primitive implements Opcodes {
 		String name = type.getName().toUpperCase();
 		return Primitive.valueOf(name);
 	}
+
+    static Class<?> replaceWithPrimitive(Class<?> boxedJavaType) {
+        for (Primitive primitive: Primitive.values())
+            if (primitive.boxedJavaType == boxedJavaType)
+                return primitive.javaEquivalent;
+
+        return boxedJavaType;
+    }
 
 }
