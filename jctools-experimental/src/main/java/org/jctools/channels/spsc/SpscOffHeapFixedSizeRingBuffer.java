@@ -86,23 +86,22 @@ public class SpscOffHeapFixedSizeRingBuffer {
         producerIndexAddress = consumerIndexAddress + 2 * CACHE_LINE_SIZE;
         producerLookAheadCacheAddress = producerIndexAddress + 8;
         arrayBase = alignedAddress + HEADER_SIZE;
+        mask = this.capacity - 1;
         // producer owns tail and headCache
-        if (isProducer) {
+        if (isProducer && initialize) {
             spLookAheadCache(0);
             soProducerIndex(0);
-        }
-        // consumer owns head and tailCache
-        if (isConsumer) {
-            soConsumerIndex(0);
-        }
-        mask = this.capacity - 1;
-        if (initialize) {
             // mark all messages as null
             for (int i = 0; i < this.capacity; i++) {
                 final long offset = offsetForIdx(i);
                 UNSAFE.putByte(offset, NULL_MESSAGE_INDICATOR);
             }
         }
+        // consumer owns head and tailCache
+        if (isConsumer && initialize) {
+            soConsumerIndex(0);
+        }
+        
     }
 
     protected final long writeAcquire() {
