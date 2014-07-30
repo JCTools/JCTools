@@ -13,6 +13,7 @@
  */
 package org.jctools.channels.mapping;
 
+import org.jctools.channels.spsc.SpscChannelProducer;
 import org.jctools.util.UnsafeAccess;
 import org.junit.After;
 import org.junit.Before;
@@ -43,15 +44,15 @@ public class MapperTest {
     @Test
     public void shouldUnderstandInterfaceFields() {
         assertEquals(EXAMPLE_SIZE_IN_BYTES, mapper.getSizeInBytes());
-        StubFlyweight example = mapper.newInstance(StubFlyweight.class, startAddress);
+        SpscChannelProducer<Example> example = mapper.newProducer(startAddress);
         assertNotNull(example);
         assertTrue(example instanceof Example);
     }
 
     @Test
     public void shouldBeAbleToReadAndWriteData() {
-        Example writer = (Example) mapper.newInstance(StubFlyweight.class, startAddress);
-        Example reader = (Example) mapper.newInstance(StubFlyweight.class, startAddress);
+        Example writer = (Example) mapper.newProducer(startAddress);
+        Example reader = (Example) mapper.newProducer(startAddress);
 
         writer.setFoo(5);
         assertEquals(5, reader.getFoo());
@@ -62,8 +63,8 @@ public class MapperTest {
 
     @Test
     public void shouldBeAbleToMoveFlyweights() {
-        Example writer = (Example) mapper.newInstance(StubFlyweight.class, startAddress);
-        Example reader = (Example) mapper.newInstance(StubFlyweight.class, startAddress);
+        Example writer = (Example) mapper.newProducer(startAddress);
+        Example reader = (Example) mapper.newProducer(startAddress);
 
         StubFlyweight writeCursor = (StubFlyweight) writer;
         StubFlyweight readCursor = (StubFlyweight) reader;

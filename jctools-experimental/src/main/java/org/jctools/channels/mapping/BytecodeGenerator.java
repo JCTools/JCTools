@@ -32,6 +32,10 @@ import static org.objectweb.asm.Type.LONG_TYPE;
 @SuppressWarnings("restriction")
 public class BytecodeGenerator<S, I> implements Opcodes {
 
+    public static interface Customisation {
+        public void customise(ClassVisitor writer);
+    }
+
     private static final int MARKER_SIZE = 1;
     private static final String UNSAFE_NAME = Type.getInternalName(Unsafe.class);
     private static final String UNSAFE_DESCRIPTOR = Type.getType(Unsafe.class).getDescriptor();
@@ -42,27 +46,32 @@ public class BytecodeGenerator<S, I> implements Opcodes {
     private final String classExtended;
     private final String constructorExtended;
 	private final String implementationName;
-	private final String[] interfacesImplemented;
+    private final String structInterface;
+    private final String[] interfacesImplemented;
     private final Class<?>[] constructorParameterTypes;
     private final boolean classFileDebugEnabled;
+    private final Customisation customisation;
 
     public BytecodeGenerator(
             final TypeInspector inspector,
             final Class<I> implementationClass,
             final Class<?>[] constructorParameterTypes,
             final Class<S> structInterface,
-            final boolean classFileDebugEnabled) {
+            final boolean classFileDebugEnabled,
+            final Customisation customisation) {
 
         this.inspector = inspector;
         this.constructorParameterTypes = constructorParameterTypes;
         this.classFileDebugEnabled = classFileDebugEnabled;
+        this.customisation = customisation;
         implementationName = "DirectMemory" + implementationClass.getSimpleName();
         classExtended = Type.getInternalName(implementationClass);
 
         try {
             Constructor<?> constructor = implementationClass.getConstructor(constructorParameterTypes);
             constructorExtended =  Type.getConstructorDescriptor(constructor);
-            interfacesImplemented = new String[] { Type.getInternalName(structInterface) };
+            this.structInterface = Type.getInternalName(structInterface);
+            interfacesImplemented = new String[] { this.structInterface };
         } catch (NoSuchMethodException e) {
             throw new InvalidInterfaceException(e);
         }
@@ -72,21 +81,29 @@ public class BytecodeGenerator<S, I> implements Opcodes {
 	public Class<I> generate() {
     	ClassWriter out = new ClassWriter(ClassWriter.COMPUTE_MAXS);
     	CheckClassAdapter writer = new CheckClassAdapter(out);
-    	
-		int offset = MARKER_SIZE;
-    	declareClass(writer);
+		declareClass(writer);
     	declareConstructor(writer);
-    	for (Method getter : inspector.getters) {
-    		offset = declareField(getter, writer, offset);
-    	}
-    	
-    	writer.visitEnd();
+        declareAccessors(writer);
+        customisation.customise(writer);
+        return finish(out);
+    }
 
+    private void declareAccessors(CheckClassAdapter writer) {
+        int offset = MARKER_SIZE;
+        for (Method getter : inspector.getters) {
+            offset = declareField(getter, writer, offset);
+        }
+    }
+
+    private Class<I> finish(ClassWriter out) {
+        out.visitEnd();
         return (Class<I>) new GeneratedClassLoader(classFileDebugEnabled).defineClass(implementationName, out);
     }
 
     private void declareClass(ClassVisitor writer) {
-    	writer.visit(V1_6, ACC_PUBLIC + ACC_SUPER, implementationName, null, classExtended, interfacesImplemented);
+        // public class [implementationName] extends [classExtended<structInterface>] implements [structInterface]
+        String signature = String.format("L%s<L%s;>;", classExtended, structInterface);
+        writer.visit(V1_6, ACC_PUBLIC + ACC_SUPER, implementationName, signature, classExtended, interfacesImplemented);
     }
 
     private void declareConstructor(CheckClassAdapter writer) {
@@ -94,10 +111,12 @@ public class BytecodeGenerator<S, I> implements Opcodes {
     	method.visitCode();
         method.visitVarInsn(ALOAD, 0);
         pushParametersOnStack(method);
-        method.visitMethodInsn(INVOKESPECIAL,
+        method.visitMethodInsn(
+                INVOKESPECIAL,
 				classExtended,
 				"<init>",
-				constructorExtended);
+				constructorExtended,
+                false);
 		method.visitInsn(RETURN);
 		method.visitMaxs(5, 5);
 		method.visitEnd();

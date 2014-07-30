@@ -48,7 +48,7 @@ public final class SpscChannel<E> implements Channel<E> {
         checkSufficientCapacity();
         checkByteBuffer();
 
-        producer = mapper.newInstance(SpscChannelProducer.class, buffer, capacity, elementSize);
+        producer = mapper.newProducer(buffer, capacity, elementSize);
     }
 
     private void checkByteBuffer() {
@@ -65,7 +65,7 @@ public final class SpscChannel<E> implements Channel<E> {
     }
 
     public ChannelConsumer consumer(ChannelReceiver<E> receiver) {
-        return mapper.newInstance(SpscChannelConsumer.class, buffer, capacity, elementSize, receiver);
+        return mapper.newConsumer(buffer, capacity, elementSize, receiver);
     }
 
     public ChannelProducer<E> producer() {

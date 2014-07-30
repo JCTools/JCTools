@@ -23,7 +23,7 @@ import java.nio.ByteBuffer;
  */
 public abstract class SpscChannelConsumer<E> extends SpscOffHeapFixedSizeRingBuffer implements ChannelConsumer {
 
-    private final ChannelReceiver<E> receiver;
+    protected final ChannelReceiver<E> receiver;
 
     protected long pointer;
 
@@ -37,19 +37,6 @@ public abstract class SpscChannelConsumer<E> extends SpscOffHeapFixedSizeRingBuf
 
         this.receiver = receiver;
         this.pointer = EOF;
-    }
-
-    // TODO: generate this in the subclasses,
-    // to avoid the megamorphic accept and the checkcast.
-    public boolean read() {
-        pointer = readAcquire();
-        if (pointer == EOF)
-            return false;
-
-        receiver.accept((E) this);
-
-        readRelease(pointer);
-        return true;
     }
 
 }

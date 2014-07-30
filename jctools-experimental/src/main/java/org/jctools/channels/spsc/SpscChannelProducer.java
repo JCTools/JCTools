@@ -40,10 +40,6 @@ public abstract class SpscChannelProducer<E> extends SpscOffHeapFixedSizeRingBuf
         return pointer != EOF;
     }
 
-    public E getWriter() {
-        return (E) this;
-    }
-
     public final boolean commit() {
         writeRelease(pointer);
         // can we ever fail to commit?
