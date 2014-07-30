@@ -16,7 +16,7 @@ package org.jctools.queues;
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 
 abstract class SpscArrayQueueColdField<E> extends ConcurrentCircularArrayQueue<E> {
-    private static final Integer MAX_LOOK_AHEAD_STEP = Integer.getInteger("jctoolts.spsc.max.lookahead.step", 4096);
+    private static final Integer MAX_LOOK_AHEAD_STEP = Integer.getInteger("jctools.spsc.max.lookahead.step", 4096);
     protected final int lookAheadStep;
     public SpscArrayQueueColdField(int capacity) {
         super(capacity);

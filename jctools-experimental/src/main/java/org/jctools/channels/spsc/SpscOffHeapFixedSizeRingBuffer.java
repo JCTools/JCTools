@@ -31,7 +31,7 @@ import static org.jctools.util.UnsafeDirectByteBuffer.*;
  */
 public class SpscOffHeapFixedSizeRingBuffer {
 
-    private static final Integer MAX_LOOK_AHEAD_STEP = Integer.getInteger("jctoolts.spsc.max.lookahead.step", 4096);
+    private static final Integer MAX_LOOK_AHEAD_STEP = Integer.getInteger("jctools.spsc.max.lookahead.step", 4096);
     private static final byte NULL_MESSAGE_INDICATOR = 0;
     private static final byte WRITTEN_MESSAGE_INDICATOR = 1;
     private static final int HEADER_SIZE = 4 * CACHE_LINE_SIZE;
