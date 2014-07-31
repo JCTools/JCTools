@@ -29,6 +29,10 @@ import static org.jctools.util.UnsafeDirectByteBuffer.*;
  *
  * @author nitsanw
  */
+/**
+ * @author yak
+ *
+ */
 public class SpscOffHeapFixedSizeRingBuffer {
 
     private static final Integer MAX_LOOK_AHEAD_STEP = Integer.getInteger("jctools.spsc.max.lookahead.step", 4096);
@@ -39,7 +43,6 @@ public class SpscOffHeapFixedSizeRingBuffer {
     public static final long EOF = 0;
 
     protected final int lookAheadStep;
-    // 24b,8b,8b,24b | pad | 24b,8b,8b,24b | pad
     private final ByteBuffer buffy;
     private final long consumerIndexAddress;
     private final long producerIndexAddress;
@@ -47,7 +50,7 @@ public class SpscOffHeapFixedSizeRingBuffer {
 
     private final int capacity;
     private final int mask;
-    private final long arrayBase;
+    private final long bufferAddress;
     private final int messageSize;
 
     public static int getRequiredBufferSize(final int capacity, final int messageSize) {
@@ -78,15 +81,21 @@ public class SpscOffHeapFixedSizeRingBuffer {
 
         this.capacity = Pow2.roundToPowerOfTwo(capacity);
         this.messageSize = messageSize + 1;
-        buffy = alignedSlice(4 * CACHE_LINE_SIZE + (this.capacity * (this.messageSize)), CACHE_LINE_SIZE, buff);
+        this.buffy = alignedSlice(4 * CACHE_LINE_SIZE + (this.capacity * (this.messageSize)), CACHE_LINE_SIZE, buff);
 
         long alignedAddress = UnsafeDirectByteBuffer.getAddress(buffy);
-        lookAheadStep = Math.min(this.capacity / 4, MAX_LOOK_AHEAD_STEP);
-        consumerIndexAddress = alignedAddress;
-        producerIndexAddress = consumerIndexAddress + 2 * CACHE_LINE_SIZE;
-        producerLookAheadCacheAddress = producerIndexAddress + 8;
-        arrayBase = alignedAddress + HEADER_SIZE;
-        mask = this.capacity - 1;
+        this.lookAheadStep = Math.min(this.capacity / 4, MAX_LOOK_AHEAD_STEP);
+        // Layout of the RingBuffer (assuming 64b cache line):
+        // consumerIndex(8b), pad(56b) |
+        // pad(64b) |
+        // producerIndex(8b), producerLookAheadCache(8b), pad(48b) |
+        // pad(64b) |
+        // buffer (capacity * messageSize)
+        this.consumerIndexAddress = alignedAddress;
+        this.producerIndexAddress = this.consumerIndexAddress + 2 * CACHE_LINE_SIZE;
+        this.producerLookAheadCacheAddress = this.producerIndexAddress + 8;
+        this.bufferAddress = alignedAddress + HEADER_SIZE;
+        this.mask = this.capacity - 1;
         // producer owns tail and headCache
         if (isProducer && initialize) {
             spLookAheadCache(0);
@@ -104,6 +113,12 @@ public class SpscOffHeapFixedSizeRingBuffer {
         
     }
 
+    /**
+     * NOTE: for this implementation the allocated capacity may not be used to it's fullest as the producer may stop
+     * writing to the queue up to lookAheadStep elements before full capacity. The actual capacity therefore is between
+     * <i>(capacity - lookAheadStep)</i> and <i>capacity</i>.
+     * @return the offset at the next element to be written or EOF if it is not available.
+     */
     protected final long writeAcquire() {
         final long producerIndex = lpProducerIndex();
         final long producerLookAhead = lpLookAheadCache();
@@ -144,7 +159,7 @@ public class SpscOffHeapFixedSizeRingBuffer {
     }
 
     private long offsetForIndex(final long currentHead) {
-        return arrayBase + ((currentHead & mask) * messageSize);
+        return bufferAddress + ((currentHead & mask) * messageSize);
     }
 
     public final int size() {
