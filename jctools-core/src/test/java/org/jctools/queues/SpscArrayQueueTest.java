@@ -7,7 +7,7 @@ import org.junit.Test;
 public class SpscArrayQueueTest {
     @Test
     public void shouldWorkAfterWrap(){
-        SpscArrayQueue<Object> q = new SpscArrayQueue<>(1024);
+        SpscArrayQueue<Object> q = new SpscArrayQueue<Object>(1024);
         // starting point for empty queue at max long, next offer will wrap the producerIndex
         q.consumerIndex = Long.MAX_VALUE;
         q.producerIndex = Long.MAX_VALUE;
