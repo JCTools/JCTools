@@ -12,6 +12,14 @@
 	</organization>
 	<inceptionYear>2013</inceptionYear>
 
+	<licenses>
+	    	<license>
+	      		<name>Apache License, Version 2.0</name>
+	      		<url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+	      		<distribution>repo</distribution>
+		</license>
+	</licenses>
+
 	<prerequisites>
 		<maven>3.0</maven>
 	</prerequisites>
