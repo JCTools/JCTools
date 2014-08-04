@@ -61,7 +61,7 @@ public class ConcurrentQueueThroughputBusy {
         while (consumer.poll() == null && !cnt.stopMeasurement) {
         }
     }
-    private static ThreadLocal<Object> marker = new ThreadLocal<>();
+    private static ThreadLocal<Object> marker = new ThreadLocal<Object>();
 
     @State(Scope.Thread)
     public static class ConsumerMarker {

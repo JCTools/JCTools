@@ -60,7 +60,7 @@ public class ConcurrentQueueThroughputYield {
             Thread.yield();
         }
     }
-    private static ThreadLocal<Object> marker = new ThreadLocal<>();
+    private static ThreadLocal<Object> marker = new ThreadLocal<Object>();
 
     @State(Scope.Thread)
     public static class ConsumerMarker {
