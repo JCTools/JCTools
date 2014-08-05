@@ -62,9 +62,9 @@ public final class Mapper<S> {
             }
 
             private void declareGetWriter(ClassVisitor writer, Type returnType) {
-                // public ? getWriter()
+                // public ? currentElement()
                 String descriptor = getMethodDescriptor(returnType);
-                MethodVisitor method = writer.visitMethod(ACC_PUBLIC, "getWriter", descriptor, null, null);
+                MethodVisitor method = writer.visitMethod(ACC_PUBLIC, "currentElement", descriptor, null, null);
                 method.visitCode();
 
                 // return this;

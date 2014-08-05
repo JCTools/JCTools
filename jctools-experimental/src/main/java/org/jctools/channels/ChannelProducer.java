@@ -33,7 +33,7 @@ public interface ChannelProducer<E> {
      *
      * @return the flyweight object to write to
      */
-    E getWriter();
+    E currentElement();
 
     /**
      *

@@ -46,7 +46,7 @@ public class SpscChannelTest {
     public void shouldWriteAnObject() {
         assertTrue(producer.claim());
 
-        Example writer = producer.getWriter();
+        Example writer = producer.currentElement();
         writer.setFoo(5);
         writer.setBar(10L);
         assertTrue(producer.commit());
@@ -77,7 +77,7 @@ public class SpscChannelTest {
 
         assertTrue(producer.claim());
 
-        Example writer = producer.getWriter();
+        Example writer = producer.currentElement();
         writer.setBar(10L);
 
         assertFalse(consumer.read());
