@@ -26,12 +26,6 @@ import static org.jctools.util.UnsafeDirectByteBuffer.*;
  * - Fixed message size
  * - 'null' indicator in message preceding byte (potentially use same for type mapping in future)
  * - Use FF algorithm relying on indicator to support in place detection of next element existence
- *
- * @author nitsanw
- */
-/**
- * @author yak
- *
  */
 public class SpscOffHeapFixedSizeRingBuffer {
 
@@ -55,6 +49,11 @@ public class SpscOffHeapFixedSizeRingBuffer {
 
     public static int getRequiredBufferSize(final int capacity, final int messageSize) {
         return HEADER_SIZE + (Pow2.roundToPowerOfTwo(capacity) * (messageSize + 1));
+    }
+
+
+    public static int getLookaheadStep(final int capacity) {
+        return Math.min(capacity / 4, MAX_LOOK_AHEAD_STEP);
     }
 
     public SpscOffHeapFixedSizeRingBuffer(final int capacity, final int messageSize) {
@@ -84,7 +83,7 @@ public class SpscOffHeapFixedSizeRingBuffer {
         this.buffy = alignedSlice(4 * CACHE_LINE_SIZE + (this.capacity * (this.messageSize)), CACHE_LINE_SIZE, buff);
 
         long alignedAddress = UnsafeDirectByteBuffer.getAddress(buffy);
-        this.lookAheadStep = Math.min(this.capacity / 4, MAX_LOOK_AHEAD_STEP);
+        this.lookAheadStep = getLookaheadStep(capacity);
         // Layout of the RingBuffer (assuming 64b cache line):
         // consumerIndex(8b), pad(56b) |
         // pad(64b) |
@@ -110,7 +109,6 @@ public class SpscOffHeapFixedSizeRingBuffer {
         if (isConsumer && initialize) {
             soConsumerIndex(0);
         }
-        
     }
 
     /**

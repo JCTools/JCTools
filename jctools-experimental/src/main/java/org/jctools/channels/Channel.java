@@ -13,14 +13,17 @@
  */
 package org.jctools.channels;
 
-
 /**
  * A minimal top level queue interface which allows producer/consumers access via separate interfaces.
+ *
+ * Channels may determine their capacity themselves with additional slack or resize themselves as powers of two etc.
+ * Consequently instead of having a definite concept of a "capacity" channels have a requested capacity and a maximum
+ * capacity. The requested capacity is the capacity requested when you create the channel and the maximum capacity is the
+ * size that the channel has resized itself up to.
  *
  * @param <E> element type
  */
 public interface Channel<E> {
-    
 
     /**
      * @param callback the accept function for this consumer
@@ -34,18 +37,22 @@ public interface Channel<E> {
     ChannelProducer<E> producer();
 
     /**
-     * This method may be O(n) or O(1) and may not be accurate.
+     * Get the number of elements in the queue.
      * 
-     * @return the number of elements in the queue
+     * @return the number of elements in the queue.
      */
     int size();
 
     /**
-     * @return the maximum number of elements that can fit in this queue, or MAX_INT if unbounded.
+     * @return the maximum number of elements that can fit in this channel.
      */
-    int capacity();
+    int maximumCapacity();
 
-    
+    /**
+     * @return The requested maximum number of elements that can fit in this channel.
+     */
+    int requestedCapacity();
+
     boolean isEmpty();
 
 }

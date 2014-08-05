@@ -18,9 +18,11 @@ import org.jctools.channels.ChannelConsumer;
 import org.jctools.channels.ChannelProducer;
 import org.jctools.channels.ChannelReceiver;
 import org.jctools.channels.mapping.Mapper;
+import org.jctools.util.Pow2;
 
 import java.nio.ByteBuffer;
 
+import static org.jctools.channels.spsc.SpscOffHeapFixedSizeRingBuffer.getLookaheadStep;
 import static org.jctools.channels.spsc.SpscOffHeapFixedSizeRingBuffer.getRequiredBufferSize;
 
 public final class SpscChannel<E> implements Channel<E> {
@@ -28,7 +30,8 @@ public final class SpscChannel<E> implements Channel<E> {
     private final int elementSize;
     private final Mapper<E> mapper;
     private final ByteBuffer buffer;
-    private final int capacity;
+    private final int maximumCapacity;
+    private final int requestedCapacity;
     private final SpscChannelProducer<E> producer;
 
     /**
@@ -36,11 +39,12 @@ public final class SpscChannel<E> implements Channel<E> {
 	 * mapped file.
 	 *
 	 * @param buffer
-	 * @param capacity
+	 * @param requestedCapacity
 	 */
     // TODO: take an initialize parameter
-	public SpscChannel(final ByteBuffer buffer, final int capacity, final Class<E> type) {
-        this.capacity = capacity;
+	public SpscChannel(final ByteBuffer buffer, final int requestedCapacity, final Class<E> type) {
+        this.requestedCapacity = requestedCapacity;
+        this.maximumCapacity = getMaximumCapacity(requestedCapacity);
         this.buffer = buffer;
         mapper = new Mapper<E>(type, false);
         elementSize = mapper.getSizeInBytes();
@@ -48,7 +52,11 @@ public final class SpscChannel<E> implements Channel<E> {
         checkSufficientCapacity();
         checkByteBuffer();
 
-        producer = mapper.newProducer(buffer, capacity, elementSize);
+        producer = mapper.newProducer(buffer, maximumCapacity, elementSize);
+    }
+
+    private int getMaximumCapacity(int requestedCapacity) {
+        return Pow2.roundToPowerOfTwo(requestedCapacity + getLookaheadStep(requestedCapacity));
     }
 
     private void checkByteBuffer() {
@@ -58,14 +66,14 @@ public final class SpscChannel<E> implements Channel<E> {
     }
 
     private void checkSufficientCapacity() {
-        final int requiredCapacityInBytes = getRequiredBufferSize(capacity, elementSize);
+        final int requiredCapacityInBytes = getRequiredBufferSize(maximumCapacity, elementSize);
         if (buffer.capacity() < requiredCapacityInBytes) {
-            throw new IllegalArgumentException("Failed to meet required capacity in bytes: " + requiredCapacityInBytes);
+            throw new IllegalArgumentException("Failed to meet required maximumCapacity in bytes: " + requiredCapacityInBytes);
         }
     }
 
     public ChannelConsumer consumer(ChannelReceiver<E> receiver) {
-        return mapper.newConsumer(buffer, capacity, elementSize, receiver);
+        return mapper.newConsumer(buffer, maximumCapacity, elementSize, receiver);
     }
 
     public ChannelProducer<E> producer() {
@@ -76,8 +84,13 @@ public final class SpscChannel<E> implements Channel<E> {
         return producer.size();
 	}
 
-    public int capacity() {
-        return capacity;
+    public int maximumCapacity() {
+        return maximumCapacity;
+    }
+
+    @Override
+    public int requestedCapacity() {
+        return requestedCapacity;
     }
 
     public boolean isEmpty() {

@@ -16,7 +16,6 @@ package org.jctools.channels.spsc;
 import org.jctools.channels.ChannelConsumer;
 import org.jctools.channels.ChannelProducer;
 import org.jctools.channels.ChannelReceiver;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.nio.ByteBuffer;
@@ -26,15 +25,17 @@ import static org.junit.Assert.*;
 
 public class SpscChannelTest {
 
-    private static final int CAPACITY = 8;
+    private static final int REQUESTED_CAPACITY = 8;
+    private static final int MAXIMUM_CAPACITY = 16;
 
     private final ByteBuffer buffer = ByteBuffer.allocateDirect(128 * 1024);
-    private final SpscChannel<Example> channel = new SpscChannel<>(buffer, CAPACITY, Example.class);
+    private final SpscChannel<Example> channel = new SpscChannel<Example>(buffer, REQUESTED_CAPACITY, Example.class);
     private final ChannelProducer<Example> producer = channel.producer();
 
     @Test
     public void shouldKnowItsCapacity() {
-        assertEquals(CAPACITY, channel.capacity());
+        assertEquals(REQUESTED_CAPACITY, channel.requestedCapacity());
+        assertEquals(MAXIMUM_CAPACITY, channel.maximumCapacity());
     }
 
     @Test
@@ -83,16 +84,22 @@ public class SpscChannelTest {
         assertFalse(consumer.read());
     }
 
-    @Ignore("Only stores 6 entries - something wrong with capacity calculation")
     @Test
     public void shouldNotOverrunBuffer() {
-        for (int i = 0; i < CAPACITY; i++) {
+        for (int i = 0; i < REQUESTED_CAPACITY; i++) {
             assertTrue(producer.claim());
             assertTrue(producer.commit());
         }
 
+        for (int i = REQUESTED_CAPACITY; i < MAXIMUM_CAPACITY; i++) {
+            // Unknown what happens here.
+            producer.claim();
+            producer.commit();
+        }
+
         assertFalse(producer.claim());
-        assertSize(CAPACITY);
+        assertTrue(channel.size() >= REQUESTED_CAPACITY);
+        assertTrue(channel.size() <= MAXIMUM_CAPACITY);
     }
 
     private void assertSize(int expectedSize) {
