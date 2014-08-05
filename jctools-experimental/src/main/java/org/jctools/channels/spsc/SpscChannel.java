@@ -42,7 +42,7 @@ public final class SpscChannel<E> implements Channel<E> {
 	public SpscChannel(final ByteBuffer buffer, final int capacity, final Class<E> type) {
         this.capacity = capacity;
         this.buffer = buffer;
-        mapper = new Mapper<>(type, false);
+        mapper = new Mapper<E>(type, false);
         elementSize = mapper.getSizeInBytes();
 
         checkSufficientCapacity();

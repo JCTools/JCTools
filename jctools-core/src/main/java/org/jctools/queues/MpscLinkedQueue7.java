@@ -1,10 +1,10 @@
 package org.jctools.queues;
 
-import static org.jctools.util.UnsafeAccess.UNSAFE;
-
 import java.util.AbstractQueue;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+
+import static org.jctools.util.UnsafeAccess.UNSAFE;
 
 abstract class MpscLinkedQueue7Pad0<E> extends AbstractQueue<E> {
     long p00, p01, p02, p03, p04, p05, p06, p07;
@@ -63,7 +63,7 @@ public final class MpscLinkedQueue7<E> extends MpscLinkedQueue7ConsumerNodeRef<E
     long p30, p31, p32, p33, p34, p35, p36, p37;
 
     public MpscLinkedQueue7() {
-        consumerNode = new LinkedQueueNode<>();
+        consumerNode = new LinkedQueueNode<E>();
         producerNode = consumerNode;// this ensures correct construction: StoreLoad
     }
 
@@ -109,8 +109,8 @@ public final class MpscLinkedQueue7<E> extends MpscLinkedQueue7ConsumerNodeRef<E
      * This means the consumerNode.value is always null, which is also the starting point for the queue. Because null
      * values are not allowed to be offered this is the only node with it's value set to null at any one time.
      * 
-     * @see MessagePassingQueue#poll(Object)
-     * @see java.util.Queue#poll(java.lang.Object)
+     * @see MessagePassingQueue#poll()
+     * @see java.util.Queue#poll()
      */
     @Override
     public E poll() {

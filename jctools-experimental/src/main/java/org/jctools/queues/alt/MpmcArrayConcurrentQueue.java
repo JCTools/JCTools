@@ -162,8 +162,8 @@ abstract class MpmcArrayConcurrentQueueColdFields<E> extends ConcurrentSequenced
 
     public MpmcArrayConcurrentQueueColdFields(int capacity) {
         super(capacity);
-        consumer = new Consumer<>(this);
-        producer = new Producer<>(this);
+        consumer = new Consumer<E>(this);
+        producer = new Producer<E>(this);
     }
 }
 

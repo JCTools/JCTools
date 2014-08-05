@@ -42,7 +42,7 @@ public final class SpscLinkedQueue<E> extends SpscLinkedQueueConsumerNodeRef<E> 
     long p30, p31, p32, p33, p34, p35, p36, p37;
 
     public SpscLinkedQueue() {
-        producerNode = new LinkedQueueNode<>();
+        producerNode = new LinkedQueueNode<E>();
         consumerNode = producerNode;
         consumerNode.soNext(null); // this ensures correct construction: StoreStore
     }

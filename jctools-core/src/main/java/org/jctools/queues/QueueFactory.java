@@ -1,11 +1,11 @@
 package org.jctools.queues;
 
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
-
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
 import org.jctools.util.UnsafeAccess;
+
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * The queue factory produces {@link java.util.Queue} instances based on a best fit to the {@link ConcurrentQueueSpec}.
@@ -21,7 +21,7 @@ public class QueueFactory {
             // SPSC
             if (qs.isSpsc()) {
 
-                return new SpscArrayQueue<>(qs.capacity);
+                return new SpscArrayQueue<E>(qs.capacity);
             }
             // MPSC
             else if (qs.isMpsc()) {

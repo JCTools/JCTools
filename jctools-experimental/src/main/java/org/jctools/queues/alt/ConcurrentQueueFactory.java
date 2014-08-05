@@ -1,8 +1,8 @@
 package org.jctools.queues.alt;
 
-import java.util.concurrent.ConcurrentLinkedQueue;
-
 import org.jctools.queues.spec.ConcurrentQueueSpec;
+
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * The queue factory produces {@link ConcurrentQueue} instances based on a best fit to the {@link ConcurrentQueueSpec}.
@@ -18,28 +18,28 @@ public class ConcurrentQueueFactory {
             // SPSC
             if (qs.consumers == 1 && qs.producers == 1) {
 
-                return new SpscArrayConcurrentQueue<>(qs.capacity);
+                return new SpscArrayConcurrentQueue<E>(qs.capacity);
             }
             // In flux, for now it is correct to return MPMC...
             // MPSC
             // else if (qs.consumers == 1) {
             // if (qs.ordering != Ordering.NONE) {
-            // return new MpscArrayQueue<>(qs.capacity);
+            // return new MpscArrayQueue<E>(qs.capacity);
             // } else {
-            // return new MpscCompoundQueue<>(qs.capacity);
+            // return new MpscCompoundQueue<E>(qs.capacity);
             // }
             // }
             // // SPMC
             // else if (qs.producers == 1) {
-            // return new SpmcArrayQueue<>(qs.capacity);
+            // return new SpmcArrayQueue<E>(qs.capacity);
             // }
             // MPMC
             else {
-                return new MpmcArrayConcurrentQueue<>(qs.capacity);
+                return new MpmcArrayConcurrentQueue<E>(qs.capacity);
             }
         } else {
             // if (qs.consumers == 1 && qs.producers == 1) {
-            // return new SpscLinkedQueue<>();
+            // return new SpscLinkedQueue<E>();
             // }
         }
         return new GenericQueue<E>();

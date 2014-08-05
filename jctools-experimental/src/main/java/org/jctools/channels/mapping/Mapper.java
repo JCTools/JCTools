@@ -169,9 +169,9 @@ public final class Mapper<S> {
     private <I> I newFlyweight(Class<I> type, Customisation customisation, Object[] args) {
         try {
             Class<?>[] constructorParameterTypes = getTypes(args);
-            Class<I> implementation = new BytecodeGenerator<>(inspector, type, constructorParameterTypes,
-                                                              structInterface, classFileDebugEnabled,
-                                                              customisation).generate();
+            Class<I> implementation = new BytecodeGenerator<S,I>(inspector, type, constructorParameterTypes,
+                                                                 structInterface, classFileDebugEnabled,
+                                                                 customisation).generate();
 
             Constructor<I> constructor = implementation.getConstructor(constructorParameterTypes);
             return constructor.newInstance(args);
