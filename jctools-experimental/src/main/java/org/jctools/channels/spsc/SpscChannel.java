@@ -17,13 +17,21 @@ import org.jctools.channels.Channel;
 import org.jctools.channels.ChannelConsumer;
 import org.jctools.channels.ChannelProducer;
 import org.jctools.channels.ChannelReceiver;
+import org.jctools.channels.mapping.BytecodeGenerator;
 import org.jctools.channels.mapping.Mapper;
 import org.jctools.util.Pow2;
+import org.objectweb.asm.ClassVisitor;
+import org.objectweb.asm.Label;
+import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.Type;
 
 import java.nio.ByteBuffer;
 
 import static org.jctools.channels.spsc.SpscOffHeapFixedSizeRingBuffer.getLookaheadStep;
 import static org.jctools.channels.spsc.SpscOffHeapFixedSizeRingBuffer.getRequiredBufferSize;
+import static org.objectweb.asm.Opcodes.*;
+import static org.objectweb.asm.Opcodes.IRETURN;
+import static org.objectweb.asm.Type.*;
 
 public final class SpscChannel<E> implements Channel<E> {
 
@@ -52,7 +60,7 @@ public final class SpscChannel<E> implements Channel<E> {
         checkSufficientCapacity();
         checkByteBuffer();
 
-        producer = mapper.newProducer(buffer, maximumCapacity, elementSize);
+        producer = newProducer(type, buffer, maximumCapacity, elementSize);
     }
 
     private int getMaximumCapacity(int requestedCapacity) {
@@ -73,7 +81,7 @@ public final class SpscChannel<E> implements Channel<E> {
     }
 
     public ChannelConsumer consumer(ChannelReceiver<E> receiver) {
-        return mapper.newConsumer(buffer, maximumCapacity, elementSize, receiver);
+        return newConsumer(buffer, maximumCapacity, elementSize, receiver);
     }
 
     public ChannelProducer<E> producer() {
@@ -96,5 +104,121 @@ public final class SpscChannel<E> implements Channel<E> {
     public boolean isEmpty() {
 		return size() == 0;
 	}
+
+
+    private SpscChannelProducer<E> newProducer(final Class<E> type, final Object... args) {
+        BytecodeGenerator.Customisation customisation = new BytecodeGenerator.Customisation() {
+            @Override
+            public void customise(ClassVisitor writer) {
+                declareGetWriter(writer, getType(type));
+
+                // Still need to generate the java.lang.Object version because of erasure
+                declareGetWriter(writer, getType(Object.class));
+            }
+
+            private void declareGetWriter(ClassVisitor writer, Type returnType) {
+                // public ? currentElement()
+                String descriptor = getMethodDescriptor(returnType);
+                MethodVisitor method = writer.visitMethod(ACC_PUBLIC, "currentElement", descriptor, null, null);
+                method.visitCode();
+
+                // return this;
+                method.visitVarInsn(ALOAD, 0);
+                method.visitInsn(ARETURN);
+                method.visitMaxs(1, 1);
+                method.visitEnd();
+            }
+        };
+
+        return mapper.newFlyweight(SpscChannelProducer.class, customisation, args);
+    }
+
+    private SpscChannelConsumer<E> newConsumer(Object... args) {
+        BytecodeGenerator.Customisation customisation = new BytecodeGenerator.Customisation() {
+            @Override
+            public void customise(ClassVisitor writer) {
+                final String channelConsumer = getInternalName(SpscChannelConsumer.class);
+                final String channelReceiver = getInternalName(ChannelReceiver.class);
+                final String spscOffHeapFixedSizeRingBuffer = getInternalName(SpscOffHeapFixedSizeRingBuffer.class);
+
+                // public boolean read() {
+                String returnBoolean = getMethodDescriptor(Type.BOOLEAN_TYPE);
+                MethodVisitor method = writer.visitMethod(ACC_PUBLIC, "read", returnBoolean, null, null);
+                method.visitCode();
+
+                // pointer = readAcquire();
+                method.visitVarInsn(ALOAD, 0);
+                method.visitVarInsn(ALOAD, 0);
+                method.visitMethodInsn(
+                        INVOKEVIRTUAL,
+                        spscOffHeapFixedSizeRingBuffer,
+                        "readAcquire",
+                        "()J",
+                        false);
+                method.visitFieldInsn(
+                        PUTFIELD,
+                        channelConsumer,
+                        "pointer",
+                        "J");
+
+                // if (pointer == EOF) {
+                Label accept = new Label();
+                method.visitVarInsn(ALOAD, 0);
+                method.visitFieldInsn(
+                        GETFIELD,
+                        channelConsumer,
+                        "pointer",
+                        "J");
+                method.visitLdcInsn(SpscOffHeapFixedSizeRingBuffer.EOF);
+                method.visitInsn(LCMP);
+                method.visitJumpInsn(IFNE, accept);
+                //     return false;
+                method.visitLdcInsn(0);
+                method.visitInsn(IRETURN);
+                // }
+
+                // receiver.accept((E) this);
+                method.visitLabel(accept);
+                method.visitVarInsn(ALOAD, 0);
+                method.visitFieldInsn(
+                        GETFIELD,
+                        channelConsumer,
+                        "receiver",
+                        getDescriptor(ChannelReceiver.class));
+                method.visitVarInsn(ALOAD, 0);
+                method.visitMethodInsn(
+                        INVOKEINTERFACE,
+                        channelReceiver,
+                        "accept",
+                        getMethodDescriptor(VOID_TYPE, getType(Object.class)),
+                        true);
+
+                // readRelease(pointer);
+                method.visitVarInsn(ALOAD, 0);
+                method.visitVarInsn(ALOAD, 0);
+                method.visitFieldInsn(
+                        GETFIELD,
+                        channelConsumer,
+                        "pointer",
+                        "J");
+                method.visitMethodInsn(
+                        INVOKEVIRTUAL,
+                        spscOffHeapFixedSizeRingBuffer,
+                        "readRelease",
+                        "(J)V",
+                        false);
+
+                // return true;
+                method.visitLdcInsn(1);
+                method.visitInsn(IRETURN);
+
+                //  }
+                method.visitMaxs(2, 2);
+                method.visitEnd();
+            }
+        };
+
+        return mapper.newFlyweight(SpscChannelConsumer.class, customisation, args);
+    }
 
 }

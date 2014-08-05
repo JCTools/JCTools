@@ -13,15 +13,14 @@
  */
 package org.jctools.channels.mapping;
 
-import org.jctools.channels.spsc.SpscChannelProducer;
 import org.jctools.util.UnsafeAccess;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.objectweb.asm.ClassVisitor;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.jctools.channels.mapping.BytecodeGenerator.Customisation;
+import static org.junit.Assert.*;
 
 public class MapperTest {
 
@@ -29,6 +28,12 @@ public class MapperTest {
 
     private long startAddress;
     private Mapper<Example> mapper;
+    private Customisation noCustomisation = new Customisation() {
+        @Override
+        public void customise(ClassVisitor writer) {
+
+        }
+    };
 
     @Before
     public void malloc() {
@@ -44,15 +49,15 @@ public class MapperTest {
     @Test
     public void shouldUnderstandInterfaceFields() {
         assertEquals(EXAMPLE_SIZE_IN_BYTES, mapper.getSizeInBytes());
-        SpscChannelProducer<Example> example = mapper.newProducer(startAddress);
+        StubFlyweight example = newFlyweight();
         assertNotNull(example);
         assertTrue(example instanceof Example);
     }
 
     @Test
     public void shouldBeAbleToReadAndWriteData() {
-        Example writer = (Example) mapper.newProducer(startAddress);
-        Example reader = (Example) mapper.newProducer(startAddress);
+        Example writer = (Example) newFlyweight();
+        Example reader = (Example) newFlyweight();
 
         writer.setFoo(5);
         assertEquals(5, reader.getFoo());
@@ -63,8 +68,8 @@ public class MapperTest {
 
     @Test
     public void shouldBeAbleToMoveFlyweights() {
-        Example writer = (Example) mapper.newProducer(startAddress);
-        Example reader = (Example) mapper.newProducer(startAddress);
+        Example writer = (Example) newFlyweight();
+        Example reader = (Example) newFlyweight();
 
         StubFlyweight writeCursor = (StubFlyweight) writer;
         StubFlyweight readCursor = (StubFlyweight) reader;
@@ -77,6 +82,10 @@ public class MapperTest {
 
         writer.setBar(6L);
         assertEquals(6L, reader.getBar());
+    }
+
+    private StubFlyweight newFlyweight() {
+        return mapper.newFlyweight(StubFlyweight.class, noCustomisation, startAddress);
     }
 
     // ---------------------------------------------------
