@@ -13,17 +13,11 @@
  */
 package org.jctools.jmh.baseline;
 
+import org.openjdk.jmh.annotations.*;
+import org.openjdk.jmh.infra.Control;
+
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import org.openjdk.jmh.annotations.Benchmark;
-import org.openjdk.jmh.annotations.BenchmarkMode;
-import org.openjdk.jmh.annotations.Group;
-import org.openjdk.jmh.annotations.Mode;
-import org.openjdk.jmh.annotations.OutputTimeUnit;
-import org.openjdk.jmh.annotations.Scope;
-import org.openjdk.jmh.annotations.State;
-import org.openjdk.jmh.infra.Control;
 
 @State(Scope.Group)
 @BenchmarkMode(Mode.AverageTime)

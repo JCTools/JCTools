@@ -30,7 +30,6 @@ import java.nio.ByteBuffer;
 import static org.jctools.channels.spsc.SpscOffHeapFixedSizeRingBuffer.getLookaheadStep;
 import static org.jctools.channels.spsc.SpscOffHeapFixedSizeRingBuffer.getRequiredBufferSize;
 import static org.objectweb.asm.Opcodes.*;
-import static org.objectweb.asm.Opcodes.IRETURN;
 import static org.objectweb.asm.Type.*;
 
 public final class SpscChannel<E> implements Channel<E> {

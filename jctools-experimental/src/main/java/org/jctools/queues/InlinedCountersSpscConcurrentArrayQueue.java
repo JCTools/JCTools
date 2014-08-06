@@ -13,13 +13,13 @@
  */
 package org.jctools.queues;
 
+import org.jctools.util.Pow2;
+import org.jctools.util.UnsafeAccess;
+
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Queue;
-
-import org.jctools.util.Pow2;
-import org.jctools.util.UnsafeAccess;
 
 abstract class InlinedRingBufferL0Pad {
     protected long p00, p01, p02, p03, p04, p05, p06, p07;

@@ -13,15 +13,15 @@
  */
 package org.jctools.queues;
 
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.NoSuchElementException;
-import java.util.Queue;
-
 import org.jctools.util.LongCell;
 import org.jctools.util.Pow2;
 import org.jctools.util.UnsafeAccess;
 import org.jctools.util.VolatileLongCell;
+
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
+import java.util.Queue;
 
 abstract class FloatingCaqL0Pad {
     protected long p00, p01, p02, p03, p04, p05, p06, p07;

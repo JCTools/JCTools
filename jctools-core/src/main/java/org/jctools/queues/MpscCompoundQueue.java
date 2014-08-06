@@ -13,11 +13,11 @@
  */
 package org.jctools.queues;
 
-import static org.jctools.util.Pow2.roundToPowerOfTwo;
-import static org.jctools.util.Pow2.isPowerOfTwo;
-
 import java.util.AbstractQueue;
 import java.util.Iterator;
+
+import static org.jctools.util.Pow2.isPowerOfTwo;
+import static org.jctools.util.Pow2.roundToPowerOfTwo;
 
 /**
  * Use a set number of parallel MPSC queues to diffuse the contention on tail.

@@ -1,12 +1,12 @@
 package org.jctools.queues;
 
-import static org.jctools.util.UnsafeAccess.UNSAFE;
+import org.jctools.util.Pow2;
+import org.jctools.util.UnsafeAccess;
 
 import java.util.AbstractQueue;
 import java.util.Iterator;
 
-import org.jctools.util.Pow2;
-import org.jctools.util.UnsafeAccess;
+import static org.jctools.util.UnsafeAccess.UNSAFE;
 
 abstract class ConcurrentCircularArrayQueueL0Pad<E> extends AbstractQueue<E> implements MessagePassingQueue<E> {
     long p00, p01, p02, p03, p04, p05, p06, p07;

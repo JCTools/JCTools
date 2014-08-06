@@ -15,9 +15,9 @@
  */
 package org.jctools.handrolled.throughput.spsc;
 
-import java.util.Queue;
-
 import org.jctools.queues.QueueByTypeFactory;
+
+import java.util.Queue;
 
 
 public class OQueuePerfTest {

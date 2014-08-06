@@ -1,8 +1,8 @@
 package org.jctools.queues.alt;
 
-import static org.jctools.util.UnsafeAccess.UNSAFE;
-
 import org.jctools.util.UnsafeAccess;
+
+import static org.jctools.util.UnsafeAccess.UNSAFE;
 
 public abstract class ConcurrentSequencedCircularArray<E> extends ConcurrentCircularArray<E> {
     private static final long ARRAY_BASE;

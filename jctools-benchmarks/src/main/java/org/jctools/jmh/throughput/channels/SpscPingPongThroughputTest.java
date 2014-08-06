@@ -18,19 +18,20 @@ import org.jctools.channels.ChannelConsumer;
 import org.jctools.channels.ChannelProducer;
 import org.jctools.channels.ChannelReceiver;
 import org.jctools.channels.spsc.SpscChannel;
-import org.jctools.queues.alt.ConcurrentQueue;
-import org.jctools.queues.alt.ConcurrentQueueByTypeFactory;
-import org.jctools.queues.alt.ConcurrentQueueConsumer;
-import org.jctools.queues.alt.ConcurrentQueueProducer;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 import org.openjdk.jmh.infra.Control;
 
 import java.nio.ByteBuffer;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.LockSupport;
 
 /**
  * JMH Test to measure throughput for a tiny message with an SPSC Channel.
+ *
+ * To run this benchmark:
+ *
+ * java -jar target/microbenchmarks.jar ".*.SpscPingPongThroughputTest.*"
  */
 @State(Scope.Group)
 @BenchmarkMode(Mode.Throughput)
@@ -38,7 +39,7 @@ import java.util.concurrent.TimeUnit;
 @Threads(2)
 @Warmup(iterations = 10, time = 1, timeUnit = TimeUnit.SECONDS)
 @Measurement(iterations = 5, time = 5, timeUnit = TimeUnit.SECONDS)
-public class SpscPingPongPerfTest {
+public class SpscPingPongThroughputTest {
 
     private ByteBuffer buffer;
     private Channel<Ping> channel;
@@ -63,9 +64,31 @@ public class SpscPingPongPerfTest {
         consumer = channel.consumer(receiver);
     }
 
-    // Writing stores a value, since this is what a real program would have to do.
     @Benchmark
-    @Group("tpt")
+    @Group("busy")
+    @GroupThreads(1)
+    public void writeBusy(Control cnt) {
+        Ping element = producer.currentElement();
+        while (producer.claim() && !cnt.stopMeasurement) {
+            element.setValue(writeValue);
+
+            if (!producer.commit()) {
+                break;
+            }
+        }
+    }
+
+    @Benchmark
+    @Group("busy")
+    @GroupThreads(1)
+    public void readBusy(Control cnt) {
+        while (consumer.read() && !cnt.stopMeasurement) {
+
+        }
+    }
+
+    @Benchmark
+    @Group("backoffOneNano")
     @GroupThreads(1)
     public void write(Control cnt) {
         Ping element = producer.currentElement();
@@ -75,17 +98,17 @@ public class SpscPingPongPerfTest {
             if (!producer.commit()) {
                 break;
             }
-            Thread.yield();
+
+            LockSupport.parkNanos(1L);
         }
     }
 
     @Benchmark
-    @Group("tpt")
+    @Group("backoffOneNano")
     @GroupThreads(1)
     public void read(Control cnt) {
         while (consumer.read() && !cnt.stopMeasurement) {
-            Thread.yield();
+            LockSupport.parkNanos(1L);
         }
     }
-
 }

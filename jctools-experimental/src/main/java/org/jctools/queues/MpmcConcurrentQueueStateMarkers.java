@@ -13,18 +13,18 @@
  */
 package org.jctools.queues;
 
-import static org.jctools.util.UnsafeAccess.UNSAFE;
+import org.jctools.queues.alt.ConcurrentQueue;
+import org.jctools.queues.alt.ConcurrentQueueConsumer;
+import org.jctools.queues.alt.ConcurrentQueueProducer;
+import org.jctools.util.Pow2;
+import org.jctools.util.UnsafeAccess;
 
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Queue;
 
-import org.jctools.queues.alt.ConcurrentQueue;
-import org.jctools.queues.alt.ConcurrentQueueConsumer;
-import org.jctools.queues.alt.ConcurrentQueueProducer;
-import org.jctools.util.Pow2;
-import org.jctools.util.UnsafeAccess;
+import static org.jctools.util.UnsafeAccess.UNSAFE;
 
 abstract class MpmcConcurrentQueueSMBufferL0Pad {
     public long p00, p01, p02, p03, p04, p05, p06, p07;

@@ -2,7 +2,6 @@ package org.jctools.util;
 
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 
 public class UnsafeDirectByteBuffer {
 	private static final long addressOffset;
