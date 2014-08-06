@@ -14,12 +14,12 @@
 		<dependency>
 			<groupId>org.jctools</groupId>
 			<artifactId>jctools-core</artifactId>
-			<version>1.0-SNAPSHOT</version>
+			<version>${project.version}</version>
 		</dependency>
 		<dependency>
             <groupId>org.jctools</groupId>
             <artifactId>jctools-experimental</artifactId>
-            <version>1.0-SNAPSHOT</version>
+            <version>${project.version}</version>
         </dependency>
 		<dependency>
 			<groupId>org.openjdk.jmh</groupId>
