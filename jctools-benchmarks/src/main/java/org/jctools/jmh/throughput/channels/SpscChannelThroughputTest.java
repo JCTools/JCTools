@@ -39,8 +39,11 @@ import java.util.concurrent.locks.LockSupport;
 @Threads(2)
 @Warmup(iterations = 10, time = 1, timeUnit = TimeUnit.SECONDS)
 @Measurement(iterations = 5, time = 5, timeUnit = TimeUnit.SECONDS)
-public class SpscPingPongThroughputTest {
+public class SpscChannelThroughputTest {
 
+	@Param({"32000"})
+	private int capacity;
+	
     private ByteBuffer buffer;
     private Channel<Ping> channel;
     private ChannelProducer<Ping> producer;
@@ -58,8 +61,8 @@ public class SpscPingPongThroughputTest {
                 blackhole.consume(element.getValue());
             }
         };
-        buffer = ByteBuffer.allocateDirect(1024 * 1024);
-        channel = new SpscChannel<Ping>(buffer, 100, Ping.class);
+        buffer = ByteBuffer.allocateDirect(capacity*(8+1) + 2000);
+        channel = new SpscChannel<Ping>(buffer, capacity, Ping.class);
         producer = channel.producer();
         consumer = channel.consumer(receiver);
     }
@@ -68,21 +71,22 @@ public class SpscPingPongThroughputTest {
     @Group("busy")
     @GroupThreads(1)
     public void writeBusy(Control cnt) {
-        Ping element = producer.currentElement();
-        while (producer.claim() && !cnt.stopMeasurement) {
-            element.setValue(writeValue);
-
-            if (!producer.commit()) {
-                break;
-            }
+        ChannelProducer<Ping> lProducer = producer;
+		while (!lProducer.claim()) {
+        	if (cnt.stopMeasurement) {
+        		return;// drop out of spinning if the benchmark iteration is done
+        	}
         }
+    	Ping element = lProducer.currentElement();
+        element.setValue(writeValue);
+        lProducer.commit();
     }
 
     @Benchmark
     @Group("busy")
     @GroupThreads(1)
     public void readBusy(Control cnt) {
-        while (consumer.read() && !cnt.stopMeasurement) {
+        while (!consumer.read() && !cnt.stopMeasurement) {
 
         }
     }
@@ -91,23 +95,23 @@ public class SpscPingPongThroughputTest {
     @Group("backoffOneNano")
     @GroupThreads(1)
     public void write(Control cnt) {
-        Ping element = producer.currentElement();
-        while (producer.claim() && !cnt.stopMeasurement) {
-            element.setValue(writeValue);
-
-            if (!producer.commit()) {
-                break;
-            }
-
-            LockSupport.parkNanos(1L);
+    	ChannelProducer<Ping> lProducer = producer;
+		while (!lProducer.claim()) {
+        	if (cnt.stopMeasurement) {
+        		return;// drop out of spinning if the benchmark iteration is done
+        	}
+        	LockSupport.parkNanos(1L);
         }
+    	Ping element = lProducer.currentElement();
+        element.setValue(writeValue);
+        lProducer.commit();
     }
 
     @Benchmark
     @Group("backoffOneNano")
     @GroupThreads(1)
     public void read(Control cnt) {
-        while (consumer.read() && !cnt.stopMeasurement) {
+        while (!consumer.read() && !cnt.stopMeasurement) {
             LockSupport.parkNanos(1L);
         }
     }
