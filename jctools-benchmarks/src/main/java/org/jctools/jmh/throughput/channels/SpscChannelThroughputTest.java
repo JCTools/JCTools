@@ -61,7 +61,7 @@ public class SpscChannelThroughputTest {
                 blackhole.consume(element.getValue());
             }
         };
-        buffer = ByteBuffer.allocateDirect(capacity*(8+1) + 2000);
+        buffer = ByteBuffer.allocateDirect(capacity*(8+1)*3);
         channel = new SpscChannel<Ping>(buffer, capacity, Ping.class);
         producer = channel.producer();
         consumer = channel.consumer(receiver);
