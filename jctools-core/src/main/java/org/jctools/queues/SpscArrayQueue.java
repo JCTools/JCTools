@@ -91,14 +91,16 @@ abstract class SpscArrayQueueL3Pad<E> extends SpscArrayQueueConsumerField<E> {
 }
 
 /**
- * A Single-Producer-Single-Consumer queue backed by a pre-allocated buffer.</br> This implementation is a mashup of the
- * <a href="http://sourceforge.net/projects/mc-fastflow/">Fast Flow</a> algorithm with an optimization of the offer
- * method taken from the <a href="http://staff.ustc.edu.cn/~bhua/publications/IJPP_draft.pdf">BQueue</a> algorithm (a
- * variation on Fast Flow).<br>
- * For convenience the relevant papers are available in the resources folder:</br>
- * <i>2010 - Pisa - SPSC Queues on Shared Cache Multi-Core Systems.pdf</br>
- * 2012 - Junchang- BQueue- Efﬁcient and Practical Queuing.pdf </br></i>
- * This implementation is wait free.
+ * A Single-Producer-Single-Consumer queue backed by a pre-allocated buffer.
+ * <p>
+ * This implementation is a mashup of the <a href="http://sourceforge.net/projects/mc-fastflow/">Fast Flow</a>
+ * algorithm with an optimization of the offer method taken from the <a
+ * href="http://staff.ustc.edu.cn/~bhua/publications/IJPP_draft.pdf">BQueue</a> algorithm (a variation on Fast
+ * Flow), and adjusted to comply with Queue.offer semantics with regards to capacity.<br>
+ * For convenience the relevant papers are available in the resources folder:<br>
+ * <i>2010 - Pisa - SPSC Queues on Shared Cache Multi-Core Systems.pdf<br>
+ * 2012 - Junchang- BQueue- Efﬁcient and Practical Queuing.pdf <br>
+ * </i> This implementation is wait free.
  * 
  * @author nitsanw
  * 

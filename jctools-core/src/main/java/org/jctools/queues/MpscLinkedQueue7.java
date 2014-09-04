@@ -16,8 +16,8 @@ package org.jctools.queues;
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 
 /**
- * {@inheritDoc}
- * 
+ * @see MpscLinkedQueue
+ *  
  * @author nitsanw
  * 
  * @param <E>

@@ -49,8 +49,8 @@
  * use cases:
  * <ol>
  * <li>The queue counters in the queues are all inlined (i.e. are primitive fields of the queue classes). To allow
- * lazySet/CAS semantics to these fields we could use {@link AtomicLongFieldUpdater} but choose not to.
- * <li>We use Unsafe to gain volatile/lazySet access to array elements. We could use {@link AtomicReferenceArray} but
+ * lazySet/CAS semantics to these fields we could use {@link java.util.concurrent.atomic.AtomicLongFieldUpdater} but choose not to.
+ * <li>We use Unsafe to gain volatile/lazySet access to array elements. We could use {@link java.util.concurrent.atomic.AtomicReferenceArray} but
  * the extra reference chase and redundant boundary checks are considered too high a price to pay at this time.
  * </ol>
  * 
