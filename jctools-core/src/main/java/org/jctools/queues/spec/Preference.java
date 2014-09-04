@@ -13,10 +13,6 @@
  */
 package org.jctools.queues.spec;
 
-/**
- * @author nitsanw
- * 
- */
 public enum Preference {
     LATENCY, THROUGHPUT, NONE
 }
