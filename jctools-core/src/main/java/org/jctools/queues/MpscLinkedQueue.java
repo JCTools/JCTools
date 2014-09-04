@@ -72,16 +72,17 @@ abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E> {
      */
     @Override
     public final E poll() {
-        LinkedQueueNode<E> nextNode = consumerNode.lvNext();
+        LinkedQueueNode<E> currConsumerNode = lpConsumerNode(); // don't load twice, it's alright
+        LinkedQueueNode<E> nextNode = currConsumerNode.lvNext();
         if (nextNode != null) {
             // we have to null out the value because we are going to hang on to the node
             final E nextValue = nextNode.getAndNullValue();
-            consumerNode = nextNode;
+            spConsumerNode(nextNode);
             return nextValue;
         }
-        else if (!isEmpty()) {
+        else if (currConsumerNode != lvProducerNode()) {
             // spin, we are no longer wait free
-            while((nextNode = consumerNode.lvNext()) == null);
+            while((nextNode = currConsumerNode.lvNext()) == null);
             // got the next node...
             
             // we have to null out the value because we are going to hang on to the node
@@ -94,13 +95,14 @@ abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E> {
 
     @Override
     public final E peek() {
-        LinkedQueueNode<E> nextNode = consumerNode.lvNext();
+        LinkedQueueNode<E> currConsumerNode = consumerNode; // don't load twice, it's alright
+        LinkedQueueNode<E> nextNode = currConsumerNode.lvNext();
         if (nextNode != null) {
             return nextNode.lpValue();
         }
-        else if (!isEmpty()) {
+        else if (currConsumerNode == lvProducerNode()) {
             // spin, we are no longer wait free
-            while((nextNode = consumerNode.lvNext()) == null);
+            while((nextNode = currConsumerNode.lvNext()) == null);
             // got the next node...
             return nextNode.lpValue();
         }
