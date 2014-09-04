@@ -210,7 +210,7 @@ public final class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> {
      * {@inheritDoc}
      * <p>
      * IMPLEMENTATION NOTES:<br>
-     * Wait free poll using ordered loads/stores. As class name suggests access is limited to a single thread.
+     * Lock free poll using ordered loads/stores. As class name suggests access is limited to a single thread.
      * 
      * @see java.util.Queue#poll()
      * @see MessagePassingQueue#poll()
@@ -223,22 +223,19 @@ public final class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> {
         final E[] lElementBuffer = buffer;
         
         // If we can't see the next available element we can't poll
-        final E e = lvElement(lElementBuffer, offset); // LoadLoad
+        E e = lvElement(lElementBuffer, offset); // LoadLoad
         if (null == e) {
             /*
              * NOTE: Queue may not actually be empty in the case of a producer (P1) being interrupted after winning the
              * CAS on offer but before storing the element in the queue. Other producers may go on to fill up the queue
-             * after this element. We can detect this state by observing isEmpty(). Consumers which require this
-             * behavior can implement it using isEmpty() + poll().
+             * after this element.
              */
-            // COMMENTED OUT: strict empty check.
-//            if (consumerIndex != lvProducerIndex()) {
-//                while((e = lvElement(lElementBuffer, offset)) == null);
-//            }
-//            else {
-//                return null;
-//            }
-            return null; // can't load, probably empty
+            if (consumerIndex != lvProducerIndex()) {
+                while((e = lvElement(lElementBuffer, offset)) == null);
+            }
+            else {
+                return null;
+            }
         }
         
         spElement(lElementBuffer, offset, null);
@@ -250,34 +247,31 @@ public final class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> {
      * {@inheritDoc}
      * <p>
      * IMPLEMENTATION NOTES:<br>
-     * Wait free peek using ordered loads. As class name suggests access is limited to a single thread. As per poll()
-     * documentation observing null is in all probability indicative of an empty queue, but not necessarily.
+     * Lock free peek using ordered loads. As class name suggests access is limited to a single thread.
      * 
      * @see java.util.Queue#poll()
      * @see MessagePassingQueue#poll()
      */
     @Override
     public E peek() {
-        final long consumerIndex = lvConsumerIndex(); // LoadLoad
-        final long offset = calcElementOffset(consumerIndex);
         // Copy field to avoid re-reading after volatile load
         final E[] lElementBuffer = buffer;
-        final E e = lvElement(lElementBuffer, offset);
+
+        final long consumerIndex = lvConsumerIndex(); // LoadLoad
+        final long offset = calcElementOffset(consumerIndex);
+        E e = lvElement(lElementBuffer, offset);
         if (null == e) {
             /*
              * NOTE: Queue may not actually be empty in the case of a producer (P1) being interrupted after winning the
              * CAS on offer but before storing the element in the queue. Other producers may go on to fill up the queue
-             * after this element. We can detect this state by observing isEmpty(). Consumers which require this
-             * behavior can implement it using isEmpty() + poll().
+             * after this element.
              */
-            // COMMENTED OUT: strict empty check.
-//            if (consumerIndex != lvProducerIndex()) {
-//                while((e = lvElement(lElementBuffer, offset)) == null);
-//            }
-//            else {
-//                return null;
-//            }
-            return null; // can't load, probably empty
+            if (consumerIndex != lvProducerIndex()) {
+                while((e = lvElement(lElementBuffer, offset)) == null);
+            }
+            else {
+                return null;
+            }
         }
         return e;
     }

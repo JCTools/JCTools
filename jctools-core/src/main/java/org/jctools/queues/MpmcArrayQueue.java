@@ -28,8 +28,8 @@ abstract class MpmcArrayQueueProducerField<E> extends MpmcArrayQueueL1Pad<E> {
     private final static long P_INDEX_OFFSET;
     static {
         try {
-            P_INDEX_OFFSET =
-                UNSAFE.objectFieldOffset(MpmcArrayQueueProducerField.class.getDeclaredField("producerIndex"));
+            P_INDEX_OFFSET = UNSAFE.objectFieldOffset(MpmcArrayQueueProducerField.class
+                    .getDeclaredField("producerIndex"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
@@ -62,8 +62,8 @@ abstract class MpmcArrayQueueConsumerField<E> extends MpmcArrayQueueL2Pad<E> {
     private final static long C_INDEX_OFFSET;
     static {
         try {
-            C_INDEX_OFFSET =
-                UNSAFE.objectFieldOffset(MpmcArrayQueueConsumerField.class.getDeclaredField("consumerIndex"));
+            C_INDEX_OFFSET = UNSAFE.objectFieldOffset(MpmcArrayQueueConsumerField.class
+                    .getDeclaredField("consumerIndex"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
@@ -84,26 +84,28 @@ abstract class MpmcArrayQueueConsumerField<E> extends MpmcArrayQueueL2Pad<E> {
 }
 
 /**
- * A Multi-Producer-Multi-Consumer queue based on a {@link ConcurrentCircularArrayQueue}. This implies that any and all
- * threads may call the offer/poll/peek methods and correctness is maintained. <br>
+ * A Multi-Producer-Multi-Consumer queue based on a {@link ConcurrentCircularArrayQueue}. This implies that
+ * any and all threads may call the offer/poll/peek methods and correctness is maintained. <br>
  * This implementation follows patterns documented on the package level for False Sharing protection.<br>
  * The algorithm for offer/poll is an adaptation of the one put forward by D. Vyukov (See <a
- * href="http://www.1024cores.net/home/lock-free-algorithms/queues/bounded-mpmc-queue">here</a>). The original algorithm
- * uses an array of structs which should offer nice locality properties but is sadly not possible in Java (waiting on
- * Value Types or similar). The alternative explored here utilizes 2 arrays, one for each field of the struct. There is
- * a further alternative in the experimental project which uses iteration phase markers to achieve the same algo and is
- * closer structurally to the original, but sadly does not perform as well as this implementation.<br>
+ * href="http://www.1024cores.net/home/lock-free-algorithms/queues/bounded-mpmc-queue">here</a>). The original
+ * algorithm uses an array of structs which should offer nice locality properties but is sadly not possible in
+ * Java (waiting on Value Types or similar). The alternative explored here utilizes 2 arrays, one for each
+ * field of the struct. There is a further alternative in the experimental project which uses iteration phase
+ * markers to achieve the same algo and is closer structurally to the original, but sadly does not perform as
+ * well as this implementation.<br>
  * Tradeoffs to keep in mind:
  * <ol>
- * <li>Padding for false sharing: counter fields and queue fields are all padded as well as either side of both arrays.
- * We are trading memory to avoid false sharing(active and passive).
- * <li>2 arrays instead of one: The algorithm requires an extra array of longs matching the size of the elements array.
- * This is doubling/tripling the memory allocated for the buffer.
+ * <li>Padding for false sharing: counter fields and queue fields are all padded as well as either side of
+ * both arrays. We are trading memory to avoid false sharing(active and passive).
+ * <li>2 arrays instead of one: The algorithm requires an extra array of longs matching the size of the
+ * elements array. This is doubling/tripling the memory allocated for the buffer.
  * <li>Power of 2 capacity: Actual elements buffer (and sequence buffer) is the closest power of 2 larger or
  * equal to the requested capacity.
  * </ol>
  * 
- * @param <E> type of the element stored in the {@link java.util.Queue}
+ * @param <E>
+ *            type of the element stored in the {@link java.util.Queue}
  */
 public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> {
     long p40, p41, p42, p43, p44, p45, p46;
@@ -123,7 +125,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> {
         final long[] lSequenceBuffer = sequenceBuffer;
         long currentProducerIndex;
         long seqOffset;
-
+        long cIndex = Long.MAX_VALUE;// start with bogus value, hope we don't need it
         while (true) {
             currentProducerIndex = lvProducerIndex(); // LoadLoad
             seqOffset = calcSequenceOffset(currentProducerIndex);
@@ -137,8 +139,10 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> {
                     break;
                 }
                 // failed cas, retry 1
-            } else if (delta < 0) {
-                // poll has not moved this value forward
+            } else if (delta < 0 && // poll has not moved this value forward
+                    currentProducerIndex - capacity <= cIndex && // test against cached cIndex
+                    currentProducerIndex - capacity <= (cIndex = lvConsumerIndex())) { // test against latest cIndex
+                // Extra check required to ensure [Queue.offer == false iff queue is full]
                 return false;
             }
 
@@ -158,8 +162,9 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> {
 
     /**
      * {@inheritDoc}
-     * Because return null indicates queue is empty we cannot simply rely on next element visibility for poll and must
-     * test producer index when next element is not visible.
+     * <p>
+     * Because return null indicates queue is empty we cannot simply rely on next element visibility for poll
+     * and must test producer index when next element is not visible.
      */
     @Override
     public E poll() {
@@ -167,7 +172,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> {
         final long[] lSequenceBuffer = sequenceBuffer;
         long currentConsumerIndex;
         long seqOffset;
-
+        long pIndex = -1; // start with bogus value, hope we don't need it
         while (true) {
             currentConsumerIndex = lvConsumerIndex();// LoadLoad
             seqOffset = calcSequenceOffset(currentConsumerIndex);
@@ -180,12 +185,10 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> {
                     break;
                 }
                 // failed cas, retry 1
-            } else if (delta < 0) {
-                // COMMENTED OUT: strict empty check.
-//                if (currentConsumerIndex == lvProducerIndex()) {
-//                    return null;
-//                }
-                // next element is not visible, probably empty
+            } else if (delta < 0 && // slot has not been moved by producer
+                    currentConsumerIndex >= pIndex && // test against cached pIndex
+                    currentConsumerIndex == (pIndex = lvProducerIndex())) { // update pIndex if we must
+                // strict empty check, this ensures [Queue.poll() == null iff isEmpty()]
                 return null;
             }
 
@@ -206,15 +209,24 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> {
 
     @Override
     public E peek() {
-        return lpElement(calcElementOffset(lvConsumerIndex()));
+        long currConsumerIndex;
+        E e;
+        do {
+            currConsumerIndex = lvConsumerIndex();
+            // other consumers may have grabbed the element, or queue might be empty
+            e = lpElement(calcElementOffset(currConsumerIndex));
+            // only return null if queue is empty
+        } while (e == null && currConsumerIndex != lvProducerIndex());
+        return e;
     }
 
     @Override
     public int size() {
         /*
-         * It is possible for a thread to be interrupted or reschedule between the read of the producer and consumer
-         * indices, therefore protection is required to ensure size is within valid range. In the event of concurrent
-         * polls/offers to this method the size is OVER estimated as we read consumer index BEFORE the producer index.
+         * It is possible for a thread to be interrupted or reschedule between the read of the producer and
+         * consumer indices, therefore protection is required to ensure size is within valid range. In the
+         * event of concurrent polls/offers to this method the size is OVER estimated as we read consumer
+         * index BEFORE the producer index.
          */
         long after = lvConsumerIndex();
         while (true) {
@@ -226,12 +238,13 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> {
             }
         }
     }
-    
+
     @Override
     public boolean isEmpty() {
-        // Order matters! 
+        // Order matters!
         // Loading consumer before producer allows for producer increments after consumer index is read.
-        // This ensures this method is conservative in it's estimate. Note that as this is an MPMC there is nothing we
+        // This ensures this method is conservative in it's estimate. Note that as this is an MPMC there is
+        // nothing we
         // can do to make this an exact method.
         return (lvConsumerIndex() == lvProducerIndex());
     }

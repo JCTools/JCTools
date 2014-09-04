@@ -1,25 +1,7 @@
 package org.jctools.queues;
 
-import java.util.AbstractQueue;
 import java.util.Iterator;
 
-abstract class SpscLinkedQueuePad0<E> extends AbstractQueue<E> {
-    long p00, p01, p02, p03, p04, p05, p06, p07;
-    long p30, p31, p32, p33, p34, p35, p36, p37;
-}
-
-abstract class SpscLinkedQueueProducerNodeRef<E> extends SpscLinkedQueuePad0<E> {
-    protected LinkedQueueNode<E> producerNode;
-}
-
-abstract class SpscLinkedQueuePad1<E> extends SpscLinkedQueueProducerNodeRef<E> {
-    long p00, p01, p02, p03, p04, p05, p06, p07;
-    long p30, p31, p32, p33, p34, p35, p36, p37;
-}
-
-abstract class SpscLinkedQueueConsumerNodeRef<E> extends SpscLinkedQueuePad1<E> {
-    protected LinkedQueueNode<E> consumerNode;
-}
 
 /**
  * This is a weakened version of the MPSC algorithm as presented <a
@@ -37,13 +19,11 @@ abstract class SpscLinkedQueueConsumerNodeRef<E> extends SpscLinkedQueuePad1<E> 
  * 
  * @param <E>
  */
-public final class SpscLinkedQueue<E> extends SpscLinkedQueueConsumerNodeRef<E> {
-    long p00, p01, p02, p03, p04, p05, p06, p07;
-    long p30, p31, p32, p33, p34, p35, p36, p37;
+public final class SpscLinkedQueue<E> extends ConcurrentLinkedQueue<E> {
 
     public SpscLinkedQueue() {
-        producerNode = new LinkedQueueNode<E>();
-        consumerNode = producerNode;
+        spProducerNode(new LinkedQueueNode<E>());
+        spConsumerNode(producerNode);
         consumerNode.soNext(null); // this ensures correct construction: StoreStore
     }
 
@@ -107,31 +87,5 @@ public final class SpscLinkedQueue<E> extends SpscLinkedQueueConsumerNodeRef<E> 
         } else {
             return null;
         }
-    }
-
-    /**
-     * This implementation does not support this method.
-     * 
-     * @throws UnsupportedOperationException
-     */
-    @Override
-    public Iterator<E> iterator() {
-        throw new UnsupportedOperationException();
-    }
-
-    /**
-     * {@inheritDoc} <br>
-     * 
-     * IMPLEMENTATION NOTES:<br>
-     * This is an O(n) operation as we run through all the nodes and count them.<br>
-     */
-    @Override
-    public int size() {
-        LinkedQueueNode<E> temp = consumerNode;
-        int size = 0;
-        while ((temp = temp.lvNext()) != null && size < Integer.MAX_VALUE) {
-            size++;
-        }
-        return size;
     }
 }

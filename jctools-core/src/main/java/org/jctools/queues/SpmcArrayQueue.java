@@ -134,16 +134,14 @@ public final class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> {
         final long currProducerIndex = lvProducerIndex();
         final long offset = calcElementOffset(currProducerIndex);
         if (null != lvElement(lb, offset)) {
-            // COMMENTED OUT: strict full check.
-//            int size = (int) (currProducerIndex - lvConsumerIndex());
-//            if(size == capacity) {
-//                return false;
-//            }
-//            else {
-//                // spin wait for slot to clear, buggers wait freedom
-//                while(null != lvElement(lb, offset));
-//            }
-            return false;
+            int size = (int) (currProducerIndex - lvConsumerIndex());
+            if(size == capacity) {
+                return false;
+            }
+            else {
+                // spin wait for slot to clear, buggers wait freedom
+                while(null != lvElement(lb, offset));
+            }
         }
         spElement(lb, offset, e);
         // single producer, so store ordered is valid. It is also required to correctly publish the element
@@ -180,7 +178,21 @@ public final class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> {
 
     @Override
     public E peek() {
-        return lvElement(calcElementOffset(lvConsumerIndex()));
+        long currentConsumerIndex;
+        final long currProducerIndexCache = lvProducerIndexCache();
+        E e;
+        do {
+            currentConsumerIndex = lvConsumerIndex();
+            if (currentConsumerIndex >= currProducerIndexCache) {
+                long currProducerIndex = lvProducerIndex();
+                if (currentConsumerIndex >= currProducerIndex) {
+                    return null;
+                } else {
+                    svProducerIndexCache(currProducerIndex);
+                }
+            }
+        } while (null == (e = lvElement(calcElementOffset(currentConsumerIndex))));
+        return e;
     }
 
     @Override

@@ -17,12 +17,7 @@
  * {@link org.jctools.queues.MessagePassingQueue} interface. In particular:
  * <ol>
  * <li> {@link java.util.Queue#iterator()} is not supported
- * <li> {@link java.util.Queue#poll()} may return null when queue is not empty but no further elements are currently
- * visible to consumer threads.
- * <li> {@link java.util.Queue#offer()} may return false when queue has less than <i>capacity</i> elements in it.
  * </ol>
- * Since {@link java.util.Queue#isEmpty()} and {@link java.util.Queue#size()} are supported it is still possible to
- * query the queue state to arrive at same conclusions if required.
  * <p>
  * <b>Memory layout controls and False Sharing:</b><br>
  * The classes in this package use what is considered at the moment the most reliable method of controlling
