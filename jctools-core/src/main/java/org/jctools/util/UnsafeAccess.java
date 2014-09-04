@@ -14,7 +14,7 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
  * (depending on JVM version) while Unsafe intrinsification is a far lesser challenge for JIT compilers.
  * <li>To construct flavors of {@link AtomicReferenceArray}.
  * <li>Other use cases exist but are not present in this library yet.
- * <ol>
+ * </ol>
  * 
  * @author nitsanw
  * 

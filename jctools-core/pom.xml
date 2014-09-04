@@ -4,7 +4,7 @@
 	<parent>
 		<groupId>org.jctools</groupId>
 		<artifactId>jctools-parent</artifactId>
-		<version>1.0-SNAPSHOT</version>
+		<version>1.0</version>
 	</parent>
 	<artifactId>jctools-core</artifactId>
 	<packaging>jar</packaging>
@@ -17,6 +17,13 @@
             <scope>test</scope>
         </dependency>
 	</dependencies>
+	<distributionManagement>
+	<repository>
+		<id>bintray-jctools-jctools-jctools-core</id>
+		<name>jctools-jctools-jctools-core</name>
+		<url>https://api.bintray.com/maven/jctools/jctools/jctools-core</url>
+	 	</repository>
+	</distributionManagement>
 </project>
 
 
