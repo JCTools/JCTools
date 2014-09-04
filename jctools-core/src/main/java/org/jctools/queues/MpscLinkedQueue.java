@@ -100,7 +100,7 @@ abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E> {
         if (nextNode != null) {
             return nextNode.lpValue();
         }
-        else if (currConsumerNode == lvProducerNode()) {
+        else if (currConsumerNode != lvProducerNode()) {
             // spin, we are no longer wait free
             while((nextNode = currConsumerNode.lvNext()) == null);
             // got the next node...

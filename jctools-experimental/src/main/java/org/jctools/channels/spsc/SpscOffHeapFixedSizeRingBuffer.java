@@ -32,6 +32,7 @@ public class SpscOffHeapFixedSizeRingBuffer {
     private static final Integer MAX_LOOK_AHEAD_STEP = Integer.getInteger("jctools.spsc.max.lookahead.step", 4096);
     private static final byte NULL_MESSAGE_INDICATOR = 0;
     private static final byte WRITTEN_MESSAGE_INDICATOR = 1;
+    private static final byte MESSAGE_INDICATOR_SIZE = 1;
     private static final int HEADER_SIZE = 4 * CACHE_LINE_SIZE;
 
     public static final long EOF = 0;
@@ -48,7 +49,7 @@ public class SpscOffHeapFixedSizeRingBuffer {
     private final int messageSize;
 
     public static int getRequiredBufferSize(final int capacity, final int messageSize) {
-        return HEADER_SIZE + (Pow2.roundToPowerOfTwo(capacity) * (messageSize + 1));
+        return HEADER_SIZE + (Pow2.roundToPowerOfTwo(capacity) * (messageSize + MESSAGE_INDICATOR_SIZE));
     }
 
 
@@ -79,7 +80,7 @@ public class SpscOffHeapFixedSizeRingBuffer {
             final int messageSize) {
 
         this.capacity = Pow2.roundToPowerOfTwo(capacity);
-        this.messageSize = messageSize + 1;
+        this.messageSize = messageSize + MESSAGE_INDICATOR_SIZE;
         this.buffy = alignedSlice(4 * CACHE_LINE_SIZE + (this.capacity * (this.messageSize)), CACHE_LINE_SIZE, buff);
 
         long alignedAddress = UnsafeDirectByteBuffer.getAddress(buffy);
@@ -102,7 +103,7 @@ public class SpscOffHeapFixedSizeRingBuffer {
             // mark all messages as null
             for (int i = 0; i < this.capacity; i++) {
                 final long offset = offsetForIndex(i);
-                UNSAFE.putByte(offset, NULL_MESSAGE_INDICATOR);
+                nullIdicator(offset);
             }
         }
         // consumer owns head and tailCache
@@ -110,6 +111,11 @@ public class SpscOffHeapFixedSizeRingBuffer {
             soConsumerIndex(0);
         }
     }
+
+
+	private void nullIdicator(final long offset) {
+		UNSAFE.putByte(offset, NULL_MESSAGE_INDICATOR);
+	}
 
     /**
      * NOTE: for this implementation the allocated capacity may not be used to it's fullest as the producer may stop
@@ -137,9 +143,14 @@ public class SpscOffHeapFixedSizeRingBuffer {
         // ideally we would have used the byte write as a barrier, but there's no ordered write for byte
         // we could consider using an integer indicator instead of a byte which would also improve likelihood
         // of aligned writes.
-        UNSAFE.putByte(offset, WRITTEN_MESSAGE_INDICATOR);
+        writeIndicator(offset);
         soProducerIndex(currentProducerIndex + 1); // StoreStore
     }
+
+
+	private void writeIndicator(long offset) {
+		UNSAFE.putByte(offset, WRITTEN_MESSAGE_INDICATOR);
+	}
 
     protected final long readAcquire() {
         final long currentHead = lpConsumerIndex();
@@ -152,7 +163,7 @@ public class SpscOffHeapFixedSizeRingBuffer {
 
     protected final void readRelease(long offset) {
         final long currentHead = lpConsumerIndex();
-        UNSAFE.putByte(offset, NULL_MESSAGE_INDICATOR);
+        nullIdicator(offset);
         soConsumerIndex(currentHead + 1); // StoreStore
     }
 
