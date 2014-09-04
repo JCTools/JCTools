@@ -6,4 +6,5 @@ than collection like semantics. In particutlar the queues do not support:
 - The iterator() method
 - remove()
 - contains()
-Enjoy
+
+Enjoy!
