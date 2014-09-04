@@ -19,7 +19,7 @@ import java.util.Iterator;
  * 
  * @param <E>
  */
-public final class SpscLinkedQueue<E> extends ConcurrentLinkedQueue<E> {
+public final class SpscLinkedQueue<E> extends BaseLinkedQueue<E> {
 
     public SpscLinkedQueue() {
         spProducerNode(new LinkedQueueNode<E>());

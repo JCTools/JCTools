@@ -5,17 +5,17 @@ import static org.jctools.util.UnsafeAccess.UNSAFE;
 import java.util.AbstractQueue;
 import java.util.Iterator;
 
-abstract class ConcurrentLinkedQueuePad0<E> extends AbstractQueue<E> {
+abstract class BaseLinkedQueuePad0<E> extends AbstractQueue<E> {
     long p00, p01, p02, p03, p04, p05, p06, p07;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 }
 
-abstract class ConcurrentLinkedQueueProducerNodeRef<E> extends ConcurrentLinkedQueuePad0<E> {
+abstract class BaseLinkedQueueProducerNodeRef<E> extends BaseLinkedQueuePad0<E> {
     protected final static long P_NODE_OFFSET;
 
     static {
         try {
-            P_NODE_OFFSET = UNSAFE.objectFieldOffset(ConcurrentLinkedQueueProducerNodeRef.class.getDeclaredField("producerNode"));
+            P_NODE_OFFSET = UNSAFE.objectFieldOffset(BaseLinkedQueueProducerNodeRef.class.getDeclaredField("producerNode"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
@@ -35,17 +35,17 @@ abstract class ConcurrentLinkedQueueProducerNodeRef<E> extends ConcurrentLinkedQ
     }
 }
 
-abstract class ConcurrentLinkedQueuePad1<E> extends ConcurrentLinkedQueueProducerNodeRef<E> {
+abstract class BaseLinkedQueuePad1<E> extends BaseLinkedQueueProducerNodeRef<E> {
     long p00, p01, p02, p03, p04, p05, p06, p07;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 }
 
-abstract class ConcurrentLinkedQueueConsumerNodeRef<E> extends ConcurrentLinkedQueuePad1<E> {
+abstract class BaseLinkedQueueConsumerNodeRef<E> extends BaseLinkedQueuePad1<E> {
     protected final static long C_NODE_OFFSET;
 
     static {
         try {
-            C_NODE_OFFSET = UNSAFE.objectFieldOffset(ConcurrentLinkedQueueConsumerNodeRef.class.getDeclaredField("consumerNode"));
+            C_NODE_OFFSET = UNSAFE.objectFieldOffset(BaseLinkedQueueConsumerNodeRef.class.getDeclaredField("consumerNode"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
@@ -72,7 +72,7 @@ abstract class ConcurrentLinkedQueueConsumerNodeRef<E> extends ConcurrentLinkedQ
  * 
  * @param <E>
  */
-abstract class ConcurrentLinkedQueue<E> extends ConcurrentLinkedQueueConsumerNodeRef<E> {
+abstract class BaseLinkedQueue<E> extends BaseLinkedQueueConsumerNodeRef<E> {
     long p00, p01, p02, p03, p04, p05, p06, p07;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 

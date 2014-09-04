@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
  * 
  * @param <E>
  */
-abstract class MpscLinkedQueue<E> extends ConcurrentLinkedQueue<E> {
+abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E> {
     protected MpscLinkedQueue() {
         consumerNode = new LinkedQueueNode<E>();
         xchgProducerNode(consumerNode);// this ensures correct construction: StoreLoad
