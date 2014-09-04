@@ -1,6 +1,5 @@
 package org.jctools.queues;
 
-import java.util.Iterator;
 
 
 /**
