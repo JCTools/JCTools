@@ -20,7 +20,6 @@ public class QueueFactory {
         if (qs.isBounded()) {
             // SPSC
             if (qs.isSpsc()) {
-
                 return new SpscArrayQueue<E>(qs.capacity);
             }
             // MPSC
