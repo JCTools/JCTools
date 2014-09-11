@@ -2,38 +2,44 @@ package org.jctools.queues;
 
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.sameInstance;
+import static org.jctools.queues.matchers.Matchers.emptyAndZeroSize;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 public class SpscArrayQueueTest {
     @Test
     public void shouldWorkAfterWrap(){
-        SpscArrayQueue<Object> q = new SpscArrayQueue<Object>(1024);
+        // Arrange
+        final SpscArrayQueue<Object> q = new SpscArrayQueue<Object>(1024);
         // starting point for empty queue at max long, next offer will wrap the producerIndex
         q.consumerIndex = Long.MAX_VALUE;
         q.producerIndex = Long.MAX_VALUE;
         q.producerLookAhead = Long.MAX_VALUE;
         // valid starting point
-        assertEquals(0, q.size());
-        assertTrue(q.isEmpty());
+        assertThat(q, emptyAndZeroSize());
+
+        // Act
         // assert offer is successful
-        Object e = new Object();
+        final Object e = new Object();
         assertTrue(q.offer(e));
         // size is computed correctly after wrap
-        assertEquals(1, q.size());
-        assertTrue(!q.isEmpty());
+        assertThat(q, not(emptyAndZeroSize()));
+        assertThat(q, hasSize(1));
         
         // now consumer index wraps
-        assertEquals(e, q.poll());
-        assertEquals(0, q.size());
-        assertTrue(q.isEmpty());
+        final Object poll = q.poll();
+        assertThat(poll, sameInstance(e));
+        assertThat(q, emptyAndZeroSize());
         
         // let's go again
         assertTrue(q.offer(e));
-        assertEquals(1, q.size());
-        assertTrue(!q.isEmpty());
-        assertEquals(e, q.poll());
-        assertEquals(0, q.size());
-        assertTrue(q.isEmpty());
+        assertThat(q, not(emptyAndZeroSize()));
+
+        final Object poll2 = q.poll();
+        assertThat(poll2, sameInstance(e));
+        assertThat(q, emptyAndZeroSize());
     }
 }
