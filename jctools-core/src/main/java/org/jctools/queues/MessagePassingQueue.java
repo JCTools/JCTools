@@ -47,7 +47,7 @@ interface MessagePassingQueue<M> {
 
     /**
      * Called from the consumer thread subject to the restrictions appropriate to the implementation and according to
-     * the {@link Queue#peek()} interface (barring the hard requirement on null returns).
+     * the {@link Queue#peek()} interface.
      * 
      * @return a message from the queue if one is available, null iff empty
      */
