@@ -105,4 +105,11 @@ public class TemplateTest {
         assertEquals("Hello 1,2,3, 3 1.2.3. World ", template.render(foo));
     }
 
+    @Test
+    public void supportsFilteringTheNotLastListValue() {
+        Template template = new Template(
+            "Hello {{#getValues}}{{toString}}{{#notLast}},{{/notLast}}{{/getValues}} ");
+        assertEquals("Hello 1,2,3 ", template.render(foo));
+    }
+
 }

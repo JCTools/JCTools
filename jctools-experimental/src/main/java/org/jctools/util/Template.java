@@ -13,7 +13,15 @@
  */
 package org.jctools.util;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.lang.reflect.InvocationTargetException;
+import java.util.Collection;
+import java.util.List;
+
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
 
 /**
  * A single class templating library for doing runtime code-gen.
@@ -26,7 +34,26 @@ public class Template {
     private int index;
     private int previousIndex;
 
-    public Template(String template) {
+    public static Template fromFile(final Class<?> resourceRoot, final String fileName) {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(resourceRoot.getResourceAsStream(fileName)));
+        try {
+            try {
+                StringBuffer buffer = new StringBuffer();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    buffer.append(line);
+                    buffer.append('\n');
+                }
+                return new Template(buffer.toString());
+            } finally {
+                reader.close();
+            }
+        } catch (IOException e) {
+            throw new IllegalArgumentException(e);
+        }
+    }
+
+    public Template(final String template) {
         this.template = template;
     }
 
@@ -37,6 +64,10 @@ public class Template {
     }
 
     private void render(Object obj, StringBuilder result) {
+        render(obj, result, false);
+    }
+
+    private void render(Object obj, StringBuilder result, boolean last) {
         index = 0;
         while(scanNextTag()) {
             copyPrefixTo(result);
@@ -45,12 +76,14 @@ public class Template {
                 index++;
                 String tagName = readTagName();
                 Template body = extractLoopBody(tagName);
-                for (Object child : (Iterable<?>) readTagValue(tagName, obj)) {
-                    body.render(child, result);
+                List<?> values = (List<?>) readTagValue(tagName, obj, last);
+                final int lastIndex = values.size() - 1;
+                for (int i = 0; i < values.size(); i++) {
+                    body.render(values.get(i), result, i == lastIndex);
                 }
             } else {
                 String tagName = readTagName();
-                result.append(readTagValue(tagName, obj));
+                result.append(readTagValue(tagName, obj, false));
             }
         }
         copySuffixTo(result);
@@ -78,15 +111,35 @@ public class Template {
         result.append(template, previousIndex, index);
     }
 
-    private Object readTagValue(String tagName, Object o) {
-        Class<?> cls = o.getClass();
+    private Object readTagValue(String tagName, Object obj, boolean last) {
+        Object value = readBuiltinTag(tagName, obj, last);
+        if (value != null)
+            return value;
+
+        return readField(tagName, obj);
+    }
+
+    private Object readBuiltinTag(String tagName, Object obj, boolean last) {
+        if ("notLast".equals(tagName)) {
+            if (last) {
+                return emptyList();
+            } else {
+                return singletonList(obj);
+            }
+        }
+
+        return null;
+    }
+
+    private Object readField(String tagName, Object obj) {
+        Class<?> cls = obj.getClass();
         try {
             return cls.getField(tagName)
-                      .get(o);
+                      .get(obj);
         } catch (NoSuchFieldException ignored) {
             try {
                 return cls.getMethod(tagName)
-                          .invoke(o);
+                          .invoke(obj);
             } catch (NoSuchMethodException e) {
                 throw new IllegalArgumentException(e);
             } catch (InvocationTargetException e) {
