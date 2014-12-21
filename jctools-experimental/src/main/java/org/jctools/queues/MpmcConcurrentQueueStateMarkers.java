@@ -13,18 +13,15 @@
  */
 package org.jctools.queues;
 
-import org.jctools.queues.alt.ConcurrentQueue;
-import org.jctools.queues.alt.ConcurrentQueueConsumer;
-import org.jctools.queues.alt.ConcurrentQueueProducer;
-import org.jctools.util.Pow2;
-import org.jctools.util.UnsafeAccess;
+import static org.jctools.util.UnsafeAccess.UNSAFE;
 
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Queue;
 
-import static org.jctools.util.UnsafeAccess.UNSAFE;
+import org.jctools.util.Pow2;
+import org.jctools.util.UnsafeAccess;
 
 abstract class MpmcConcurrentQueueSMBufferL0Pad {
     public long p00, p01, p02, p03, p04, p05, p06, p07;
@@ -163,7 +160,7 @@ abstract class MpmcConcurrentQueueSMHeadField<E> extends MpmcConcurrentQueueSML2
 }
 
 public final class MpmcConcurrentQueueStateMarkers<E> extends MpmcConcurrentQueueSMHeadField<E> implements
-        Queue<E>, ConcurrentQueue<E>, ConcurrentQueueProducer<E>, ConcurrentQueueConsumer<E> {
+        Queue<E> {
     private static final Object P_OFFER = new Object();
     private static final Object N_OFFER = null;
     private static final Object P_POLL = new Object();
@@ -353,20 +350,5 @@ public final class MpmcConcurrentQueueStateMarkers<E> extends MpmcConcurrentQueu
         do {
             value = poll();
         } while (null != value);
-    }
-
-    @Override
-    public ConcurrentQueueConsumer<E> consumer() {
-        return this;
-    }
-
-    @Override
-    public ConcurrentQueueProducer<E> producer() {
-        return this;
-    }
-
-    @Override
-    public int capacity() {
-        return capacity;
     }
 }
