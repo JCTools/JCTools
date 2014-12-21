@@ -21,23 +21,25 @@ import java.util.List;
 import static java.util.Collections.unmodifiableList;
 
 
-public class CompilationResult implements DiagnosticListener<StringWrappingJavaFile> {
+public final class CompilationResult {
 
-    private final List<Diagnostic<? extends StringWrappingJavaFile>> diagnostics;
+    private final List<Diagnostic<StringWrappingJavaFile>> diagnostics;
+    private final ClassLoader classLoader;
+    private final boolean successful;
 
-    private ClassLoader classLoader;
-    private boolean successful;
-
-    public CompilationResult() {
-        diagnostics = new ArrayList<Diagnostic<? extends StringWrappingJavaFile>>();
+    public CompilationResult(final ClassLoader classLoader, List<Diagnostic<StringWrappingJavaFile>> diagnostics) {
+        this.diagnostics = diagnostics;
+        successful = true;
+        this.classLoader = classLoader;
     }
 
-    @Override
-    public void report(Diagnostic<? extends StringWrappingJavaFile> diagnostic) {
-        diagnostics.add(diagnostic);
+    public CompilationResult(List<Diagnostic<StringWrappingJavaFile>> diagnostics) {
+        this.diagnostics = diagnostics;
+        successful = false;
+        classLoader = null;
     }
 
-    public List<Diagnostic<? extends StringWrappingJavaFile>> getDiagnostics() {
+    public List<Diagnostic<StringWrappingJavaFile>> getDiagnostics() {
         return unmodifiableList(diagnostics);
     }
 
@@ -45,15 +47,12 @@ public class CompilationResult implements DiagnosticListener<StringWrappingJavaF
         return successful;
     }
 
-    void setSuccessful(boolean successful) {
-        this.successful = successful;
-    }
-
     public ClassLoader getClassLoader() {
         return classLoader;
     }
 
-    public void setClassLoader(ClassLoader classLoader) {
-        this.classLoader = classLoader;
+    @Override
+    public String toString() {
+        return successful ? "Compilation was successful" : "Errors:\n" + diagnostics.toString();
     }
 }

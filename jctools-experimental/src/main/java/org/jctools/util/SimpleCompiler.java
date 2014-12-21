@@ -13,14 +13,12 @@
  */
 package org.jctools.util;
 
-import javax.tools.DiagnosticListener;
-import javax.tools.JavaCompiler;
-import javax.tools.JavaFileObject;
-import javax.tools.ToolProvider;
+import javax.tools.*;
 import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.ArrayList;
 import java.util.List;
 
 import static java.io.File.separator;
@@ -34,6 +32,7 @@ public class SimpleCompiler {
 
     private static final String compilationDirectory;
     private static final URL[] compilationDirectoryUrls;
+    private static final List<String> options;
 
     static {
         // TODO: consider a commandline property to configure this
@@ -50,6 +49,8 @@ public class SimpleCompiler {
         } catch (MalformedURLException e) {
             throw new Error(e);
         }
+
+        options = asList("-d", compilationDirectory);
     }
 
     private final JavaCompiler compiler;
@@ -58,28 +59,33 @@ public class SimpleCompiler {
         compiler = ToolProvider.getSystemJavaCompiler();
     }
 
-    public CompilationResult compile(
-            final String name, final String src) {
+    public CompilationResult compile(final String name, final String src) {
         return compile(asList(new StringWrappingJavaFile(name, src)));
     }
 
-    public CompilationResult compile(
-            final List<StringWrappingJavaFile> javaFiles) {
+    public CompilationResult compile(final List<StringWrappingJavaFile> javaFiles) {
 
-        CompilationResult result = new CompilationResult();
+        DiagnosticsHolder holder = new DiagnosticsHolder();
+        CompilationTask task = compiler.getTask(null, null, holder, options, null, javaFiles);
+
+        if (task.call()) {
+            return new CompilationResult(new URLClassLoader(compilationDirectoryUrls), holder.diagnostics);
+        } else {
+            return new CompilationResult(holder.diagnostics);
+        }
+    }
+
+    private class DiagnosticsHolder implements DiagnosticListener<JavaFileObject> {
+
+        private final List<Diagnostic<StringWrappingJavaFile>> diagnostics
+                = new ArrayList<Diagnostic<StringWrappingJavaFile>>();
 
         @SuppressWarnings("unchecked")
-        DiagnosticListener<JavaFileObject> listener = (DiagnosticListener) result;
-
-        final CompilationTask task = compiler.getTask(null, null,
-                listener, asList("-d", compilationDirectory), null, javaFiles);
-        result.setSuccessful(task.call());
-
-        if (result.isSuccessful()) {
-            result.setClassLoader(new URLClassLoader(compilationDirectoryUrls));
+        @Override
+        public void report(Diagnostic<? extends JavaFileObject> diagnostic) {
+            diagnostics.add((Diagnostic<StringWrappingJavaFile>) diagnostic);
         }
 
-        return result;
     }
 
 }
