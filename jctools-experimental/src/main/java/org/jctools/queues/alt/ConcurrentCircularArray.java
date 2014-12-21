@@ -28,21 +28,19 @@ public abstract class ConcurrentCircularArray<E> extends ConcurrentCircularArray
         REF_ARRAY_BASE = UnsafeAccess.UNSAFE.arrayBaseOffset(Object[].class)
                 + (BUFFER_PAD << (REF_ELEMENT_SHIFT - SPARSE_SHIFT));
     }
-    protected final int capacity;
     protected final long mask;
     // @Stable :(
     protected final E[] buffer;
 
     @SuppressWarnings("unchecked")
     public ConcurrentCircularArray(int capacity) {
-        this.capacity = Pow2.roundToPowerOfTwo(capacity);
-        mask = this.capacity - 1;
+        int actualCapacity = Pow2.roundToPowerOfTwo(capacity);
+        mask = actualCapacity - 1;
         // pad data on either end with some empty slots.
-        buffer = (E[]) new Object[(this.capacity << SPARSE_SHIFT) + BUFFER_PAD * 2];
+        buffer = (E[]) new Object[(actualCapacity << SPARSE_SHIFT) + BUFFER_PAD * 2];
     }
 
     public ConcurrentCircularArray(ConcurrentCircularArray<E> c) {
-        this.capacity = c.capacity;
         this.mask = c.mask;
         // pad data on either end with some empty slots.
         this.buffer = c.buffer;
