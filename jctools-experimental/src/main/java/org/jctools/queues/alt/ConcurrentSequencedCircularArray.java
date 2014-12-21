@@ -22,8 +22,9 @@ public abstract class ConcurrentSequencedCircularArray<E> extends ConcurrentCirc
     public ConcurrentSequencedCircularArray(int capacity) {
         super(capacity);
         // pad data on either end with some empty slots.
-        sequenceBuffer = new long[(this.capacity << SPARSE_SHIFT) + BUFFER_PAD * 2];
-        for (long i = 0; i < this.capacity; i++) {
+        int actualCapacity = (int)this.mask + 1;
+        sequenceBuffer = new long[(actualCapacity << SPARSE_SHIFT) + BUFFER_PAD * 2];
+        for (long i = 0; i < actualCapacity; i++) {
             soSequenceElement(calcSequenceOffset(i), i);
         }
     }
