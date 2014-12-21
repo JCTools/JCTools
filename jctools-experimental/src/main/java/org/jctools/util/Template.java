@@ -77,7 +77,7 @@ public class Template {
                 String tagName = readTagName();
                 Template body = extractLoopBody(tagName);
                 List<?> values = (List<?>) readTagValue(tagName, obj, last);
-                final int lastIndex = values.size() - 1;
+                int lastIndex = values.size() - 1;
                 for (int i = 0; i < values.size(); i++) {
                     body.render(values.get(i), result, i == lastIndex);
                 }

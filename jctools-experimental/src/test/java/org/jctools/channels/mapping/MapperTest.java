@@ -19,7 +19,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.objectweb.asm.ClassVisitor;
 
-import static org.jctools.channels.mapping.BytecodeGenerator.Customisation;
+import static org.jctools.channels.mapping.OldBytecodeGenerator.Customisation;
 import static org.junit.Assert.*;
 
 public class MapperTest {
@@ -28,12 +28,6 @@ public class MapperTest {
 
     private long startAddress;
     private Mapper<Example> mapper;
-    private Customisation noCustomisation = new Customisation() {
-        @Override
-        public void customise(ClassVisitor writer) {
-
-        }
-    };
 
     @Before
     public void malloc() {
@@ -85,7 +79,7 @@ public class MapperTest {
     }
 
     private StubFlyweight newFlyweight() {
-        return mapper.newFlyweight(StubFlyweight.class, noCustomisation, startAddress);
+        return mapper.newFlyweight(StubFlyweight.class, "StubTemplate.java", startAddress);
     }
 
     // ---------------------------------------------------

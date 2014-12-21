@@ -25,18 +25,14 @@ public final class CompilationResult {
 
     private final List<Diagnostic<StringWrappingJavaFile>> diagnostics;
     private final ClassLoader classLoader;
-    private final boolean successful;
 
     public CompilationResult(final ClassLoader classLoader, List<Diagnostic<StringWrappingJavaFile>> diagnostics) {
         this.diagnostics = diagnostics;
-        successful = true;
         this.classLoader = classLoader;
     }
 
     public CompilationResult(List<Diagnostic<StringWrappingJavaFile>> diagnostics) {
-        this.diagnostics = diagnostics;
-        successful = false;
-        classLoader = null;
+        this(null, diagnostics);
     }
 
     public List<Diagnostic<StringWrappingJavaFile>> getDiagnostics() {
@@ -44,7 +40,7 @@ public final class CompilationResult {
     }
 
     public boolean isSuccessful() {
-        return successful;
+        return classLoader != null;
     }
 
     public ClassLoader getClassLoader() {
@@ -53,6 +49,6 @@ public final class CompilationResult {
 
     @Override
     public String toString() {
-        return successful ? "Compilation was successful" : "Errors:\n" + diagnostics.toString();
+        return isSuccessful() ? "Compilation was successful" : "Errors:\n" + diagnostics.toString();
     }
 }

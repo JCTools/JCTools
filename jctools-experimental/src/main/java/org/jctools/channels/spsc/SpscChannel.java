@@ -17,8 +17,8 @@ import org.jctools.channels.Channel;
 import org.jctools.channels.ChannelConsumer;
 import org.jctools.channels.ChannelProducer;
 import org.jctools.channels.ChannelReceiver;
-import org.jctools.channels.mapping.BytecodeGenerator;
-import org.jctools.channels.mapping.Mapper;
+import org.jctools.channels.mapping.OldBytecodeGenerator;
+import org.jctools.channels.mapping.OldMapper;
 import org.jctools.util.Pow2;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.Label;
@@ -35,7 +35,7 @@ import static org.objectweb.asm.Type.*;
 public final class SpscChannel<E> implements Channel<E> {
 
     private final int elementSize;
-    private final Mapper<E> mapper;
+    private final OldMapper<E> mapper;
     private final ByteBuffer buffer;
     private final int maximumCapacity;
     private final int requestedCapacity;
@@ -53,7 +53,7 @@ public final class SpscChannel<E> implements Channel<E> {
         this.requestedCapacity = requestedCapacity;
         this.maximumCapacity = getMaximumCapacity(requestedCapacity);
         this.buffer = buffer;
-        mapper = new Mapper<E>(type, false);
+        mapper = new OldMapper<E>(type, false);
         elementSize = mapper.getSizeInBytes();
 
         checkSufficientCapacity();
@@ -104,9 +104,8 @@ public final class SpscChannel<E> implements Channel<E> {
 		return size() == 0;
 	}
 
-
     private SpscChannelProducer<E> newProducer(final Class<E> type, final Object... args) {
-        BytecodeGenerator.Customisation customisation = new BytecodeGenerator.Customisation() {
+        OldBytecodeGenerator.Customisation customisation = new OldBytecodeGenerator.Customisation() {
             @Override
             public void customise(ClassVisitor writer) {
                 declareGetWriter(writer, getType(type));
@@ -133,7 +132,7 @@ public final class SpscChannel<E> implements Channel<E> {
     }
 
     private SpscChannelConsumer<E> newConsumer(Object... args) {
-        BytecodeGenerator.Customisation customisation = new BytecodeGenerator.Customisation() {
+        OldBytecodeGenerator.Customisation customisation = new OldBytecodeGenerator.Customisation() {
             @Override
             public void customise(ClassVisitor writer) {
                 final String channelConsumer = getInternalName(SpscChannelConsumer.class);

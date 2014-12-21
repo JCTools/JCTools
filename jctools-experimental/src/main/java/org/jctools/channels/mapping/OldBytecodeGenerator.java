@@ -30,7 +30,7 @@ import static org.objectweb.asm.Type.LONG_TYPE;
  * @param <I> the implementation type
  */
 @SuppressWarnings("restriction")
-public class BytecodeGenerator<S, I> implements Opcodes {
+public class OldBytecodeGenerator<S, I> implements Opcodes {
 
     public static interface Customisation {
         public void customise(ClassVisitor writer);
@@ -52,7 +52,7 @@ public class BytecodeGenerator<S, I> implements Opcodes {
     private final boolean classFileDebugEnabled;
     private final Customisation customisation;
 
-    public BytecodeGenerator(
+    public OldBytecodeGenerator(
             final TypeInspector inspector,
             final Class<I> implementationClass,
             final Class<?>[] constructorParameterTypes,
@@ -97,7 +97,8 @@ public class BytecodeGenerator<S, I> implements Opcodes {
 
     private Class<I> finish(ClassWriter out) {
         out.visitEnd();
-        return (Class<I>) new GeneratedClassLoader(classFileDebugEnabled).defineClass(implementationName, out);
+        return (Class<I>) null;
+        //new GeneratedClassLoader(classFileDebugEnabled).defineClass(implementationName, out);
     }
 
     private void declareClass(ClassVisitor writer) {

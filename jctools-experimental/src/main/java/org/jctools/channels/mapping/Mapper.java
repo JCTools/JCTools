@@ -13,29 +13,29 @@
  */
 package org.jctools.channels.mapping;
 
-import org.jctools.channels.ChannelReceiver;
+import org.jctools.util.CompilationResult;
+import org.jctools.util.SimpleCompiler;
+import org.jctools.util.StringWrappingJavaFile;
+import org.jctools.util.Template;
 
+import javax.tools.Diagnostic;
 import java.lang.reflect.Constructor;
-import java.nio.ByteBuffer;
+import java.util.List;
 
-import static org.jctools.channels.mapping.BytecodeGenerator.Customisation;
-import static org.jctools.channels.mapping.Primitive.replaceWithPrimitive;
+import static org.jctools.channels.mapping.Primitive.simplifyType;
 
-/**
- * Entry class into type mapping code. Does flyweight generation.
- *
- * @param <S> the struct element type
- */
-public final class Mapper<S> {
+public class Mapper<S> {
 
-	private final TypeInspector inspector;
+    private final boolean debugEnabled;
+    private final TypeInspector inspector;
     private final Class<S> structInterface;
-    private final boolean classFileDebugEnabled;
+    private final SimpleCompiler compiler;
 
-    public Mapper(Class<S> structInterface, boolean classFileDebugEnabled) {
+    public Mapper(Class<S> structInterface, boolean debugEnabled) {
+        this.debugEnabled = debugEnabled;
         this.structInterface = structInterface;
-        this.classFileDebugEnabled = classFileDebugEnabled;
         inspector = new TypeInspector(structInterface);
+        compiler = new SimpleCompiler();
     }
 
     /**
@@ -45,15 +45,16 @@ public final class Mapper<S> {
         return inspector.getSizeInBytes();
     }
 
-    public <I> I newFlyweight(Class<I> type, Customisation customisation, Object ... args) {
+    public <I> I newFlyweight(Class<I> implementationParent, String templateFile, Object ... args) {
         try {
             Class<?>[] constructorParameterTypes = getTypes(args);
-            Class<I> implementation = new BytecodeGenerator<S,I>(inspector, type, constructorParameterTypes,
-                                                                 structInterface, classFileDebugEnabled,
-                                                                 customisation).generate();
-
-            Constructor<I> constructor = implementation.getConstructor(constructorParameterTypes);
-            return constructor.newInstance(args);
+            Template template = Template.fromFile(implementationParent, templateFile);
+            ClassViewModel model = new ClassViewModel(implementationParent, constructorParameterTypes, structInterface, inspector);
+            String source = template.render(model);
+            debugLogSource(source);
+            CompilationResult result = compiler.compile(model.className(), source);
+            checkCompileFailures(templateFile, result);
+            return instantiateImplementation(constructorParameterTypes, model.className(), result, args);
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
@@ -61,25 +62,53 @@ public final class Mapper<S> {
         }
     }
 
+    private void debugLogSource(String source) {
+        if (debugEnabled) {
+            System.err.println("---------------------------------------");
+            System.err.println("Source: ");
+            System.err.println(source);
+            System.err.println("---------------------------------------");
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private <I> I instantiateImplementation(
+            Class<?>[] constructorParameterTypes, String name, CompilationResult result, Object[] args)
+            throws Exception {
+
+        Class<I> implementation = (Class<I>) result.getClassLoader().loadClass(name);
+        Constructor<I> constructor = implementation.getConstructor(constructorParameterTypes);
+        return constructor.newInstance(args);
+    }
+
+    private void checkCompileFailures(String templateFile, CompilationResult result) {
+        List<Diagnostic<StringWrappingJavaFile>> diagnostics = result.getDiagnostics();
+
+        if (debugEnabled) {
+            if (diagnostics.isEmpty()) {
+                System.err.println("No compile errors for: " + templateFile);
+            } else {
+                System.err.println("---------------------------------------");
+                System.err.println("Compile errors for: " + templateFile);
+                for (Diagnostic<StringWrappingJavaFile> diagnostic : diagnostics) {
+                    System.err.println(diagnostic);
+                    System.err.println();
+                }
+                System.err.println("---------------------------------------");
+            }
+        }
+
+        if (!result.isSuccessful()) {
+            throw new IllegalArgumentException("Unable to compile " + templateFile);
+        }
+    }
+
     private Class<?>[] getTypes(Object... args) {
         Class<?>[] types = new Class<?>[args.length];
         for (int i = 0; i < args.length; i++) {
-            Class<?> type = args[i].getClass();
-            type = replaceWithPrimitive(type);
-            type = usePublicApiClass(type);
-            types[i] = type;
+            types[i] = simplifyType(args[i].getClass());
         }
         return types;
-    }
-
-    private Class<?> usePublicApiClass(Class<?> type) {
-        if ("DirectByteBuffer".equals(type.getSimpleName()))
-            return ByteBuffer.class;
-
-        if (ChannelReceiver.class.isAssignableFrom(type))
-            return ChannelReceiver.class;
-
-        return type;
     }
 
 }

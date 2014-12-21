@@ -103,7 +103,7 @@ public class SpscOffHeapFixedSizeRingBuffer {
             // mark all messages as null
             for (int i = 0; i < this.capacity; i++) {
                 final long offset = offsetForIndex(i);
-                nullIdicator(offset);
+                nullIndicator(offset);
             }
         }
         // consumer owns head and tailCache
@@ -113,7 +113,7 @@ public class SpscOffHeapFixedSizeRingBuffer {
     }
 
 
-	private void nullIdicator(final long offset) {
+	private void nullIndicator(final long offset) {
 		UNSAFE.putByte(offset, NULL_MESSAGE_INDICATOR);
 	}
 
@@ -163,7 +163,7 @@ public class SpscOffHeapFixedSizeRingBuffer {
 
     protected final void readRelease(long offset) {
         final long currentHead = lpConsumerIndex();
-        nullIdicator(offset);
+        nullIndicator(offset);
         soConsumerIndex(currentHead + 1); // StoreStore
     }
 
