@@ -17,6 +17,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.jctools.channels.mapping.Mapper.MARKER_SIZE;
 import static org.jctools.channels.mapping.Primitive.simplifyType;
 
 public class ClassViewModel {
@@ -56,18 +57,18 @@ public class ClassViewModel {
     public List<Variable> constructorParams() {
         List<Variable> variables = new ArrayList<Variable>(constructorParams.length);
         for (int i = 0; i < constructorParams.length; i++) {
-            variables.add(new Variable(constructorParams[i], "arg" + i, 0, ""));
+            variables.add(new Variable(constructorParams[i].getName(), "arg" + i, 0, ""));
         }
         return variables;
     }
 
     public List<Variable> fields() {
-        int fieldOffset = 0;
+        int fieldOffset = MARKER_SIZE;
         List<Variable> fields = new ArrayList<Variable>();
         for (Method method : inspector.getters) {
             Primitive type = Primitive.of(method.getReturnType());
             String name = method.getName().substring(3);
-            fields.add(new Variable(type.javaEquivalent, name, fieldOffset, type.unsafeMethodSuffix()));
+            fields.add(new Variable(type.javaEquivalent.getName(), name, fieldOffset, type.unsafeMethodSuffix()));
             fieldOffset += type.sizeInBytes;
         }
         return fields;

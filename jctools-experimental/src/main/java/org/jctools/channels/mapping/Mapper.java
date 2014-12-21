@@ -26,6 +26,8 @@ import static org.jctools.channels.mapping.Primitive.simplifyType;
 
 public class Mapper<S> {
 
+    public static final int MARKER_SIZE = 1;
+
     private final boolean debugEnabled;
     private final TypeInspector inspector;
     private final Class<S> structInterface;
@@ -86,10 +88,10 @@ public class Mapper<S> {
 
         if (debugEnabled) {
             if (diagnostics.isEmpty()) {
-                System.err.println("No compile errors for: " + templateFile);
+                System.err.println("No compile diagnostics for: " + templateFile);
             } else {
                 System.err.println("---------------------------------------");
-                System.err.println("Compile errors for: " + templateFile);
+                System.err.println("Compile diagnostics for: " + templateFile);
                 for (Diagnostic<StringWrappingJavaFile> diagnostic : diagnostics) {
                     System.err.println(diagnostic);
                     System.err.println();

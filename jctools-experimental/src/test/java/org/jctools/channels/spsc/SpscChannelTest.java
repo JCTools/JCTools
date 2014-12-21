@@ -109,8 +109,8 @@ public class SpscChannelTest {
     private ChannelConsumer newConsumer() {
         return channel.consumer(new ChannelReceiver<Example>() {
             public void accept(Example element) {
-                assertEquals(5, element.getFoo());
                 assertEquals(10L, element.getBar());
+                assertEquals(5, element.getFoo());
             }
         });
     }

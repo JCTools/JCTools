@@ -50,7 +50,7 @@ public class SimpleCompiler {
             throw new Error(e);
         }
 
-        options = asList("-d", compilationDirectory);
+        options = asList("-d", compilationDirectory, "-Xlint:all");
     }
 
     private final JavaCompiler compiler;
