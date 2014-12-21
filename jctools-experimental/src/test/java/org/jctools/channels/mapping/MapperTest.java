@@ -17,9 +17,7 @@ import org.jctools.util.UnsafeAccess;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.objectweb.asm.ClassVisitor;
 
-import static org.jctools.channels.mapping.OldBytecodeGenerator.Customisation;
 import static org.junit.Assert.*;
 
 public class MapperTest {
@@ -32,7 +30,7 @@ public class MapperTest {
     @Before
     public void malloc() {
         startAddress = UnsafeAccess.UNSAFE.allocateMemory(EXAMPLE_SIZE_IN_BYTES * 2);
-        mapper = new Mapper<Example>(Example.class, true);
+        mapper = new Mapper<Example>(Example.class, false);
     }
 
     @After

@@ -38,7 +38,7 @@ public class InvalidInterfaceTest {
 
 	@Test(expected = InvalidInterfaceException.class)
 	public void interfaceIsInvalid() {
-		new OldMapper(representingKlass, false);
+		new Mapper(representingKlass, false);
 	}
 
 	// ---------------------------------------------------

@@ -18,25 +18,17 @@ import org.jctools.channels.ChannelConsumer;
 import org.jctools.channels.ChannelProducer;
 import org.jctools.channels.ChannelReceiver;
 import org.jctools.channels.mapping.Mapper;
-import org.jctools.channels.mapping.OldBytecodeGenerator;
-import org.jctools.channels.mapping.OldMapper;
 import org.jctools.util.Pow2;
-import org.objectweb.asm.ClassVisitor;
-import org.objectweb.asm.Label;
-import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Type;
 
 import java.nio.ByteBuffer;
 
 import static org.jctools.channels.spsc.SpscOffHeapFixedSizeRingBuffer.getLookaheadStep;
 import static org.jctools.channels.spsc.SpscOffHeapFixedSizeRingBuffer.getRequiredBufferSize;
-import static org.objectweb.asm.Opcodes.*;
-import static org.objectweb.asm.Type.*;
 
 public final class SpscChannel<E> implements Channel<E> {
 
     // TODO; property configuration
-    private static final boolean debugEnabled = true;
+    private static final boolean debugEnabled = false;
 
     private final int elementSize;
     private final Mapper<E> mapper;
