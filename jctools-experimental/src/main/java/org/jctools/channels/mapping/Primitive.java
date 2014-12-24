@@ -13,7 +13,10 @@
  */
 package org.jctools.channels.mapping;
 
+import org.jctools.channels.ChannelReceiver;
 import org.objectweb.asm.Opcodes;
+
+import java.nio.ByteBuffer;
 
 enum Primitive implements Opcodes {
 
@@ -60,6 +63,22 @@ enum Primitive implements Opcodes {
                 return primitive.javaEquivalent;
 
         return boxedJavaType;
+    }
+
+    public static Class<?> simplifyType(Class<?> type) {
+        type = replaceWithPrimitive(type);
+        type = usePublicApiClass(type);
+        return type;
+    }
+
+    private static Class<?> usePublicApiClass(Class<?> type) {
+        if ("DirectByteBuffer".equals(type.getSimpleName()))
+            return ByteBuffer.class;
+
+        if (ChannelReceiver.class.isAssignableFrom(type))
+            return ChannelReceiver.class;
+
+        return type;
     }
 
 }
