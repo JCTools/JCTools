@@ -19,7 +19,8 @@ abstract class ProducerFields<E> extends ConcurrentCircularArray<E> {
     protected static final long TAIL_OFFSET;
     static {
         try {
-            TAIL_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(ProducerFields.class.getDeclaredField("tail"));
+            TAIL_OFFSET = UnsafeAccess.UNSAFE
+                    .objectFieldOffset(ProducerFields.class.getDeclaredField("tail"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
@@ -48,10 +49,11 @@ final class Producer<E> extends ProducerFields<E> implements ConcurrentQueueProd
 
         final E[] lb = buffer;
         if (tail >= batchTail) {
-            if (null != lvElement(lb, calcOffset(tail + SpscArrayConcurrentQueue.OFFER_BATCH_SIZE))) {
+            if (null == lvElement(lb, calcOffset(tail + SpscArrayConcurrentQueue.OFFER_BATCH_SIZE))) {
+                batchTail = tail + SpscArrayConcurrentQueue.OFFER_BATCH_SIZE;
+            } else if (null != lvElement(lb, calcOffset(tail))) {
                 return false;
             }
-            batchTail = tail + SpscArrayConcurrentQueue.OFFER_BATCH_SIZE;
         }
         soElement(lb, calcOffset(tail), e);
         tail++;
@@ -68,7 +70,8 @@ abstract class ConsumerFields<E> extends ConcurrentCircularArray<E> {
     protected static final long HEAD_OFFSET;
     static {
         try {
-            HEAD_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(ConsumerFields.class.getDeclaredField("head"));
+            HEAD_OFFSET = UnsafeAccess.UNSAFE
+                    .objectFieldOffset(ConsumerFields.class.getDeclaredField("head"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
@@ -149,7 +152,7 @@ public final class SpscArrayConcurrentQueue<E> extends SpscArrayConcurrentQueueC
 
     @Override
     public int capacity() {
-        return capacity - OFFER_BATCH_SIZE;
+        return (int) mask + 1;
     }
 
     @Override

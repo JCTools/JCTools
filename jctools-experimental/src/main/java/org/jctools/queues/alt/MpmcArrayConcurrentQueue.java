@@ -141,7 +141,7 @@ abstract class MpmcArrayConcurrentQueueColdFields<E> extends ConcurrentSequenced
             final E[] lb = buffer;
             E e = lvElement(lb, offset);
             spElement(lb, offset, null);
-            soSequenceElement(lsb, pOffset, currentHead + capacity);
+            soSequenceElement(lsb, pOffset, currentHead + mask + 1);
             return e;
         }
 
@@ -184,7 +184,7 @@ public final class MpmcArrayConcurrentQueue<E> extends MpmcArrayConcurrentQueueC
 
     @Override
     public int capacity() {
-        return capacity;
+        return (int)this.mask + 1;
     }
 
     @Override
