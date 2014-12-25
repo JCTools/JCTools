@@ -29,7 +29,8 @@ abstract class MpscArrayQueueTailField<E> extends MpscArrayQueueL1Pad<E> {
 
     static {
         try {
-            P_INDEX_OFFSET = UNSAFE.objectFieldOffset(MpscArrayQueueTailField.class.getDeclaredField("producerIndex"));
+            P_INDEX_OFFSET = UNSAFE.objectFieldOffset(MpscArrayQueueTailField.class
+                    .getDeclaredField("producerIndex"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
@@ -109,12 +110,13 @@ abstract class MpscArrayQueueConsumerField<E> extends MpscArrayQueueL2Pad<E> {
 }
 
 /**
- * A Multi-Producer-Single-Consumer queue based on a {@link ConcurrentCircularArrayQueue}. This implies that any thread
- * may call the offer method, but only a single thread may call poll/peek for correctness to maintained. <br>
+ * A Multi-Producer-Single-Consumer queue based on a {@link ConcurrentCircularArrayQueue}. This implies that
+ * any thread may call the offer method, but only a single thread may call poll/peek for correctness to
+ * maintained. <br>
  * This implementation follows patterns documented on the package level for False Sharing protection.<br>
- * This implementation is using the <a href="http://sourceforge.net/projects/mc-fastflow/">Fast Flow</a> method for
- * polling from the queue (with minor change to correctly publish the index) and an extension of the Leslie Lamport
- * concurrent queue algorithm (originated by Martin Thompson) on the producer side.<br>
+ * This implementation is using the <a href="http://sourceforge.net/projects/mc-fastflow/">Fast Flow</a>
+ * method for polling from the queue (with minor change to correctly publish the index) and an extension of
+ * the Leslie Lamport concurrent queue algorithm (originated by Martin Thompson) on the producer side.<br>
  * 
  * @author nitsanw
  * 
@@ -132,7 +134,8 @@ public final class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> {
      * {@inheritDoc} <br>
      * 
      * IMPLEMENTATION NOTES:<br>
-     * Lock free offer using a single CAS. As class name suggests access is permitted to many threads concurrently.
+     * Lock free offer using a single CAS. As class name suggests access is permitted to many threads
+     * concurrently.
      * 
      * @see java.util.Queue#offer(java.lang.Object)
      * @see MessagePassingQueue#offer(Object)
@@ -144,6 +147,7 @@ public final class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> {
         }
 
         // use a cached view on consumer index (potentially updated in loop)
+        final long capacity = mask + 1;
         long consumerIndexCache = lvConsumerIndexCache(); // LoadLoad
         long currentProducerIndex;
         do {
@@ -162,8 +166,8 @@ public final class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> {
             }
         } while (!casProducerIndex(currentProducerIndex, currentProducerIndex + 1));
         /*
-         * NOTE: the new producer index value is made visible BEFORE the element in the array. If we relied on the index
-         * visibility to poll() we would need to handle the case where the element is not visible.
+         * NOTE: the new producer index value is made visible BEFORE the element in the array. If we relied on
+         * the index visibility to poll() we would need to handle the case where the element is not visible.
          */
 
         // Won CAS, move on to storing
@@ -175,14 +179,15 @@ public final class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> {
     /**
      * A wait free alternative to offer which fails on CAS failure.
      * 
-     * @param e new element, not null
+     * @param e
+     *            new element, not null
      * @return 1 if next element cannot be filled, -1 if CAS failed, 0 if successful
      */
     public int weakOffer(final E e) {
         if (null == e) {
             throw new NullPointerException("Null is not a valid element");
         }
-
+        final long capacity = mask + 1;
         final long currentTail = lvProducerIndex(); // LoadLoad
         final long consumerIndexCache = lvConsumerIndexCache(); // LoadLoad
         final long wrapPoint = currentTail - capacity;
@@ -221,23 +226,23 @@ public final class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> {
         final long offset = calcElementOffset(consumerIndex);
         // Copy field to avoid re-reading after volatile load
         final E[] lElementBuffer = buffer;
-        
+
         // If we can't see the next available element we can't poll
         E e = lvElement(lElementBuffer, offset); // LoadLoad
         if (null == e) {
             /*
-             * NOTE: Queue may not actually be empty in the case of a producer (P1) being interrupted after winning the
-             * CAS on offer but before storing the element in the queue. Other producers may go on to fill up the queue
-             * after this element.
+             * NOTE: Queue may not actually be empty in the case of a producer (P1) being interrupted after
+             * winning the CAS on offer but before storing the element in the queue. Other producers may go on
+             * to fill up the queue after this element.
              */
             if (consumerIndex != lvProducerIndex()) {
-                while((e = lvElement(lElementBuffer, offset)) == null);
-            }
-            else {
+                while ((e = lvElement(lElementBuffer, offset)) == null)
+                    ;
+            } else {
                 return null;
             }
         }
-        
+
         spElement(lElementBuffer, offset, null);
         soConsumerIndex(consumerIndex + 1); // StoreStore
         return e;
@@ -262,14 +267,14 @@ public final class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> {
         E e = lvElement(lElementBuffer, offset);
         if (null == e) {
             /*
-             * NOTE: Queue may not actually be empty in the case of a producer (P1) being interrupted after winning the
-             * CAS on offer but before storing the element in the queue. Other producers may go on to fill up the queue
-             * after this element.
+             * NOTE: Queue may not actually be empty in the case of a producer (P1) being interrupted after
+             * winning the CAS on offer but before storing the element in the queue. Other producers may go on
+             * to fill up the queue after this element.
              */
             if (consumerIndex != lvProducerIndex()) {
-                while((e = lvElement(lElementBuffer, offset)) == null);
-            }
-            else {
+                while ((e = lvElement(lElementBuffer, offset)) == null)
+                    ;
+            } else {
                 return null;
             }
         }
@@ -284,9 +289,10 @@ public final class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> {
     @Override
     public int size() {
         /*
-         * It is possible for a thread to be interrupted or reschedule between the read of the producer and consumer
-         * indices, therefore protection is required to ensure size is within valid range. In the event of concurrent
-         * polls/offers to this method the size is OVER estimated as we read consumer index BEFORE the producer index.
+         * It is possible for a thread to be interrupted or reschedule between the read of the producer and
+         * consumer indices, therefore protection is required to ensure size is within valid range. In the
+         * event of concurrent polls/offers to this method the size is OVER estimated as we read consumer
+         * index BEFORE the producer index.
          */
         long after = lvConsumerIndex();
         while (true) {
@@ -298,12 +304,13 @@ public final class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> {
             }
         }
     }
-    
+
     @Override
     public boolean isEmpty() {
-        // Order matters! 
+        // Order matters!
         // Loading consumer before producer allows for producer increments after consumer index is read.
-        // This ensures the correctness of this method at least for the consumer thread. Other threads POV is not really
+        // This ensures the correctness of this method at least for the consumer thread. Other threads POV is
+        // not really
         // something we can fix here.
         return (lvConsumerIndex() == lvProducerIndex());
     }

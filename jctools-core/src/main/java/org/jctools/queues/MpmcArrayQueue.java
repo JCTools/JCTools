@@ -122,6 +122,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> {
         }
 
         // local load of field to avoid repeated loads after volatile reads
+        final long capacity = mask + 1;
         final long[] lSequenceBuffer = sequenceBuffer;
         long currentProducerIndex;
         long seqOffset;
@@ -202,7 +203,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> {
 
         // Move sequence ahead by capacity, preparing it for next offer
         // (seeing this value from a consumer will lead to retry 2)
-        soSequence(lSequenceBuffer, seqOffset, currentConsumerIndex + capacity);// StoreStore
+        soSequence(lSequenceBuffer, seqOffset, currentConsumerIndex + mask + 1);// StoreStore
 
         return e;
     }
@@ -244,8 +245,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> {
         // Order matters!
         // Loading consumer before producer allows for producer increments after consumer index is read.
         // This ensures this method is conservative in it's estimate. Note that as this is an MPMC there is
-        // nothing we
-        // can do to make this an exact method.
+        // nothing we can do to make this an exact method.
         return (lvConsumerIndex() == lvProducerIndex());
     }
 }

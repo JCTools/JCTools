@@ -131,11 +131,13 @@ public final class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> {
             throw new NullPointerException("Null is not a valid element");
         }
         final E[] lb = buffer;
+        final long lMask = mask;
         final long currProducerIndex = lvProducerIndex();
         final long offset = calcElementOffset(currProducerIndex);
         if (null != lvElement(lb, offset)) {
-            int size = (int) (currProducerIndex - lvConsumerIndex());
-            if(size == capacity) {
+            long size = currProducerIndex - lvConsumerIndex();
+            
+            if(size > lMask) {
                 return false;
             }
             else {
