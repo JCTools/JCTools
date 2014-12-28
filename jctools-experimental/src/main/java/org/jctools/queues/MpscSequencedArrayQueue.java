@@ -162,7 +162,7 @@ public class MpscSequencedArrayQueue<E> extends MpscSequencedArrayQueueConsumerF
 
         // Move sequence ahead by capacity, preparing it for next offer
         // (seeing this value from a consumer will lead to retry 2)
-        soSequence(lSequenceBuffer, seqOffset, consumerIndex + capacity);// StoreStore
+        soSequence(lSequenceBuffer, seqOffset, consumerIndex + mask + 1);// StoreStore
 
         return e;
     }
@@ -175,6 +175,7 @@ public class MpscSequencedArrayQueue<E> extends MpscSequencedArrayQueueConsumerF
     @Override
     public int size() {
         int size;
+        long capacity = mask + 1;
         do {
             /*
              * It is possible for a thread to be interrupted or reschedule between the read of the producer

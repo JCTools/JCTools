@@ -30,7 +30,7 @@ abstract class FloatingCaqL0Pad {
 
 abstract class FloatingCaqColdFields<E> extends InlinedRingBufferL0Pad {
     protected static final int BUFFER_PAD = 32;
-    protected static final int SPARSE_SHIFT = Integer.getInteger("sparse.shift", 2);
+    protected static final int SPARSE_SHIFT = Integer.getInteger("sparse.shift", 0);
     protected final int capacity;
     protected final long mask;
     protected final E[] buffer;

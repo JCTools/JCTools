@@ -29,7 +29,7 @@ abstract class MpmcConcurrentQueueSMBufferL0Pad {
 }
 
 abstract class MpmcConcurrentQueueSMBuffer<E> extends MpmcConcurrentQueueSMBufferL0Pad {
-    private static final int SPARSE_SHIFT = Math.max(1, Integer.getInteger("sparse.shift", 2));// data is sparse to allow the wrap tokens
+    private static final int SPARSE_SHIFT = Math.max(1, Integer.getInteger("sparse.shift", 0));// data is sparse to allow the wrap tokens
     private static final int BUFFER_PAD = 32;
     private static final long REF_ARRAY_BASE;
     private static final int REF_ELEMENT_SHIFT;
