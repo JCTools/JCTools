@@ -29,6 +29,7 @@ public class QueueThroughputBackoffNone {
     private static final long DELAY_PRODUCER = Long.getLong("delay.p", 0L);
     private static final long DELAY_CONSUMER = Long.getLong("delay.c", 0L);
     private static final Integer ONE = 777;
+    private Integer escape;
     @Param(value = { "SpscArrayQueue", "MpscArrayQueue", "SpmcArrayQueue", "MpmcArrayQueue" })
     String qType;
     @Param(value = { "132000" })
@@ -93,19 +94,21 @@ public class QueueThroughputBackoffNone {
 
     @Benchmark
     @Group("tpt")
-    public Integer poll(PollCounters counters, ConsumerMarker cm) {
+    public void poll(PollCounters counters, ConsumerMarker cm) {
         Integer e = q.poll();
         if (e == null) {
             counters.pollsFailed++;
             backoff();
         }
-        else {
+        else if (e == ONE){
             counters.pollsMade++;
+        }
+        else {
+            escape = e;
         }
         if (DELAY_CONSUMER != 0) {
             Blackhole.consumeCPU(DELAY_CONSUMER);
         }
-        return e;
     }
 
     @TearDown(Level.Iteration)
