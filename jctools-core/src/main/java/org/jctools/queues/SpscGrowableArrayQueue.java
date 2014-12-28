@@ -79,11 +79,19 @@ public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerFie
         }
     }
 
-    @SuppressWarnings("unchecked")
+    private static class NextHolder {
+        final Object[] next;
+
+        public NextHolder(Object[] next) {
+            this.next = next;
+        }
+        
+    }
     public SpscGrowableArrayQueue(final int maxCapacity) {
         this(Math.min(Pow2.roundToPowerOfTwo(maxCapacity / 2), 16), maxCapacity);
     }
 
+    @SuppressWarnings("unchecked")
     public SpscGrowableArrayQueue(final int initialCapacity, int maxCapacity) {
         if (initialCapacity >= maxCapacity) {
             throw new IllegalArgumentException("Initial capacity cannot exceed maximum capacity");
@@ -130,9 +138,9 @@ public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerFie
             if (lookAheadStep > 0) {
                 long lookAheadElementOffset = calcElementOffset(index + lookAheadStep, mask);
                 if (null == lvElement(buffer, lookAheadElementOffset)) {// LoadLoad
-                    producerLookAhead = index + lookAheadStep - 1; // joy, there's room
+                    producerLookAhead = index + lookAheadStep - 1; // joy, there's plenty of room
                     return writeToQueue(buffer, e, index, offset);
-                } else if (null != lvElement(buffer, offset + (1 << REF_ELEMENT_SHIFT))) { // buffer is full
+                } else if (null != lvElement(buffer, calcElementOffset(index + 1, mask))) { // buffer is not full
                     return writeToQueue(buffer, e, index, offset);
                 } else if (mask == maxSize) {
                     // we're full and can't grow
@@ -144,6 +152,7 @@ public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerFie
             }
             // the step is negative (or zero) in the period between allocating the max sized buffer and the
             // consumer starting on it
+            // NOTE: we can do away with the special case if we accept a more flexible view on capacity
             else {
                 return offerWhileWaitingForConsumerOnLastBuffer(buffer, e, index, mask, offset, lookAheadStep);
             }
@@ -204,7 +213,7 @@ public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerFie
         final long offsetInNew = calcElementOffset(currIndex, newMask);
         soProducerIndex(currIndex + 1);// this ensures correctness on 32bit platforms
         soElement(newBuffer, offsetInNew, e);// StoreStore
-        soElement(old, offset, newBuffer); // new buffer is visible after element is inserted
+        soElement(old, offset, new NextHolder(newBuffer)); // new buffer is visible after element is inserted
     }
 
     /**
@@ -212,6 +221,7 @@ public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerFie
      * <p>
      * This implementation is correct for single consumer thread use only.
      */
+    @SuppressWarnings("unchecked")
     @Override
     public final E poll() {
         // local load of field to avoid repeated loads after volatile reads
@@ -219,18 +229,19 @@ public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerFie
         final long index = consumerIndex;
         final long offset = calcElementOffset(index, consumerMask);
         final Object e = lvElement(buffer, offset);// LoadLoad
-        boolean isNextBuffer = e instanceof Object[];
+        boolean isNextBuffer = e instanceof NextHolder;
         if (null != e && !isNextBuffer) {
             soConsumerIndex(index + 1);// this ensures correctness on 32bit platforms
             soElement(buffer, offset, null);// StoreStore
             return (E) e;
         } else if (isNextBuffer) {
-            return newBufferPoll((E[]) e, index);
+            return newBufferPoll((E[]) ((NextHolder) e).next, index);
         }
 
         return null;
     }
 
+    @SuppressWarnings("unchecked")
     private E newBufferPoll(E[] nextBuffer, final long index) {
         consumerBuffer = nextBuffer;
         final long newMask = nextBuffer.length - 1;
@@ -251,6 +262,7 @@ public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerFie
      * <p>
      * This implementation is correct for single consumer thread use only.
      */
+    @SuppressWarnings("unchecked")
     @Override
     public final E peek() {
         final E[] buffer = consumerBuffer;
@@ -260,12 +272,13 @@ public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerFie
         if (null == e) {
             return null;
         }
-        if (e instanceof Object[]) {
-            return newBufferPeek((E[]) e, index);
+        if (e instanceof NextHolder) {
+            return newBufferPeek((E[]) ((NextHolder) e).next, index);
         }
         return (E) e;
     }
 
+    @SuppressWarnings("unchecked")
     private E newBufferPeek(E[] nextBuffer, final long index) {
         consumerBuffer = nextBuffer;
         final long newMask = nextBuffer.length - 1;
@@ -321,7 +334,6 @@ public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerFie
         UNSAFE.putOrderedObject(buffer, offset, e);
     }
 
-    @SuppressWarnings("unchecked")
     private static final <E> Object lvElement(E[] buffer, long offset) {
         return UNSAFE.getObjectVolatile(buffer, offset);
     }
