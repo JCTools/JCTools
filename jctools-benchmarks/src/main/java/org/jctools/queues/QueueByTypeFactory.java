@@ -38,6 +38,8 @@ public class QueueByTypeFactory {
             return new SpscArrayQueue<Integer>(queueCapacity);
         case 31:
             return new SpscLinkedQueue<Integer>();
+        case 32:
+            return new SpscGrowableArrayQueue<Integer>(queueCapacity);
         case 40:
             return new FloatingCountersSpscConcurrentArrayQueue<Integer>(queueCapacity);
         case 5:

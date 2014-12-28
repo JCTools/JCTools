@@ -26,32 +26,28 @@ import static org.junit.Assume.assumeThat;
 public class QueueSanityTest {
 
     private static final int SIZE = 8192 * 2;
+    private final static ConcurrentQueueSpec SPECIAL = new ConcurrentQueueSpec(1, 1, SIZE, Ordering.FIFO, Preference.NONE);
 
     @Parameterized.Parameters
     public static Collection queues() {
-        return Arrays.asList(
-                test(1, 1, 1, Ordering.FIFO),
-                test(1, 1, 0, Ordering.FIFO),
-                test(1, 1, SIZE, Ordering.FIFO),
-                test(1, 0, 1, Ordering.FIFO),
-                test(1, 0, SIZE, Ordering.FIFO),
-                test(0, 1, 0, Ordering.FIFO),
-                test(0, 1, 1, Ordering.FIFO) ,
-                test(0, 1, SIZE, Ordering.FIFO) ,
-                test(0, 1, 1, Ordering.PRODUCER_FIFO) ,
-                test(0, 1, SIZE, Ordering.PRODUCER_FIFO) ,
-                test(0, 1, 1, Ordering.NONE),
-                test(0, 1, SIZE, Ordering.NONE),
-                test(0, 0, 1, Ordering.FIFO),
-                test(0, 0, SIZE, Ordering.FIFO)
-        );
+        return Arrays.asList(test(1, 1, 1, Ordering.FIFO), test(1, 1, 0, Ordering.FIFO),
+                test(1, 1, SIZE, Ordering.FIFO), test(1, 0, 1, Ordering.FIFO),
+                test(1, 0, SIZE, Ordering.FIFO), test(0, 1, 0, Ordering.FIFO), test(0, 1, 1, Ordering.FIFO),
+                test(0, 1, SIZE, Ordering.FIFO), test(0, 1, 1, Ordering.PRODUCER_FIFO),
+                test(0, 1, SIZE, Ordering.PRODUCER_FIFO), test(0, 1, 1, Ordering.NONE),
+                test(0, 1, SIZE, Ordering.NONE), test(0, 0, 1, Ordering.FIFO),
+                test(0, 0, SIZE, Ordering.FIFO), new Object[] { SPECIAL});
     }
 
     private final Queue<Integer> queue;
     private final ConcurrentQueueSpec spec;
 
     public QueueSanityTest(ConcurrentQueueSpec spec) {
-        queue = QueueFactory.newQueue(spec);
+        if (spec == SPECIAL) {
+            queue = new SpscGrowableArrayQueue<Integer>(SIZE);
+        } else {
+            queue = QueueFactory.newQueue(spec);
+        }
         this.spec = spec;
     }
 
@@ -80,7 +76,7 @@ public class QueueSanityTest {
                 e = queue.poll();
                 assertEquals(p, e);
                 assertEquals(size - (i + 1), queue.size());
-                assertEquals(e.intValue(), i++);
+                assertEquals(i++, e.intValue());
             }
             assertEquals(size, i);
         } else {
@@ -99,23 +95,22 @@ public class QueueSanityTest {
     @Test
     public void testSizeIsTheNumberOfOffers() {
         int currentSize = 0;
-        while (currentSize < SIZE && queue.offer(currentSize)){
+        while (currentSize < SIZE && queue.offer(currentSize)) {
             currentSize++;
             assertThat(queue, hasSize(currentSize));
         }
     }
 
     @Test
-    public void whenFirstInThenFirstOut()  {
+    public void whenFirstInThenFirstOut() {
         assumeThat(spec.ordering, is(Ordering.FIFO));
 
         // Arrange
         int i = 0;
-        while (i < SIZE && queue.offer(i)){
+        while (i < SIZE && queue.offer(i)) {
             i++;
         }
         final int size = queue.size();
-
 
         // Act
         i = 0;
@@ -176,7 +171,8 @@ public class QueueSanityTest {
     }
 
     private static Object[] test(int producers, int consumers, int capacity, Ordering ordering) {
-        return new Object[]{new ConcurrentQueueSpec(producers, consumers, capacity, ordering, Preference.NONE)};
+        return new Object[] { new ConcurrentQueueSpec(producers, consumers, capacity, ordering,
+                Preference.NONE) };
     }
 
 }
