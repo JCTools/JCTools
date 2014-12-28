@@ -13,6 +13,7 @@
  */
 package org.jctools.handrolled.throughput.spsc;
 
+import org.jctools.handrolled.throughput.spsc.QueuePerfTest.Producer;
 import org.jctools.queues.QueueByTypeFactory;
 
 import java.util.Queue;
@@ -39,48 +40,52 @@ public class BusyQueuePerfTest {
         System.out.format("summary,BusyQueuePerfTest,%s,%d\n", queue.getClass().getSimpleName(), sum / 10);
     }
 
-    private static long performanceRun(final int runNumber, final Queue<Integer> queue) throws Exception {
-        final long start = System.nanoTime();
-        final Producer p = new Producer(queue);
-        final Thread thread = new Thread(p);
-        thread.start();
+    private static long performanceRun(int runNumber, Queue<Integer> queue) throws Exception {
+        Producer p = new Producer(queue);
+        Thread thread = new Thread(p);
+        thread.start();// producer will timestamp start
 
         Integer result;
         int i = REPETITIONS;
-        int f = 0;
+        int queueEmpty = 0;
         do {
             while (null == (result = queue.poll())) {
-                f++;
+                queueEmpty++;
             }
         } while (0 != --i);
-
+        long end = System.nanoTime();
+        
         thread.join();
-
-        final long duration = System.nanoTime() - start;
-        final long ops = (REPETITIONS * 1000L * 1000L * 1000L) / duration;
-        System.out.format("%d - ops/sec=%,d - %s result=%d failed.poll=%d failed.offer=%d\n",
-                Integer.valueOf(runNumber), Long.valueOf(ops),
-                queue.getClass().getSimpleName(), result,f,p.fails);
+        long duration = end - p.start;
+        long ops = (REPETITIONS * 1000L * 1000L * 1000L) / duration;
+        String qName = queue.getClass().getSimpleName();
+        System.out.format("%d - ops/sec=%,d - %s result=%d failed.poll=%d failed.offer=%d\n", runNumber, ops,
+                qName, result, queueEmpty, p.queueFull);
         return ops;
     }
 
     public static class Producer implements Runnable {
         private final Queue<Integer> queue;
-        int fails=0;
-        public Producer(final Queue<Integer> queue) {
+        int queueFull = 0;
+        long start = 0;
+
+        public Producer(Queue<Integer> queue) {
             this.queue = queue;
         }
 
         public void run() {
-            final Queue<Integer> q = queue;
             int i = REPETITIONS;
-            int f=0;
+            int f = 0;
+            Queue<Integer> q = queue;
+            long s = System.nanoTime();
             do {
                 while (!q.offer(TEST_VALUE)) {
                     f++;
                 }
             } while (0 != --i);
-            fails = f;
+            
+            queueFull = f;
+            start = s;
         }
     }
 }
