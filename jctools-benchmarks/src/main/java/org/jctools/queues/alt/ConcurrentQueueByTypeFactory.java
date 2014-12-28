@@ -1,6 +1,5 @@
 package org.jctools.queues.alt;
 
-import org.jctools.queues.MpmcConcurrentQueueStateMarkers;
 
 public class ConcurrentQueueByTypeFactory {
     public static final int QUEUE_CAPACITY = 1 << Integer.getInteger("pow2.capacity", 17);
@@ -25,8 +24,6 @@ public class ConcurrentQueueByTypeFactory {
 //            return new MpscOnSpscQueue<Integer>(QUEUE_CAPACITY);
 //        case 7:
 //            return new MpmcArrayQueue<Integer>(QUEUE_CAPACITY);
-        case 71:
-            return new MpmcConcurrentQueueStateMarkers<Integer>(QUEUE_CAPACITY);
         case 70:
             return new MpmcArrayConcurrentQueue<Integer>(QUEUE_CAPACITY);
             
