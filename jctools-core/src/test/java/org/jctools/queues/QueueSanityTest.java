@@ -26,7 +26,8 @@ import static org.junit.Assume.assumeThat;
 public class QueueSanityTest {
 
     private static final int SIZE = 8192 * 2;
-    private final static ConcurrentQueueSpec SPECIAL = new ConcurrentQueueSpec(1, 1, SIZE, Ordering.FIFO, Preference.NONE);
+    private final static ConcurrentQueueSpec GROW = new ConcurrentQueueSpec(1, 1, SIZE, Ordering.FIFO, Preference.NONE);
+    private final static ConcurrentQueueSpec UNBOUND = new ConcurrentQueueSpec(1, 1, 0, Ordering.FIFO, Preference.NONE);
 
     @Parameterized.Parameters
     public static Collection queues() {
@@ -36,16 +37,20 @@ public class QueueSanityTest {
                 test(0, 1, SIZE, Ordering.FIFO), test(0, 1, 1, Ordering.PRODUCER_FIFO),
                 test(0, 1, SIZE, Ordering.PRODUCER_FIFO), test(0, 1, 1, Ordering.NONE),
                 test(0, 1, SIZE, Ordering.NONE), test(0, 0, 1, Ordering.FIFO),
-                test(0, 0, SIZE, Ordering.FIFO), new Object[] { SPECIAL});
+                test(0, 0, SIZE, Ordering.FIFO), new Object[] { GROW }, new Object[] { UNBOUND });
     }
 
     private final Queue<Integer> queue;
     private final ConcurrentQueueSpec spec;
 
     public QueueSanityTest(ConcurrentQueueSpec spec) {
-        if (spec == SPECIAL) {
+        if (spec == GROW) {
             queue = new SpscGrowableArrayQueue<Integer>(SIZE);
-        } else {
+        }
+        else if (spec == UNBOUND) {
+            queue = new SpscUnboundedArrayQueue<Integer>(128);
+        }
+        else {
             queue = QueueFactory.newQueue(spec);
         }
         this.spec = spec;
