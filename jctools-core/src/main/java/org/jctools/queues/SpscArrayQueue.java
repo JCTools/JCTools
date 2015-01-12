@@ -33,7 +33,7 @@ abstract class SpscArrayQueueL1Pad<E> extends SpscArrayQueueColdField<E> {
 }
 
 abstract class SpscArrayQueueProducerFields<E> extends SpscArrayQueueL1Pad<E> {
-    private final static long P_INDEX_OFFSET;
+    protected final static long P_INDEX_OFFSET;
     static {
         try {
             P_INDEX_OFFSET =
@@ -48,9 +48,6 @@ abstract class SpscArrayQueueProducerFields<E> extends SpscArrayQueueL1Pad<E> {
     public SpscArrayQueueProducerFields(int capacity) {
         super(capacity);
     }
-    protected final long lvProducerIndex() {
-        return UNSAFE.getLongVolatile(this, P_INDEX_OFFSET);
-    }
 }
 
 abstract class SpscArrayQueueL2Pad<E> extends SpscArrayQueueProducerFields<E> {
@@ -64,7 +61,7 @@ abstract class SpscArrayQueueL2Pad<E> extends SpscArrayQueueProducerFields<E> {
 
 abstract class SpscArrayQueueConsumerField<E> extends SpscArrayQueueL2Pad<E> {
     protected long consumerIndex;
-    private final static long C_INDEX_OFFSET;
+    protected final static long C_INDEX_OFFSET;
     static {
         try {
             C_INDEX_OFFSET =
@@ -75,9 +72,6 @@ abstract class SpscArrayQueueConsumerField<E> extends SpscArrayQueueL2Pad<E> {
     }
     public SpscArrayQueueConsumerField(int capacity) {
         super(capacity);
-    }
-    protected final long lvConsumerIndex() {
-        return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
     }
 }
 
@@ -124,17 +118,19 @@ public final class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E> {
         }
         // local load of field to avoid repeated loads after volatile reads
         final E[] lElementBuffer = buffer;
-        final long offset = calcElementOffset(producerIndex);
-        if (producerIndex >= producerLookAhead) {
-            if (null == lvElement(lElementBuffer, calcElementOffset(producerIndex + lookAheadStep))) {// LoadLoad
-                producerLookAhead = producerIndex + lookAheadStep;
+        final long index = producerIndex;
+        final long offset = calcElementOffset(index);
+        if (index >= producerLookAhead) {
+            int step = lookAheadStep;
+            if (null == lvElement(lElementBuffer, calcElementOffset(index + step))) {// LoadLoad
+                producerLookAhead = index + step;
             }
             else if (null != lvElement(lElementBuffer, offset)){
                 return false;
             }
         }
-        producerIndex++; // do increment here so the ordered store give both a barrier 
-        soElement(lElementBuffer, offset, e);// StoreStore
+        soProducerIndex(index + 1); // ordered store -> atomic and ordered for size()
+        soElement(lElementBuffer, offset, e); // StoreStore
         return true;
     }
     
@@ -145,14 +141,15 @@ public final class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E> {
      */
     @Override
     public E poll() {
-        final long offset = calcElementOffset(consumerIndex);
+        final long index = consumerIndex;
+        final long offset = calcElementOffset(index);
         // local load of field to avoid repeated loads after volatile reads
         final E[] lElementBuffer = buffer;
         final E e = lvElement(lElementBuffer, offset);// LoadLoad
         if (null == e) {
             return null;
         }
-        consumerIndex++; // do increment here so the ordered store give both a barrier
+        soConsumerIndex(index + 1); // ordered store -> atomic and ordered for size()
         soElement(lElementBuffer, offset, null);// StoreStore
         return e;
     }
@@ -183,5 +180,21 @@ public final class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E> {
                 return (int) (currentProducerIndex - after);
             }
         }
+    }
+
+    private void soProducerIndex(long v) {
+        UNSAFE.putOrderedLong(this, P_INDEX_OFFSET, v);
+    }
+
+    private void soConsumerIndex(long v) {
+        UNSAFE.putOrderedLong(this, C_INDEX_OFFSET, v);
+    }
+    
+    private long lvProducerIndex() {
+        return UNSAFE.getLongVolatile(this, P_INDEX_OFFSET);
+    }
+    
+    private long lvConsumerIndex() {
+        return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
     }
 }
