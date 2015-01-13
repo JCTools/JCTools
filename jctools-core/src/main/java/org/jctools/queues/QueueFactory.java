@@ -18,6 +18,8 @@ import org.jctools.queues.spec.Ordering;
 import org.jctools.util.UnsafeAccess;
 
 import java.util.Queue;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
@@ -67,5 +69,15 @@ public class QueueFactory {
             }
         }
         return new ConcurrentLinkedQueue<E>();
+    }
+
+    public static <E> BlockingQueue<E> newBlockingQueue(ConcurrentQueueSpec qs)
+    {
+        if (qs.isSpsc())
+        {
+            return new SpscArrayQueueBlocking<E>(qs.capacity);
+        }
+
+        return new ArrayBlockingQueue<E>(qs.capacity);
     }
 }
