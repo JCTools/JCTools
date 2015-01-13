@@ -7,7 +7,6 @@ public class ParkTakeStrategy<E> implements TakeStrategy<E>
 {
 
     public volatile int storeFence = 0;
-    public volatile int loadFence = 1;
 
     private AtomicReference<Thread> t               = new AtomicReference<Thread>(null);
 
@@ -15,9 +14,9 @@ public class ParkTakeStrategy<E> implements TakeStrategy<E>
     public void signal()
     {
         // Make sure the offer is visible before unpark
-        storeFence = loadFence; // JVM8 -> UNSAFE.storeFence();
+        storeFence = 1; // store barrier
 
-        LockSupport.unpark(t.get());
+        LockSupport.unpark(t.get()); // t.get() load barrier
     }
 
     @Override
