@@ -3,7 +3,7 @@ package org.jctools.queues.takestrategy;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
 
-public class ParkTakeStrategy<E> implements TakeStrategy<E>
+public final class ParkTakeStrategy<E> implements TakeStrategy<E>
 {
 
     public volatile int storeFence = 0;

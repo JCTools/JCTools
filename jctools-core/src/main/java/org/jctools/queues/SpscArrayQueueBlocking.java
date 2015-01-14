@@ -10,7 +10,13 @@ import java.util.concurrent.TimeUnit;
 
 public class SpscArrayQueueBlocking<E> extends SpscArrayQueue<E> implements BlockingQueue<E>
 {
-    private TakeStrategy<E> takeStrategy;
+    private final TakeStrategy<E> takeStrategy;
+    private final SupplierJDK6<E> poller = new SupplierJDK6<E>() {
+        @Override
+        public E get() {
+            return poll();
+        }
+    };
 
     public SpscArrayQueueBlocking(int capacity)
     {
@@ -35,12 +41,7 @@ public class SpscArrayQueueBlocking<E> extends SpscArrayQueue<E> implements Bloc
     @Override
     public E take() throws InterruptedException
     {
-        return takeStrategy.waitFor(new SupplierJDK6<E>() {
-            @Override
-            public E get() {
-                return poll();
-            }
-        }); // For JVM8 => return takeStrategy.waitFor(this::poll);
+        return takeStrategy.waitFor(poller); // For JVM8 => return takeStrategy.waitFor(this::poll);
     }
 
     @Override

@@ -1,6 +1,6 @@
 package org.jctools.queues.takestrategy;
 
-public class YieldTakeStrategy<E> implements TakeStrategy<E>
+public final class YieldTakeStrategy<E> implements TakeStrategy<E>
 {
     @Override
     public void signal()
@@ -11,15 +11,11 @@ public class YieldTakeStrategy<E> implements TakeStrategy<E>
     @Override
     public E waitFor(SupplierJDK6<E> supplier)
     {
-        while(true) // Should introduce safepoints
+        E e;
+        while((e = supplier.get()) == null)
         {
-            E e = supplier.get();
-            if (e!=null)
-            {
-                return e;
-            }
-
             Thread.yield();
         }
+        return e;
     }
 }
