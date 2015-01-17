@@ -1,16 +1,16 @@
-package org.jctools.queues;
+import org.jctools.queues.*;
 
+import org.jctools.queues.takestrategy.ParkTakeStrategy;
 import org.jctools.queues.takestrategy.SupplierJDK6;
 import org.jctools.queues.takestrategy.TakeStrategy;
-import org.jctools.queues.takestrategy.ParkTakeStrategy;
 
 import java.util.Collection;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-public class SpscArrayQueueBlocking<E> extends SpscArrayQueue<E> implements BlockingQueue<E>
+public class {{blockingQueueClass}}<E> extends {{queueClass}}<E> implements BlockingQueue<E>
 {
-    private final TakeStrategy<E> takeStrategy;
+    private final TakeStrategy<E> takeStrategy = new ParkTakeStrategy<E>();
     private final SupplierJDK6<E> poller = new SupplierJDK6<E>() {
         @Override
         public E get() {
@@ -18,15 +18,9 @@ public class SpscArrayQueueBlocking<E> extends SpscArrayQueue<E> implements Bloc
         }
     };
 
-    public SpscArrayQueueBlocking(int capacity)
+    public {{blockingQueueClass}}()
     {
-        this(capacity, new ParkTakeStrategy());
-    }
-
-    public SpscArrayQueueBlocking(int capacity, TakeStrategy<E> takeStrategy)
-    {
-        super(capacity);
-        this.takeStrategy = takeStrategy;
+        super({{capacity}});
     }
 
     @Override
