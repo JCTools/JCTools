@@ -20,6 +20,9 @@ import org.jctools.util.SimpleCompiler;
 import org.jctools.util.Template;
 import org.jctools.util.UnsafeAccess;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -34,6 +37,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * 
  */
 public class QueueFactory {
+
+    private static Map<Class, ClassLoader> blockingQueueCache = Collections.synchronizedMap(new HashMap<Class, ClassLoader>());
 
     public static <E> Queue<E> newQueue(ConcurrentQueueSpec qs) {
         if (qs.isBounded()) {
@@ -91,30 +96,30 @@ public class QueueFactory {
 
         // SPSC
         if (qs.isSpsc()) {
-            return createBlockingQueueFrom(SpscArrayQueue.class, qs.capacity);
+            return getBlockingQueueFrom(SpscArrayQueue.class, qs.capacity);
         }
         // MPSC
         else if (qs.isMpsc()) {
             if (qs.ordering != Ordering.NONE) {
-                return createBlockingQueueFrom(MpscArrayQueue.class, qs.capacity);
+                return getBlockingQueueFrom(MpscArrayQueue.class, qs.capacity);
             } else {
-                return createBlockingQueueFrom(MpscCompoundQueue.class, qs.capacity);
+                return getBlockingQueueFrom(MpscCompoundQueue.class, qs.capacity);
             }
         }
         // SPMC
         else if (qs.isSpmc()) {
-            return createBlockingQueueFrom(SpmcArrayQueue.class, qs.capacity);
+            return getBlockingQueueFrom(SpmcArrayQueue.class, qs.capacity);
         }
         // MPMC
         else if (qs.isMpmc()) {
-            return createBlockingQueueFrom(MpmcArrayQueue.class, qs.capacity);
+            return getBlockingQueueFrom(MpmcArrayQueue.class, qs.capacity);
         }
 
         // Not sure this is ever called...
         return new ArrayBlockingQueue<E>(qs.capacity);
     }
 
-    private static <E> BlockingQueue<E> createBlockingQueueFrom(Class<? extends Queue> clazz, int capacity)
+    private static <E> BlockingQueue<E> getBlockingQueueFrom(Class<? extends Queue> clazz, int capacity)
     {
         // Build model for template filling
         BlockingModel model = new BlockingModel();
@@ -122,18 +127,35 @@ public class QueueFactory {
         model.blockingQueueClass = model.queueClass + "Blocking";
         model.capacity = String.valueOf(capacity);
 
-        // Load and fill template
-        Template blockingTemplate = Template.fromFile(QueueFactory.class, "TemplateBlocking.java");
-        String blockingQueueClassFile = blockingTemplate.render(model);
+        // Check for the Queue in cache
+        ClassLoader cl = blockingQueueCache.get(clazz);
+        if (cl==null)
+        {
+            // Load and fill template
+            Template blockingTemplate = Template.fromFile(QueueFactory.class, "TemplateBlocking.java");
+            String blockingQueueClassFile = blockingTemplate.render(model);
 
-        // Compile result
-        SimpleCompiler compiler = new SimpleCompiler();
-        CompilationResult result = compiler.compile(model.blockingQueueClass, blockingQueueClassFile);
+            // Compile result
+            SimpleCompiler compiler = new SimpleCompiler();
+            CompilationResult result = compiler.compile(model.blockingQueueClass, blockingQueueClassFile);
+
+            if (result.isSuccessful())
+            {
+                cl = result.getClassLoader();
+
+                // Store classloader in cache for later re-use
+                blockingQueueCache.put(clazz, cl);
+            }
+            else
+            {
+                return null;
+            }
+        }
 
         // Instantiate new Blocking queue
         BlockingQueue<E> q = null;
         try {
-            q = (BlockingQueue<E>) result.getClassLoader().loadClass(model.blockingQueueClass).newInstance();
+            q = (BlockingQueue<E>) cl.loadClass(model.blockingQueueClass).newInstance();
         }
         catch(Exception e)
         {
