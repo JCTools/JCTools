@@ -32,7 +32,7 @@ public class BlockingQueueTest {
         BlockingQueue<Integer> q1 = QueueFactory.newBlockingQueue(qs);
         BlockingQueue<Integer> q2 = QueueFactory.newBlockingQueue(qs);
 
-        Assert.assertTrue(q1.getClass().getClassLoader() == q2.getClass().getClassLoader());
+        Assert.assertTrue(q1.getClass() == q2.getClass());
     }
 
 }

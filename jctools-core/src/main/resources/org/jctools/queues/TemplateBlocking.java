@@ -8,7 +8,7 @@ import java.util.Collection;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-public class {{blockingQueueClass}}<E> extends {{queueClass}}<E> implements BlockingQueue<E>
+public class {{blockingQueueClassName}}<E> extends {{queueClassName}}<E> implements BlockingQueue<E>
 {
     private final TakeStrategy<E> takeStrategy = new ParkTakeStrategy<E>();
     private final SupplierJDK6<E> poller = new SupplierJDK6<E>() {
@@ -18,7 +18,7 @@ public class {{blockingQueueClass}}<E> extends {{queueClass}}<E> implements Bloc
         }
     };
 
-    public {{blockingQueueClass}}()
+    public {{blockingQueueClassName}}()
     {
         super({{capacity}});
     }

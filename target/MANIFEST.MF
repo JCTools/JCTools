@@ -1,5 +1,0 @@
-Manifest-Version: 1.0
-Build-Jdk: 1.7.0_51
-Built-By: georges
-Created-By: IntelliJ IDEA
-
