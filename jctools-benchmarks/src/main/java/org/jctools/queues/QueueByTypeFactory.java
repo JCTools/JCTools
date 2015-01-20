@@ -58,6 +58,8 @@ public class QueueByTypeFactory {
             return new MpscLinkedQueue8<Integer>();
         case 7:
             return new MpmcArrayQueue<Integer>(queueCapacity);
+            case 708:
+                return QueueFactory.newBlockingQueue(ConcurrentQueueSpec.createBoundedMpmc(queueCapacity));
         case 71:
             return new MpmcConcurrentQueueStateMarkers<Integer>(queueCapacity);
         }
