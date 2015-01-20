@@ -38,7 +38,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  */
 public class QueueFactory {
 
-    private static Map<Class, ClassLoader> blockingQueueCache = Collections.synchronizedMap(new HashMap<Class, ClassLoader>());
+    private static Map<Class, Class> blockingQueueCache = Collections.synchronizedMap(new HashMap<Class, Class>());
 
     public static <E> Queue<E> newQueue(ConcurrentQueueSpec qs) {
         if (qs.isBounded()) {
@@ -82,8 +82,8 @@ public class QueueFactory {
 
     public static class BlockingModel
     {
-        public String blockingQueueClass;
-        public String queueClass;
+        public String blockingQueueClassName;
+        public String queueClassName;
         public String capacity;
     }
 
@@ -119,17 +119,17 @@ public class QueueFactory {
         return new ArrayBlockingQueue<E>(qs.capacity);
     }
 
-    private static <E> BlockingQueue<E> getBlockingQueueFrom(Class<? extends Queue> clazz, int capacity)
+    private static <E> BlockingQueue<E> getBlockingQueueFrom(Class<? extends Queue> queueClass, int capacity)
     {
         // Build model for template filling
         BlockingModel model = new BlockingModel();
-        model.queueClass = clazz.getSimpleName();
-        model.blockingQueueClass = model.queueClass + "Blocking";
+        model.queueClassName = queueClass.getSimpleName();
+        model.blockingQueueClassName = model.queueClassName + "Blocking";
         model.capacity = String.valueOf(capacity);
 
         // Check for the Queue in cache
-        ClassLoader cl = blockingQueueCache.get(clazz);
-        if (cl==null)
+        Class blockingClass = blockingQueueCache.get(queueClass);
+        if (blockingClass==null)
         {
             // Load and fill template
             Template blockingTemplate = Template.fromFile(QueueFactory.class, "TemplateBlocking.java");
@@ -137,14 +137,22 @@ public class QueueFactory {
 
             // Compile result
             SimpleCompiler compiler = new SimpleCompiler();
-            CompilationResult result = compiler.compile(model.blockingQueueClass, blockingQueueClassFile);
+            CompilationResult result = compiler.compile(model.blockingQueueClassName, blockingQueueClassFile);
 
             if (result.isSuccessful())
             {
-                cl = result.getClassLoader();
+                try
+                {
+                    // Load class
+                    blockingClass = result.getClassLoader().loadClass(model.blockingQueueClassName);
 
-                // Store classloader in cache for later re-use
-                blockingQueueCache.put(clazz, cl);
+                    // Store class in cache for later re-use
+                    blockingQueueCache.put(queueClass, blockingClass);
+                }
+                catch(Exception e)
+                {
+                    e.printStackTrace();
+                }
             }
             else
             {
@@ -154,8 +162,9 @@ public class QueueFactory {
 
         // Instantiate new Blocking queue
         BlockingQueue<E> q = null;
-        try {
-            q = (BlockingQueue<E>) cl.loadClass(model.blockingQueueClass).newInstance();
+        try
+        {
+            q = (BlockingQueue<E>) blockingClass.newInstance();
         }
         catch(Exception e)
         {
