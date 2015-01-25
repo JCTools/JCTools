@@ -122,7 +122,7 @@ abstract class MpscArrayQueueConsumerField<E> extends MpscArrayQueueL2Pad<E> {
  * 
  * @param <E>
  */
-public final class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> {
+public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> {
     long p40, p41, p42, p43, p44, p45, p46;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 

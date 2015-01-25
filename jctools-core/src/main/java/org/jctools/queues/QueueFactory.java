@@ -108,14 +108,13 @@ public class QueueFactory {
         }
         // SPMC
         else if (qs.isSpmc()) {
-            return getBlockingQueueFrom(SpmcArrayQueue.class, qs.capacity);
+            // Multiple consumers not supported yet
         }
         // MPMC
         else if (qs.isMpmc()) {
-            return getBlockingQueueFrom(MpmcArrayQueue.class, qs.capacity);
+            // Multiple consumers not supported yet
         }
 
-        // Not sure this is ever called...
         return new ArrayBlockingQueue<E>(qs.capacity);
     }
 
@@ -156,6 +155,7 @@ public class QueueFactory {
             }
             else
             {
+                System.out.println(result.getDiagnostics());
                 return null;
             }
         }
