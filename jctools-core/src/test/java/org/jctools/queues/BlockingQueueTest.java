@@ -18,13 +18,15 @@ import java.util.concurrent.BlockingQueue;
 public class BlockingQueueTest
 {
     protected final static int         CAPACITY = 32768; // better to have a size power of 2 to test boundaries
+
     private BlockingQueue<Integer> q;
     private final ConcurrentQueueSpec spec;
 
     @Parameterized.Parameters
     public static Collection queues() {
         return Arrays.asList(
-                test(1, 1, CAPACITY, Ordering.FIFO), test(10, 1, CAPACITY, Ordering.FIFO));
+                test(1, 1, CAPACITY, Ordering.FIFO), test(10, 1, CAPACITY, Ordering.FIFO),
+                test(1, 10, CAPACITY, Ordering.FIFO), test(1, 10, CAPACITY, Ordering.FIFO));
     }
 
     private static Object[] test(int producers, int consumers, int capacity, Ordering ordering) {
@@ -52,7 +54,11 @@ public class BlockingQueueTest
             assertEquals(i + 1, q.size());
         }
 
-        assertFalse(q.offer(0));
+        if (spec.isBounded())
+        {
+            assertFalse(q.offer(0));
+        }
+
         assertEquals(CAPACITY, q.size());
         assertFalse(q.isEmpty());
     }
@@ -183,6 +189,12 @@ public class BlockingQueueTest
     @Test
     public void testBlockingPut() throws Exception
     {
+        if (!spec.isBounded())
+        {
+            // Unbounded queues don't block on put()
+            return;
+        }
+
         // Fill the queue
         testOffer();
 

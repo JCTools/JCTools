@@ -4,5 +4,5 @@ public interface TakeStrategy<E>
 {
     void signal();
 
-    E waitFor(SupplierJDK6<E> supplier);
+    E waitFor(SupplierJDK6<E> supplier) throws InterruptedException;
 }

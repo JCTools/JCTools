@@ -9,7 +9,7 @@ public final class YieldTakeStrategy<E> implements TakeStrategy<E>
     }
 
     @Override
-    public E waitFor(SupplierJDK6<E> supplier)
+    public E waitFor(SupplierJDK6<E> supplier) throws InterruptedException
     {
         E e;
         while((e = supplier.get()) == null)

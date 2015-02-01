@@ -119,7 +119,7 @@ abstract class SpmcArrayQueueL3Pad<E> extends SpmcArrayQueueProducerIndexCacheFi
     }
 }
 
-public final class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> {
+public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> {
 
     public SpmcArrayQueue(final int capacity) {
         super(capacity);

@@ -1,8 +1,5 @@
 import org.jctools.queues.*;
-
-import org.jctools.queues.takestrategy.SCParkTakeStrategy;
-import org.jctools.queues.takestrategy.SupplierJDK6;
-import org.jctools.queues.takestrategy.TakeStrategy;
+import org.jctools.queues.takestrategy.*;
 
 import java.util.Collection;
 import java.util.concurrent.BlockingQueue;
@@ -10,7 +7,7 @@ import java.util.concurrent.TimeUnit;
 
 public class {{blockingQueueClassName}}<E> extends {{queueClassName}}<E> implements BlockingQueue<E>
 {
-    private final TakeStrategy<E> takeStrategy = new SCParkTakeStrategy<E>();
+    private final {{TakeStrategy}}<E> takeStrategy = new {{TakeStrategy}}<E>();
     private final SupplierJDK6<E> poller = new SupplierJDK6<E>() {
         @Override
         public E get() {

@@ -31,7 +31,7 @@ package org.jctools.queues;
  * 
  * @param <E>
  */
-public final class SpscLinkedQueue<E> extends BaseLinkedQueue<E> {
+public class SpscLinkedQueue<E> extends BaseLinkedQueue<E> {
 
     public SpscLinkedQueue() {
         spProducerNode(new LinkedQueueNode<E>());

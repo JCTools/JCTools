@@ -20,7 +20,7 @@ public final class SCParkTakeStrategy<E> implements TakeStrategy<E>
     }
 
     @Override
-    public E waitFor(SupplierJDK6<E> supplier)
+    public E waitFor(SupplierJDK6<E> supplier) throws InterruptedException
     {
         E e = supplier.get();
         if (e != null)

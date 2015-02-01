@@ -25,7 +25,7 @@ public class BasicBlockingQueueTest {
         Assert.assertTrue(q.take() == 4);
     }
 
-    @Test
+    /*@Test
     public void checkClassLoaderCache() throws Exception
     {
         ConcurrentQueueSpec qs = ConcurrentQueueSpec.createBoundedSpsc(16);
@@ -33,6 +33,6 @@ public class BasicBlockingQueueTest {
         BlockingQueue<Integer> q2 = QueueFactory.newBlockingQueue(qs);
 
         Assert.assertTrue(q1.getClass() == q2.getClass());
-    }
+    }*/
 
 }
