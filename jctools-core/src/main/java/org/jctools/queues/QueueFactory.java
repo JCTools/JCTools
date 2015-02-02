@@ -13,6 +13,8 @@
  */
 package org.jctools.queues;
 
+import org.jctools.queues.putstrategy.PutStrategy;
+import org.jctools.queues.putstrategy.YieldPutStrategy;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
 import org.jctools.queues.takestrategy.MCParkTakeStrategy;
@@ -88,6 +90,7 @@ public class QueueFactory {
         public String blockingQueueClassName;
         public String queueClassName;
         public String TakeStrategy;
+        public String PutStrategy;
         public String capacity;
     }
 
@@ -97,14 +100,14 @@ public class QueueFactory {
         {
             // SPSC
             if (qs.isSpsc()) {
-                return getBlockingQueueFrom(SpscArrayQueue.class, SCParkTakeStrategy.class, qs.capacity);
+                return getBlockingQueueFrom(SpscArrayQueue.class, SCParkTakeStrategy.class, YieldPutStrategy.class, qs.capacity);
             }
             // MPSC
             else if (qs.isMpsc()) {
                 if (qs.ordering != Ordering.NONE) {
-                    return getBlockingQueueFrom(MpscArrayQueue.class, SCParkTakeStrategy.class, qs.capacity);
+                    return getBlockingQueueFrom(MpscArrayQueue.class, SCParkTakeStrategy.class, YieldPutStrategy.class, qs.capacity);
                 } else {
-                    return getBlockingQueueFrom(MpscCompoundQueue.class, SCParkTakeStrategy.class, qs.capacity);
+                    return getBlockingQueueFrom(MpscCompoundQueue.class, SCParkTakeStrategy.class, YieldPutStrategy.class, qs.capacity);
                 }
             }
             // SPMC
@@ -125,31 +128,32 @@ public class QueueFactory {
         {
             // SPSC
             if (qs.isSpsc()) {
-                return getBlockingQueueFrom(SpscLinkedQueue.class, SCParkTakeStrategy.class, -1);
+                return getBlockingQueueFrom(SpscLinkedQueue.class, SCParkTakeStrategy.class, YieldPutStrategy.class, -1);
             }
             // MPSC
             else if (qs.isMpsc()) {
                 if (UnsafeAccess.SUPPORTS_GET_AND_SET) {
-                    return getBlockingQueueFrom(MpscLinkedQueue8.class, SCParkTakeStrategy.class, -1);
+                    return getBlockingQueueFrom(MpscLinkedQueue8.class, SCParkTakeStrategy.class, YieldPutStrategy.class, -1);
                 }
                 else {
-                    return getBlockingQueueFrom(MpscLinkedQueue7.class, SCParkTakeStrategy.class, -1);
+                    return getBlockingQueueFrom(MpscLinkedQueue7.class, SCParkTakeStrategy.class, YieldPutStrategy.class, -1);
                 }
             }
 
             // Default unbounded blocking : CLQ based
-            return getBlockingQueueFrom(ConcurrentLinkedQueue.class, MCParkTakeStrategy.class, -1);
+            return getBlockingQueueFrom(ConcurrentLinkedQueue.class, MCParkTakeStrategy.class, YieldPutStrategy.class, -1);
         }
 
     }
 
-    private static <E> BlockingQueue<E> getBlockingQueueFrom(Class<? extends Queue> queueClass, Class<? extends TakeStrategy> takeStrat, int capacity)
+    private static <E> BlockingQueue<E> getBlockingQueueFrom(Class<? extends Queue> queueClass, Class<? extends TakeStrategy> takeStrat, Class<? extends PutStrategy> putStrat, int capacity)
     {
         // Build model for template filling
         BlockingModel model = new BlockingModel();
         model.queueClassName = queueClass.getSimpleName();
         model.blockingQueueClassName = model.queueClassName + "Blocking";
         model.TakeStrategy = takeStrat.getSimpleName();
+        model.PutStrategy = putStrat.getSimpleName();
         model.capacity = (capacity>0)?String.valueOf(capacity):"";
 
         // Check for the Queue in cache

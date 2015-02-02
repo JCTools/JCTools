@@ -10,6 +10,8 @@ public final class MCParkTakeStrategy<E> implements TakeStrategy<E>
     private final ReentrantLock lock = new ReentrantLock();
     private final Condition cond = lock.newCondition();
 
+    private int waiters = 0;
+
     @Override
     public void signal()
     {
@@ -17,7 +19,10 @@ public final class MCParkTakeStrategy<E> implements TakeStrategy<E>
         l.lock();
         try
         {
-            cond.signal();
+            if (waiters>0)
+            {
+                cond.signal();
+            }
         }
         finally
         {
@@ -40,7 +45,9 @@ public final class MCParkTakeStrategy<E> implements TakeStrategy<E>
         {
             while((e = q.poll())==null)
             {
+                waiters++;
                 cond.await();
+                waiters--;
             }
         }
         finally

@@ -1,5 +1,6 @@
 import org.jctools.queues.*;
 import org.jctools.queues.takestrategy.*;
+import org.jctools.queues.putstrategy.*;
 
 import java.util.Collection;
 import java.util.concurrent.BlockingQueue;
@@ -8,6 +9,7 @@ import java.util.concurrent.TimeUnit;
 public class {{blockingQueueClassName}}<E> extends {{queueClassName}}<E> implements BlockingQueue<E>
 {
     private final {{TakeStrategy}}<E> takeStrategy = new {{TakeStrategy}}<E>();
+    private final {{PutStrategy}} putStrategy = new {{PutStrategy}}();
 
     public {{blockingQueueClassName}}()
     {
@@ -19,7 +21,7 @@ public class {{blockingQueueClassName}}<E> extends {{queueClassName}}<E> impleme
     {
         while(!offer(e))
         {
-            Thread.yield();
+            putStrategy.backOff();
         }
     }
 
@@ -41,6 +43,19 @@ public class {{blockingQueueClassName}}<E> extends {{queueClassName}}<E> impleme
 
         return offered;
     }
+
+    @Override
+    public E poll()
+        {
+            E e = super.poll();
+
+            if (e!=null)
+            {
+                putStrategy.signal();
+            }
+
+            return e;
+        }
 
     @Override
     public E poll(long timeout, TimeUnit unit) throws InterruptedException
