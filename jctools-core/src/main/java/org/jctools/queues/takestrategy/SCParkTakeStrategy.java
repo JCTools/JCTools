@@ -1,5 +1,6 @@
 package org.jctools.queues.takestrategy;
 
+import java.util.Queue;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
 
@@ -20,9 +21,9 @@ public final class SCParkTakeStrategy<E> implements TakeStrategy<E>
     }
 
     @Override
-    public E waitFor(SupplierJDK6<E> supplier) throws InterruptedException
+    public E waitFor(Queue<E> q) throws InterruptedException
     {
-        E e = supplier.get();
+        E e = q.poll();
         if (e != null)
         {
             return e;
@@ -30,7 +31,7 @@ public final class SCParkTakeStrategy<E> implements TakeStrategy<E>
 
         t.set(Thread.currentThread());
 
-        while ((e = supplier.get()) == null)
+        while ((e = q.poll()) == null)
         {
             LockSupport.park();
         }

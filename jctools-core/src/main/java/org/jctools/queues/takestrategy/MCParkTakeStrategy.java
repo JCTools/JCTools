@@ -1,5 +1,6 @@
 package org.jctools.queues.takestrategy;
 
+import java.util.Queue;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -25,9 +26,9 @@ public final class MCParkTakeStrategy<E> implements TakeStrategy<E>
     }
 
     @Override
-    public E waitFor(SupplierJDK6<E> supplier) throws InterruptedException
+    public E waitFor(Queue<E> q) throws InterruptedException
     {
-        E e = supplier.get();
+        E e = q.poll();
         if (e != null)
         {
             return e;
@@ -37,7 +38,7 @@ public final class MCParkTakeStrategy<E> implements TakeStrategy<E>
         l.lock();
         try
         {
-            while((e = supplier.get())==null)
+            while((e = q.poll())==null)
             {
                 cond.await();
             }

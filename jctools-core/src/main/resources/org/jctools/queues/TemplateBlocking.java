@@ -8,12 +8,6 @@ import java.util.concurrent.TimeUnit;
 public class {{blockingQueueClassName}}<E> extends {{queueClassName}}<E> implements BlockingQueue<E>
 {
     private final {{TakeStrategy}}<E> takeStrategy = new {{TakeStrategy}}<E>();
-    private final SupplierJDK6<E> poller = new SupplierJDK6<E>() {
-        @Override
-        public E get() {
-            return poll();
-        }
-    };
 
     public {{blockingQueueClassName}}()
     {
@@ -32,7 +26,7 @@ public class {{blockingQueueClassName}}<E> extends {{queueClassName}}<E> impleme
     @Override
     public E take() throws InterruptedException
     {
-        return takeStrategy.waitFor(poller); // For JVM8 => return takeStrategy.waitFor(this::poll);
+        return takeStrategy.waitFor(this); // For JVM8 => return takeStrategy.waitFor(this::poll);
     }
 
     @Override
@@ -69,12 +63,30 @@ public class {{blockingQueueClassName}}<E> extends {{queueClassName}}<E> impleme
     @Override
     public int drainTo(Collection<? super E> c)
     {
-        throw new UnsupportedOperationException();
+        int count = 0;
+
+        E e;
+        while((e = poll()) != null)
+        {
+            c.add(e);
+            count++;
+        }
+
+        return count;
     }
 
     @Override
     public int drainTo(Collection<? super E> c, int maxElements)
     {
-        throw new UnsupportedOperationException();
+        int count = 0;
+
+        E e;
+        while(((e = poll()) != null) && count<maxElements)
+        {
+            c.add(e);
+            count++;
+        }
+
+        return count;
     }
 }

@@ -1,5 +1,7 @@
 package org.jctools.queues.takestrategy;
 
+import java.util.Queue;
+
 public final class YieldTakeStrategy<E> implements TakeStrategy<E>
 {
     @Override
@@ -9,10 +11,10 @@ public final class YieldTakeStrategy<E> implements TakeStrategy<E>
     }
 
     @Override
-    public E waitFor(SupplierJDK6<E> supplier) throws InterruptedException
+    public E waitFor(Queue<E> q) throws InterruptedException
     {
         E e;
-        while((e = supplier.get()) == null)
+        while((e = q.poll()) == null)
         {
             Thread.yield();
         }
