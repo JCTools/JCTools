@@ -1,11 +1,16 @@
 package org.jctools.queues.putstrategy;
 
-public class YieldPutStrategy implements PutStrategy
+import java.util.Queue;
+
+public class YieldPutStrategy<E> implements PutStrategy<E>
 {
     @Override
-    public void backOff()
+    public void backoffOffer(Queue<E> q, E e)
     {
-        Thread.yield();
+        while(!q.offer(e))
+        {
+            Thread.yield();
+        }
     }
 
     @Override

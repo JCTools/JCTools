@@ -1,7 +1,9 @@
 package org.jctools.queues.putstrategy;
 
-public interface PutStrategy
+import java.util.Queue;
+
+public interface PutStrategy<E>
 {
-    void backOff();
+    void backoffOffer(Queue<E> q, E e);
     void signal();
 }

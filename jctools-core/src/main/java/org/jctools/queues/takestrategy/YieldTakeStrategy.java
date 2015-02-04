@@ -11,7 +11,7 @@ public final class YieldTakeStrategy<E> implements TakeStrategy<E>
     }
 
     @Override
-    public E waitFor(Queue<E> q) throws InterruptedException
+    public E waitPoll(Queue<E> q) throws InterruptedException
     {
         E e;
         while((e = q.poll()) == null)

@@ -19,16 +19,13 @@ public class {{blockingQueueClassName}}<E> extends {{queueClassName}}<E> impleme
     @Override
     public void put(E e) throws InterruptedException
     {
-        while(!offer(e))
-        {
-            putStrategy.backOff();
-        }
+        putStrategy.backoffOffer(this, e);
     }
 
     @Override
     public E take() throws InterruptedException
     {
-        return takeStrategy.waitFor(this); // For JVM8 => return takeStrategy.waitFor(this::poll);
+        return takeStrategy.waitPoll(this);
     }
 
     @Override

@@ -31,7 +31,7 @@ public final class MCParkTakeStrategy<E> implements TakeStrategy<E>
     }
 
     @Override
-    public E waitFor(Queue<E> q) throws InterruptedException
+    public E waitPoll(Queue<E> q) throws InterruptedException
     {
         E e = q.poll();
         if (e != null)

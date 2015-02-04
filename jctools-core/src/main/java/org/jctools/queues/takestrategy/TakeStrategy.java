@@ -6,5 +6,5 @@ public interface TakeStrategy<E>
 {
     void signal();
 
-    E waitFor(Queue<E> q) throws InterruptedException;
+    E waitPoll(Queue<E> q) throws InterruptedException;
 }
