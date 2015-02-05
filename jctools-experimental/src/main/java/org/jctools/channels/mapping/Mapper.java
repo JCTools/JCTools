@@ -26,8 +26,6 @@ import static org.jctools.channels.mapping.Primitive.simplifyType;
 
 public class Mapper<S> {
 
-    public static final int MARKER_SIZE = 1;
-
     private final boolean debugEnabled;
     private final TypeInspector inspector;
     private final Class<S> structInterface;

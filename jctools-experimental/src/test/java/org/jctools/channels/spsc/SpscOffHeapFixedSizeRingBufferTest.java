@@ -29,17 +29,19 @@ public class SpscOffHeapFixedSizeRingBufferTest {
 		
 		long writeOffset = rb.writeAcquire();
 		assertNotEquals(0, writeOffset);
-		UnsafeAccess.UNSAFE.putInt(writeOffset+1,1);
-		UnsafeAccess.UNSAFE.putLong(writeOffset+5,1);
+		long fieldOffset = writeOffset+SpscOffHeapFixedSizeRingBuffer.MESSAGE_INDICATOR_SIZE;
+		UnsafeAccess.UNSAFE.putInt(fieldOffset,1);
+		UnsafeAccess.UNSAFE.putLong(fieldOffset+4,1);
 		// blah blah, not writing the rest
 		
 		rb.writeRelease(writeOffset);
 		assertEquals(1, rb.size());
 		assertTrue(!rb.isEmpty());
 		long readOffset = rb.readAcquire();
+		fieldOffset = readOffset + SpscOffHeapFixedSizeRingBuffer.MESSAGE_INDICATOR_SIZE;
 		assertEquals(writeOffset, readOffset);
-		assertEquals(1, UnsafeAccess.UNSAFE.getInt(readOffset+1));
-		assertEquals(1L, UnsafeAccess.UNSAFE.getLong(readOffset+5));
+		assertEquals(1, UnsafeAccess.UNSAFE.getInt(fieldOffset));
+		assertEquals(1L, UnsafeAccess.UNSAFE.getLong(fieldOffset+4));
 		rb.readRelease(readOffset);
 		
 		assertEquals(0, rb.size());

@@ -17,7 +17,8 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.jctools.channels.mapping.Mapper.MARKER_SIZE;
+import org.jctools.channels.spsc.SpscOffHeapFixedSizeRingBuffer;
+
 import static org.jctools.channels.mapping.Primitive.simplifyType;
 
 public class ClassViewModel {
@@ -63,7 +64,7 @@ public class ClassViewModel {
     }
 
     public List<Variable> fields() {
-        int fieldOffset = MARKER_SIZE;
+        int fieldOffset = SpscOffHeapFixedSizeRingBuffer.MESSAGE_INDICATOR_SIZE;
         List<Variable> fields = new ArrayList<Variable>();
         for (Method method : inspector.getters) {
             Primitive type = Primitive.of(method.getReturnType());
