@@ -15,6 +15,7 @@ package org.jctools.util;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
@@ -35,7 +36,11 @@ public class Template {
     private int previousIndex;
 
     public static Template fromFile(final Class<?> resourceRoot, final String fileName) {
-        BufferedReader reader = new BufferedReader(new InputStreamReader(resourceRoot.getResourceAsStream(fileName)));
+        InputStream templateStream = resourceRoot.getResourceAsStream(fileName);
+        if(templateStream == null) {
+            throw new IllegalArgumentException("Template file of the name: \'"+fileName+"\' was not found.");
+        }
+        BufferedReader reader = new BufferedReader(new InputStreamReader(templateStream));
         try {
             try {
                 StringBuffer buffer = new StringBuffer();
