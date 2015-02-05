@@ -27,7 +27,7 @@ abstract class SpscGrowableArrayQueueProducerFields<E> extends AbstractQueue<E> 
 }
 
 abstract class SpscGrowableArrayQueueProducerColdFields<E> extends SpscGrowableArrayQueueProducerFields<E> {
-    protected int maxSize;
+    protected int maxQueueCapacity;
     protected int producerLookAheadStep;
     protected long producerLookAhead;
     protected long producerMask;
@@ -105,9 +105,9 @@ public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerFie
         adjustLookAheadStep(p2capacity);
         consumerBuffer = buffer;
         consumerMask = mask;
-        maxSize = Pow2.roundToPowerOfTwo(maxCapacity) - 1;
+        maxQueueCapacity = Pow2.roundToPowerOfTwo(maxCapacity);
         producerLookAhead = mask - 1; // we know it's all empty to start with
-        soProducerIndex(0l);
+        soProducerIndex(0l);// serves as a StoreStore barrier to support correct publication
     }
 
     @Override
@@ -130,32 +130,43 @@ public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerFie
         final long index = producerIndex;
         final long mask = producerMask;
         final long offset = calcElementOffset(index, mask);
+        // expected hot path
         if (index < producerLookAhead) {
-            return writeToQueue(buffer, e, index, offset);
-        } else {
-            final int lookAheadStep = producerLookAheadStep;
-            // normal case, go around the buffer or resize if full (unless we hit max capacity)
-            if (lookAheadStep > 0) {
-                long lookAheadElementOffset = calcElementOffset(index + lookAheadStep, mask);
-                if (null == lvElement(buffer, lookAheadElementOffset)) {// LoadLoad
-                    producerLookAhead = index + lookAheadStep - 1; // joy, there's plenty of room
-                    return writeToQueue(buffer, e, index, offset);
-                } else if (null == lvElement(buffer, calcElementOffset(index + 1, mask))) { // buffer is not full
-                    return writeToQueue(buffer, e, index, offset);
-                } else if (mask == maxSize) {
-                    // we're full and can't grow
-                    return false;
-                } else {
-                    resize(buffer, index, offset, maxSize, e); // double the buffer and link old to new
+            writeToQueue(buffer, e, index, offset);
+            return true;
+        } 
+        final int lookAheadStep = producerLookAheadStep;
+        // normal case, go around the buffer or resize if full (unless we hit max capacity)
+        if (lookAheadStep > 0) {
+            long lookAheadElementOffset = calcElementOffset(index + lookAheadStep, mask);
+            // Try and look ahead a number of elements so we don't have to do this all the time
+            if (null == lvElement(buffer, lookAheadElementOffset)) {
+                producerLookAhead = index + lookAheadStep - 1; // joy, there's plenty of room
+                writeToQueue(buffer, e, index, offset);
+                return true;
+            }
+            // we're at max capacity, can use up last element
+            final int maxCapacity = maxQueueCapacity;
+            if (mask + 1 == maxCapacity) {
+                if (null == lvElement(buffer, offset)) {
+                    writeToQueue(buffer, e, index, offset);
                     return true;
                 }
+                // we're full and can't grow
+                return false;
             }
-            // the step is negative (or zero) in the period between allocating the max sized buffer and the
-            // consumer starting on it
-            // NOTE: we can do away with the special case if we accept a more flexible view on capacity
-            else {
-                return offerWhileWaitingForConsumerOnLastBuffer(buffer, e, index, mask, offset, lookAheadStep);
+            // not at max capacity, so must allow extra slot for next buffer pointer
+            if (null == lvElement(buffer, calcElementOffset(index + 1, mask))) { // buffer is not full
+                writeToQueue(buffer, e, index, offset);
+            } else {
+                resize(buffer, index, offset, maxCapacity, e); // double the buffer and link old to new
             }
+            return true;
+        }
+        // the step is negative (or zero) in the period between allocating the max sized buffer and the
+        // consumer starting on it
+        else {
+            return offerWhileWaitingForConsumerOnLastBuffer(buffer, e, index, mask, offset, lookAheadStep);
         }
     }
 
@@ -166,7 +177,7 @@ public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerFie
         // verify size
         long currConsumerIndex = lvConsumerIndex();
         int size = (int) (index - currConsumerIndex);
-        int maxCapacity = (int) mask; // we're on max capacity or we wouldn't be here
+        int maxCapacity = (int) mask+1; // we're on max capacity or we wouldn't be here
         if (size == maxCapacity) {
             // consumer index has not changed since adjusting the lookAhead index, we're full
             return false;
@@ -183,13 +194,13 @@ public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerFie
             producerLookAheadStep = (int) (currConsumerIndex - firstIndexInCurrentBuffer);
         }
         producerLookAhead = currConsumerIndex + maxCapacity;
-        return writeToQueue(buffer, e, index, offset);
+        writeToQueue(buffer, e, index, offset);
+        return true;
     }
 
-    private boolean writeToQueue(final E[] buffer, final E e, final long index, final long offset) {
+    private void writeToQueue(final E[] buffer, final E e, final long index, final long offset) {
         soProducerIndex(index + 1);// this ensures atomic write of long on 32bit platforms
         soElement(buffer, offset, e);// StoreStore
-        return true;
     }
 
     @SuppressWarnings("unchecked")
@@ -205,7 +216,6 @@ public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerFie
             // use lookAheadStep to store the consumer distance from final buffer
             producerLookAheadStep = -(int) (currIndex - currConsumerIndex);
             producerLookAhead = currConsumerIndex + maxCapacity - 1;
-
         } else {
             producerLookAhead = currIndex + producerMask - 1;
             adjustLookAheadStep(newCapacity);
@@ -231,7 +241,7 @@ public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerFie
         final Object e = lvElement(buffer, offset);// LoadLoad
         boolean isNextBuffer = e instanceof NextHolder;
         if (null != e && !isNextBuffer) {
-            soConsumerIndex(index + 1);// this ensures correctness on 32bit platforms
+            soConsumerIndex(index + 1);// this ensures size correctness on 32bit platforms
             soElement(buffer, offset, null);// StoreStore
             return (E) e;
         } else if (isNextBuffer) {

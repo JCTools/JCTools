@@ -112,7 +112,13 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> {
     long p30, p31, p32, p33, p34, p35, p36, p37;
 
     public MpmcArrayQueue(final int capacity) {
-        super(Math.max(2, capacity));
+        super(validateCapacity(capacity));
+    }
+
+    private static int validateCapacity(int capacity) {
+        if(capacity < 2)
+            throw new IllegalArgumentException("Minimum size is 2");
+        return capacity;
     }
 
     @Override

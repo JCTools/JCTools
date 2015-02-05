@@ -39,8 +39,12 @@ abstract class MpscCompoundQueueColdFields<E> extends MpscCompoundQueueL0Pad<E> 
                 : roundToPowerOfTwo(queueParallelism) / 2;
         parallelQueuesMask = parallelQueues - 1;
         queues = new MpscArrayQueue[parallelQueues];
+        int fullCapacity = roundToPowerOfTwo(capacity);
+        if(fullCapacity < parallelQueues) {
+            throw new IllegalArgumentException("Queue capacity must exceed parallelism");
+        }
         for (int i = 0; i < parallelQueues; i++) {
-            queues[i] = new MpscArrayQueue<E>(roundToPowerOfTwo(capacity) / parallelQueues);
+            queues[i] = new MpscArrayQueue<E>(fullCapacity / parallelQueues);
         }
     }
 }
@@ -114,7 +118,17 @@ public final class MpscCompoundQueue<E> extends MpscCompoundQueueConsumerQueueIn
 
     @Override
     public E peek() {
-        throw new UnsupportedOperationException();
+        int qIndex = consumerQueueIndex & parallelQueuesMask;
+        int limit = qIndex + parallelQueues;
+        E e = null;
+        for (; qIndex < limit; qIndex++) {
+            e = queues[qIndex & parallelQueuesMask].peek();
+            if (e != null) {
+                break;
+            }
+        }
+        consumerQueueIndex = qIndex;
+        return e;
     }
 
     @Override

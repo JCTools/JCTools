@@ -1,58 +1,65 @@
 package org.jctools.queues;
 
-import org.jctools.queues.spec.ConcurrentQueueSpec;
-import org.jctools.queues.spec.Ordering;
-import org.jctools.queues.spec.Preference;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Queue;
-
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.sameInstance;
 import static org.jctools.queues.matchers.Matchers.emptyAndZeroSize;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeThat;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Queue;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import org.jctools.queues.spec.ConcurrentQueueSpec;
+import org.jctools.queues.spec.Ordering;
+import org.jctools.queues.spec.Preference;
+import org.jctools.util.Pow2;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 @RunWith(Parameterized.class)
 public class QueueSanityTest {
 
     private static final int SIZE = 8192 * 2;
-    private final static ConcurrentQueueSpec GROW = new ConcurrentQueueSpec(1, 1, SIZE, Ordering.FIFO, Preference.NONE);
-    private final static ConcurrentQueueSpec UNBOUND = new ConcurrentQueueSpec(1, 1, 0, Ordering.FIFO, Preference.NONE);
-
     @Parameterized.Parameters
-    public static Collection queues() {
-        return Arrays.asList(test(1, 1, 1, Ordering.FIFO), test(1, 1, 0, Ordering.FIFO),
-                test(1, 1, SIZE, Ordering.FIFO), test(1, 0, 1, Ordering.FIFO),
-                test(1, 0, SIZE, Ordering.FIFO), test(0, 1, 0, Ordering.FIFO), test(0, 1, 1, Ordering.FIFO),
-                test(0, 1, SIZE, Ordering.FIFO), test(0, 1, 1, Ordering.PRODUCER_FIFO),
-                test(0, 1, SIZE, Ordering.PRODUCER_FIFO), test(0, 1, 1, Ordering.NONE),
-                test(0, 1, SIZE, Ordering.NONE), test(0, 0, 1, Ordering.FIFO),
-                test(0, 0, SIZE, Ordering.FIFO), new Object[] { GROW }, new Object[] { UNBOUND });
+    public static Collection parameters() {
+        ArrayList<Object[]> list = new ArrayList<Object[]>();
+        list.add(test(1, 1, 1, Ordering.FIFO, null));
+        list.add(test(1, 1, 0, Ordering.FIFO, null));
+        list.add(test(1, 1, SIZE, Ordering.FIFO, null));
+        list.add(test(1, 1, 16, Ordering.FIFO, new SpscGrowableArrayQueue<Integer>(4, 16)));
+        list.add(test(1, 1, 0, Ordering.FIFO, new SpscUnboundedArrayQueue<Integer>(16)));
+        list.add(test(1, 0, 1, Ordering.FIFO, null));
+        list.add(test(1, 0, SIZE, Ordering.FIFO, null));
+        list.add(test(0, 1, 0, Ordering.FIFO, null));
+        list.add(test(0, 1, 1, Ordering.FIFO, null));
+        list.add(test(0, 1, SIZE, Ordering.FIFO, null));
+        list.add(test(0, 1, 1, Ordering.PRODUCER_FIFO, null));
+        list.add(test(0, 1, SIZE, Ordering.PRODUCER_FIFO, null));
+        // Compound queue minimal size is the core count
+        list.add(test(0, 1, Runtime.getRuntime().availableProcessors(), Ordering.NONE, null));
+        list.add(test(0, 1, SIZE, Ordering.NONE, null));
+        // Mpmc minimal size is 2
+        list.add(test(0, 0, 2, Ordering.FIFO, null));
+        list.add(test(0, 0, SIZE, Ordering.FIFO, null));
+        return list;
     }
 
     private final Queue<Integer> queue;
     private final ConcurrentQueueSpec spec;
 
-    public QueueSanityTest(ConcurrentQueueSpec spec) {
-        if (spec == GROW) {
-            queue = new SpscGrowableArrayQueue<Integer>(SIZE);
-        }
-        else if (spec == UNBOUND) {
-            queue = new SpscUnboundedArrayQueue<Integer>(128);
-        }
-        else {
-            queue = QueueFactory.newQueue(spec);
-        }
+    public QueueSanityTest(ConcurrentQueueSpec spec, Queue<Integer> queue) {
+        this.queue = queue;
         this.spec = spec;
     }
 
@@ -175,9 +182,71 @@ public class QueueSanityTest {
         assertThat(queue, emptyAndZeroSize());
     }
 
-    private static Object[] test(int producers, int consumers, int capacity, Ordering ordering) {
-        return new Object[] { new ConcurrentQueueSpec(producers, consumers, capacity, ordering,
-                Preference.NONE) };
+    @Test
+    public void testPowerOf2Capacity() {
+        assumeThat(spec.isBounded(), is(true));
+        int n = Pow2.roundToPowerOfTwo(spec.capacity);
+
+        for (int i = 0; i < n; i++) {
+            assertTrue("Failed to insert:"+i,queue.offer(i));
+        }
+        assertFalse(queue.offer(n));
+    }
+
+    static final class Val {
+        public int value;
+    }
+
+    @Test
+    public void testHappensBefore() throws Exception {
+        final AtomicBoolean stop = new AtomicBoolean();
+        final Queue q = queue;
+        final Val fail = new Val();
+        Thread t1 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while (!stop.get()) {
+                    for (int i = 1; i <= 10; i++) {
+                        Val v = new Val();
+                        v.value = i;
+                        q.offer(v);
+                    }
+                }
+            }
+        });
+        Thread t2 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while (!stop.get()) {
+                    for (int i = 0; i < 10; i++) {
+                        Val v = (Val) q.peek();
+                        if (v != null && v.value == 0) {
+                            fail.value = 1;
+                            stop.set(true);
+                        }
+                        q.poll();
+                    }
+                }
+            }
+        });
+
+        t1.start();
+        t2.start();
+        Thread.sleep(1000);
+        stop.set(true);
+        t1.join();
+        t2.join();
+        assertEquals("reordering detected", 0, fail.value);
+
+    }
+
+    private static Object[] test(int producers, int consumers, int capacity, Ordering ordering, Queue<Integer> q) {
+        ConcurrentQueueSpec spec = new ConcurrentQueueSpec(producers, consumers, capacity, ordering,
+                Preference.NONE);
+        if(q == null) {
+            q = QueueFactory.newQueue(spec);
+        }
+        return new Object[] { spec, q };
     }
 
 }
