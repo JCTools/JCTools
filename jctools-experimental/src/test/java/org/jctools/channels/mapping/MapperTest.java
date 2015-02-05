@@ -22,7 +22,7 @@ import static org.junit.Assert.*;
 
 public class MapperTest {
 
-    private static final int EXAMPLE_SIZE_IN_BYTES = 12;
+    private static final int EXAMPLE_SIZE_IN_BYTES = 16;
 
     private long startAddress;
     private Mapper<Example> mapper;
