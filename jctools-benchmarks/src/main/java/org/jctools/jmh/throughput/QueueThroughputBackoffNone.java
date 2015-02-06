@@ -39,6 +39,10 @@ public class QueueThroughputBackoffNone {
     @Setup()
     public void createQ() {
         q = QueueByTypeFactory.createQueue(qType, qCapacity);
+        for (int i = 0; i < 100000; i++) {
+            q.offer(ONE);
+            q.poll();
+        }
     }
 
     @AuxCounters
@@ -80,8 +84,7 @@ public class QueueThroughputBackoffNone {
         if (!q.offer(ONE)) {
             counters.offersFailed++;
             backoff();
-        }
-        else {
+        } else {
             counters.offersMade++;
         }
         if (DELAY_PRODUCER != 0) {
@@ -99,11 +102,9 @@ public class QueueThroughputBackoffNone {
         if (e == null) {
             counters.pollsFailed++;
             backoff();
-        }
-        else if (e == ONE){
+        } else if (e == ONE) {
             counters.pollsMade++;
-        }
-        else {
+        } else {
             escape = e;
         }
         if (DELAY_CONSUMER != 0) {
