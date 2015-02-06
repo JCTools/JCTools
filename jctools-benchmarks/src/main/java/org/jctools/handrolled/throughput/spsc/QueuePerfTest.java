@@ -27,7 +27,10 @@ public class QueuePerfTest {
     public static void main(final String[] args) throws Exception {
         System.out.println("capacity:" + QueueByTypeFactory.QUEUE_CAPACITY + " reps:" + REPETITIONS);
         final Queue<Integer> queue = QueueByTypeFactory.createQueue();
-
+        for (int i = 0; i < 100000; i++) {
+            queue.offer(TEST_VALUE);
+            queue.poll();
+        }
         final long[] results = new long[20];
         for (int i = 0; i < 20; i++) {
             System.gc();
@@ -60,10 +63,15 @@ public class QueuePerfTest {
         thread.join();
         long duration = end - p.start;
         long ops = (REPETITIONS * 1000L * 1000L * 1000L) / duration;
+        perRunPrint(runNumber, queue, p, result, queueEmpty, ops);
+        return ops;
+    }
+
+    private static void perRunPrint(int runNumber, Queue<Integer> queue, Producer p, Integer result,
+            int queueEmpty, long ops) {
         String qName = queue.getClass().getSimpleName();
         System.out.format("%d - ops/sec=%,d - %s result=%d failed.poll=%d failed.offer=%d\n", runNumber, ops,
                 qName, result, queueEmpty, p.queueFull);
-        return ops;
     }
 
     public static class Producer implements Runnable {

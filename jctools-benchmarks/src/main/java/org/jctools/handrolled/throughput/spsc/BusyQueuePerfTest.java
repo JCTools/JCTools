@@ -13,10 +13,9 @@
  */
 package org.jctools.handrolled.throughput.spsc;
 
-import org.jctools.handrolled.throughput.spsc.QueuePerfTest.Producer;
-import org.jctools.queues.QueueByTypeFactory;
-
 import java.util.Queue;
+
+import org.jctools.queues.QueueByTypeFactory;
 
 public class BusyQueuePerfTest {
     // 15 == 32 * 1024
@@ -26,7 +25,10 @@ public class BusyQueuePerfTest {
     public static void main(final String[] args) throws Exception {
         System.out.println("capacity:" + QueueByTypeFactory.QUEUE_CAPACITY + " reps:" + REPETITIONS);
         final Queue<Integer> queue = QueueByTypeFactory.createQueue();
-
+        for (int i = 0; i < 100000; i++) {
+            queue.offer(TEST_VALUE);
+            queue.poll();
+        }
         final long[] results = new long[20];
         for (int i = 0; i < 20; i++) {
             System.gc();
