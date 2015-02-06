@@ -44,8 +44,7 @@ public class SpscOffHeapFixedSizeRingBuffer {
     private final long producerIndexAddress;
     private final long producerLookAheadCacheAddress;
 
-    private final int capacity;
-    private final int mask;
+    private final long mask;
     private final long bufferAddress;
     private final int messageSize;
 
@@ -72,9 +71,9 @@ public class SpscOffHeapFixedSizeRingBuffer {
             final boolean isProducer, final boolean isConsumer, final boolean initialize,
             final int messageSize) {
 
-        this.capacity = Pow2.roundToPowerOfTwo(capacity);
+        int actualCapacity = Pow2.roundToPowerOfTwo(capacity);
         this.messageSize = messageSize + MESSAGE_INDICATOR_SIZE;
-        this.buffy = alignedSlice(4 * CACHE_LINE_SIZE + (this.capacity * (this.messageSize)),
+        this.buffy = alignedSlice(4 * CACHE_LINE_SIZE + (actualCapacity * (this.messageSize)),
                 CACHE_LINE_SIZE, buff);
 
         long alignedAddress = UnsafeDirectByteBuffer.getAddress(buffy);
@@ -89,13 +88,13 @@ public class SpscOffHeapFixedSizeRingBuffer {
         this.producerIndexAddress = this.consumerIndexAddress + 2 * CACHE_LINE_SIZE;
         this.producerLookAheadCacheAddress = this.producerIndexAddress + 8;
         this.bufferAddress = alignedAddress + HEADER_SIZE;
-        this.mask = this.capacity - 1;
+        this.mask = actualCapacity - 1;
         // producer owns tail and headCache
         if (isProducer && initialize) {
             spLookAheadCache(0);
             soProducerIndex(0);
             // mark all messages as null
-            for (int i = 0; i < this.capacity; i++) {
+            for (int i = 0; i < actualCapacity; i++) {
                 final long offset = offsetForIndex(i);
                 readyIndicator(offset);
             }
@@ -107,10 +106,6 @@ public class SpscOffHeapFixedSizeRingBuffer {
     }
 
     /**
-     * NOTE: for this implementation the allocated capacity may not be used to it's fullest as the producer
-     * may stop writing to the queue up to lookAheadStep elements before full capacity. The actual capacity
-     * therefore is between <i>(capacity - lookAheadStep)</i> and <i>capacity</i>.
-     * 
      * @return the offset at the next element to be written or EOF if it is not available.
      */
     protected final long writeAcquire() {
@@ -127,7 +122,6 @@ public class SpscOffHeapFixedSizeRingBuffer {
             else if (!isMessageReady(offsetForIndex)) {
                 return EOF;
             }
-
         }
         // return offset for current producer index
         return offsetForIndex;
@@ -170,11 +164,11 @@ public class SpscOffHeapFixedSizeRingBuffer {
         UNSAFE.putOrderedInt(null, offset, BUSY_MESSAGE_INDICATOR);
     }
 
-    private void readyIndicator(final long offset) {
+    private void readyIndicator(long offset) {
         UNSAFE.putOrderedInt(null, offset, READY_MESSAGE_INDICATOR);
     }
 
-    private long offsetForIndex(final long currentHead) {
+    private long offsetForIndex(long currentHead) {
         return bufferAddress + ((currentHead & mask) * messageSize);
     }
 
