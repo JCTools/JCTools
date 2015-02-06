@@ -68,6 +68,12 @@ public class ChannelThroughputBackoffNone {
         channel = new SpscChannel<Ping>(buffer, capacity, Ping.class);
         producer = channel.producer();
         consumer = channel.consumer(receiver);
+        OfferCounters oc= new OfferCounters();
+        PollCounters pc = new PollCounters();
+        for(int i=0;i<100000;i++) {
+            offer(oc);
+            poll(pc,null);
+        }
     }
 
     @AuxCounters
