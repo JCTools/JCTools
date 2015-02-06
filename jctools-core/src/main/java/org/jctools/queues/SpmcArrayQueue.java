@@ -130,22 +130,22 @@ public final class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> {
         if (null == e) {
             throw new NullPointerException("Null is not a valid element");
         }
-        final E[] lb = buffer;
-        final long lMask = mask;
+        final E[] buffer = this.buffer;
+        final long mask = this.mask;
         final long currProducerIndex = lvProducerIndex();
-        final long offset = calcElementOffset(currProducerIndex);
-        if (null != lvElement(lb, offset)) {
+        final long offset = calcElementOffset(currProducerIndex, mask);
+        if (null != lvElement(buffer, offset)) {
             long size = currProducerIndex - lvConsumerIndex();
             
-            if(size > lMask) {
+            if(size > mask) {
                 return false;
             }
             else {
                 // spin wait for slot to clear, buggers wait freedom
-                while(null != lvElement(lb, offset));
+                while(null != lvElement(buffer, offset));
             }
         }
-        spElement(lb, offset, e);
+        spElement(buffer, offset, e);
         // single producer, so store ordered is valid. It is also required to correctly publish the element
         // and for the consumers to pick up the tail value.
         soTail(currProducerIndex + 1);
@@ -180,8 +180,9 @@ public final class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> {
 
     @Override
     public E peek() {
-        long currentConsumerIndex;
+        final long mask = this.mask;
         final long currProducerIndexCache = lvProducerIndexCache();
+        long currentConsumerIndex;
         E e;
         do {
             currentConsumerIndex = lvConsumerIndex();
@@ -193,7 +194,7 @@ public final class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> {
                     svProducerIndexCache(currProducerIndex);
                 }
             }
-        } while (null == (e = lvElement(calcElementOffset(currentConsumerIndex))));
+        } while (null == (e = lvElement(calcElementOffset(currentConsumerIndex, mask))));
         return e;
     }
 

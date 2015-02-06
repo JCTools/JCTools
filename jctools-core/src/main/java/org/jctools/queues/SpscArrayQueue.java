@@ -117,20 +117,21 @@ public final class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E> {
             throw new NullPointerException("Null is not a valid element");
         }
         // local load of field to avoid repeated loads after volatile reads
-        final E[] lElementBuffer = buffer;
+        final E[] buffer = this.buffer;
+        final long mask = this.mask;
         final long index = producerIndex;
-        final long offset = calcElementOffset(index);
+        final long offset = calcElementOffset(index, mask);
         if (index >= producerLookAhead) {
             int step = lookAheadStep;
-            if (null == lvElement(lElementBuffer, calcElementOffset(index + step))) {// LoadLoad
+            if (null == lvElement(buffer, calcElementOffset(index + step, mask))) {// LoadLoad
                 producerLookAhead = index + step;
             }
-            else if (null != lvElement(lElementBuffer, offset)){
+            else if (null != lvElement(buffer, offset)){
                 return false;
             }
         }
         soProducerIndex(index + 1); // ordered store -> atomic and ordered for size()
-        soElement(lElementBuffer, offset, e); // StoreStore
+        soElement(buffer, offset, e); // StoreStore
         return true;
     }
     

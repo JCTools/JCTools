@@ -128,15 +128,16 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> {
         }
 
         // local load of field to avoid repeated loads after volatile reads
+        final long mask = this.mask;
         final long capacity = mask + 1;
-        final long[] lSequenceBuffer = sequenceBuffer;
+        final long[] sBuffer = sequenceBuffer;
         long currentProducerIndex;
         long seqOffset;
         long cIndex = Long.MAX_VALUE;// start with bogus value, hope we don't need it
         while (true) {
             currentProducerIndex = lvProducerIndex(); // LoadLoad
-            seqOffset = calcSequenceOffset(currentProducerIndex);
-            final long seq = lvSequence(lSequenceBuffer, seqOffset); // LoadLoad
+            seqOffset = calcSequenceOffset(currentProducerIndex, mask);
+            final long seq = lvSequence(sBuffer, seqOffset); // LoadLoad
             final long delta = seq - currentProducerIndex;
 
             if (delta == 0) {
@@ -157,12 +158,12 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> {
         }
 
         // on 64bit(no compressed oops) JVM this is the same as seqOffset
-        final long elementOffset = calcElementOffset(currentProducerIndex);
+        final long elementOffset = calcElementOffset(currentProducerIndex, mask);
         spElement(elementOffset, e);
 
         // increment sequence by 1, the value expected by consumer
         // (seeing this value from a producer will lead to retry 2)
-        soSequence(lSequenceBuffer, seqOffset, currentProducerIndex + 1); // StoreStore
+        soSequence(sBuffer, seqOffset, currentProducerIndex + 1); // StoreStore
 
         return true;
     }
@@ -177,12 +178,13 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> {
     public E poll() {
         // local load of field to avoid repeated loads after volatile reads
         final long[] lSequenceBuffer = sequenceBuffer;
+        final long mask = this.mask;
         long currentConsumerIndex;
         long seqOffset;
         long pIndex = -1; // start with bogus value, hope we don't need it
         while (true) {
             currentConsumerIndex = lvConsumerIndex();// LoadLoad
-            seqOffset = calcSequenceOffset(currentConsumerIndex);
+            seqOffset = calcSequenceOffset(currentConsumerIndex, mask);
             final long seq = lvSequence(lSequenceBuffer, seqOffset);// LoadLoad
             final long delta = seq - (currentConsumerIndex + 1);
 
@@ -203,7 +205,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> {
         }
 
         // on 64bit(no compressed oops) JVM this is the same as seqOffset
-        final long offset = calcElementOffset(currentConsumerIndex);
+        final long offset = calcElementOffset(currentConsumerIndex, mask);
         final E e = lpElement(offset);
         spElement(offset, null);
 

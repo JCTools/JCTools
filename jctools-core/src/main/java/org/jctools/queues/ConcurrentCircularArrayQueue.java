@@ -84,7 +84,7 @@ public abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircular
      * @param mask 
      * @return the offset in bytes within the array for a given index.
      */
-    protected final long calcElementOffset(long index, long mask) {
+    protected static final long calcElementOffset(long index, long mask) {
         return REF_ARRAY_BASE + ((index & mask) << REF_ELEMENT_SHIFT);
     }
     /**

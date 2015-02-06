@@ -147,6 +147,7 @@ public final class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> {
         }
 
         // use a cached view on consumer index (potentially updated in loop)
+        final long mask = this.mask;
         final long capacity = mask + 1;
         long consumerIndexCache = lvConsumerIndexCache(); // LoadLoad
         long currentProducerIndex;
@@ -171,7 +172,7 @@ public final class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> {
          */
 
         // Won CAS, move on to storing
-        final long offset = calcElementOffset(currentProducerIndex);
+        final long offset = calcElementOffset(currentProducerIndex, mask);
         soElement(offset, e); // StoreStore
         return true; // AWESOME :)
     }
@@ -179,14 +180,14 @@ public final class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> {
     /**
      * A wait free alternative to offer which fails on CAS failure.
      * 
-     * @param e
-     *            new element, not null
+     * @param e new element, not null
      * @return 1 if next element cannot be filled, -1 if CAS failed, 0 if successful
      */
     public int weakOffer(final E e) {
         if (null == e) {
             throw new NullPointerException("Null is not a valid element");
         }
+        final long mask = this.mask;
         final long capacity = mask + 1;
         final long currentTail = lvProducerIndex(); // LoadLoad
         final long consumerIndexCache = lvConsumerIndexCache(); // LoadLoad
@@ -206,7 +207,7 @@ public final class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> {
         }
 
         // Won CAS, move on to storing
-        final long offset = calcElementOffset(currentTail);
+        final long offset = calcElementOffset(currentTail, mask);
         soElement(offset, e);
         return 0; // AWESOME :)
     }
@@ -225,10 +226,10 @@ public final class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> {
         final long consumerIndex = lvConsumerIndex(); // LoadLoad
         final long offset = calcElementOffset(consumerIndex);
         // Copy field to avoid re-reading after volatile load
-        final E[] lElementBuffer = buffer;
+        final E[] buffer = this.buffer;
 
         // If we can't see the next available element we can't poll
-        E e = lvElement(lElementBuffer, offset); // LoadLoad
+        E e = lvElement(buffer, offset); // LoadLoad
         if (null == e) {
             /*
              * NOTE: Queue may not actually be empty in the case of a producer (P1) being interrupted after
@@ -236,14 +237,15 @@ public final class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> {
              * to fill up the queue after this element.
              */
             if (consumerIndex != lvProducerIndex()) {
-                while ((e = lvElement(lElementBuffer, offset)) == null)
-                    ;
+                do {
+                    e = lvElement(buffer, offset);
+                } while (e == null);
             } else {
                 return null;
             }
         }
 
-        spElement(lElementBuffer, offset, null);
+        spElement(buffer, offset, null);
         soConsumerIndex(consumerIndex + 1); // StoreStore
         return e;
     }
@@ -260,11 +262,11 @@ public final class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> {
     @Override
     public E peek() {
         // Copy field to avoid re-reading after volatile load
-        final E[] lElementBuffer = buffer;
+        final E[] buffer = this.buffer;
 
         final long consumerIndex = lvConsumerIndex(); // LoadLoad
         final long offset = calcElementOffset(consumerIndex);
-        E e = lvElement(lElementBuffer, offset);
+        E e = lvElement(buffer, offset);
         if (null == e) {
             /*
              * NOTE: Queue may not actually be empty in the case of a producer (P1) being interrupted after
@@ -272,8 +274,9 @@ public final class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> {
              * to fill up the queue after this element.
              */
             if (consumerIndex != lvProducerIndex()) {
-                while ((e = lvElement(lElementBuffer, offset)) == null)
-                    ;
+                do {
+                    e = lvElement(buffer, offset);
+                } while (e == null);
             } else {
                 return null;
             }
