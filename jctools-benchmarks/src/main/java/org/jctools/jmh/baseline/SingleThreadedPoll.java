@@ -16,8 +16,15 @@ public class SingleThreadedPoll
     public static final int OPS = 1 << 15;
     public static final Integer TOKEN = 1;
    
-    Queue<Integer> q = QueueByTypeFactory.createQueue(OPS*2);
     volatile boolean preventUnrolling = true;
+    @Param(value = { "SpscArrayQueue", "MpscArrayQueue", "SpmcArrayQueue", "MpmcArrayQueue" })
+    String qType;
+    Queue<Integer> q;
+    
+    @Setup(Level.Trial)
+    public void createQ() {
+        q = QueueByTypeFactory.createQueue(qType, OPS*2);
+    }
     
     @Setup(Level.Invocation)
     public void fill()

@@ -31,18 +31,28 @@ import java.util.concurrent.TimeUnit;
 @Warmup(iterations = 10, time = 1, timeUnit = TimeUnit.SECONDS)
 @Measurement(iterations = 10, time = 1, timeUnit = TimeUnit.SECONDS)
 public class QueueOfferPoll {
-    private static final int BURST_SIZE = Integer.getInteger("burst.size", 1);
     private static final Integer DUMMY_MESSAGE = 1;
-    private final Queue<Integer> q = QueueByTypeFactory.createQueue();
+    @Param(value = { "SpscArrayQueue", "MpscArrayQueue", "SpmcArrayQueue", "MpmcArrayQueue" })
+    String qType;
+    @Param(value = "132000")
+    int qCapacity;
+    @Param(value = "1")
+    int burstSize;
+    Queue<Integer> q;
     
+    @Setup(Level.Trial)
+    public void createQ() {
+        q = QueueByTypeFactory.createQueue(qType, qCapacity);
+    }
 
     @Benchmark
     public int offerAndPollLoops() {
-        for (int i = 0; i < BURST_SIZE; i++) {
+        final int burstSize = this.burstSize;
+        for (int i = 0; i < burstSize; i++) {
             q.offer(DUMMY_MESSAGE);
         }
         Integer result = null;
-        for (int i = 0; i < BURST_SIZE; i++) {
+        for (int i = 0; i < burstSize; i++) {
             result = q.poll();
         }
         return result.intValue();
