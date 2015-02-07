@@ -42,7 +42,7 @@ public class Mapper<S> {
      * @return the size that each message takes up in bytes
      */
     public int getSizeInBytes() {
-        return inspector.getSizeInBytes();
+        return Primitive.INT.sizeInBytes + inspector.getSizeInBytes();
     }
 
     public <I> I newFlyweight(Class<I> implementationParent, String templateFile, Object ... args) {
