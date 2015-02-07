@@ -157,7 +157,7 @@ public class SpscOffHeapFixedSizeRingBuffer {
     }
 
     private boolean isMessageReady(long offset) {
-        return UNSAFE.getIntVolatile(null, offsetForIndex(offset)) == READY_MESSAGE_INDICATOR;
+        return UNSAFE.getIntVolatile(null, offset) == READY_MESSAGE_INDICATOR;
     }
 
     private void busyIndicator(long offset) {
