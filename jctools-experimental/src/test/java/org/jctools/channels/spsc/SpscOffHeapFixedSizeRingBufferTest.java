@@ -28,7 +28,7 @@ public class SpscOffHeapFixedSizeRingBufferTest {
 		assertEquals(rb.EOF, rb.readAcquire());
 		
 		long writeOffset = rb.writeAcquire();
-		assertNotEquals(0, writeOffset);
+		assertNotEquals(rb.EOF, writeOffset);
 		long fieldOffset = writeOffset+SpscOffHeapFixedSizeRingBuffer.MESSAGE_INDICATOR_SIZE;
 		UnsafeAccess.UNSAFE.putInt(fieldOffset,1);
 		UnsafeAccess.UNSAFE.putLong(fieldOffset+4,1);
@@ -39,6 +39,7 @@ public class SpscOffHeapFixedSizeRingBufferTest {
 		assertTrue(!rb.isEmpty());
 		long readOffset = rb.readAcquire();
 		fieldOffset = readOffset + SpscOffHeapFixedSizeRingBuffer.MESSAGE_INDICATOR_SIZE;
+		assertNotEquals(rb.EOF, readOffset);
 		assertEquals(writeOffset, readOffset);
 		assertEquals(1, UnsafeAccess.UNSAFE.getInt(fieldOffset));
 		assertEquals(1L, UnsafeAccess.UNSAFE.getLong(fieldOffset+4));
