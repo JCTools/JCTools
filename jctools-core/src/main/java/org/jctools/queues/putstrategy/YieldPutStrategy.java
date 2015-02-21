@@ -1,5 +1,7 @@
 package org.jctools.queues.putstrategy;
 
+import org.jctools.queues.spec.ConcurrentQueueSpec;
+
 import java.util.Queue;
 
 public class YieldPutStrategy<E> implements PutStrategy<E>
@@ -17,5 +19,11 @@ public class YieldPutStrategy<E> implements PutStrategy<E>
     public void signal()
     {
         // Nothing
+    }
+
+    @Override
+    public boolean supportsSpec(ConcurrentQueueSpec qs)
+    {
+        return true;
     }
 }

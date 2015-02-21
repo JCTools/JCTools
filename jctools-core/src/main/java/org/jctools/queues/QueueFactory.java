@@ -96,18 +96,53 @@ public class QueueFactory {
 
     public static <E> BlockingQueue<E> newBlockingQueue(ConcurrentQueueSpec qs)
     {
+        Class takeStratClass = (qs.consumers==1) ? SCParkTakeStrategy.class : MCParkTakeStrategy.class;
+        Class putStratClass = YieldPutStrategy.class;
+
+        return newBlockingQueue(qs, takeStratClass, putStratClass);
+    }
+
+    public static <E> BlockingQueue<E> newBlockingQueue(ConcurrentQueueSpec qs, Class<? extends TakeStrategy> takeStratClass, Class<? extends PutStrategy> putStratClass)
+    {
+        // Check if strategies are compatible with QueueSpec
+        boolean isTakeStratOK = false;
+        boolean isPutStratOK = false;
+        try
+        {
+            isTakeStratOK = takeStratClass.newInstance().supportsSpec(qs);
+            isPutStratOK = putStratClass.newInstance().supportsSpec(qs);
+        }
+        catch(IllegalAccessException e)
+        {
+            throw new IllegalArgumentException("Error instantiating strategy");
+        }
+        catch(InstantiationException e)
+        {
+            throw new IllegalArgumentException("Error instantiating strategy");
+        }
+
+        if (!isTakeStratOK)
+        {
+            throw new IllegalArgumentException("The take strategy is not compatible with the Queue Specs");
+        }
+        if (!isPutStratOK)
+        {
+            throw new IllegalArgumentException("The put strategy is not compatible with the Queue Specs");
+        }
+
+
         if (qs.isBounded())
         {
             // SPSC
             if (qs.isSpsc()) {
-                return getBlockingQueueFrom(SpscArrayQueue.class, SCParkTakeStrategy.class, YieldPutStrategy.class, qs.capacity);
+                return getBlockingQueueFrom(SpscArrayQueue.class, takeStratClass, putStratClass, qs.capacity);
             }
             // MPSC
             else if (qs.isMpsc()) {
                 if (qs.ordering != Ordering.NONE) {
-                    return getBlockingQueueFrom(MpscArrayQueue.class, SCParkTakeStrategy.class, YieldPutStrategy.class, qs.capacity);
+                    return getBlockingQueueFrom(MpscArrayQueue.class, takeStratClass, putStratClass, qs.capacity);
                 } else {
-                    return getBlockingQueueFrom(MpscCompoundQueue.class, SCParkTakeStrategy.class, YieldPutStrategy.class, qs.capacity);
+                    return getBlockingQueueFrom(MpscCompoundQueue.class, takeStratClass, putStratClass, qs.capacity);
                 }
             }
             // SPMC
@@ -128,20 +163,20 @@ public class QueueFactory {
         {
             // SPSC
             if (qs.isSpsc()) {
-                return getBlockingQueueFrom(SpscLinkedQueue.class, SCParkTakeStrategy.class, YieldPutStrategy.class, -1);
+                return getBlockingQueueFrom(SpscLinkedQueue.class, takeStratClass, putStratClass, -1);
             }
             // MPSC
             else if (qs.isMpsc()) {
                 if (UnsafeAccess.SUPPORTS_GET_AND_SET) {
-                    return getBlockingQueueFrom(MpscLinkedQueue8.class, SCParkTakeStrategy.class, YieldPutStrategy.class, -1);
+                    return getBlockingQueueFrom(MpscLinkedQueue8.class, takeStratClass, putStratClass, -1);
                 }
                 else {
-                    return getBlockingQueueFrom(MpscLinkedQueue7.class, SCParkTakeStrategy.class, YieldPutStrategy.class, -1);
+                    return getBlockingQueueFrom(MpscLinkedQueue7.class, takeStratClass, putStratClass, -1);
                 }
             }
 
             // Default unbounded blocking : CLQ based
-            return getBlockingQueueFrom(ConcurrentLinkedQueue.class, MCParkTakeStrategy.class, YieldPutStrategy.class, -1);
+            return getBlockingQueueFrom(ConcurrentLinkedQueue.class, takeStratClass, putStratClass, -1);
         }
 
     }

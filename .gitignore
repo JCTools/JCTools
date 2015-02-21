@@ -16,3 +16,5 @@ jctools-parent.iml
 
 
 /.settings
+
+target/MANIFEST.MF

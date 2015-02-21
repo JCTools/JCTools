@@ -1,5 +1,7 @@
 package org.jctools.queues.takestrategy;
 
+import org.jctools.queues.spec.ConcurrentQueueSpec;
+
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
@@ -40,4 +42,12 @@ public final class SCParkTakeStrategy<E> implements TakeStrategy<E>
 
         return e;
     }
+
+    @Override
+    public boolean supportsSpec(ConcurrentQueueSpec qs)
+    {
+        return qs.isMpsc() || qs.isSpsc();
+    }
+
+
 }

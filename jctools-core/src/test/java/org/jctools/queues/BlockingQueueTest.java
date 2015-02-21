@@ -26,7 +26,7 @@ public class BlockingQueueTest
     public static Collection queues() {
         return Arrays.asList(
                 test(1, 1, CAPACITY, Ordering.FIFO), test(10, 1, CAPACITY, Ordering.FIFO),
-                test(1, 10, CAPACITY, Ordering.FIFO), test(1, 10, CAPACITY, Ordering.FIFO));
+                test(1, 10, CAPACITY, Ordering.FIFO), test(10, 10, CAPACITY, Ordering.FIFO));
     }
 
     private static Object[] test(int producers, int consumers, int capacity, Ordering ordering) {

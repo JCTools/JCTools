@@ -1,5 +1,7 @@
 package org.jctools.queues.takestrategy;
 
+import org.jctools.queues.spec.ConcurrentQueueSpec;
+
 import java.util.Queue;
 
 public final class YieldTakeStrategy<E> implements TakeStrategy<E>
@@ -19,5 +21,11 @@ public final class YieldTakeStrategy<E> implements TakeStrategy<E>
             Thread.yield();
         }
         return e;
+    }
+
+    @Override
+    public boolean supportsSpec(ConcurrentQueueSpec qs)
+    {
+        return true;
     }
 }

@@ -1,5 +1,7 @@
 package org.jctools.queues.takestrategy;
 
+import org.jctools.queues.spec.ConcurrentQueueSpec;
+
 import java.util.Queue;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
@@ -57,4 +59,11 @@ public final class MCParkTakeStrategy<E> implements TakeStrategy<E>
 
         return e;
     }
+
+    @Override
+    public boolean supportsSpec(ConcurrentQueueSpec qs)
+    {
+        return true;
+    }
+
 }
