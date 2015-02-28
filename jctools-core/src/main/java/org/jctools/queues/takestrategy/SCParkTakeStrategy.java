@@ -36,6 +36,10 @@ public final class SCParkTakeStrategy<E> implements TakeStrategy<E>
         while ((e = q.poll()) == null)
         {
             LockSupport.park();
+
+            if (Thread.currentThread().isInterrupted()) {
+                throw new InterruptedException("Interrupted while waiting for the queue to become non-empty.");
+            }
         }
 
         t.lazySet(null);
