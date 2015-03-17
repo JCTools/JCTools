@@ -31,13 +31,14 @@ public final class SCParkTakeStrategy<E> implements TakeStrategy<E>
             return e;
         }
 
-        t.set(Thread.currentThread());
+        Thread currentThread = Thread.currentThread();
+        t.set(currentThread);
 
         while ((e = q.poll()) == null)
         {
             LockSupport.park();
 
-            if (Thread.currentThread().isInterrupted()) {
+            if (currentThread.isInterrupted()) {
                 throw new InterruptedException("Interrupted while waiting for the queue to become non-empty.");
             }
         }
