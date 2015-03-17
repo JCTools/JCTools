@@ -1,5 +1,7 @@
 package org.jctools.queues;
 
+import org.jctools.queues.spec.ConcurrentQueueSpec;
+
 import java.lang.reflect.Constructor;
 import java.util.ArrayDeque;
 import java.util.Queue;
@@ -34,8 +36,10 @@ public class QueueByTypeFactory {
             return new BQueue<Integer>(queueCapacity);
         case 20:
             return new FFBuffer<Integer>(queueCapacity);
-        case 3:
-            return new SpscArrayQueue<Integer>(queueCapacity);
+            case 3:
+                return new SpscArrayQueue<Integer>(queueCapacity);
+            case 308:
+                return QueueFactory.newBlockingQueue(ConcurrentQueueSpec.createBoundedSpsc(queueCapacity));
         case 31:
             return new SpscLinkedQueue<Integer>();
         case 32:
@@ -54,6 +58,8 @@ public class QueueByTypeFactory {
             return new MpscLinkedQueue8<Integer>();
         case 7:
             return new MpmcArrayQueue<Integer>(queueCapacity);
+            case 708:
+                return QueueFactory.newBlockingQueue(ConcurrentQueueSpec.createBoundedMpmc(queueCapacity));
         case 71:
             return new MpmcConcurrentQueueStateMarkers<Integer>(queueCapacity);
         }

@@ -100,7 +100,7 @@ abstract class SpscArrayQueueL3Pad<E> extends SpscArrayQueueConsumerField<E> {
  * 
  * @param <E>
  */
-public final class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E> {
+public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E> {
 
     public SpscArrayQueue(final int capacity) {
         super(capacity);

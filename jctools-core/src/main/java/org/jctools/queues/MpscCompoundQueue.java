@@ -66,7 +66,7 @@ abstract class MpscCompoundQueueConsumerQueueIndex<E> extends MpscCompoundQueueM
     }
 }
 
-public final class MpscCompoundQueue<E> extends MpscCompoundQueueConsumerQueueIndex<E> {
+public class MpscCompoundQueue<E> extends MpscCompoundQueueConsumerQueueIndex<E> {
     private static final int CPUS = Runtime.getRuntime().availableProcessors();
     long p00, p01, p02, p03, p04, p05, p06;
     long p30, p31, p32, p33, p34, p35, p36, p37;
