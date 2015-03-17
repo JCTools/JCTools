@@ -13,13 +13,13 @@
  */
 package org.jctools.queues;
 
-import org.jctools.queues.putstrategy.PutStrategy;
-import org.jctools.queues.putstrategy.YieldPutStrategy;
+import org.jctools.queues.blocking.PutStrategy;
+import org.jctools.queues.blocking.YieldPutStrategy;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
-import org.jctools.queues.takestrategy.MCParkTakeStrategy;
-import org.jctools.queues.takestrategy.SCParkTakeStrategy;
-import org.jctools.queues.takestrategy.TakeStrategy;
+import org.jctools.queues.blocking.MCParkTakeStrategy;
+import org.jctools.queues.blocking.SCParkTakeStrategy;
+import org.jctools.queues.blocking.TakeStrategy;
 import org.jctools.util.CompilationResult;
 import org.jctools.util.SimpleCompiler;
 import org.jctools.util.Template;

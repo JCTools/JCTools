@@ -1,4 +1,4 @@
-package org.jctools.queues.takestrategy;
+package org.jctools.queues.blocking;
 
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 

@@ -1,10 +1,9 @@
-package org.jctools.queues.takestrategy;
+package org.jctools.queues.blocking;
 
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 
 import java.util.Queue;
 import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 public final class MCParkTakeStrategy<E> implements TakeStrategy<E>

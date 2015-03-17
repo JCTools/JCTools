@@ -1,6 +1,5 @@
 import org.jctools.queues.*;
-import org.jctools.queues.takestrategy.*;
-import org.jctools.queues.putstrategy.*;
+import org.jctools.queues.blocking.*;
 
 import java.util.Collection;
 import java.util.concurrent.BlockingQueue;
