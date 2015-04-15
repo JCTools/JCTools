@@ -41,7 +41,7 @@ final class LinkedQueueNode<E> {
      * @return value
      */
     public E getAndNullValue() {
-        E temp = value;
+        E temp = lpValue();
         spValue(null);
         return temp;
     }
