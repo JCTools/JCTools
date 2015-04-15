@@ -30,9 +30,23 @@
 
 	<modules>
 		<module>jctools-core</module>
-		<module>jctools-benchmarks</module>
-		<module>jctools-experimental</module>
 	</modules>
+
+	<profiles>
+		<profile>
+			<id>experimental</id>
+			<modules>
+				<module>jctools-experimental</module>
+			</modules>
+		</profile>
+		<profile>
+			<id>benchmarks</id>
+			<modules>
+				<module>jctools-benchmarks</module>
+			</modules>
+		</profile>
+	</profiles>
+
 	<build>
 		<plugins>
 			<plugin>
