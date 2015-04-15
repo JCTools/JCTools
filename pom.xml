@@ -5,7 +5,7 @@
 	<groupId>org.jctools</groupId>
 	<artifactId>jctools-parent</artifactId>
 	<packaging>pom</packaging>
-	<version>1.0-SNAPSHOT</version>
+	<version>1.1-SNAPSHOT</version>
 	<name>JCTools Parent</name>
 	<organization>
 		<url>http://psy-lob-saw.blogspot.com/</url>
