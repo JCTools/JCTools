@@ -100,7 +100,7 @@ abstract class SpscArrayQueueL3Pad<E> extends SpscArrayQueueConsumerField<E> {
  * 
  * @param <E>
  */
-public final class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E> {
+public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E> {
 
     public SpscArrayQueue(final int capacity) {
         super(capacity);
@@ -112,7 +112,7 @@ public final class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E> {
      * This implementation is correct for single producer thread use only.
      */
     @Override
-    public boolean offer(final E e) {
+    public final boolean offer(final E e) {
         if (null == e) {
             throw new NullPointerException("Null is not a valid element");
         }
@@ -141,7 +141,7 @@ public final class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E> {
      * This implementation is correct for single consumer thread use only.
      */
     @Override
-    public E poll() {
+    public final E poll() {
         final long index = consumerIndex;
         final long offset = calcElementOffset(index);
         // local load of field to avoid repeated loads after volatile reads
@@ -161,12 +161,12 @@ public final class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E> {
      * This implementation is correct for single consumer thread use only.
      */
     @Override
-    public E peek() {
+    public final E peek() {
         return lvElement(calcElementOffset(consumerIndex));
     }
 
     @Override
-    public int size() {
+    public final int size() {
         /*
          * It is possible for a thread to be interrupted or reschedule between the read of the producer and consumer
          * indices, therefore protection is required to ensure size is within valid range. In the event of concurrent
@@ -197,5 +197,12 @@ public final class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E> {
     
     private long lvConsumerIndex() {
         return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
+    }
+    
+    public long currentProducerIndex() {
+        return lvProducerIndex();
+    }
+    public long currentConsumerIndex() {
+        return lvConsumerIndex();
     }
 }

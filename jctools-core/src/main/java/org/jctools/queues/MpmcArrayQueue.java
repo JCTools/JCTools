@@ -122,7 +122,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> {
     }
 
     @Override
-    public boolean offer(final E e) {
+    public final boolean offer(final E e) {
         if (null == e) {
             throw new NullPointerException("Null is not a valid element");
         }
@@ -175,7 +175,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> {
      * and must test producer index when next element is not visible.
      */
     @Override
-    public E poll() {
+    public final E poll() {
         // local load of field to avoid repeated loads after volatile reads
         final long[] lSequenceBuffer = sequenceBuffer;
         final long mask = this.mask;
@@ -217,7 +217,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> {
     }
 
     @Override
-    public E peek() {
+    public final E peek() {
         long currConsumerIndex;
         E e;
         do {
@@ -230,7 +230,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> {
     }
 
     @Override
-    public int size() {
+    public final int size() {
         /*
          * It is possible for a thread to be interrupted or reschedule between the read of the producer and
          * consumer indices, therefore protection is required to ensure size is within valid range. In the
@@ -249,11 +249,17 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> {
     }
 
     @Override
-    public boolean isEmpty() {
+    public final boolean isEmpty() {
         // Order matters!
         // Loading consumer before producer allows for producer increments after consumer index is read.
         // This ensures this method is conservative in it's estimate. Note that as this is an MPMC there is
         // nothing we can do to make this an exact method.
         return (lvConsumerIndex() == lvProducerIndex());
+    }
+    public long currentProducerIndex() {
+        return lvProducerIndex();
+    }
+    public long currentConsumerIndex() {
+        return lvConsumerIndex();
     }
 }

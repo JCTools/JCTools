@@ -119,14 +119,14 @@ abstract class SpmcArrayQueueL3Pad<E> extends SpmcArrayQueueProducerIndexCacheFi
     }
 }
 
-public final class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> {
+public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> {
 
     public SpmcArrayQueue(final int capacity) {
         super(capacity);
     }
 
     @Override
-    public boolean offer(final E e) {
+    public final boolean offer(final E e) {
         if (null == e) {
             throw new NullPointerException("Null is not a valid element");
         }
@@ -153,7 +153,7 @@ public final class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> {
     }
 
     @Override
-    public E poll() {
+    public final E poll() {
         long currentConsumerIndex;
         final long currProducerIndexCache = lvProducerIndexCache();
         do {
@@ -179,7 +179,7 @@ public final class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> {
     }
 
     @Override
-    public E peek() {
+    public final E peek() {
         final long mask = this.mask;
         final long currProducerIndexCache = lvProducerIndexCache();
         long currentConsumerIndex;
@@ -199,7 +199,7 @@ public final class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> {
     }
 
     @Override
-    public int size() {
+    public final int size() {
         /*
          * It is possible for a thread to be interrupted or reschedule between the read of the producer and consumer
          * indices, therefore protection is required to ensure size is within valid range. In the event of concurrent
@@ -217,11 +217,18 @@ public final class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> {
     }
     
     @Override
-    public boolean isEmpty() {
+    public final boolean isEmpty() {
         // Order matters! 
         // Loading consumer before producer allows for producer increments after consumer index is read.
         // This ensures the correctness of this method at least for the consumer thread. Other threads POV is not really
         // something we can fix here.
         return (lvConsumerIndex() == lvProducerIndex());
+    }
+    
+    public long currentProducerIndex() {
+        return lvProducerIndex();
+    }
+    public long currentConsumerIndex() {
+        return lvConsumerIndex();
     }
 }

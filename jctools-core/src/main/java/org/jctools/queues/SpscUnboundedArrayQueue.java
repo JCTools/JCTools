@@ -275,4 +275,12 @@ public class SpscUnboundedArrayQueue<E> extends SpscUnboundedArrayQueueConsumerF
     private static final <E> Object lvElement(E[] buffer, long offset) {
         return UNSAFE.getObjectVolatile(buffer, offset);
     }
+    
+    public long currentProducerIndex() {
+        return lvProducerIndex();
+    }
+    
+    public long currentConsumerIndex() {
+        return lvConsumerIndex();
+    }
 }

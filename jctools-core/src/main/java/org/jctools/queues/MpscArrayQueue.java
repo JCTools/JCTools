@@ -122,7 +122,7 @@ abstract class MpscArrayQueueConsumerField<E> extends MpscArrayQueueL2Pad<E> {
  * 
  * @param <E>
  */
-public final class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> {
+public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> {
     long p40, p41, p42, p43, p44, p45, p46;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 
@@ -141,7 +141,7 @@ public final class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> {
      * @see MessagePassingQueue#offer(Object)
      */
     @Override
-    public boolean offer(final E e) {
+    public final boolean offer(final E e) {
         if (null == e) {
             throw new NullPointerException("Null is not a valid element");
         }
@@ -183,7 +183,7 @@ public final class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> {
      * @param e new element, not null
      * @return 1 if next element cannot be filled, -1 if CAS failed, 0 if successful
      */
-    public int weakOffer(final E e) {
+    public final int weakOffer(final E e) {
         if (null == e) {
             throw new NullPointerException("Null is not a valid element");
         }
@@ -222,7 +222,7 @@ public final class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> {
      * @see MessagePassingQueue#poll()
      */
     @Override
-    public E poll() {
+    public final E poll() {
         final long consumerIndex = lvConsumerIndex(); // LoadLoad
         final long offset = calcElementOffset(consumerIndex);
         // Copy field to avoid re-reading after volatile load
@@ -260,7 +260,7 @@ public final class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> {
      * @see MessagePassingQueue#poll()
      */
     @Override
-    public E peek() {
+    public final E peek() {
         // Copy field to avoid re-reading after volatile load
         final E[] buffer = this.buffer;
 
@@ -290,7 +290,7 @@ public final class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> {
      * 
      */
     @Override
-    public int size() {
+    public final int size() {
         /*
          * It is possible for a thread to be interrupted or reschedule between the read of the producer and
          * consumer indices, therefore protection is required to ensure size is within valid range. In the
@@ -309,12 +309,18 @@ public final class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> {
     }
 
     @Override
-    public boolean isEmpty() {
+    public final boolean isEmpty() {
         // Order matters!
         // Loading consumer before producer allows for producer increments after consumer index is read.
         // This ensures the correctness of this method at least for the consumer thread. Other threads POV is
         // not really
         // something we can fix here.
         return (lvConsumerIndex() == lvProducerIndex());
+    }
+    public long currentProducerIndex() {
+        return lvProducerIndex();
+    }
+    public long currentConsumerIndex() {
+        return lvConsumerIndex();
     }
 }
