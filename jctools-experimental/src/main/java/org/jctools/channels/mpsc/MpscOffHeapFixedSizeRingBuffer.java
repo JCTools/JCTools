@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jctools.channels.spsc;
+package org.jctools.channels.mpsc;
 
 import org.jctools.util.JvmInfo;
 import org.jctools.util.Pow2;
@@ -23,15 +23,12 @@ import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeDirectByteBuffer.*;
 
 /**
- * Channel protocol:
- * - Fixed message size
- * - 'null' indicator in message preceding byte (potentially use same for type mapping in future)
- * - Use FF algorithm relying on indicator to support in place detection of next element existence
+ * Channel protocol: - Fixed message size - 'null' indicator in message preceding byte (potentially use same
+ * for type mapping in future) - Use FF algorithm relying on indicator to support in place detection of next
+ * element existence
  */
-public class SpscOffHeapFixedSizeRingBuffer {
+public class MpscOffHeapFixedSizeRingBuffer {
 
-    private static final Integer MAX_LOOK_AHEAD_STEP = Integer.getInteger("jctools.spsc.max.lookahead.step",
-            4096);
     private static final int READY_MESSAGE_INDICATOR = 0;
     private static final int BUSY_MESSAGE_INDICATOR = 1;
     public static final byte MESSAGE_INDICATOR_SIZE = 4;
@@ -39,11 +36,10 @@ public class SpscOffHeapFixedSizeRingBuffer {
 
     public static final long EOF = 0;
 
-    private final int lookAheadStep;
     private final ByteBuffer buffy;
     private final long consumerIndexAddress;
     private final long producerIndexAddress;
-    private final long producerLookAheadCacheAddress;
+    private final long consumerIndexCacheAddress;
 
     private final long mask;
     private final long bufferAddress;
@@ -53,11 +49,7 @@ public class SpscOffHeapFixedSizeRingBuffer {
         return HEADER_SIZE + (Pow2.roundToPowerOfTwo(capacity) * (messageSize + MESSAGE_INDICATOR_SIZE));
     }
 
-    public static int getLookaheadStep(final int capacity) {
-        return Math.min(capacity / 4, MAX_LOOK_AHEAD_STEP);
-    }
-
-    public SpscOffHeapFixedSizeRingBuffer(final int capacity, final int messageSize) {
+    public MpscOffHeapFixedSizeRingBuffer(final int capacity, final int messageSize) {
         this(allocateAlignedByteBuffer(getRequiredBufferSize(capacity, messageSize), JvmInfo.CACHE_LINE_SIZE), Pow2
                 .roundToPowerOfTwo(capacity), true, true, true, messageSize);
     }
@@ -68,7 +60,7 @@ public class SpscOffHeapFixedSizeRingBuffer {
      * @param buff
      * @param capacity
      */
-    protected SpscOffHeapFixedSizeRingBuffer(final ByteBuffer buff, final int capacity,
+    protected MpscOffHeapFixedSizeRingBuffer(final ByteBuffer buff, final int capacity,
             final boolean isProducer, final boolean isConsumer, final boolean initialize,
             final int messageSize) {
 
@@ -78,21 +70,20 @@ public class SpscOffHeapFixedSizeRingBuffer {
                 JvmInfo.CACHE_LINE_SIZE, buff);
 
         long alignedAddress = UnsafeDirectByteBuffer.getAddress(buffy);
-        this.lookAheadStep = getLookaheadStep(capacity);
         // Layout of the RingBuffer (assuming 64b cache line):
         // consumerIndex(8b), pad(56b) |
         // pad(64b) |
-        // producerIndex(8b), producerLookAheadCache(8b), pad(48b) |
+        // producerIndex(8b), consumerIndexCache(8b), pad(48b) |
         // pad(64b) |
         // buffer (capacity * messageSize)
         this.consumerIndexAddress = alignedAddress;
         this.producerIndexAddress = this.consumerIndexAddress + 2 * JvmInfo.CACHE_LINE_SIZE;
-        this.producerLookAheadCacheAddress = this.producerIndexAddress + 8;
+        this.consumerIndexCacheAddress = this.producerIndexAddress + 8;
         this.bufferAddress = alignedAddress + HEADER_SIZE;
         this.mask = actualCapacity - 1;
         // producer owns tail and headCache
         if (isProducer && initialize) {
-            spLookAheadCache(0);
+            soConsumerIndexCache(0);
             soProducerIndex(0);
             // mark all messages as null
             for (int i = 0; i < actualCapacity; i++) {
@@ -110,23 +101,28 @@ public class SpscOffHeapFixedSizeRingBuffer {
      * @return the offset at the next element to be written or EOF if it is not available.
      */
     protected final long writeAcquire() {
-        final long producerIndex = lpProducerIndex();
-        final long producerLookAhead = lpLookAheadCache();
-        final long producerOffset = offsetForIndex(producerIndex);
-        // verify next lookAheadStep messages are clear to write
-        if (producerIndex >= producerLookAhead) {
-            final long nextLookAhead = producerIndex + lookAheadStep;
-            if (isMessageReady(offsetForIndex(nextLookAhead))) {
-                spLookAheadCache(nextLookAhead);
+        final long mask = this.mask;
+        final long capacity = mask + 1;
+        long producerIndex;
+        long consumerIndexCache = lvConsumerIndexCache();
+        do {
+            producerIndex = lvProducerIndex(); // LoadLoad
+            final long wrapPoint = producerIndex - capacity;
+            if (consumerIndexCache <= wrapPoint) {
+                final long currHead = lvConsumerIndex(); // LoadLoad
+                if (currHead <= wrapPoint) {
+                    return EOF; // FULL :(
+                } else {
+                    // update shared cached value of the consumerIndex
+                    soConsumerIndexCache(currHead);
+                    // update on stack copy, we might need this value again if we lose the CAS.
+                    consumerIndexCache = currHead;
+                }
             }
-            // OK, can't look ahead, but maybe just next item is ready?
-            else if (!isMessageReady(producerOffset)) {
-                return EOF;
-            }
-        }
-        soProducerIndex(producerIndex + 1); // StoreStore
+        } while (!casProducerIndex(producerIndex, producerIndex + 1));
+        final long offsetForIndex = offsetForIndex(producerIndex);
         // return offset for current producer index
-        return producerOffset;
+        return offsetForIndex;
     }
 
     protected final void writeRelease(long offset) {
@@ -134,18 +130,17 @@ public class SpscOffHeapFixedSizeRingBuffer {
     }
 
     protected final long readAcquire() {
-        final long consumerIndex = lpConsumerIndex();
-        final long consumerOffset = offsetForIndex(consumerIndex);
-        if (isMessageReady(consumerOffset)) {
+        final long currentHead = lpConsumerIndex();
+        final long offset = offsetForIndex(currentHead);
+        if (isMessageReady(offset)) {
             return EOF;
         }
-        soConsumerIndex(consumerIndex + 1); // StoreStore
-        return consumerOffset;
+        soConsumerIndex(currentHead + 1); // StoreStore
+        return offset;
     }
 
     protected final void readRelease(long offset) {
         readyIndicator(offset);
-        
     }
 
     public final int size() {
@@ -164,11 +159,11 @@ public class SpscOffHeapFixedSizeRingBuffer {
         UNSAFE.putOrderedInt(null, offset, BUSY_MESSAGE_INDICATOR);
     }
 
-    private void readyIndicator(long offset) {
+    private void readyIndicator(final long offset) {
         UNSAFE.putOrderedInt(null, offset, READY_MESSAGE_INDICATOR);
     }
 
-    private long offsetForIndex(long currentHead) {
+    private long offsetForIndex(final long currentHead) {
         return bufferAddress + ((currentHead & mask) * messageSize);
     }
 
@@ -195,12 +190,15 @@ public class SpscOffHeapFixedSizeRingBuffer {
     private void soProducerIndex(final long value) {
         UNSAFE.putOrderedLong(null, producerIndexAddress, value);
     }
-
-    private long lpLookAheadCache() {
-        return UNSAFE.getLong(null, producerLookAheadCacheAddress);
+    private boolean casProducerIndex(final long expected, long update) {
+        return UNSAFE.compareAndSwapLong(null, producerIndexAddress, expected, update);
     }
 
-    private void spLookAheadCache(final long value) {
-        UNSAFE.putLong(producerLookAheadCacheAddress, value);
+    private long lvConsumerIndexCache() {
+        return UNSAFE.getLongVolatile(null, consumerIndexCacheAddress);
+    }
+
+    private void soConsumerIndexCache(final long value) {
+        UNSAFE.putOrderedLong(null, consumerIndexCacheAddress, value);
     }
 }
