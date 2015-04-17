@@ -13,6 +13,7 @@
  */
 package org.jctools.channels.spsc;
 
+import org.jctools.util.JvmInfo;
 import org.jctools.util.Pow2;
 import org.jctools.util.UnsafeDirectByteBuffer;
 
@@ -34,7 +35,7 @@ public class SpscOffHeapFixedSizeRingBuffer {
     private static final int READY_MESSAGE_INDICATOR = 0;
     private static final int BUSY_MESSAGE_INDICATOR = 1;
     public static final byte MESSAGE_INDICATOR_SIZE = 4;
-    private static final int HEADER_SIZE = 4 * CACHE_LINE_SIZE;
+    private static final int HEADER_SIZE = 4 * JvmInfo.CACHE_LINE_SIZE;
 
     public static final long EOF = 0;
 
@@ -57,7 +58,7 @@ public class SpscOffHeapFixedSizeRingBuffer {
     }
 
     public SpscOffHeapFixedSizeRingBuffer(final int capacity, final int messageSize) {
-        this(allocateAlignedByteBuffer(getRequiredBufferSize(capacity, messageSize), CACHE_LINE_SIZE), Pow2
+        this(allocateAlignedByteBuffer(getRequiredBufferSize(capacity, messageSize), JvmInfo.CACHE_LINE_SIZE), Pow2
                 .roundToPowerOfTwo(capacity), true, true, true, messageSize);
     }
 
@@ -73,8 +74,8 @@ public class SpscOffHeapFixedSizeRingBuffer {
 
         int actualCapacity = Pow2.roundToPowerOfTwo(capacity);
         this.messageSize = messageSize + MESSAGE_INDICATOR_SIZE;
-        this.buffy = alignedSlice(4 * CACHE_LINE_SIZE + (actualCapacity * (this.messageSize)),
-                CACHE_LINE_SIZE, buff);
+        this.buffy = alignedSlice(4 * JvmInfo.CACHE_LINE_SIZE + (actualCapacity * (this.messageSize)),
+                JvmInfo.CACHE_LINE_SIZE, buff);
 
         long alignedAddress = UnsafeDirectByteBuffer.getAddress(buffy);
         this.lookAheadStep = getLookaheadStep(capacity);
@@ -85,7 +86,7 @@ public class SpscOffHeapFixedSizeRingBuffer {
         // pad(64b) |
         // buffer (capacity * messageSize)
         this.consumerIndexAddress = alignedAddress;
-        this.producerIndexAddress = this.consumerIndexAddress + 2 * CACHE_LINE_SIZE;
+        this.producerIndexAddress = this.consumerIndexAddress + 2 * JvmInfo.CACHE_LINE_SIZE;
         this.producerLookAheadCacheAddress = this.producerIndexAddress + 8;
         this.bufferAddress = alignedAddress + HEADER_SIZE;
         this.mask = actualCapacity - 1;

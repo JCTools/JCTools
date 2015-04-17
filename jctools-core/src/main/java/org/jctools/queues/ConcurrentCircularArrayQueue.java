@@ -13,6 +13,7 @@
  */
 package org.jctools.queues;
 
+import org.jctools.util.JvmInfo;
 import org.jctools.util.Pow2;
 import org.jctools.util.UnsafeAccess;
 
@@ -44,7 +45,7 @@ abstract class ConcurrentCircularArrayQueueL0Pad<E> extends AbstractQueue<E> imp
  */
 public abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircularArrayQueueL0Pad<E> {
     protected static final int SPARSE_SHIFT = Integer.getInteger("sparse.shift", 0);
-    protected static final int BUFFER_PAD = 32;
+    protected static final int REF_BUFFER_PAD;
     private static final long REF_ARRAY_BASE;
     private static final int REF_ELEMENT_SHIFT;
     static {
@@ -56,9 +57,10 @@ public abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircular
         } else {
             throw new IllegalStateException("Unknown pointer size");
         }
+        // 2 cache lines pad
+        REF_BUFFER_PAD = (JvmInfo.CACHE_LINE_SIZE * 2) / scale;
         // Including the buffer pad in the array base offset
-        REF_ARRAY_BASE = UnsafeAccess.UNSAFE.arrayBaseOffset(Object[].class)
-                + (BUFFER_PAD << (REF_ELEMENT_SHIFT - SPARSE_SHIFT));
+        REF_ARRAY_BASE = UnsafeAccess.UNSAFE.arrayBaseOffset(Object[].class) + (REF_BUFFER_PAD * scale);
     }
     protected final long mask;
     // @Stable :(
@@ -69,7 +71,7 @@ public abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircular
         int actualCapacity = Pow2.roundToPowerOfTwo(capacity);
         mask = actualCapacity - 1;
         // pad data on either end with some empty slots.
-        buffer = (E[]) new Object[(actualCapacity << SPARSE_SHIFT) + BUFFER_PAD * 2];
+        buffer = (E[]) new Object[(actualCapacity << SPARSE_SHIFT) + REF_BUFFER_PAD * 2];
     }
 
     /**

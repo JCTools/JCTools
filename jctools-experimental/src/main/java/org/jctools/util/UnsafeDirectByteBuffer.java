@@ -5,8 +5,6 @@ import java.nio.ByteBuffer;
 
 public class UnsafeDirectByteBuffer {
 	private static final long addressOffset;
-	public static final int CACHE_LINE_SIZE = 64;
-	public static final int PAGE_SIZE = UnsafeAccess.UNSAFE.pageSize();
 	static {
 		try {
 			addressOffset = UnsafeAccess.UNSAFE.objectFieldOffset(Buffer.class
@@ -75,14 +73,14 @@ public class UnsafeDirectByteBuffer {
 	}
 
 	public static boolean isPageAligned(long address) {
-		return (address & (PAGE_SIZE - 1)) == 0;
+		return (address & (JvmInfo.PAGE_SIZE - 1)) == 0;
 	}
 
 	/**
 	 * This assumes cache line is 64b
 	 */
 	public static boolean isCacheAligned(long address) {
-		return (address & (CACHE_LINE_SIZE - 1)) == 0;
+		return (address & (JvmInfo.CACHE_LINE_SIZE - 1)) == 0;
 	}
 
 	public static boolean isAligned(long address, long align) {

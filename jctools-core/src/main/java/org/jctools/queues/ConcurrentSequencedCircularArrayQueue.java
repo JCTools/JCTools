@@ -13,6 +13,7 @@
  */
 package org.jctools.queues;
 
+import org.jctools.util.JvmInfo;
 import org.jctools.util.UnsafeAccess;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
@@ -20,6 +21,7 @@ import static org.jctools.util.UnsafeAccess.UNSAFE;
 public abstract class ConcurrentSequencedCircularArrayQueue<E> extends ConcurrentCircularArrayQueue<E> {
     private static final long ARRAY_BASE;
     private static final int ELEMENT_SHIFT;
+    protected static final int SEQ_BUFFER_PAD;
     static {
         final int scale = UnsafeAccess.UNSAFE.arrayIndexScale(long[].class);
         if (8 == scale) {
@@ -27,8 +29,10 @@ public abstract class ConcurrentSequencedCircularArrayQueue<E> extends Concurren
         } else {
             throw new IllegalStateException("Unexpected long[] element size");
         }
+        // 2 cache lines pad
+        SEQ_BUFFER_PAD = (JvmInfo.CACHE_LINE_SIZE * 2) / scale;
         // Including the buffer pad in the array base offset
-        ARRAY_BASE = UnsafeAccess.UNSAFE.arrayBaseOffset(long[].class) + (BUFFER_PAD << (ELEMENT_SHIFT - SPARSE_SHIFT));
+        ARRAY_BASE = UnsafeAccess.UNSAFE.arrayBaseOffset(long[].class) + (SEQ_BUFFER_PAD * scale);
     }
     protected final long[] sequenceBuffer;
 
@@ -36,7 +40,7 @@ public abstract class ConcurrentSequencedCircularArrayQueue<E> extends Concurren
         super(capacity);
         int actualCapacity = (int) (this.mask + 1);
         // pad data on either end with some empty slots.
-        sequenceBuffer = new long[(actualCapacity << SPARSE_SHIFT) + BUFFER_PAD * 2];
+        sequenceBuffer = new long[(actualCapacity << SPARSE_SHIFT) + SEQ_BUFFER_PAD * 2];
         for (long i = 0; i < actualCapacity; i++) {
             soSequence(sequenceBuffer, calcSequenceOffset(i), i);
         }
