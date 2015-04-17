@@ -46,7 +46,8 @@ abstract class SpscUnboundedArrayQueueConsumerField<E> extends SpscUnboundedArra
     protected long consumerIndex;
 }
 
-public class SpscUnboundedArrayQueue<E> extends SpscUnboundedArrayQueueConsumerField<E> {
+public class SpscUnboundedArrayQueue<E> extends SpscUnboundedArrayQueueConsumerField<E>
+    implements QueueProgressIndicators{
     static final int MAX_LOOK_AHEAD_STEP = Integer.getInteger("jctools.spsc.max.lookahead.step", 4096);
     private final static long P_INDEX_OFFSET;
     private final static long C_INDEX_OFFSET;
@@ -276,10 +277,12 @@ public class SpscUnboundedArrayQueue<E> extends SpscUnboundedArrayQueueConsumerF
         return UNSAFE.getObjectVolatile(buffer, offset);
     }
     
+    @Override
     public long currentProducerIndex() {
         return lvProducerIndex();
     }
     
+    @Override
     public long currentConsumerIndex() {
         return lvConsumerIndex();
     }

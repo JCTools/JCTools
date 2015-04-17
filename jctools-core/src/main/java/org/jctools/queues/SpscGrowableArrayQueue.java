@@ -47,7 +47,8 @@ abstract class SpscGrowableArrayQueueConsumerField<E> extends SpscGrowableArrayQ
     protected long consumerIndex;
 }
 
-public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerField<E> {
+public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerField<E> 
+    implements QueueProgressIndicators {
     private static final int MAX_LOOK_AHEAD_STEP = Integer
             .getInteger("jctools.spsc.max.lookahead.step", 4096);
     private final static long P_INDEX_OFFSET;
@@ -347,11 +348,13 @@ public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerFie
     private static final <E> Object lvElement(E[] buffer, long offset) {
         return UNSAFE.getObjectVolatile(buffer, offset);
     }
-    
+
+    @Override
     public long currentProducerIndex() {
         return lvProducerIndex();
     }
     
+    @Override
     public long currentConsumerIndex() {
         return lvConsumerIndex();
     }

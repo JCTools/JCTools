@@ -100,7 +100,7 @@ abstract class SpscArrayQueueL3Pad<E> extends SpscArrayQueueConsumerField<E> {
  * 
  * @param <E>
  */
-public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E> {
+public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>  implements QueueProgressIndicators {
 
     public SpscArrayQueue(final int capacity) {
         super(capacity);
@@ -199,9 +199,12 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E> {
         return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
     }
     
+    @Override
     public long currentProducerIndex() {
         return lvProducerIndex();
     }
+    
+    @Override
     public long currentConsumerIndex() {
         return lvConsumerIndex();
     }

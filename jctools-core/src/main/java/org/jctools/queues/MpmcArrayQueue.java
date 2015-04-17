@@ -107,7 +107,7 @@ abstract class MpmcArrayQueueConsumerField<E> extends MpmcArrayQueueL2Pad<E> {
  * @param <E>
  *            type of the element stored in the {@link java.util.Queue}
  */
-public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> {
+public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> implements QueueProgressIndicators {
     long p40, p41, p42, p43, p44, p45, p46;
     long p30, p31, p32, p33, p34, p35, p36, p37;
 
@@ -256,9 +256,13 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> {
         // nothing we can do to make this an exact method.
         return (lvConsumerIndex() == lvProducerIndex());
     }
+    
+    @Override
     public long currentProducerIndex() {
         return lvProducerIndex();
     }
+    
+    @Override
     public long currentConsumerIndex() {
         return lvConsumerIndex();
     }
