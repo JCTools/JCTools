@@ -1,71 +1,91 @@
 <!DOCTYPE html>
 <html>
-
   <head>
     <meta charset='utf-8'>
     <meta http-equiv="X-UA-Compatible" content="chrome=1">
-    <meta name="description" content="JCTools : Java Concurrency Tools">
+    <meta name="viewport" content="width=640">
 
-    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+    <link rel="stylesheet" href="stylesheets/core.css" media="screen">
+    <link rel="stylesheet" href="stylesheets/mobile.css" media="handheld, only screen and (max-device-width:640px)">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
 
-    <title>JCTools</title>
+    <script type="text/javascript" src="javascripts/modernizr.js"></script>
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+    <script type="text/javascript" src="javascripts/headsmart.min.js"></script>
+    <script type="text/javascript">
+      $(document).ready(function () {
+        $('#main_content').headsmart()
+      })
+    </script>
+    <title>JCTools by JCTools</title>
   </head>
 
   <body>
+    <a id="forkme_banner" href="https://github.com/JCTools/JCTools">View on GitHub</a>
+    <div class="shell">
 
-    <!-- HEADER -->
-    <div id="header_wrap" class="outer">
-        <header class="inner">
-          <a id="forkme_banner" href="https://github.com/JCTools/JCTools">View on GitHub</a>
+      <header>
+        <span class="ribbon-outer">
+          <span class="ribbon-inner">
+            <h1>JCTools</h1>
+            <h2>Java Concurrency Tools</h2>
+          </span>
+          <span class="left-tail"></span>
+          <span class="right-tail"></span>
+        </span>
+      </header>
 
-          <h1 id="project_title">JCTools</h1>
-          <h2 id="project_tagline">Java Concurrency Tools</h2>
+      <section id="downloads">
+        <span class="inner">
+          <a href="https://github.com/JCTools/JCTools/zipball/master" class="zip"><em>download</em> .ZIP</a><a href="https://github.com/JCTools/JCTools/tarball/master" class="tgz"><em>download</em> .TGZ</a>
+        </span>
+      </section>
 
-            <section id="downloads">
-              <a class="zip_download_link" href="https://github.com/JCTools/JCTools/zipball/master">Download this project as a .zip file</a>
-              <a class="tar_download_link" href="https://github.com/JCTools/JCTools/tarball/master">Download this project as a tar.gz file</a>
-            </section>
-        </header>
-    </div>
 
-    <!-- MAIN CONTENT -->
-    <div id="main_content_wrap" class="outer">
-      <section id="main_content" class="inner">
+      <span class="banner-fix"></span>
+
+
+      <section id="main_content">
         <h1>
-<a id="jctools" class="anchor" href="#jctools" aria-hidden="true"><span class="octicon octicon-link"></span></a>JCTools</h1>
+<a id="jctools---java-concurrency-tools-for-the-jvm" class="anchor" href="#jctools---java-concurrency-tools-for-the-jvm" aria-hidden="true"><span class="octicon octicon-link"></span></a>JCTools - Java Concurrency Tools for the JVM</h1>
 
-<p>Java Concurrency Tools for the JVM. This project aims to offer some concurrent data structures currently missing from
-the JDK:</p>
+<p>This project aims to offer some concurrent data structures currently missing from the JDK:</p>
 
 <ul>
-<li>Bounded lock free queues</li>
-<li>SPSC/MPSC/SPMC/MPMC variations for concurrent queues</li>
+<li>SPSC/MPSC/SPMC/MPMC Bounded lock free queues</li>
+<li>SPSC/MPSC Unbounded lock free queues</li>
 <li>Alternative interfaces for queues (experimental)</li>
 <li>Offheap concurrent ring buffer for ITC/IPC purposes (experimental)</li>
+<li>Single Writer Map/Set implementations (planned)</li>
+<li>Low contention stats counters (planned)</li>
 <li>Executor (planned)</li>
 </ul>
 
-<p>And so on...</p>
+<h1>
+<a id="benchmarks" class="anchor" href="#benchmarks" aria-hidden="true"><span class="octicon octicon-link"></span></a>Benchmarks</h1>
+
+<p>JCTools is benchmarked using both JMH benchmarks and handrolled harnesses. The benchmarks and related instructions can be found in the jctools-benchmarks module. Instructions included in the module README.</p>
 
 <h1>
-<a id="build" class="anchor" href="#build" aria-hidden="true"><span class="octicon octicon-link"></span></a>Build</h1>
+<a id="experimental" class="anchor" href="#experimental" aria-hidden="true"><span class="octicon octicon-link"></span></a>Experimental</h1>
 
-<p>JCTools is maven built and requires an existing Maven installation and JDK8 (only for building, runtime is 1.6 compliant).</p>
-
-<p>With 'MAVEN_HOME/bin' on the path and JDK8 set to your 'JAVA_HOME' you should be able to run "mvn install" from this
-directory.</p>
+<p>Experimental work is available under the jctools-experimental module. Most of the stuff is developed with an eye to eventually porting it to the core where it will be stabilized and released, but some implementations are kept purely for reference and some may never graduate.</p>
       </section>
-    </div>
 
-    <!-- FOOTER  -->
-    <div id="footer_wrap" class="outer">
-      <footer class="inner">
-        <p class="copyright">JCTools maintained by <a href="https://github.com/JCTools">JCTools</a></p>
-        <p>Published with <a href="https://pages.github.com">GitHub Pages</a></p>
+      <footer>
+        <span class="ribbon-outer">
+          <span class="ribbon-inner">
+            <p>this project by <a href="https://github.com/JCTools">JCTools</a> can be found on <a href="https://github.com/JCTools/JCTools">GitHub</a></p>
+          </span>
+          <span class="left-tail"></span>
+          <span class="right-tail"></span>
+        </span>
+        <p>Generated with <a href="https://pages.github.com">GitHub Pages</a> using Merlot</p>
+        <span class="octocat"></span>
       </footer>
+
     </div>
 
     
-
   </body>
 </html>
