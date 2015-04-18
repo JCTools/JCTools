@@ -111,7 +111,7 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>  implements QueueP
      * This implementation is correct for single producer thread use only.
      */
     @Override
-    public final boolean offer(final E e) {
+    public boolean offer(final E e) {
         if (null == e) {
             throw new NullPointerException("Null is not a valid element");
         }
@@ -140,7 +140,7 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>  implements QueueP
      * This implementation is correct for single consumer thread use only.
      */
     @Override
-    public final E poll() {
+    public E poll() {
         final long index = consumerIndex;
         final long offset = calcElementOffset(index);
         // local load of field to avoid repeated loads after volatile reads
@@ -160,12 +160,12 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>  implements QueueP
      * This implementation is correct for single consumer thread use only.
      */
     @Override
-    public final E peek() {
+    public E peek() {
         return lvElement(calcElementOffset(consumerIndex));
     }
 
     @Override
-    public final int size() {
+    public int size() {
         /*
          * It is possible for a thread to be interrupted or reschedule between the read of the producer and consumer
          * indices, therefore protection is required to ensure size is within valid range. In the event of concurrent

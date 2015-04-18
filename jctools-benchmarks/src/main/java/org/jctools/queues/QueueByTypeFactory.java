@@ -67,6 +67,12 @@ public class QueueByTypeFactory {
     }
     @SuppressWarnings({ "rawtypes", "unchecked" })
     public static Queue<Integer> createQueue(String queueType, final int queueCapacity) {
+        try {
+            int qType = Integer.valueOf(queueType);
+            return createQueue(qType, queueCapacity);
+        }
+        catch (NumberFormatException e) {
+        }
         Class qClass = queueClass(queueType);
         Constructor constructor;
         Exception ex;

@@ -125,7 +125,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
     }
 
     @Override
-    public final boolean offer(final E e) {
+    public boolean offer(final E e) {
         if (null == e) {
             throw new NullPointerException("Null is not a valid element");
         }
@@ -152,7 +152,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
     }
 
     @Override
-    public final E poll() {
+    public E poll() {
         long currentConsumerIndex;
         final long currProducerIndexCache = lvProducerIndexCache();
         do {
@@ -178,7 +178,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
     }
 
     @Override
-    public final E peek() {
+    public E peek() {
         final long mask = this.mask;
         final long currProducerIndexCache = lvProducerIndexCache();
         long currentConsumerIndex;
@@ -198,7 +198,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
     }
 
     @Override
-    public final int size() {
+    public int size() {
         /*
          * It is possible for a thread to be interrupted or reschedule between the read of the producer and consumer
          * indices, therefore protection is required to ensure size is within valid range. In the event of concurrent
@@ -216,7 +216,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
     }
     
     @Override
-    public final boolean isEmpty() {
+    public boolean isEmpty() {
         // Order matters! 
         // Loading consumer before producer allows for producer increments after consumer index is read.
         // This ensures the correctness of this method at least for the consumer thread. Other threads POV is not really

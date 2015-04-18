@@ -122,7 +122,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> implements
     }
 
     @Override
-    public final boolean offer(final E e) {
+    public boolean offer(final E e) {
         if (null == e) {
             throw new NullPointerException("Null is not a valid element");
         }
@@ -175,7 +175,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> implements
      * and must test producer index when next element is not visible.
      */
     @Override
-    public final E poll() {
+    public E poll() {
         // local load of field to avoid repeated loads after volatile reads
         final long[] lSequenceBuffer = sequenceBuffer;
         final long mask = this.mask;
@@ -217,7 +217,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> implements
     }
 
     @Override
-    public final E peek() {
+    public E peek() {
         long currConsumerIndex;
         E e;
         do {
@@ -230,7 +230,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> implements
     }
 
     @Override
-    public final int size() {
+    public int size() {
         /*
          * It is possible for a thread to be interrupted or reschedule between the read of the producer and
          * consumer indices, therefore protection is required to ensure size is within valid range. In the
@@ -249,7 +249,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> implements
     }
 
     @Override
-    public final boolean isEmpty() {
+    public boolean isEmpty() {
         // Order matters!
         // Loading consumer before producer allows for producer increments after consumer index is read.
         // This ensures this method is conservative in it's estimate. Note that as this is an MPMC there is
