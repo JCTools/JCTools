@@ -101,7 +101,6 @@ abstract class SpscArrayQueueL3Pad<E> extends SpscArrayQueueConsumerField<E> {
  * @param <E>
  */
 public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>  implements QueueProgressIndicators {
-
     public SpscArrayQueue(final int capacity) {
         super(capacity);
     }
