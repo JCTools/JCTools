@@ -120,7 +120,6 @@ abstract class SpmcArrayQueueL3Pad<E> extends SpmcArrayQueueProducerIndexCacheFi
 }
 
 public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueueProgressIndicators {
-
     public SpmcArrayQueue(final int capacity) {
         super(capacity);
     }

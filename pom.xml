@@ -8,7 +8,7 @@
 	<version>1.1-SNAPSHOT</version>
 	<name>JCTools Parent</name>
 	<organization>
-		<url>http://psy-lob-saw.blogspot.com/</url>
+		<url>https://github.com/JCTools</url>
 	</organization>
 	<inceptionYear>2013</inceptionYear>
 
@@ -28,10 +28,20 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
 
+    <scm>
+        <url>https://github.com/JCTools/JCTools</url>
+        <connection>scm:git:https://github.com/JCTools/JCTools</connection>
+    </scm>
+    
+    <developers>
+       <developer><url>https://github.com/nitsanw</url></developer>
+       <developer><url>https://github.com/mjpt777</url></developer>
+       <developer><url>https://github.com/RichardWarburton</url></developer>
+    </developers>
+    
 	<modules>
 		<module>jctools-core</module>
 	</modules>
-
 	<profiles>
 		<profile>
 			<id>experimental</id>

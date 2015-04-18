@@ -13,12 +13,11 @@
  */
 package org.jctools.util;
 
-import javax.tools.Diagnostic;
-import javax.tools.DiagnosticListener;
-import java.util.ArrayList;
+import static java.util.Collections.unmodifiableList;
+
 import java.util.List;
 
-import static java.util.Collections.unmodifiableList;
+import javax.tools.Diagnostic;
 
 
 public final class CompilationResult {

@@ -22,7 +22,7 @@ import static org.jctools.util.UnsafeAccess.UNSAFE;
  * 
  * @param <E>
  */
-public final class MpscLinkedQueue7<E> extends MpscLinkedQueue<E> {
+public class MpscLinkedQueue7<E> extends MpscLinkedQueue<E> {
     @SuppressWarnings("unchecked")
     protected final LinkedQueueNode<E> xchgProducerNode(LinkedQueueNode<E> newVal) {
         Object oldVal;
