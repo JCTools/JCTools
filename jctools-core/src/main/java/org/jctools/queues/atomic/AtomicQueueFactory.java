@@ -16,9 +16,7 @@ package org.jctools.queues.atomic;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import org.jctools.queues.MpscCompoundQueue;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
-import org.jctools.queues.spec.Ordering;
 
 /**
  * The queue factory produces {@link java.util.Queue} instances based on a best fit to the {@link ConcurrentQueueSpec}.
@@ -39,11 +37,7 @@ public class AtomicQueueFactory {
             }
             // MPSC
             else if (qs.isMpsc()) {
-                if (qs.ordering != Ordering.NONE) {
-                    return new MpscAtomicArrayQueue<E>(qs.capacity);
-                } else {
-                    return new MpscCompoundQueue<E>(qs.capacity);
-                }
+                return new MpscAtomicArrayQueue<E>(qs.capacity);
             }
             // SPMC
             else if (qs.isSpmc()) {
