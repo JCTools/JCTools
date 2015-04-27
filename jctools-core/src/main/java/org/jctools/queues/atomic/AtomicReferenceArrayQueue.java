@@ -37,37 +37,37 @@ abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> {
         while (poll() != null || !isEmpty())
             ;
     }
-    protected int calcElementOffset(long index, int mask) {
+    protected final int calcElementOffset(long index, int mask) {
         return (int)index & mask;
     }
-    protected int calcElementOffset(long index) {
+    protected final int calcElementOffset(long index) {
         return (int)index & mask;
     }
-    protected E lvElement(AtomicReferenceArray<E> buffer, int offset) {
+    protected final E lvElement(AtomicReferenceArray<E> buffer, int offset) {
         return buffer.get(offset);
     }
-    protected E lpElement(AtomicReferenceArray<E> buffer, int offset) {
+    protected final E lpElement(AtomicReferenceArray<E> buffer, int offset) {
         return buffer.get(offset); // no weaker form available
     }
-    protected E lpElement(int offset) {
+    protected final E lpElement(int offset) {
         return buffer.get(offset); // no weaker form available
     }
-    protected void spElement(AtomicReferenceArray<E> buffer, int offset, E value) {
+    protected final void spElement(AtomicReferenceArray<E> buffer, int offset, E value) {
         buffer.lazySet(offset, value);  // no weaker form available
     }
-    protected void spElement(int offset, E value) {
+    protected final void spElement(int offset, E value) {
         buffer.lazySet(offset, value);  // no weaker form available
     }
-    protected void soElement(AtomicReferenceArray<E> buffer, int offset, E value) {
+    protected final void soElement(AtomicReferenceArray<E> buffer, int offset, E value) {
         buffer.lazySet(offset, value);
     }
-    protected void soElement(int offset, E value) {
+    protected final void soElement(int offset, E value) {
         buffer.lazySet(offset, value);
     }
-    protected void svElement(AtomicReferenceArray<E> buffer, int offset, E value) {
+    protected final void svElement(AtomicReferenceArray<E> buffer, int offset, E value) {
         buffer.set(offset, value);
     }
-    protected E lvElement(int offset) {
+    protected final E lvElement(int offset) {
         return lvElement(buffer, offset);
     }
 }
