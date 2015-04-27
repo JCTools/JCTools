@@ -19,6 +19,25 @@ JCTools is maven built and requires an existing Maven installation and JDK8 (onl
 With 'MAVEN_HOME/bin' on the path and JDK8 set to your 'JAVA_HOME' you should be able to run "mvn install" from this
 directory.
 
+Install
+==========
+
+Add as a dependency using Maven:
+```xml
+	<repository>
+	    <id>jitpack.io</id>
+	    <url>https://jitpack.io</url>
+	</repository>
+```
+```xml
+	<dependency>
+	    <groupId>com.github.JCTools</groupId>
+	    <artifactId>JCTools</artifactId>
+	    <version>RELEASE</version>
+	</dependency>
+```
+
+
 Benchmarks
 ==========
 JCTools is benchmarked using both JMH benchmarks and handrolled harnesses. The benchmarks and related instructions can be
