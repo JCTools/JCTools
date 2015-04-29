@@ -24,6 +24,14 @@ Install
 
 Add as a dependency using Maven:
 ```xml
+        <dependency>
+            <groupId>org.jctools</groupId>
+            <artifactId>jctools-core</artifactId>
+            <version>1.0</version>
+        </dependency>
+```
+Or using Jitpack:
+```xml
 	<repository>
 	    <id>jitpack.io</id>
 	    <url>https://jitpack.io</url>
@@ -33,10 +41,10 @@ Add as a dependency using Maven:
 	<dependency>
 	    <groupId>com.github.JCTools</groupId>
 	    <artifactId>JCTools</artifactId>
-	    <version>RELEASE</version>
+	    <version>1.0</version>
 	</dependency>
 ```
-
+Latest code will be released via Jitpack with more official releases going through the Maven Central path too.
 
 Benchmarks
 ==========
