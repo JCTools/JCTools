@@ -37,6 +37,7 @@ Or using Jitpack:
 	    <url>https://jitpack.io</url>
 	</repository>
 ```
+You can get the same version:
 ```xml
 	<dependency>
 	    <groupId>com.github.JCTools</groupId>
@@ -44,6 +45,15 @@ Or using Jitpack:
 	    <version>1.0</version>
 	</dependency>
 ```
+Or the latest from master (which is alpha state):
+```xml
+	<dependency>
+	    <groupId>com.github.JCTools</groupId>
+	    <artifactId>JCTools</artifactId>
+	    <version>v1.1-alpha</version>
+	</dependency>
+```
+
 Latest code will be released via Jitpack with more official releases going through the Maven Central path too.
 
 Benchmarks
