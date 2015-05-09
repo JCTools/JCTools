@@ -179,10 +179,14 @@ public abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircular
     public Iterator<E> iterator() {
         throw new UnsupportedOperationException();
     }
+    
     @Override
     public void clear() {
-        // we have to test isEmpty because of the weaker poll() guarantee
         while (poll() != null || !isEmpty())
             ;
+    }
+    
+    public int capacity() {
+        return (int) (mask + 1);
     }
 }
