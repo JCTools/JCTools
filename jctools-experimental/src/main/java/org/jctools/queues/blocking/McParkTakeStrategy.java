@@ -6,7 +6,7 @@ import java.util.Queue;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
-public final class MCParkTakeStrategy<E> implements TakeStrategy<E>
+public final class McParkTakeStrategy<E> implements TakeStrategy<E>
 {
     private final ReentrantLock lock = new ReentrantLock();
     private final Condition cond = lock.newCondition();

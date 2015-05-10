@@ -7,7 +7,7 @@ import java.util.Queue;
 public class YieldPutStrategy<E> implements PutStrategy<E>
 {
     @Override
-    public void backoffOffer(Queue<E> q, E e) throws InterruptedException
+    public void waitOffer(Queue<E> q, E e) throws InterruptedException
     {
         while(!q.offer(e))
         {

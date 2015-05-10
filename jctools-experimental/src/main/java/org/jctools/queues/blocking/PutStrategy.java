@@ -6,7 +6,7 @@ import java.util.Queue;
 
 public interface PutStrategy<E>
 {
-    void backoffOffer(Queue<E> q, E e) throws InterruptedException;
+    void waitOffer(Queue<E> q, E e) throws InterruptedException;
     void signal();
     boolean supportsSpec(ConcurrentQueueSpec qs);
 }

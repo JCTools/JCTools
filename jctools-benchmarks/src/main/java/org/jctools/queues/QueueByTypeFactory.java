@@ -1,5 +1,6 @@
 package org.jctools.queues;
 
+import org.jctools.queues.blocking.BlockingQueueFactory;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 
 import java.lang.reflect.Constructor;

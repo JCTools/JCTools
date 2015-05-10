@@ -6,36 +6,31 @@ import java.util.Queue;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
 
-public final class SCParkTakeStrategy<E> implements TakeStrategy<E>
-{
+public final class ScParkTakeStrategy<E> implements TakeStrategy<E> {
 
     public volatile int storeFence = 0;
 
-    private AtomicReference<Thread> t               = new AtomicReference<Thread>(null);
+    private AtomicReference<Thread> t = new AtomicReference<Thread>(null);
 
     @Override
-    public void signal()
-    {
+    public void signal() {
         // Make sure the offer is visible before unpark
-        storeFence = 1; // store barrier
+        storeFence = 1; // store load barrier
 
         LockSupport.unpark(t.get()); // t.get() load barrier
     }
 
     @Override
-    public E waitPoll(Queue<E> q) throws InterruptedException
-    {
+    public E waitPoll(Queue<E> q) throws InterruptedException {
         E e = q.poll();
-        if (e != null)
-        {
+        if (e != null) {
             return e;
         }
 
         Thread currentThread = Thread.currentThread();
         t.set(currentThread);
 
-        while ((e = q.poll()) == null)
-        {
+        while ((e = q.poll()) == null) {
             LockSupport.park();
 
             if (currentThread.isInterrupted()) {
@@ -49,10 +44,8 @@ public final class SCParkTakeStrategy<E> implements TakeStrategy<E>
     }
 
     @Override
-    public boolean supportsSpec(ConcurrentQueueSpec qs)
-    {
-        return qs.isMpsc() || qs.isSpsc();
+    public boolean supportsSpec(ConcurrentQueueSpec qs) {
+        return qs.consumers == 1;
     }
-
 
 }
