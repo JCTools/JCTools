@@ -106,7 +106,7 @@ public abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircular
      * @param offset computed via {@link ConcurrentCircularArrayQueue#calcElementOffset(long)}
      * @param e an orderly kitty
      */
-    protected final void spElement(E[] buffer, long offset, E e) {
+    protected static final <E> void spElement(E[] buffer, long offset, E e) {
         UNSAFE.putObject(buffer, offset, e);
     }
 
@@ -127,7 +127,7 @@ public abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircular
      * @param offset computed via {@link ConcurrentCircularArrayQueue#calcElementOffset(long)}
      * @param e an orderly kitty
      */
-    protected final void soElement(E[] buffer, long offset, E e) {
+    protected static final <E> void soElement(E[] buffer, long offset, E e) {
         UNSAFE.putOrderedObject(buffer, offset, e);
     }
 
@@ -149,7 +149,7 @@ public abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircular
      * @return the element at the offset
      */
     @SuppressWarnings("unchecked")
-    protected final E lpElement(E[] buffer, long offset) {
+    protected static final <E> E lpElement(E[] buffer, long offset) {
         return (E) UNSAFE.getObject(buffer, offset);
     }
 
@@ -171,7 +171,7 @@ public abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircular
      * @return the element at the offset
      */
     @SuppressWarnings("unchecked")
-    protected final E lvElement(E[] buffer, long offset) {
+    protected static final <E> E lvElement(E[] buffer, long offset) {
         return (E) UNSAFE.getObjectVolatile(buffer, offset);
     }
 
