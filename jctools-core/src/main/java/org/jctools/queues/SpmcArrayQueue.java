@@ -135,7 +135,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
         final long offset = calcElementOffset(currProducerIndex, mask);
         if (null != lvElement(buffer, offset)) {
             long size = currProducerIndex - lvConsumerIndex();
-            
+
             if(size > mask) {
                 return false;
             }
@@ -152,6 +152,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public E poll() {
         long currentConsumerIndex;
         final long currProducerIndexCache = lvProducerIndexCache();
@@ -171,7 +172,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
         final long offset = calcElementOffset(currentConsumerIndex);
         final E[] lb = buffer;
         // load plain, element happens before it's index becomes visible
-        final E e = lpElement(lb, offset);
+        final E e = (E) lpElement(lb, offset);
         // store ordered, make sure nulling out is visible. Producer is waiting for this value.
         soElement(lb, offset, null);
         return e;
@@ -214,21 +215,21 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
             }
         }
     }
-    
+
     @Override
     public boolean isEmpty() {
-        // Order matters! 
+        // Order matters!
         // Loading consumer before producer allows for producer increments after consumer index is read.
         // This ensures the correctness of this method at least for the consumer thread. Other threads POV is not really
         // something we can fix here.
         return (lvConsumerIndex() == lvProducerIndex());
     }
-    
+
     @Override
     public long currentProducerIndex() {
         return lvProducerIndex();
     }
-    
+
     @Override
     public long currentConsumerIndex() {
         return lvConsumerIndex();

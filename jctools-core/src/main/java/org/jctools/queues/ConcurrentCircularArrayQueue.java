@@ -38,9 +38,9 @@ abstract class ConcurrentCircularArrayQueueL0Pad<E> extends AbstractQueue<E> imp
  * Load/Store methods using a <i>buffer</i> parameter are provided to allow the prevention of final field reload after a
  * LoadLoad barrier.
  * <p>
- * 
+ *
  * @author nitsanw
- * 
+ *
  * @param <E>
  */
 public abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircularArrayQueueL0Pad<E> {
@@ -83,7 +83,7 @@ public abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircular
     }
     /**
      * @param index desirable element index
-     * @param mask 
+     * @param mask
      * @return the offset in bytes within the array for a given index.
      */
     protected static final long calcElementOffset(long index, long mask) {
@@ -91,7 +91,7 @@ public abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircular
     }
     /**
      * A plain store (no ordering/fences) of an element to a given offset
-     * 
+     *
      * @param offset computed via {@link ConcurrentCircularArrayQueue#calcElementOffset(long)}
      * @param e a kitty
      */
@@ -101,18 +101,18 @@ public abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircular
 
     /**
      * A plain store (no ordering/fences) of an element to a given offset
-     * 
+     *
      * @param buffer this.buffer
      * @param offset computed via {@link ConcurrentCircularArrayQueue#calcElementOffset(long)}
      * @param e an orderly kitty
      */
-    protected final void spElement(E[] buffer, long offset, E e) {
+    protected static final void spElement(Object[] buffer, long offset, Object e) {
         UNSAFE.putObject(buffer, offset, e);
     }
 
     /**
      * An ordered store(store + StoreStore barrier) of an element to a given offset
-     * 
+     *
      * @param offset computed via {@link ConcurrentCircularArrayQueue#calcElementOffset(long)}
      * @param e an orderly kitty
      */
@@ -122,57 +122,57 @@ public abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircular
 
     /**
      * An ordered store(store + StoreStore barrier) of an element to a given offset
-     * 
+     *
      * @param buffer this.buffer
      * @param offset computed via {@link ConcurrentCircularArrayQueue#calcElementOffset(long)}
      * @param e an orderly kitty
      */
-    protected final void soElement(E[] buffer, long offset, E e) {
+    protected static final void soElement(Object[] buffer, long offset, Object e) {
         UNSAFE.putOrderedObject(buffer, offset, e);
     }
 
     /**
      * A plain load (no ordering/fences) of an element from a given offset.
-     * 
+     *
      * @param offset computed via {@link ConcurrentCircularArrayQueue#calcElementOffset(long)}
      * @return the element at the offset
      */
+    @SuppressWarnings("unchecked")
     protected final E lpElement(long offset) {
-        return lpElement(buffer, offset);
+        return (E) lpElement(buffer, offset);
     }
 
     /**
      * A plain load (no ordering/fences) of an element from a given offset.
-     * 
+     *
      * @param buffer this.buffer
      * @param offset computed via {@link ConcurrentCircularArrayQueue#calcElementOffset(long)}
      * @return the element at the offset
      */
-    @SuppressWarnings("unchecked")
-    protected final E lpElement(E[] buffer, long offset) {
-        return (E) UNSAFE.getObject(buffer, offset);
+    protected static final Object lpElement(Object[] buffer, long offset) {
+        return UNSAFE.getObject(buffer, offset);
     }
 
     /**
      * A volatile load (load + LoadLoad barrier) of an element from a given offset.
-     * 
+     *
      * @param offset computed via {@link ConcurrentCircularArrayQueue#calcElementOffset(long)}
      * @return the element at the offset
      */
+    @SuppressWarnings("unchecked")
     protected final E lvElement(long offset) {
-        return lvElement(buffer, offset);
+        return (E) lvElement(buffer, offset);
     }
 
     /**
      * A volatile load (load + LoadLoad barrier) of an element from a given offset.
-     * 
+     *
      * @param buffer this.buffer
      * @param offset computed via {@link ConcurrentCircularArrayQueue#calcElementOffset(long)}
      * @return the element at the offset
      */
-    @SuppressWarnings("unchecked")
-    protected final E lvElement(E[] buffer, long offset) {
-        return (E) UNSAFE.getObjectVolatile(buffer, offset);
+    protected static final Object lvElement(Object[] buffer, long offset) {
+        return UNSAFE.getObjectVolatile(buffer, offset);
     }
 
     @Override

@@ -95,9 +95,9 @@ abstract class SpscArrayQueueL3Pad<E> extends SpscArrayQueueConsumerField<E> {
  * <i>2010 - Pisa - SPSC Queues on Shared Cache Multi-Core Systems.pdf<br>
  * 2012 - Junchang- BQueue- Efﬁcient and Practical Queuing.pdf <br>
  * </i> This implementation is wait free.
- * 
+ *
  * @author nitsanw
- * 
+ *
  * @param <E>
  */
 public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>  implements QueueProgressIndicators {
@@ -133,19 +133,20 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>  implements QueueP
         soElement(buffer, offset, e); // StoreStore
         return true;
     }
-    
+
     /**
      * {@inheritDoc}
      * <p>
      * This implementation is correct for single consumer thread use only.
      */
     @Override
+    @SuppressWarnings("unchecked")
     public E poll() {
         final long index = consumerIndex;
         final long offset = calcElementOffset(index);
         // local load of field to avoid repeated loads after volatile reads
         final E[] lElementBuffer = buffer;
-        final E e = lvElement(lElementBuffer, offset);// LoadLoad
+        final E e = (E) lvElement(lElementBuffer, offset);// LoadLoad
         if (null == e) {
             return null;
         }
@@ -189,20 +190,20 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>  implements QueueP
     private void soConsumerIndex(long v) {
         UNSAFE.putOrderedLong(this, C_INDEX_OFFSET, v);
     }
-    
+
     private long lvProducerIndex() {
         return UNSAFE.getLongVolatile(this, P_INDEX_OFFSET);
     }
-    
+
     private long lvConsumerIndex() {
         return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
     }
-    
+
     @Override
     public long currentProducerIndex() {
         return lvProducerIndex();
     }
-    
+
     @Override
     public long currentConsumerIndex() {
         return lvConsumerIndex();
