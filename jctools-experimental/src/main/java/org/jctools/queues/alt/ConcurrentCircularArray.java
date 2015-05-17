@@ -49,6 +49,9 @@ public abstract class ConcurrentCircularArray<E> extends ConcurrentCircularArray
     protected final long calcOffset(long index) {
         return REF_ARRAY_BASE + ((index & mask) << REF_ELEMENT_SHIFT);
     }
+    protected final long calcOffset(long index, long mask) {
+        return REF_ARRAY_BASE + ((index & mask) << REF_ELEMENT_SHIFT);
+    }
 
     protected final void spElement(long offset, E e) {
         UNSAFE.putObject(buffer, offset, e);

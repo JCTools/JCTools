@@ -13,6 +13,8 @@
  */
 package org.jctools.queues.alt;
 
+import static org.jctools.util.UnsafeAccess.UNSAFE;
+
 import org.jctools.util.UnsafeAccess;
 
 abstract class ProducerFields<E> extends ConcurrentCircularArray<E> {
@@ -25,7 +27,7 @@ abstract class ProducerFields<E> extends ConcurrentCircularArray<E> {
             throw new RuntimeException(e);
         }
     }
-    protected long tail;
+    protected long producerIndex;
     protected long batchTail;
 
     public ProducerFields(ConcurrentCircularArray<E> c) {
@@ -48,21 +50,42 @@ final class Producer<E> extends ProducerFields<E> implements ConcurrentQueueProd
         }
 
         final E[] lb = buffer;
-        if (tail >= batchTail) {
-            if (null == lvElement(lb, calcOffset(tail + SpscArrayConcurrentQueue.OFFER_BATCH_SIZE))) {
-                batchTail = tail + SpscArrayConcurrentQueue.OFFER_BATCH_SIZE;
-            } else if (null != lvElement(lb, calcOffset(tail))) {
+        if (producerIndex >= batchTail) {
+            if (null == lvElement(lb, calcOffset(producerIndex + SpscArrayConcurrentQueue.OFFER_BATCH_SIZE))) {
+                batchTail = producerIndex + SpscArrayConcurrentQueue.OFFER_BATCH_SIZE;
+            } else if (null != lvElement(lb, calcOffset(producerIndex))) {
                 return false;
             }
         }
-        soElement(lb, calcOffset(tail), e);
-        tail++;
+        soElement(lb, calcOffset(producerIndex), e);
+        producerIndex++;
 
         return true;
     }
 
-    long getTailForSize() {
-        return Math.max(UnsafeAccess.UNSAFE.getLongVolatile(this, TAIL_OFFSET), tail);
+    long getProducerIndexForSize() {
+        return Math.max(lvProducerIndex(), producerIndex);
+    }
+
+    private long lvProducerIndex() {
+        return UNSAFE.getLongVolatile(this, TAIL_OFFSET);
+    }
+    private void soProducerIndex(long newHead) {
+        UNSAFE.putOrderedLong(this, TAIL_OFFSET, newHead);
+    }
+    @Override
+    public boolean weakOffer(E e) {
+        return offer(e);
+    }
+
+    @Override
+    public int produce(ProducerFunction<E> p) {
+        return 0;
+    }
+
+    @Override
+    public int produce(ProducerFunction<E> p, int batchSize) {
+        return 0;
     }
 }
 
@@ -93,6 +116,7 @@ final class Consumer<E> extends ConsumerFields<E> implements ConcurrentQueueCons
 
     @Override
     public E poll() {
+        final long head = this.head;
         final long offset = calcOffset(head);
         final E[] lb = buffer;
         final E e = lvElement(lb, offset);
@@ -100,7 +124,7 @@ final class Consumer<E> extends ConsumerFields<E> implements ConcurrentQueueCons
             return null;
         }
         soElement(lb, offset, null);
-        head++;
+        soHead(head + 1);
         return e;
     }
 
@@ -116,7 +140,62 @@ final class Consumer<E> extends ConsumerFields<E> implements ConcurrentQueueCons
     }
 
     long getHeadForSize() {
-        return Math.max(UnsafeAccess.UNSAFE.getLongVolatile(this, HEAD_OFFSET), head);
+        return Math.max(lvHead(), head);
+    }
+
+    private long lvHead() {
+        return UNSAFE.getLongVolatile(this, HEAD_OFFSET);
+    }
+
+    private void soHead(long newHead) {
+        UNSAFE.putOrderedLong(this, HEAD_OFFSET, newHead);
+    }
+
+    @Override
+    public int consume(ConsumerFunction<E> c) {
+        final long size = this.mask + 1;
+        final E[] lb = buffer;
+        long currHead = head;
+        long offset = calcOffset(currHead);
+        E e = lvElement(lb, offset);
+        int i = 0;
+        for (; i < size && null != e; i++) {
+            soElement(lb, offset, null);
+            soHead(++currHead);
+            if (!c.consume(e)) {
+                break;
+            }
+            offset = calcOffset(currHead);
+            e = lvElement(lb, offset);
+        }
+        return i;
+    }
+
+    @Override
+    public int consume(ConsumerFunction<E> c, int batch) {
+        final E[] lb = buffer;
+        long currHead = head;
+        long offset = calcOffset(currHead);
+        E e = lvElement(lb, offset);
+        int i = 0;
+        for (; i < batch && null != e; i++) {
+            soElement(lb, offset, null);
+            soHead(++currHead);
+            c.consume(e); // NOTE: we've committed to consuming the batch, no check.
+            offset = calcOffset(currHead);
+            e = lvElement(lb, offset);
+        }
+        return i;
+    }
+
+    @Override
+    public E weakPoll() {
+        return poll();
+    }
+
+    @Override
+    public E weakPeek() {
+        return peek();
     }
 }
 
@@ -146,7 +225,7 @@ public final class SpscArrayConcurrentQueue<E> extends SpscArrayConcurrentQueueC
     @Override
     public int size() {
         long headForSize = consumer.getHeadForSize();
-        long tailForSize = producer.getTailForSize();
+        long tailForSize = producer.getProducerIndexForSize();
         return (int) (tailForSize - headForSize);
     }
 

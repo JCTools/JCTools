@@ -23,4 +23,13 @@ public interface ConcurrentQueueProducer<E> {
      * @return true if e was successfully offered, false if queue is full
      */
     boolean offer(E e);
+
+    /**
+     * @param e
+     * @return true if e was successfully offered, false if not able to offer (queue may not be full)
+     */
+    boolean weakOffer(E e);
+    
+    int produce(ProducerFunction<E> p);
+    int produce(ProducerFunction<E> p, int batchSize);
 }

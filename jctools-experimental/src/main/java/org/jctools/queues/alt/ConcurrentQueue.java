@@ -22,12 +22,12 @@ package org.jctools.queues.alt;
  */
 public interface ConcurrentQueue<E> {
     /**
-     * @return a consumer instance to be used for this particular thread.
+     * @return a consumer instance to be used from a consuming thread.
      */
     ConcurrentQueueConsumer<E> consumer();
 
     /**
-     * @return a producer instance to be used for this particular thread.
+     * @return a producer instance to be used from a producing thread.
      */
     ConcurrentQueueProducer<E> producer();
 
@@ -39,7 +39,7 @@ public interface ConcurrentQueue<E> {
     int size();
 
     /**
-     * @return the maximum number of elements that can fit in this queue, or MAX_INT if unbounded.
+     * @return the maximum number of elements that can fit in this queue, or -1 if unbounded.
      */
     int capacity();
 }

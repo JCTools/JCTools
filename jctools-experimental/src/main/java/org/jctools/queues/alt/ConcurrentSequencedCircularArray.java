@@ -37,6 +37,9 @@ public abstract class ConcurrentSequencedCircularArray<E> extends ConcurrentCirc
     protected final long calcSequenceOffset(long index) {
         return ARRAY_BASE + ((index & mask) << ELEMENT_SHIFT);
     }
+    protected final long calcSequenceOffset(long index, long mask) {
+        return ARRAY_BASE + ((index & mask) << ELEMENT_SHIFT);
+    }
 
     protected final void spSequenceElement(long offset, long e) {
         UNSAFE.putLong(sequenceBuffer, offset, e);
@@ -50,11 +53,11 @@ public abstract class ConcurrentSequencedCircularArray<E> extends ConcurrentCirc
         UNSAFE.putLongVolatile(sequenceBuffer, offset, e);
     }
 
-    protected final long lpSequenceElement(long offset) {
+    protected final long lpSequence(long offset) {
         return UNSAFE.getLong(sequenceBuffer, offset);
     }
 
-    protected final long lvSequenceElement(long offset) {
+    protected final long lvSequence(long offset) {
         return UNSAFE.getLongVolatile(sequenceBuffer, offset);
     }
 
@@ -62,7 +65,7 @@ public abstract class ConcurrentSequencedCircularArray<E> extends ConcurrentCirc
         UNSAFE.putLong(buffer, offset, e);
     }
 
-    protected final void soSequenceElement(long[] buffer, long offset, long e) {
+    protected final void soSequence(long[] buffer, long offset, long e) {
         UNSAFE.putOrderedLong(buffer, offset, e);
     }
 
@@ -74,7 +77,7 @@ public abstract class ConcurrentSequencedCircularArray<E> extends ConcurrentCirc
         return UNSAFE.getLong(buffer, offset);
     }
 
-    protected final long lvSequenceElement(long[] buffer, long offset) {
+    protected final long lvSequence(long[] buffer, long offset) {
         return UNSAFE.getLongVolatile(buffer, offset);
     }
 

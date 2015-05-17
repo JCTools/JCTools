@@ -20,27 +20,9 @@ public class ConcurrentQueueFactory {
 
                 return new SpscArrayConcurrentQueue<E>(qs.capacity);
             }
-            // In flux, for now it is correct to return MPMC...
-            // MPSC
-            // else if (qs.consumers == 1) {
-            // if (qs.ordering != Ordering.NONE) {
-            // return new MpscArrayQueue<E>(qs.capacity);
-            // } else {
-            // return new MpscCompoundQueue<E>(qs.capacity);
-            // }
-            // }
-            // // SPMC
-            // else if (qs.producers == 1) {
-            // return new SpmcArrayQueue<E>(qs.capacity);
-            // }
-            // MPMC
             else {
                 return new MpmcArrayConcurrentQueue<E>(qs.capacity);
             }
-        } else {
-            // if (qs.consumers == 1 && qs.producers == 1) {
-            // return new SpscLinkedQueue<E>();
-            // }
         }
         return new GenericQueue<E>();
     }
@@ -65,5 +47,71 @@ public class ConcurrentQueueFactory {
             return Integer.MAX_VALUE;
         }
 
+        @Override
+        public int produce(ProducerFunction<E> producer) {
+            E e;
+            int i = 0;
+            while((e = producer.produce()) != null && weakOffer(e)) {
+                i++;
+            }
+            return i;
+        }
+        @Override
+        public int produce(ProducerFunction<E> producer, int batchSize) {
+            E e;
+            int i=0;
+            for(;i<batchSize;i++) {
+                e = producer.produce();
+                assert e != null;
+                if(!weakOffer(e)){
+                    break;
+                }
+            }
+            return i;
+        }
+        
+        @Override
+        public int consume(ConsumerFunction<E> consumer) {
+            E e;
+            int i=0;
+            while((e = weakPoll()) != null) {
+                i++;
+                if(!consumer.consume(e)) {
+                    break;
+                }
+                
+            }
+            return i;
+        }
+        
+        @Override
+        public int consume(ConsumerFunction<E> consumer, int batchSize) {
+            E e;
+            int i=0;
+            for(;i<batchSize;i++) {
+                if((e = weakPoll()) == null){
+                    break;
+                }
+                if(!consumer.consume(e)) {
+                    throw new IllegalStateException();
+                }
+            }
+            return i;
+        }
+        
+        @Override
+        public boolean weakOffer(E e) {
+            return offer(e);
+        }
+        
+        @Override
+        public E weakPoll() {
+            return poll();
+        }
+
+        @Override
+        public E weakPeek() {
+            return peek();
+        }
     }
 }
