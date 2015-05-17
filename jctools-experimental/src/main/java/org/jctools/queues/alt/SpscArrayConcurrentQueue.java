@@ -22,7 +22,7 @@ abstract class ProducerFields<E> extends ConcurrentCircularArray<E> {
     static {
         try {
             TAIL_OFFSET = UnsafeAccess.UNSAFE
-                    .objectFieldOffset(ProducerFields.class.getDeclaredField("tail"));
+                    .objectFieldOffset(ProducerFields.class.getDeclaredField("producerIndex"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
