@@ -4,15 +4,30 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.Set;
 
 import org.jctools.sets.OpenHashSet;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+@RunWith(Parameterized.class)
 public class HashSetTest {
-
-    Set<Integer> set = new OpenHashSet<Integer>(128);
+    @Parameterized.Parameters
+    public static Collection sets() {
+        return Arrays.asList(a(new OpenHashSet<Integer>(128)), a(new IdentityOpenHashSet<Integer>(128)));
+    }
+    private static Object[] a(Set<Integer> set) {
+        return new Object[]{set};
+    }
+    final Set<Integer> set;
+    public HashSetTest(Set<Integer> set) {
+        super();
+        this.set = set;
+    }
     @Test
     public void testAddRemove() {
         Integer e = new Integer(1024);

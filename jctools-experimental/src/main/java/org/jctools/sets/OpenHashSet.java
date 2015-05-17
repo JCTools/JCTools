@@ -91,7 +91,7 @@ public class OpenHashSet<E> extends AbstractSet<E> {
         }
         spElement(offset, newVal);
         size++;
-        if(size > resizeThreshold) {
+        if (size > resizeThreshold) {
             resize();
         }
         return true;
@@ -102,13 +102,13 @@ public class OpenHashSet<E> extends AbstractSet<E> {
         E[] oldBuffer = buffer;
         int newCapacity = oldBuffer.length * 2;
         buffer = (E[]) new Object[newCapacity];
-        mask = buffer.length-1;
+        mask = buffer.length - 1;
         resizeThreshold = (int) (0.75 * newCapacity);
         int countdown = size;
         size = 0;
         occupancy = 0;
-        for(int i=0;i < oldBuffer.length && countdown > 0;i++) {
-            if(oldBuffer[i] != null && oldBuffer[i] != TOMBSTONE) {
+        for (int i = 0; i < oldBuffer.length && countdown > 0; i++) {
+            if (oldBuffer[i] != null && oldBuffer[i] != TOMBSTONE) {
                 add(oldBuffer[i]);
                 countdown--;
             }
@@ -117,7 +117,7 @@ public class OpenHashSet<E> extends AbstractSet<E> {
 
     @Override
     public boolean remove(Object val) {
-        if(val == null) {
+        if (val == null) {
             return false;
         }
         int hash = calcHash(val);
@@ -127,25 +127,38 @@ public class OpenHashSet<E> extends AbstractSet<E> {
             return false;
         } else if (e.equals(val)) {
             // we can null out chains of TOMBSTONES followed by a null
-            if(lpElement(calcOffset(hash + 1)) == null) {
+            if (lpElement(calcOffset(hash + 1)) == null) {
                 spElement(offset, null);
-                while(lpElement(offset = calcOffset(--hash)) == TOMBSTONE) {
+                while (lpElement(offset = calcOffset(--hash)) == TOMBSTONE) {
                     spElement(offset, null);
                 }
-            }
-            else {
+            } else {
                 spElement(offset, TOMBSTONE);
             }
             size--;
             return true;
         }
+        return removeColdPath(val, hash);
+    }
+
+    private boolean removeColdPath(Object val, int hash) {
+        long offset;
+        E e;
         for (int i = hash + 1; i <= hash + mask; i++) {
             offset = calcOffset(i);
             e = lpElement(offset);
             if (e == null) {
                 return false;
             } else if (e.equals(val)) {
-                spElement(offset, TOMBSTONE);
+                // we can null out chains of TOMBSTONES followed by a null
+                if (lpElement(calcOffset(hash + 1)) == null) {
+                    spElement(offset, null);
+                    while (lpElement(offset = calcOffset(--hash)) == TOMBSTONE) {
+                        spElement(offset, null);
+                    }
+                } else {
+                    spElement(offset, TOMBSTONE);
+                }
                 size--;
                 return true;
             }
@@ -155,7 +168,7 @@ public class OpenHashSet<E> extends AbstractSet<E> {
 
     @Override
     public boolean contains(Object val) {
-        if(val == null) {
+        if (val == null) {
             return false;
         }
         int hash = calcHash(val);
@@ -202,6 +215,7 @@ public class OpenHashSet<E> extends AbstractSet<E> {
         private int index;
         private E nextVal = null;
         private E lastVal = null;
+
         public Iter(OpenHashSet<E> set) {
             this.set = set;
             this.buffer = set.buffer;
@@ -237,11 +251,11 @@ public class OpenHashSet<E> extends AbstractSet<E> {
             }
             nextVal = null;
         }
-        
+
         @Override
         public void remove() {
             E e;
-            if((e = lastVal) != null) {
+            if ((e = lastVal) != null) {
                 lastVal = null;
                 set.remove(e);
             }
