@@ -105,6 +105,8 @@ abstract class BaseLinkedQueue<E> extends BaseLinkedQueueConsumerNodeRef<E> {
      */
     @Override
     public final int size() {
+        // Read consumer first, this is important because if the producer is node is 'older' than the consumer the
+        // consumer may overtake it (consume past it). This will lead to an infinite loop below.
         LinkedQueueNode<E> chaserNode = lvConsumerNode();
         final LinkedQueueNode<E> producerNode = lvProducerNode();
         int size = 0;
