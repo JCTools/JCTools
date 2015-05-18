@@ -78,18 +78,19 @@ abstract class MpmcArrayConcurrentQueueColdFields<E> extends ConcurrentSequenced
                     // failed cas, retry 1
                 } else if (delta < 0 && // poll has not moved this value forward
                         currIndex - capacity <= cIndex && // test against cached cIndex
-                        currIndex - capacity <= (cIndex = consumer.lvConsumerIndex())) { // test against latest
+                        currIndex - capacity <= (cIndex = consumer.lvConsumerIndex())) { // test against
+                                                                                         // latest
                     // Extra check required to ensure [Queue.offer == false iff queue is full]
                     return false;
                 }
                 // another producer has moved the sequence by one, retry 2
             }
-            addElement(e, mask, sBuffer, currIndex, sOffset);
+            addElement(sBuffer, buffer, mask, currIndex, sOffset, e);
 
             return true;
         }
 
-        private void addElement(final E e, final long mask, final long[] sBuffer, long index, long sOffset) {
+        private void addElement(long[] sBuffer, E[] eBuffer, long mask, long index, long sOffset, final E e) {
             // on 64bit(no compressed oops) JVM this is the same as seqOffset
             final long elementOffset = calcOffset(index, mask);
             spElement(elementOffset, e);
@@ -104,16 +105,20 @@ abstract class MpmcArrayConcurrentQueueColdFields<E> extends ConcurrentSequenced
             if (null == e) {
                 throw new NullPointerException("Null is not a valid element");
             }
-            final long[] lsb = sequenceBuffer;
+            final long[] sBuffer = sequenceBuffer;
             final long mask = this.mask;
+            final E[] eBuffer = buffer;
+            return weakOffer(sBuffer, eBuffer, mask, e);
+        }
 
+        private boolean weakOffer(final long[] sBuffer, final E[] eBuffer, final long mask, E e) {
             long currIndex;
             long sOffset;
 
             for (;;) {
                 currIndex = lvProducerIndex();
                 sOffset = calcSequenceOffset(currIndex, mask);
-                long delta = lvSequence(lsb, sOffset) - currIndex;
+                long delta = lvSequence(sBuffer, sOffset) - currIndex;
                 if (delta == 0) {
                     // this is expected if we see this first time around
                     if (casProducerIndex(currIndex, currIndex + 1)) {
@@ -122,34 +127,56 @@ abstract class MpmcArrayConcurrentQueueColdFields<E> extends ConcurrentSequenced
                     // failed cas, retry 1
                 } else if (delta < 0) {
                     // poll has not moved this value forward, but that doesn't mean
-                    // queue is empty.
+                    // queue is full.
                     return false;
-                } else {
-
                 }
             }
-            addElement(e, mask, lsb, currIndex, sOffset);
+            
+            addElement(sBuffer, eBuffer, mask, currIndex, sOffset, e);
             return true;
         }
 
         @Override
-        public int produce(ProducerFunction<E> producer) {
-            E e;
-            int i = 0;
-            while ((e = producer.produce()) != null && weakOffer(e)) {
-                i++;
-            }
-            return i;
-        }
-
-        @Override
         public int produce(ProducerFunction<E> producer, int batchSize) {
-            E e;
+            final long[] sBuffer = this.sequenceBuffer;
+            final E[] eBuffer = this.buffer;
+            final long mask = this.mask;
+            long tDelta;
+            long currIndex;
+            long targetIndex;
+            do {
+                currIndex = lvProducerIndex();// LoadLoad
+                targetIndex = currIndex + batchSize - 1;
+                final long tsOffset = calcSequenceOffset(targetIndex, mask);
+                tDelta = lvSequence(sBuffer, tsOffset) - targetIndex;
+            } while ((tDelta == 0 && !casProducerIndex(currIndex, targetIndex+1)) || tDelta > 0);
+
+            if (tDelta == 0) {
+                // can now produce all elements
+                for (int i = 0; i < batchSize; i++) {
+                    // The 'availability' of the target slot is not indicative of the 'availability' of every slot up to
+                    // it. We have to consume all the elements now that we claimed the slots, so if they are not visible
+                    // we must block.
+                    long eSequence;
+                    long eDelta;
+                    long sOffset;
+                    do {
+                        sOffset = calcSequenceOffset(currIndex, mask);
+                        eSequence = lvSequence(sBuffer, sOffset);// LoadLoad
+                        eDelta = eSequence - currIndex;
+                    } while (eDelta != 0);
+                    addElement(sBuffer, eBuffer, mask, currIndex++, sOffset, producer.produce());
+                }
+                return batchSize;
+            }
+            // bugger, queue is either:
+            // (a) full
+            // (b) has less than batchSize slots open
+            // (c) slot at batch target is not available
+            // we take the easy way out and weakOffer through this case
             int i = 0;
             for (; i < batchSize; i++) {
-                e = producer.produce();
-                assert e != null;
-                if (!weakOffer(e)) {
+                if (!weakOffer(sBuffer, eBuffer, mask, producer.produce())) {
                     break;
                 }
             }
@@ -194,19 +221,16 @@ abstract class MpmcArrayConcurrentQueueColdFields<E> extends ConcurrentSequenced
         @Override
         public E weakPoll() {
             // local load of field to avoid repeated loads after volatile reads
-            final long[] lSequenceBuffer = sequenceBuffer;
-            final long mask = this.mask;
-            return weakPoll(lSequenceBuffer, mask);
+            return weakPoll(sequenceBuffer, buffer, mask);
         }
 
-        private E weakPoll(final long[] sBuffer, final long mask) {
+        private E weakPoll(final long[] sBuffer, E[] eBuffer, final long mask) {
             long currIndex;
             long sOffset;
             while (true) {
                 currIndex = lvConsumerIndex();// LoadLoad
                 sOffset = calcSequenceOffset(currIndex, mask);
-                final long seq = lvSequence(sBuffer, sOffset);// LoadLoad
-                final long delta = seq - (currIndex + 1);
+                final long delta = lvSequence(sBuffer, sOffset) - (currIndex + 1);
 
                 if (delta == 0) {
                     if (casConsumerIndex(currIndex, currIndex + 1)) {
@@ -222,28 +246,28 @@ abstract class MpmcArrayConcurrentQueueColdFields<E> extends ConcurrentSequenced
                 // another consumer beat us and moved sequence ahead, retry 2
             }
 
-            return consumeElement(sBuffer, buffer, mask, currIndex, sOffset);
+            return consumeElement(sBuffer, eBuffer, mask, currIndex, sOffset);
         }
 
         /**
          * {@inheritDoc}
          * <p>
-         * Because return null indicates queue is empty we cannot simply rely on next element visibility for
-         * poll and must test producer index when next element is not visible.
+         * Because return null indicates queue is empty we cannot simply rely on next element visibility for poll and
+         * must test producer index when next element is not visible.
          */
         @Override
         public E poll() {
-            // local load of field to avoid repeated loads after volatile reads
-            final long[] lSequenceBuffer = sequenceBuffer;
+            // local load of fields to avoid repeated loads after volatile reads
+            final long[] sBuffer = sequenceBuffer;
             final long mask = this.mask;
+            final Producer<E> producer = this.producer;
             long currentConsumerIndex;
-            long seqOffset;
+            long sOffset;
             long pIndex = -1; // start with bogus value, hope we don't need it
             while (true) {
                 currentConsumerIndex = lvConsumerIndex();// LoadLoad
-                seqOffset = calcSequenceOffset(currentConsumerIndex, mask);
-                final long seq = lvSequence(lSequenceBuffer, seqOffset);// LoadLoad
-                final long delta = seq - (currentConsumerIndex + 1);
+                sOffset = calcSequenceOffset(currentConsumerIndex, mask);
+                final long delta = lvSequence(sBuffer, sOffset) - (currentConsumerIndex + 1);
 
                 if (delta == 0) {
                     if (casConsumerIndex(currentConsumerIndex, currentConsumerIndex + 1)) {
@@ -262,7 +286,7 @@ abstract class MpmcArrayConcurrentQueueColdFields<E> extends ConcurrentSequenced
                 // another consumer beat us and moved sequence ahead, retry 2
             }
 
-            return consumeElement(lSequenceBuffer, buffer, mask, currentConsumerIndex);
+            return consumeElement(sBuffer, buffer, mask, currentConsumerIndex, sOffset);
         }
 
         @Override
@@ -284,36 +308,6 @@ abstract class MpmcArrayConcurrentQueueColdFields<E> extends ConcurrentSequenced
                 ;
         }
 
-        @Override
-        public int consume(ConsumerFunction<E> consumer) {
-            final long[] sBuffer = this.sequenceBuffer;
-            final E[] eBuffer = this.buffer;
-            final long mask = this.mask;
-            int i = 0;
-            while (i < mask + 1) {
-                final long currIndex = lvConsumerIndex();// LoadLoad
-                final long sOffset = calcSequenceOffset(currIndex, mask);
-                final long currSequence = lvSequence(sBuffer, sOffset);// LoadLoad
-                final long delta = currSequence - (currIndex + 1);
-                if (delta == 0) {
-                    if (casConsumerIndex(currIndex, currIndex + 1)) {
-                        // on 64bit(no compressed oops) JVM this is the same as seqOffset
-                        final E e = consumeElement(sBuffer, eBuffer, mask, currIndex, sOffset);
-                        i++;
-                        if (!consumer.consume(e)) {
-                            break;
-                        }
-                    }
-                    // failed cas, retry 1
-                } else if (delta < 0) {
-                    // nothing here, but queue might not be empty
-                    break;
-                }
-                // another consumer beat us and moved sequence ahead, retry 2
-            }
-            return i;
-        }
-
         private E consumeElement(long[] sBuffer, E[] eBuffer, long mask, long currIndex, long sOffset) {
             final long eOffset = calcOffset(currIndex, mask);
             final E e = lpElement(eOffset);
@@ -324,47 +318,51 @@ abstract class MpmcArrayConcurrentQueueColdFields<E> extends ConcurrentSequenced
             soSequence(sBuffer, sOffset, currIndex + mask + 1);// StoreStore
             return e;
         }
-        private E consumeElement(long[] sBuffer, E[] eBuffer, long mask, long currIndex) {
-            return consumeElement(sBuffer, eBuffer, mask, currIndex, calcSequenceOffset(currIndex, mask));
-        }
+
         @Override
         public int consume(ConsumerFunction<E> consumer, int batchSize) {
             final long[] sBuffer = this.sequenceBuffer;
             final E[] eBuffer = this.buffer;
             final long mask = this.mask;
-            int i = 0;
+            long tDelta;
+            long currIndex;
+            long targetIndex;
+            do {
+                currIndex = lvConsumerIndex();// LoadLoad
+                targetIndex = currIndex + batchSize - 1;
+                final long sOffset = calcSequenceOffset(targetIndex, mask);
+                tDelta = lvSequence(sBuffer, sOffset) - (targetIndex + 1);
+            } while ((tDelta == 0 && !casConsumerIndex(currIndex, targetIndex+1)) || tDelta > 0);
 
-            while (true) {
-                long currIndex = lvConsumerIndex();// LoadLoad
-                final long target = currIndex + batchSize;
-                long sOffset = calcSequenceOffset(target, mask);
-                final long currSequence = lvSequence(sBuffer, sOffset);// LoadLoad
-                final long delta = currSequence - target;
-                if (delta == 0) {
-                    if (casConsumerIndex(currIndex, target)) {
-                        // can now consume all elements
-                        for (;i<batchSize;i++) {
-                            E e = consumeElement(sBuffer, eBuffer, mask, currIndex++);
-                            consumer.consume(e);
-                        }
-                        break;
-                    }
-                    // failed cas, retry 1
-                } else if (delta < 0) {
-                    // bugger, queue is either:
-                    // (a) empty/we are unlucky and see a 'bubble', we don't make that distinction here. 
-                    // (b) has less than batchSize elements
-                    // we take the easy way out and weakPoll through this case
-                    for (;i<batchSize;i++) {
-                        final E e = weakPoll();
-                        if(e == null) {
-                            break;
-                        }
-                        consumer.consume(e);
-                    }
+            if (tDelta == 0) {
+                // can now consume all elements
+                for (int i = 0; i < batchSize; i++) {
+                    // The 'availability' of the target slot is not indicative of the 'availability' of every slot up to
+                    // it. We have to consume all the elements now that we claimed the slots, so if they are not visible
+                    // we must block.
+                    long eDelta;
+                    long sOffset;
+                    do {
+                        sOffset = calcSequenceOffset(currIndex, mask);
+                        eDelta = lvSequence(sBuffer, sOffset) - (currIndex + 1);
+                    } while (eDelta != 0);
+                    E e = consumeElement(sBuffer, eBuffer, mask, currIndex++, sOffset);
+                    consumer.consume(e);
+                }
+                return batchSize;
+            }
+            // bugger, queue is either:
+            // (a) empty
+            // (b) has less than batchSize elements
+            // (c) slot at batch target is unavailable
+            // we take the easy way out and weakPoll through this case
+            int i = 0;
+            for (; i < batchSize; i++) {
+                final E e = weakPoll(sBuffer, eBuffer, mask);
+                if (e == null) {
                     break;
                 }
-                // another consumer beat us and moved sequence ahead, retry 2
+                consumer.consume(e);
             }
             return i;
         }

@@ -13,6 +13,7 @@
  */
 package org.jctools.queues.alt;
 
+import static org.jctools.queues.alt.SpscArrayConcurrentQueue.OFFER_BATCH_SIZE;
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 
 import org.jctools.util.UnsafeAccess;
@@ -21,8 +22,8 @@ abstract class ProducerFields<E> extends ConcurrentCircularArray<E> {
     protected static final long TAIL_OFFSET;
     static {
         try {
-            TAIL_OFFSET = UnsafeAccess.UNSAFE
-                    .objectFieldOffset(ProducerFields.class.getDeclaredField("producerIndex"));
+            TAIL_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(ProducerFields.class
+                    .getDeclaredField("producerIndex"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
@@ -50,15 +51,17 @@ final class Producer<E> extends ProducerFields<E> implements ConcurrentQueueProd
         }
 
         final E[] lb = buffer;
-        if (producerIndex >= batchTail) {
-            if (null == lvElement(lb, calcOffset(producerIndex + SpscArrayConcurrentQueue.OFFER_BATCH_SIZE))) {
-                batchTail = producerIndex + SpscArrayConcurrentQueue.OFFER_BATCH_SIZE;
-            } else if (null != lvElement(lb, calcOffset(producerIndex))) {
+        final long mask = this.mask;
+        final long pIndex = producerIndex;
+        if (pIndex >= batchTail) {
+            if (null == lvElement(lb, calcOffset(pIndex + OFFER_BATCH_SIZE, mask))) {
+                batchTail = pIndex + OFFER_BATCH_SIZE;
+            } else if (null != lvElement(lb, calcOffset(pIndex, mask))) {
                 return false;
             }
         }
-        soElement(lb, calcOffset(producerIndex), e);
-        producerIndex++;
+        soElement(lb, calcOffset(pIndex, mask), e);
+        soProducerIndex(pIndex + 1);
 
         return true;
     }
@@ -70,22 +73,41 @@ final class Producer<E> extends ProducerFields<E> implements ConcurrentQueueProd
     private long lvProducerIndex() {
         return UNSAFE.getLongVolatile(this, TAIL_OFFSET);
     }
+
     private void soProducerIndex(long newHead) {
         UNSAFE.putOrderedLong(this, TAIL_OFFSET, newHead);
     }
+
     @Override
     public boolean weakOffer(E e) {
         return offer(e);
     }
 
     @Override
-    public int produce(ProducerFunction<E> p) {
-        return 0;
-    }
-
-    @Override
     public int produce(ProducerFunction<E> p, int batchSize) {
-        return 0;
+        final E[] lb = buffer;
+        final long mask = this.mask;
+        long pIndex = producerIndex;
+        final long tIndex = pIndex + batchSize - 1;
+        
+        if (tIndex >= batchTail) {
+            if (null == lvElement(lb, calcOffset(tIndex + OFFER_BATCH_SIZE, mask))) {
+                batchTail = tIndex + OFFER_BATCH_SIZE;
+            } else {
+                for(int i=0;i<batchSize;i++) {
+                    if (null != lvElement(lb, calcOffset(pIndex, mask)))
+                        return i;
+                    soElement(lb, calcOffset(pIndex, mask), p.produce());
+                    soProducerIndex(++pIndex);
+                }
+                return batchSize;
+            }
+        }
+        soProducerIndex(pIndex + batchSize);
+        for(int i=0;i<batchSize;i++) {
+            soElement(lb, calcOffset(pIndex++, mask), p.produce());
+        }
+        return batchSize;
     }
 }
 
@@ -149,26 +171,6 @@ final class Consumer<E> extends ConsumerFields<E> implements ConcurrentQueueCons
 
     private void soHead(long newHead) {
         UNSAFE.putOrderedLong(this, HEAD_OFFSET, newHead);
-    }
-
-    @Override
-    public int consume(ConsumerFunction<E> c) {
-        final long size = this.mask + 1;
-        final E[] lb = buffer;
-        long currHead = head;
-        long offset = calcOffset(currHead);
-        E e = lvElement(lb, offset);
-        int i = 0;
-        for (; i < size && null != e; i++) {
-            soElement(lb, offset, null);
-            soHead(++currHead);
-            if (!c.consume(e)) {
-                break;
-            }
-            offset = calcOffset(currHead);
-            e = lvElement(lb, offset);
-        }
-        return i;
     }
 
     @Override

@@ -48,38 +48,13 @@ public class ConcurrentQueueFactory {
         }
 
         @Override
-        public int produce(ProducerFunction<E> producer) {
-            E e;
-            int i = 0;
-            while((e = producer.produce()) != null && weakOffer(e)) {
-                i++;
-            }
-            return i;
-        }
-        @Override
         public int produce(ProducerFunction<E> producer, int batchSize) {
             E e;
             int i=0;
             for(;i<batchSize;i++) {
                 e = producer.produce();
                 assert e != null;
-                if(!weakOffer(e)){
-                    break;
-                }
-            }
-            return i;
-        }
-        
-        @Override
-        public int consume(ConsumerFunction<E> consumer) {
-            E e;
-            int i=0;
-            while((e = weakPoll()) != null) {
-                i++;
-                if(!consumer.consume(e)) {
-                    break;
-                }
-                
+                weakOffer(e);
             }
             return i;
         }
@@ -92,9 +67,7 @@ public class ConcurrentQueueFactory {
                 if((e = weakPoll()) == null){
                     break;
                 }
-                if(!consumer.consume(e)) {
-                    throw new IllegalStateException();
-                }
+                consumer.consume(e);
             }
             return i;
         }

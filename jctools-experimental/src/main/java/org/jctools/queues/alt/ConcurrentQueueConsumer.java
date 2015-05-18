@@ -24,12 +24,6 @@ import java.util.function.Consumer;
  * 
  */
 public interface ConcurrentQueueConsumer<E> {
-    /**
-     * As many elements as are visible are delivered to the {@link Consumer}.
-     * 
-     * @return number of elements consumed
-     */
-    int consume(ConsumerFunction<E> consumer);
 
     /**
      * As many elements as are visible are delivered to the {@link Consumer}.

@@ -30,6 +30,5 @@ public interface ConcurrentQueueProducer<E> {
      */
     boolean weakOffer(E e);
     
-    int produce(ProducerFunction<E> p);
     int produce(ProducerFunction<E> p, int batchSize);
 }

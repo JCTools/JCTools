@@ -2,8 +2,7 @@ package org.jctools.queues.alt;
 
 public interface ConsumerFunction<E> {
     /**
-     * @param e
-     * @return true if can consume more, false otherwise
+     * @param e not null
      */
-    boolean consume(E e);
+    void consume(E e);
 }
