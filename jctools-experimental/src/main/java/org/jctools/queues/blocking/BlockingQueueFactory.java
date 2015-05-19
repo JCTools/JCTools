@@ -21,10 +21,12 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import org.jctools.queues.MpmcArrayQueue;
 import org.jctools.queues.MpscArrayQueue;
 import org.jctools.queues.MpscCompoundQueue;
 import org.jctools.queues.MpscLinkedQueue7;
 import org.jctools.queues.MpscLinkedQueue8;
+import org.jctools.queues.SpmcArrayQueue;
 import org.jctools.queues.SpscArrayQueue;
 import org.jctools.queues.SpscLinkedQueue;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
@@ -44,56 +46,45 @@ import org.jctools.util.UnsafeAccess;
  */
 public class BlockingQueueFactory {
 
-    private static Map<Class, Class> blockingQueueCache = Collections.synchronizedMap(new HashMap<Class, Class>());
+    private static Map<Class, Class> blockingQueueCache = Collections
+            .synchronizedMap(new HashMap<Class, Class>());
 
-    public static class BlockingModel
-    {
+    public static class BlockingModel {
         public String blockingQueueClassName;
         public String queueClassName;
         public String TakeStrategy;
         public String PutStrategy;
-        public String capacity;
     }
 
-    public static <E> BlockingQueue<E> newBlockingQueue(ConcurrentQueueSpec qs)
-    {
-        Class takeStratClass = (qs.consumers==1) ? ScParkTakeStrategy.class : McParkTakeStrategy.class;
+    public static <E> BlockingQueue<E> newBlockingQueue(ConcurrentQueueSpec qs) {
+        Class takeStratClass = (qs.consumers == 1) ? ScParkTakeStrategy.class : McParkTakeStrategy.class;
         Class putStratClass = YieldPutStrategy.class;
 
         return newBlockingQueue(qs, takeStratClass, putStratClass);
     }
 
-    public static <E> BlockingQueue<E> newBlockingQueue(ConcurrentQueueSpec qs, Class<? extends TakeStrategy> takeStratClass, Class<? extends PutStrategy> putStratClass)
-    {
+    public static <E> BlockingQueue<E> newBlockingQueue(ConcurrentQueueSpec qs,
+            Class<? extends TakeStrategy> takeStratClass, Class<? extends PutStrategy> putStratClass) {
         // Check if strategies are compatible with QueueSpec
         boolean isTakeStratOK = false;
         boolean isPutStratOK = false;
-        try
-        {
+        try {
             isTakeStratOK = takeStratClass.newInstance().supportsSpec(qs);
             isPutStratOK = putStratClass.newInstance().supportsSpec(qs);
-        }
-        catch(IllegalAccessException e)
-        {
+        } catch (IllegalAccessException e) {
             throw new IllegalArgumentException("Error instantiating strategy");
-        }
-        catch(InstantiationException e)
-        {
+        } catch (InstantiationException e) {
             throw new IllegalArgumentException("Error instantiating strategy");
         }
 
-        if (!isTakeStratOK)
-        {
+        if (!isTakeStratOK) {
             throw new IllegalArgumentException("The take strategy is not compatible with the Queue Specs");
         }
-        if (!isPutStratOK)
-        {
+        if (!isPutStratOK) {
             throw new IllegalArgumentException("The put strategy is not compatible with the Queue Specs");
         }
 
-
-        if (qs.isBounded())
-        {
+        if (qs.isBounded()) {
             // SPSC
             if (qs.isSpsc()) {
                 return getBlockingQueueFrom(SpscArrayQueue.class, takeStratClass, putStratClass, qs.capacity);
@@ -101,27 +92,25 @@ public class BlockingQueueFactory {
             // MPSC
             else if (qs.isMpsc()) {
                 if (qs.ordering != Ordering.NONE) {
-                    return getBlockingQueueFrom(MpscArrayQueue.class, takeStratClass, putStratClass, qs.capacity);
+                    return getBlockingQueueFrom(MpscArrayQueue.class, takeStratClass, putStratClass,
+                            qs.capacity);
                 } else {
-                    return getBlockingQueueFrom(MpscCompoundQueue.class, takeStratClass, putStratClass, qs.capacity);
+                    return getBlockingQueueFrom(MpscCompoundQueue.class, takeStratClass, putStratClass,
+                            qs.capacity);
                 }
             }
             // SPMC
             else if (qs.isSpmc()) {
-                // MCParkTakeStrategy need to be much better - ArrayBlockingQueue still faster
-                //return getBlockingQueueFrom(SpmcArrayQueue.class, MCParkTakeStrategy.class, qs.capacity);
+                return getBlockingQueueFrom(SpmcArrayQueue.class, takeStratClass, putStratClass, qs.capacity);
             }
             // MPMC
             else if (qs.isMpmc()) {
-                // MCParkTakeStrategy need to be much better - ArrayBlockingQueue still faster
-                //return getBlockingQueueFrom(MpmcArrayQueue.class, MCParkTakeStrategy.class, qs.capacity);
+                return getBlockingQueueFrom(MpmcArrayQueue.class, takeStratClass, putStratClass, qs.capacity);
             }
 
             // Default bounded blocking
             return new ArrayBlockingQueue<E>(qs.capacity);
-        }
-        else
-        {
+        } else {
             // SPSC
             if (qs.isSpsc()) {
                 return getBlockingQueueFrom(SpscLinkedQueue.class, takeStratClass, putStratClass, -1);
@@ -130,8 +119,7 @@ public class BlockingQueueFactory {
             else if (qs.isMpsc()) {
                 if (UnsafeAccess.SUPPORTS_GET_AND_SET) {
                     return getBlockingQueueFrom(MpscLinkedQueue8.class, takeStratClass, putStratClass, -1);
-                }
-                else {
+                } else {
                     return getBlockingQueueFrom(MpscLinkedQueue7.class, takeStratClass, putStratClass, -1);
                 }
             }
@@ -142,22 +130,22 @@ public class BlockingQueueFactory {
 
     }
 
-    private static <E> BlockingQueue<E> getBlockingQueueFrom(Class<? extends Queue> queueClass, Class<? extends TakeStrategy> takeStrat, Class<? extends PutStrategy> putStrat, int capacity)
-    {
+    private static <E> BlockingQueue<E> getBlockingQueueFrom(Class<? extends Queue> queueClass,
+            Class<? extends TakeStrategy> takeStrat, Class<? extends PutStrategy> putStrat, int capacity) {
         // Build model for template filling
         BlockingModel model = new BlockingModel();
         model.queueClassName = queueClass.getSimpleName();
         model.blockingQueueClassName = model.queueClassName + "Blocking";
         model.TakeStrategy = takeStrat.getSimpleName();
         model.PutStrategy = putStrat.getSimpleName();
-        model.capacity = (capacity>0)?String.valueOf(capacity):"";
 
         // Check for the Queue in cache
-        Class blockingClass = null;  //blockingQueueCache.get(queueClass); // Can't use cache right now because of capacity hardcoded in class
-        if (blockingClass==null)
-        {
+        Class blockingClass = null; // blockingQueueCache.get(queueClass); // Can't use cache right now because of
+                                    // capacity hardcoded in class
+        if (blockingClass == null) {
             // Load and fill template
-            Template blockingTemplate = Template.fromFile(BlockingQueueFactory.class, "TemplateBlocking.java");
+            Template blockingTemplate = Template
+                    .fromFile(BlockingQueueFactory.class, "TemplateBlocking.java");
             String blockingQueueClassFile = blockingTemplate.render(model);
 
             // System.out.println(blockingQueueClassFile);
@@ -166,23 +154,17 @@ public class BlockingQueueFactory {
             SimpleCompiler compiler = new SimpleCompiler();
             CompilationResult result = compiler.compile(model.blockingQueueClassName, blockingQueueClassFile);
 
-            if (result.isSuccessful())
-            {
-                try
-                {
+            if (result.isSuccessful()) {
+                try {
                     // Load class
-                    blockingClass = result.getClassLoader().loadClass(model.blockingQueueClassName);
+                    blockingClass = result.getClassLoader().loadClass("org.jctools.queues.blocking."+model.blockingQueueClassName);
 
-                    // Store class in cache for later re-use
-                    blockingQueueCache.put(queueClass, blockingClass);
+                } catch (Exception e) {
+                    throw new IllegalStateException(e);
                 }
-                catch(Exception e)
-                {
-                    e.printStackTrace();
-                }
-            }
-            else
-            {
+                // Store class in cache for later re-use
+                blockingQueueCache.put(queueClass, blockingClass);
+            } else {
                 System.out.println(result.getDiagnostics());
                 return null;
             }
@@ -190,13 +172,11 @@ public class BlockingQueueFactory {
 
         // Instantiate new Blocking queue
         BlockingQueue<E> q = null;
-        try
-        {
-            q = (BlockingQueue<E>) blockingClass.newInstance();
-        }
-        catch(Exception e)
-        {
-            e.printStackTrace();
+        try {
+            
+            q = (BlockingQueue<E>) blockingClass.getConstructor(Integer.TYPE).newInstance(capacity);
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
         }
 
         return q;

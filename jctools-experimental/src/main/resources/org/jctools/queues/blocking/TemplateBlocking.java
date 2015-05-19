@@ -11,9 +11,9 @@ public class {{blockingQueueClassName}}<E> extends {{queueClassName}}<E> impleme
     private final {{TakeStrategy}}<E> takeStrategy = new {{TakeStrategy}}<E>();
     private final {{PutStrategy}} putStrategy = new {{PutStrategy}}();
 
-    public {{blockingQueueClassName}}()
+    public {{blockingQueueClassName}}(int capacity)
     {
-        super({{capacity}});
+        super(capacity);
     }
 
     @Override
