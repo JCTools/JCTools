@@ -20,17 +20,19 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import org.jctools.util.UnsafeAccess;
 
+@SuppressWarnings("unused")
 abstract class CI1<E> {
-    public int type = 0;
-    public E item = null;
+    private int type = 0;
+    private E item = null;
 }
 
 abstract class P0<E> extends CI1<E> {
     volatile long y0, y1, y2, y4, y5, y6 = 7L;
 }
 
+@SuppressWarnings("unused")
 abstract class HI0<E> extends P0<E> {
-    public Thread thread;
+    private Thread thread;
 }
 
 class Node<E> extends HI0<E> {
@@ -40,9 +42,9 @@ class Node<E> extends HI0<E> {
 
     static {
         try {
-            TYPE = UnsafeAccess.UNSAFE.objectFieldOffset(Node.class.getField("type"));
-            ITEM = UnsafeAccess.UNSAFE.objectFieldOffset(Node.class.getField("item"));
-            THREAD = UnsafeAccess.UNSAFE.objectFieldOffset(Node.class.getField("thread"));
+            TYPE = UnsafeAccess.UNSAFE.objectFieldOffset(CI1.class.getDeclaredField("type"));
+            ITEM = UnsafeAccess.UNSAFE.objectFieldOffset(CI1.class.getDeclaredField("item"));
+            THREAD = UnsafeAccess.UNSAFE.objectFieldOffset(HI0.class.getDeclaredField("thread"));
 
             // now make sure we can access UNSAFE entries
             @SuppressWarnings("rawtypes")
@@ -531,7 +533,7 @@ public final class MpmcTransferArrayQueue<E> extends MpmcArrayQueue<E> {
                         // (seeing this value from a consumer will lead to retry 2)
                         soSequence(sBuffer, cSeqOffset, mask + newConsumerIndex); // StoreStore
 
-                        node.item = (E) Node.lpItem(e);
+                        Node.spItem(node, Node.lpItem(e));
                         unpark(e); // StoreStore
 
                         return;
