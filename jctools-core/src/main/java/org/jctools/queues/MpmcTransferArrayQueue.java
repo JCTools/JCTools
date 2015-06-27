@@ -15,8 +15,7 @@
  */
 package org.jctools.queues;
 
-import java.util.concurrent.LinkedTransferQueue;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.Random;
 
 import org.jctools.util.UnsafeAccess;
 
@@ -201,7 +200,24 @@ public final class MpmcTransferArrayQueue<E> extends MpmcArrayQueue<E> {
      */
     private static final int PARK_UNTIMED_SPINS = PARK_TIMED_SPINS * 16;
 
+    private static final ThreadLocal<Object> nodeThreadLocal = new ThreadLocal<Object>() {
+        @SuppressWarnings("rawtypes")
+        @Override
+        protected Object initialValue() {
+            return new Node();
+        }
+    };
+
+    private static final ThreadLocal<Random> randomThreadLocal = new ThreadLocal<Random>() {
+        @Override
+        protected
+        Random initialValue() {
+            return new Random();
+        }
+    };
+
     private final int consumerCount;
+
 
     /**
      * @param consumerCount is the defined number of consumers. This is necessary for {@link hasPendingMessages}.
@@ -211,13 +227,6 @@ public final class MpmcTransferArrayQueue<E> extends MpmcArrayQueue<E> {
         this.consumerCount = consumerCount;
     }
 
-    private final static ThreadLocal<Object> nodeThreadLocal = new ThreadLocal<Object>() {
-        @SuppressWarnings("rawtypes")
-        @Override
-        protected Object initialValue() {
-            return new Node();
-        }
-    };
 
 
     /**
@@ -226,7 +235,7 @@ public final class MpmcTransferArrayQueue<E> extends MpmcArrayQueue<E> {
      * Place an item on the queue, and wait (if necessary) for a corresponding
      * consumer to take it. This will wait as long as necessary.
      */
-    public final void transfer(final E item) throws InterruptedException {
+    public void transfer(final E item) throws InterruptedException {
         // local load of field to avoid repeated loads after volatile reads
         final long mask = this.mask;
         final Object[] buffer = this.buffer;
@@ -331,7 +340,7 @@ public final class MpmcTransferArrayQueue<E> extends MpmcArrayQueue<E> {
      * for a producer to place an item on the queue. This will wait as long
      * as necessary.
      */
-    public final E take() throws InterruptedException {
+    public E take() throws InterruptedException {
         // local load of field to avoid repeated loads after volatile reads
         final long mask = this.mask;
         final Object[] buffer = this.buffer;
@@ -444,7 +453,7 @@ public final class MpmcTransferArrayQueue<E> extends MpmcArrayQueue<E> {
      * data.
      */
     @SuppressWarnings("unchecked")
-    public final void take(Node<E> node) throws InterruptedException {
+    public void take(Node<E> node) throws InterruptedException {
         // local load of field to avoid repeated loads after volatile reads
         final long mask = this.mask;
         final Object[] buffer = this.buffer;
@@ -545,7 +554,7 @@ public final class MpmcTransferArrayQueue<E> extends MpmcArrayQueue<E> {
         }
     }
 
-    public final boolean hasPendingMessages() {
+    public boolean hasPendingMessages() {
         // local load of field to avoid repeated loads after volatile reads
         final long mask = this.mask;
         final Object[] buffer = this.buffer;
@@ -583,9 +592,9 @@ public final class MpmcTransferArrayQueue<E> extends MpmcArrayQueue<E> {
     }
 
     @SuppressWarnings("null")
-    private final void park(final Object node, final Thread myThread) throws InterruptedException {
+    private void park(final Object node, final Thread myThread) throws InterruptedException {
         int spins = -1; // initialized after first item and cancel checks
-        ThreadLocalRandom randomYields = null; // bound if needed
+        Random randomYields = null; // bound if needed
 
         for (;;) {
             if (Node.lvThread(node) == null) {
@@ -594,7 +603,7 @@ public final class MpmcTransferArrayQueue<E> extends MpmcArrayQueue<E> {
                 throw new InterruptedException();
             } else if (spins < 0) {
                 spins = PARK_UNTIMED_SPINS;
-                randomYields = ThreadLocalRandom.current();
+                randomYields = randomThreadLocal.get();
             } else if (spins > 0) {
                 if (randomYields.nextInt(1024) == 0) {
                     UnsafeAccess.UNSAFE.park(false, 1L);
@@ -607,7 +616,7 @@ public final class MpmcTransferArrayQueue<E> extends MpmcArrayQueue<E> {
         }
     }
 
-    private final void unpark(Object node) {
+    private void unpark(Object node) {
         final Object thread = Node.lpThread(node);
         Node.soThread(node, null);  // StoreStore
         UnsafeAccess.UNSAFE.unpark(thread);
