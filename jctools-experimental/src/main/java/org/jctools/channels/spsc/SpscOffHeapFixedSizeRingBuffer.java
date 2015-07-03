@@ -19,6 +19,7 @@ import org.jctools.util.UnsafeDirectByteBuffer;
 
 import java.nio.ByteBuffer;
 
+import static org.jctools.util.JvmInfo.CACHE_LINE_SIZE;
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeDirectByteBuffer.*;
 
@@ -66,18 +67,23 @@ public class SpscOffHeapFixedSizeRingBuffer {
      * This is to be used for an IPC queue with the direct buffer used being a memory mapped file.
      *
      * @param buff
-     * @param capacity
+     * @param capacity in messages, actual capacity will be 
+     * @param messageSize 
      */
     protected SpscOffHeapFixedSizeRingBuffer(final ByteBuffer buff, final int capacity,
             final boolean isProducer, final boolean isConsumer, final boolean initialize,
             final int messageSize) {
 
         int actualCapacity = Pow2.roundToPowerOfTwo(capacity);
-        this.messageSize = messageSize + MESSAGE_INDICATOR_SIZE;
-        this.buffy = alignedSlice(4 * JvmInfo.CACHE_LINE_SIZE + (actualCapacity * (this.messageSize)),
-                JvmInfo.CACHE_LINE_SIZE, buff);
+        // message size is aligned to indicator size, this ensure atomic writes of indicator
+        this.messageSize = (int) Pow2.align(messageSize + MESSAGE_INDICATOR_SIZE, MESSAGE_INDICATOR_SIZE);
+        this.buffy = alignedSlice(4 * CACHE_LINE_SIZE + (actualCapacity * (this.messageSize)),
+                CACHE_LINE_SIZE, buff);
 
         long alignedAddress = UnsafeDirectByteBuffer.getAddress(buffy);
+        if (alignedAddress % JvmInfo.CACHE_LINE_SIZE != 0) {
+            throw new IllegalStateException("buffer is expected to be cache line aligned by now");
+        }
         this.lookAheadStep = getLookaheadStep(capacity);
         // Layout of the RingBuffer (assuming 64b cache line):
         // consumerIndex(8b), pad(56b) |
@@ -94,7 +100,7 @@ public class SpscOffHeapFixedSizeRingBuffer {
         if (isProducer && initialize) {
             spLookAheadCache(0);
             soProducerIndex(0);
-            // mark all messages as null
+            // mark all messages as READY
             for (int i = 0; i < actualCapacity; i++) {
                 final long offset = offsetForIndex(i);
                 readyIndicator(offset);
