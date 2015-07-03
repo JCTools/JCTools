@@ -51,7 +51,8 @@ public class SpscOffHeapFixedSizeRingBuffer {
     private final int messageSize;
 
     public static int getRequiredBufferSize(final int capacity, final int messageSize) {
-        return HEADER_SIZE + (Pow2.roundToPowerOfTwo(capacity) * (messageSize + MESSAGE_INDICATOR_SIZE));
+        int alignedMessageSize = (int) Pow2.align(messageSize + MESSAGE_INDICATOR_SIZE, MESSAGE_INDICATOR_SIZE);
+        return HEADER_SIZE + (Pow2.roundToPowerOfTwo(capacity) * alignedMessageSize);
     }
 
     public static int getLookaheadStep(final int capacity) {
@@ -59,7 +60,7 @@ public class SpscOffHeapFixedSizeRingBuffer {
     }
 
     public SpscOffHeapFixedSizeRingBuffer(final int capacity, final int messageSize) {
-        this(allocateAlignedByteBuffer(getRequiredBufferSize(capacity, messageSize), JvmInfo.CACHE_LINE_SIZE), Pow2
+        this(allocateAlignedByteBuffer(getRequiredBufferSize(capacity, messageSize), CACHE_LINE_SIZE), Pow2
                 .roundToPowerOfTwo(capacity), true, true, true, messageSize);
     }
 
@@ -77,8 +78,7 @@ public class SpscOffHeapFixedSizeRingBuffer {
         int actualCapacity = Pow2.roundToPowerOfTwo(capacity);
         // message size is aligned to indicator size, this ensure atomic writes of indicator
         this.messageSize = (int) Pow2.align(messageSize + MESSAGE_INDICATOR_SIZE, MESSAGE_INDICATOR_SIZE);
-        this.buffy = alignedSlice(4 * CACHE_LINE_SIZE + (actualCapacity * (this.messageSize)),
-                CACHE_LINE_SIZE, buff);
+        this.buffy = alignedSlice(HEADER_SIZE + (actualCapacity * (this.messageSize)), CACHE_LINE_SIZE, buff);
 
         long alignedAddress = UnsafeDirectByteBuffer.getAddress(buffy);
         if (alignedAddress % JvmInfo.CACHE_LINE_SIZE != 0) {
