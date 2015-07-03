@@ -37,12 +37,22 @@ public class QueueThroughputBackoffNone {
     Queue<Integer> q;
 
     @Setup()
-    public void createQ() {
-        q = QueueByTypeFactory.createQueue(qType, qCapacity);
-        for (int i = 0; i < 100000; i++) {
+    public void createQandPrimeCompilation() {
+        q = QueueByTypeFactory.createQueue(qType, 128);
+        
+        // stretch the queue to the limit, working through resizing and full
+        for (int i = 0; i < 128+100; i++) {
+            q.offer(ONE);
+        }
+        for (int i = 0; i < 128+100; i++) {
+            q.poll();
+        }
+        // make sure the important common case is exercised
+        for (int i = 0; i < 20000; i++) {
             q.offer(ONE);
             q.poll();
         }
+        q = QueueByTypeFactory.createQueue(qType, qCapacity);
     }
 
     @AuxCounters
@@ -118,7 +128,6 @@ public class QueueThroughputBackoffNone {
             return;
         // sadly the iteration tear down is performed from each participating thread, so we need to guess
         // which is which (can't have concurrent access to poll).
-        while (q.poll() != null)
-            ;
+        q.clear();
     }
 }
