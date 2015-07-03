@@ -1,8 +1,5 @@
 package org.jctools.queues;
 
-import org.jctools.queues.blocking.BlockingQueueFactory;
-import org.jctools.queues.spec.ConcurrentQueueSpec;
-
 import java.lang.reflect.Constructor;
 import java.util.ArrayDeque;
 import java.util.Queue;
@@ -10,64 +7,71 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedTransferQueue;
 
+import org.jctools.queues.blocking.BlockingQueueFactory;
+import org.jctools.queues.spec.ConcurrentQueueSpec;
+
 public class QueueByTypeFactory {
     public static final int QUEUE_CAPACITY = 1 << Integer.getInteger("pow2.capacity", 17);
     public static final int QUEUE_TYPE = Integer.getInteger("q.type", 0);
-    public static Queue<Integer> createQueue() {
+    public static <T> Queue<T> createQueue() {
         final int queueCapacity = QUEUE_CAPACITY;
         return createQueue(queueCapacity);
     }
-    public static Queue<Integer> createQueue(final int queueCapacity) {
+    public static <T> Queue<T> createQueue(final int queueCapacity) {
         int queueType = QUEUE_TYPE;
         return createQueue(queueType, queueCapacity);
     }
-    public static Queue<Integer> createQueue(int queueType, final int queueCapacity) {
+    public static <T> Queue<T> createQueue(int queueType, final int queueCapacity) {
         switch (queueType) {
         case -99:
-            return new ArrayDeque<Integer>(queueCapacity);
+            return new ArrayDeque<T>(queueCapacity);
         case -3:
-            return new ArrayBlockingQueue<Integer>(queueCapacity);
+            return new ArrayBlockingQueue<T>(queueCapacity);
         case -2:
-            return new LinkedTransferQueue<Integer>();
+            return new LinkedTransferQueue<T>();
         case -1:
-            return new ConcurrentLinkedQueue<Integer>();
+            return new ConcurrentLinkedQueue<T>();
         case 0:
-            return new InlinedCountersSpscConcurrentArrayQueue<Integer>(queueCapacity);
+            return new InlinedCountersSpscConcurrentArrayQueue<T>(queueCapacity);
         case 10:
-            return new BQueue<Integer>(queueCapacity);
+            return new BQueue<T>(queueCapacity);
         case 20:
-            return new FFBuffer<Integer>(queueCapacity);
-            case 3:
-                return new SpscArrayQueue<Integer>(queueCapacity);
-            case 308:
-                return BlockingQueueFactory.newBlockingQueue(ConcurrentQueueSpec.createBoundedSpsc(queueCapacity));
+            return new FFBuffer<T>(queueCapacity);
+        case 3:
+            return new SpscArrayQueue<T>(queueCapacity);
+        case 308:
+            return BlockingQueueFactory.newBlockingQueue(ConcurrentQueueSpec.createBoundedSpsc(queueCapacity));
         case 31:
-            return new SpscLinkedQueue<Integer>();
+            return new SpscLinkedQueue<T>();
         case 32:
-            return new SpscGrowableArrayQueue<Integer>(queueCapacity);
+            return new SpscGrowableArrayQueue<T>(queueCapacity);
         case 40:
-            return new FloatingCountersSpscConcurrentArrayQueue<Integer>(queueCapacity);
+            return new FloatingCountersSpscConcurrentArrayQueue<T>(queueCapacity);
         case 5:
-            return new SpmcArrayQueue<Integer>(queueCapacity);
+            return new SpmcArrayQueue<T>(queueCapacity);
+        case 508:
+            return BlockingQueueFactory.newBlockingQueue(ConcurrentQueueSpec.createBoundedSpmc(queueCapacity));
         case 6:
-            return new MpscArrayQueue<Integer>(queueCapacity);
+            return new MpscArrayQueue<T>(queueCapacity);
+        case 608:
+            return BlockingQueueFactory.newBlockingQueue(ConcurrentQueueSpec.createBoundedMpsc(queueCapacity));
         case 61:
-            return new MpscCompoundQueue<Integer>(queueCapacity);
+            return new MpscCompoundQueue<T>(queueCapacity);
         case 62:
-            return new MpscOnSpscQueue<Integer>(queueCapacity);
+            return new MpscOnSpscQueue<T>(queueCapacity);
         case 63:
-            return new MpscLinkedQueue8<Integer>();
+            return new MpscLinkedQueue8<T>();
         case 7:
-            return new MpmcArrayQueue<Integer>(queueCapacity);
+            return new MpmcArrayQueue<T>(queueCapacity);
             case 708:
                 return BlockingQueueFactory.newBlockingQueue(ConcurrentQueueSpec.createBoundedMpmc(queueCapacity));
         case 71:
-            return new MpmcConcurrentQueueStateMarkers<Integer>(queueCapacity);
+            return new MpmcConcurrentQueueStateMarkers<T>(queueCapacity);
         }
         throw new IllegalArgumentException("Type: " + queueType);
     }
     @SuppressWarnings({ "rawtypes", "unchecked" })
-    public static Queue<Integer> createQueue(String queueType, final int queueCapacity) {
+    public static <T> Queue<T> createQueue(String queueType, final int queueCapacity) {
         try {
             int qType = Integer.valueOf(queueType);
             return createQueue(qType, queueCapacity);
@@ -79,13 +83,13 @@ public class QueueByTypeFactory {
         Exception ex;
         try {
             constructor = qClass.getConstructor(Integer.TYPE);
-            return (Queue<Integer>) constructor.newInstance(queueCapacity);
+            return (Queue<T>) constructor.newInstance(queueCapacity);
         } catch (Exception e) {
             ex = e;
         }
         try {
             constructor = qClass.getConstructor();
-            return (Queue<Integer>) constructor.newInstance();
+            return (Queue<T>) constructor.newInstance();
         } catch (Exception e) {
             ex = e;
         }
