@@ -16,11 +16,13 @@ package org.jctools.util;
 /**
  * Power of 2 utility functions.
  */
-public class Pow2 {
+public final class Pow2 {
+    private Pow2() {
+    }
 
     /**
-     * Find the next larger positive power of two value up from the given value. If value is a power of two then
-     * this value will be returned.
+     * Find the next larger positive power of two value up from the given value. If value is a power of two then this
+     * value will be returned.
      *
      * @param value from which next positive power of two will be found.
      * @return the next positive power of 2 or this value if it is a power of 2.
@@ -37,5 +39,20 @@ public class Pow2 {
      */
     public static boolean isPowerOfTwo(final int value) {
         return (value & (value - 1)) == 0;
+    }
+
+    /**
+     * Align a value to the next multiple up of alignment. If the value equals an alignment multiple then it is returned
+     * unchanged.
+     * 
+     * @param value to be aligned up.
+     * @param alignment to be used, must be a power of 2.
+     * @return the value aligned to the next boundary.
+     */
+    public static long align(final long value, final int alignment) {
+        if (!isPowerOfTwo(alignment)) {
+            throw new IllegalArgumentException("alignment must be a power of 2:" + alignment);
+        }
+        return (value + (alignment - 1)) & ~(alignment - 1);
     }
 }
