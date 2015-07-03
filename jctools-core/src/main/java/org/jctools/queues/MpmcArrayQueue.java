@@ -14,11 +14,12 @@
 package org.jctools.queues;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
+import static org.jctools.util.UnsafeRefArrayAccess.lpElement;
+import static org.jctools.util.UnsafeRefArrayAccess.spElement;
 
 abstract class MpmcArrayQueueL1Pad<E> extends ConcurrentSequencedCircularArrayQueue<E> {
+    long p00, p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16;
-    long p30, p31, p32, p33, p34, p35, p36, p37;
-
     public MpmcArrayQueueL1Pad(int capacity) {
         super(capacity);
     }
@@ -50,9 +51,8 @@ abstract class MpmcArrayQueueProducerField<E> extends MpmcArrayQueueL1Pad<E> {
 }
 
 abstract class MpmcArrayQueueL2Pad<E> extends MpmcArrayQueueProducerField<E> {
-    long p20, p21, p22, p23, p24, p25, p26;
-    long p30, p31, p32, p33, p34, p35, p36, p37;
-
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
     public MpmcArrayQueueL2Pad(int capacity) {
         super(capacity);
     }
@@ -108,9 +108,8 @@ abstract class MpmcArrayQueueConsumerField<E> extends MpmcArrayQueueL2Pad<E> {
  *            type of the element stored in the {@link java.util.Queue}
  */
 public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> implements QueueProgressIndicators {
-    long p40, p41, p42, p43, p44, p45, p46;
-    long p30, p31, p32, p33, p34, p35, p36, p37;
-
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
     public MpmcArrayQueue(final int capacity) {
         super(validateCapacity(capacity));
     }
@@ -159,7 +158,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> implements
 
         // on 64bit(no compressed oops) JVM this is the same as seqOffset
         final long elementOffset = calcElementOffset(currentProducerIndex, mask);
-        spElement(elementOffset, e);
+        spElement(buffer, elementOffset, e);
 
         // increment sequence by 1, the value expected by consumer
         // (seeing this value from a producer will lead to retry 2)
@@ -206,8 +205,9 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> implements
 
         // on 64bit(no compressed oops) JVM this is the same as seqOffset
         final long offset = calcElementOffset(currentConsumerIndex, mask);
-        final E e = lpElement(offset);
-        spElement(offset, null);
+        
+        final E e = lpElement(buffer, offset);
+        spElement(buffer, offset, null);
 
         // Move sequence ahead by capacity, preparing it for next offer
         // (seeing this value from a consumer will lead to retry 2)
@@ -223,7 +223,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> implements
         do {
             currConsumerIndex = lvConsumerIndex();
             // other consumers may have grabbed the element, or queue might be empty
-            e = lpElement(calcElementOffset(currConsumerIndex));
+            e = lpElement(buffer, calcElementOffset(currConsumerIndex));
             // only return null if queue is empty
         } while (e == null && currConsumerIndex != lvProducerIndex());
         return e;

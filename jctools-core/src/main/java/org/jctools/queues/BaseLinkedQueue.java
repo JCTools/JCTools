@@ -20,7 +20,7 @@ import java.util.Iterator;
 
 abstract class BaseLinkedQueuePad0<E> extends AbstractQueue<E> {
     long p00, p01, p02, p03, p04, p05, p06, p07;
-    long p30, p31, p32, p33, p34, p35, p36, p37;
+    long p10, p11, p12, p13, p14, p15, p16;
 }
 
 abstract class BaseLinkedQueueProducerNodeRef<E> extends BaseLinkedQueuePad0<E> {
@@ -49,8 +49,8 @@ abstract class BaseLinkedQueueProducerNodeRef<E> extends BaseLinkedQueuePad0<E> 
 }
 
 abstract class BaseLinkedQueuePad1<E> extends BaseLinkedQueueProducerNodeRef<E> {
-    long p00, p01, p02, p03, p04, p05, p06, p07;
-    long p30, p31, p32, p33, p34, p35, p36, p37;
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
 }
 
 abstract class BaseLinkedQueueConsumerNodeRef<E> extends BaseLinkedQueuePad1<E> {
@@ -86,9 +86,8 @@ abstract class BaseLinkedQueueConsumerNodeRef<E> extends BaseLinkedQueuePad1<E> 
  * @param <E>
  */
 abstract class BaseLinkedQueue<E> extends BaseLinkedQueueConsumerNodeRef<E> {
-    long p00, p01, p02, p03, p04, p05, p06, p07;
-    long p30, p31, p32, p33, p34, p35, p36, p37;
-
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
 
     @Override
     public final Iterator<E> iterator() {

@@ -13,59 +13,49 @@
  */
 package org.jctools.queues;
 
+import static org.jctools.queues.CircularArrayOffsetCalculator.allocate;
+import static org.jctools.queues.CircularArrayOffsetCalculator.calcElementOffset;
 import static org.jctools.util.UnsafeAccess.UNSAFE;
+import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
+import static org.jctools.util.UnsafeRefArrayAccess.soElement;
 
 import java.lang.reflect.Field;
 import java.util.AbstractQueue;
 import java.util.Iterator;
 
 import org.jctools.util.Pow2;
-import org.jctools.util.UnsafeAccess;
 
-abstract class SpscGrowableArrayQueueProducerFields<E> extends AbstractQueue<E> {
-    protected long producerIndex;
+abstract class SpscGrowableArrayQueuePrePad<E> extends AbstractQueue<E> {
+    long p0, p1, p2, p3, p4, p5, p6, p7, p8;
+    long p10, p11, p12, p13;
 }
-
-abstract class SpscGrowableArrayQueueProducerColdFields<E> extends SpscGrowableArrayQueueProducerFields<E> {
+abstract class SpscGrowableArrayQueueProducerColdFields<E> extends SpscGrowableArrayQueuePrePad<E> {
     protected int maxQueueCapacity;
     protected int producerLookAheadStep;
     protected long producerLookAhead;
     protected long producerMask;
     protected E[] producerBuffer;
 }
-
-abstract class SpscGrowableArrayQueueL2Pad<E> extends SpscGrowableArrayQueueProducerColdFields<E> {
-    long p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12;
+abstract class SpscGrowableArrayQueueProducerFields<E> extends SpscGrowableArrayQueueProducerColdFields<E> {
+    protected long producerIndex;
 }
 
-abstract class SpscGrowableArrayQueueConsumerColdField<E> extends SpscGrowableArrayQueueL2Pad<E> {
+abstract class SpscGrowableArrayQueueL2Pad<E> extends SpscGrowableArrayQueueProducerFields<E> {
+    long p0, p1, p2, p3, p4, p5, p6, p7;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
+}
+
+abstract class SpscGrowableArrayQueueConsumerFields<E> extends SpscGrowableArrayQueueL2Pad<E> {
     protected long consumerMask;
     protected E[] consumerBuffer;
-}
-
-abstract class SpscGrowableArrayQueueConsumerField<E> extends SpscGrowableArrayQueueConsumerColdField<E> {
     protected long consumerIndex;
 }
 
-public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerField<E> 
+public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerFields<E> 
     implements QueueProgressIndicators {
-    private static final int MAX_LOOK_AHEAD_STEP = Integer
-            .getInteger("jctools.spsc.max.lookahead.step", 4096);
     private final static long P_INDEX_OFFSET;
     private final static long C_INDEX_OFFSET;
-    private static final long REF_ARRAY_BASE;
-    private static final int REF_ELEMENT_SHIFT;
     static {
-        final int scale = UnsafeAccess.UNSAFE.arrayIndexScale(Object[].class);
-        if (4 == scale) {
-            REF_ELEMENT_SHIFT = 2;
-        } else if (8 == scale) {
-            REF_ELEMENT_SHIFT = 3;
-        } else {
-            throw new IllegalStateException("Unknown pointer size");
-        }
-        // Including the buffer pad in the array base offset
-        REF_ARRAY_BASE = UnsafeAccess.UNSAFE.arrayBaseOffset(Object[].class);
         try {
             Field iField = SpscGrowableArrayQueueProducerFields.class.getDeclaredField("producerIndex");
             P_INDEX_OFFSET = UNSAFE.objectFieldOffset(iField);
@@ -73,26 +63,17 @@ public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerFie
             throw new RuntimeException(e);
         }
         try {
-            Field iField = SpscGrowableArrayQueueConsumerField.class.getDeclaredField("consumerIndex");
+            Field iField = SpscGrowableArrayQueueConsumerFields.class.getDeclaredField("consumerIndex");
             C_INDEX_OFFSET = UNSAFE.objectFieldOffset(iField);
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
     }
-
-    private static class NextHolder {
-        final Object[] next;
-
-        public NextHolder(Object[] next) {
-            this.next = next;
-        }
-        
-    }
+    private final static Object JUMP = new Object();
     public SpscGrowableArrayQueue(final int maxCapacity) {
         this(Math.min(Pow2.roundToPowerOfTwo(maxCapacity / 2), 16), maxCapacity);
     }
 
-    @SuppressWarnings("unchecked")
     public SpscGrowableArrayQueue(final int initialCapacity, int maxCapacity) {
         if (initialCapacity >= maxCapacity) {
             throw new IllegalArgumentException("Initial capacity cannot exceed maximum capacity");
@@ -100,7 +81,8 @@ public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerFie
 
         int p2capacity = Pow2.roundToPowerOfTwo(initialCapacity);
         long mask = p2capacity - 1;
-        E[] buffer = (E[]) new Object[p2capacity];
+        // need extra element to point at next array
+        E[] buffer = allocate(p2capacity+1);
         producerBuffer = buffer;
         producerMask = mask;
         adjustLookAheadStep(p2capacity);
@@ -135,7 +117,12 @@ public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerFie
         if (index < producerLookAhead) {
             writeToQueue(buffer, e, index, offset);
             return true;
-        } 
+        }
+        return offerColdPath(e, buffer, index, mask, offset);
+    }
+
+    private boolean offerColdPath(final E e, final E[] buffer, final long index, final long mask,
+            final long offset) {
         final int lookAheadStep = producerLookAheadStep;
         // normal case, go around the buffer or resize if full (unless we hit max capacity)
         if (lookAheadStep > 0) {
@@ -160,71 +147,60 @@ public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerFie
             if (null == lvElement(buffer, calcElementOffset(index + 1, mask))) { // buffer is not full
                 writeToQueue(buffer, e, index, offset);
             } else {
-                resize(buffer, index, offset, maxCapacity, e); // double the buffer and link old to new
+                final int newCapacity = (int) (2 * (mask + 1));
+                final E[] newBuffer = allocate(newCapacity + 1);
+                producerBuffer = newBuffer;
+                producerMask = (long) (newCapacity - 1);
+                if (newCapacity == maxCapacity) {
+                    long currConsumerIndex = lvConsumerIndex();
+                    // use lookAheadStep to store the consumer distance from final buffer
+                    producerLookAheadStep = -(int) (index - currConsumerIndex);
+                    producerLookAhead = currConsumerIndex + maxCapacity - 1;
+                } else {
+                    producerLookAhead = index + producerMask - 1;
+                    adjustLookAheadStep(newCapacity);
+                }
+                final long offsetInNew = calcElementOffset(index, producerMask);
+                soProducerIndex(index + 1);// this ensures correctness on 32bit platforms
+                soElement(newBuffer, offsetInNew, e);// StoreStore
+                soElement(buffer, nextArrayOffset(mask), newBuffer); // new buffer is visible after element is inserted
+                soElement(buffer, offset, JUMP); // new buffer is visible after element is inserted // double the buffer and link old to new
             }
             return true;
         }
         // the step is negative (or zero) in the period between allocating the max sized buffer and the
         // consumer starting on it
         else {
-            return offerWhileWaitingForConsumerOnLastBuffer(buffer, e, index, mask, offset, lookAheadStep);
+            final int prevElementsInOtherBuffers = -lookAheadStep;
+            // until the consumer starts using the current buffer we need to check consumer index to
+            // verify size
+            long currConsumerIndex = lvConsumerIndex();
+            int size = (int) (index - currConsumerIndex);
+            int maxCapacity = (int) mask+1; // we're on max capacity or we wouldn't be here
+            if (size == maxCapacity) {
+                // consumer index has not changed since adjusting the lookAhead index, we're full
+                return false;
+            }
+            // if consumerInde x progressed enough so that current size indicates it is on same buffer
+            long firstIndexInCurrentBuffer = producerLookAhead - maxCapacity + prevElementsInOtherBuffers;
+            if (currConsumerIndex >= firstIndexInCurrentBuffer) {
+                // job done, we've now settled into our final state
+                adjustLookAheadStep(maxCapacity);
+            }
+            // consumer is still on some other buffer
+            else {
+                // how many elements out of buffer?
+                producerLookAheadStep = (int) (currConsumerIndex - firstIndexInCurrentBuffer);
+            }
+            producerLookAhead = currConsumerIndex + maxCapacity;
+            writeToQueue(buffer, e, index, offset);
+            return true;
         }
-    }
-
-    private boolean offerWhileWaitingForConsumerOnLastBuffer(final E[] buffer, final E e, final long index,
-            final long mask, final long offset, final int lookAheadStep) {
-        final int prevElementsInOtherBuffers = -lookAheadStep;
-        // until the consumer starts using the current buffer we need to check consumer index to
-        // verify size
-        long currConsumerIndex = lvConsumerIndex();
-        int size = (int) (index - currConsumerIndex);
-        int maxCapacity = (int) mask+1; // we're on max capacity or we wouldn't be here
-        if (size == maxCapacity) {
-            // consumer index has not changed since adjusting the lookAhead index, we're full
-            return false;
-        }
-        // if consumerInde x progressed enough so that current size indicates it is on same buffer
-        long firstIndexInCurrentBuffer = producerLookAhead - maxCapacity + prevElementsInOtherBuffers;
-        if (currConsumerIndex >= firstIndexInCurrentBuffer) {
-            // job done, we've now settled into our final state
-            adjustLookAheadStep(maxCapacity);
-        }
-        // consumer is still on some other buffer
-        else {
-            // how many elements out of buffer?
-            producerLookAheadStep = (int) (currConsumerIndex - firstIndexInCurrentBuffer);
-        }
-        producerLookAhead = currConsumerIndex + maxCapacity;
-        writeToQueue(buffer, e, index, offset);
-        return true;
     }
 
     private void writeToQueue(final E[] buffer, final E e, final long index, final long offset) {
         soProducerIndex(index + 1);// this ensures atomic write of long on 32bit platforms
         soElement(buffer, offset, e);// StoreStore
-    }
-
-    @SuppressWarnings("unchecked")
-    private void resize(final E[] old, final long currIndex, final long offset, final int maxCapacity,
-            final E e) {
-        final int newCapacity = 2 * old.length;
-        final E[] newBuffer = (E[]) new Object[newCapacity];
-        producerBuffer = newBuffer;
-        final long newMask = newCapacity - 1;
-        producerMask = newMask;
-        if (newCapacity == maxCapacity) {
-            long currConsumerIndex = lvConsumerIndex();
-            // use lookAheadStep to store the consumer distance from final buffer
-            producerLookAheadStep = -(int) (currIndex - currConsumerIndex);
-            producerLookAhead = currConsumerIndex + maxCapacity - 1;
-        } else {
-            producerLookAhead = currIndex + producerMask - 1;
-            adjustLookAheadStep(newCapacity);
-        }
-        final long offsetInNew = calcElementOffset(currIndex, newMask);
-        soProducerIndex(currIndex + 1);// this ensures correctness on 32bit platforms
-        soElement(newBuffer, offsetInNew, e);// StoreStore
-        soElement(old, offset, new NextHolder(newBuffer)); // new buffer is visible after element is inserted
     }
 
     /**
@@ -238,29 +214,38 @@ public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerFie
         // local load of field to avoid repeated loads after volatile reads
         final E[] buffer = consumerBuffer;
         final long index = consumerIndex;
-        final long offset = calcElementOffset(index, consumerMask);
+        
+        final long mask = consumerMask;
+        final long offset = calcElementOffset(index, mask);
         final Object e = lvElement(buffer, offset);// LoadLoad
-        boolean isNextBuffer = e instanceof NextHolder;
-        if (null != e && !isNextBuffer) {
+        if (null != e) {
+            if(e == JUMP) {
+                final E[] nextBuffer = getNextBuffer(buffer, mask);
+                return newBufferPoll(nextBuffer, index); 
+            }
             soConsumerIndex(index + 1);// this ensures size correctness on 32bit platforms
             soElement(buffer, offset, null);// StoreStore
-            return (E) e;
-        } else if (isNextBuffer) {
-            return newBufferPoll((E[]) ((NextHolder) e).next, index);
         }
-
-        return null;
+        return (E) e;
     }
 
     @SuppressWarnings("unchecked")
+    private E[] getNextBuffer(final E[] buffer, final long mask) {
+        return (E[]) lvElement(buffer, nextArrayOffset(mask));
+    }
+
+    private long nextArrayOffset(final long mask) {
+        return calcElementOffset(mask+1,mask<<1 + 1);
+    }
+
     private E newBufferPoll(E[] nextBuffer, final long index) {
         consumerBuffer = nextBuffer;
-        final long newMask = nextBuffer.length - 1;
+        final long newMask = nextBuffer.length - 2;
         consumerMask = newMask;
         final long offsetInNew = calcElementOffset(index, newMask);
-        final E n = (E) lvElement(nextBuffer, offsetInNew);// LoadLoad
+        final E n = lvElement(nextBuffer, offsetInNew);// LoadLoad
         if (null == n) {
-            return null;
+            throw new IllegalStateException("new buffer must have at least one element");
         } else {
             soConsumerIndex(index + 1);// this ensures correctness on 32bit platforms
             soElement(nextBuffer, offsetInNew, null);// StoreStore
@@ -278,24 +263,24 @@ public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerFie
     public final E peek() {
         final E[] buffer = consumerBuffer;
         final long index = consumerIndex;
-        final long offset = calcElementOffset(index, consumerMask);
+        final long mask = consumerMask;
+        final long offset = calcElementOffset(index, mask);
         final Object e = lvElement(buffer, offset);// LoadLoad
         if (null == e) {
             return null;
         }
-        if (e instanceof NextHolder) {
-            return newBufferPeek((E[]) ((NextHolder) e).next, index);
+        if (e == JUMP) {
+            return newBufferPeek(getNextBuffer(buffer,mask), index);
         }
         return (E) e;
     }
 
-    @SuppressWarnings("unchecked")
     private E newBufferPeek(E[] nextBuffer, final long index) {
         consumerBuffer = nextBuffer;
-        final long newMask = nextBuffer.length - 1;
+        final long newMask = nextBuffer.length - 2;
         consumerMask = newMask;
         final long offsetInNew = calcElementOffset(index, newMask);
-        return (E) lvElement(nextBuffer, offsetInNew);// LoadLoad
+        return lvElement(nextBuffer, offsetInNew);// LoadLoad
     }
 
     @Override
@@ -318,7 +303,7 @@ public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerFie
     }
 
     private void adjustLookAheadStep(int capacity) {
-        producerLookAheadStep = Math.min(capacity / 4, MAX_LOOK_AHEAD_STEP);
+        producerLookAheadStep = Math.min(capacity / 4, SpscArrayQueue.MAX_LOOK_AHEAD_STEP);
     }
 
     private long lvProducerIndex() {
@@ -337,17 +322,6 @@ public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerFie
         UNSAFE.putOrderedLong(this, C_INDEX_OFFSET, v);
     }
 
-    private static final long calcElementOffset(long index, long mask) {
-        return REF_ARRAY_BASE + ((index & mask) << REF_ELEMENT_SHIFT);
-    }
-
-    private static final void soElement(Object[] buffer, long offset, Object e) {
-        UNSAFE.putOrderedObject(buffer, offset, e);
-    }
-
-    private static final <E> Object lvElement(E[] buffer, long offset) {
-        return UNSAFE.getObjectVolatile(buffer, offset);
-    }
 
     @Override
     public long currentProducerIndex() {

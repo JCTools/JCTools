@@ -25,7 +25,7 @@ public abstract class ConcurrentSequencedCircularArrayQueue<E> extends Concurren
     static {
         final int scale = UnsafeAccess.UNSAFE.arrayIndexScale(long[].class);
         if (8 == scale) {
-            ELEMENT_SHIFT = 3 + SPARSE_SHIFT;
+            ELEMENT_SHIFT = 3 + SparsePaddedCircularArrayOffsetCalculator.SPARSE_SHIFT;
         } else {
             throw new IllegalStateException("Unexpected long[] element size");
         }
@@ -40,7 +40,8 @@ public abstract class ConcurrentSequencedCircularArrayQueue<E> extends Concurren
         super(capacity);
         int actualCapacity = (int) (this.mask + 1);
         // pad data on either end with some empty slots.
-        sequenceBuffer = new long[(actualCapacity << SPARSE_SHIFT) + SEQ_BUFFER_PAD * 2];
+        sequenceBuffer = new long[(actualCapacity << SparsePaddedCircularArrayOffsetCalculator.SPARSE_SHIFT) +
+                                  SEQ_BUFFER_PAD * 2];
         for (long i = 0; i < actualCapacity; i++) {
             soSequence(sequenceBuffer, calcSequenceOffset(i), i);
         }

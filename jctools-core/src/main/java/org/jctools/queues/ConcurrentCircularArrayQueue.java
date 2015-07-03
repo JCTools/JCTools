@@ -13,18 +13,14 @@
  */
 package org.jctools.queues;
 
-import org.jctools.util.JvmInfo;
-import org.jctools.util.Pow2;
-import org.jctools.util.UnsafeAccess;
-
 import java.util.AbstractQueue;
 import java.util.Iterator;
 
-import static org.jctools.util.UnsafeAccess.UNSAFE;
+import org.jctools.util.Pow2;
 
 abstract class ConcurrentCircularArrayQueueL0Pad<E> extends AbstractQueue<E> implements MessagePassingQueue<E> {
-    long p00, p01, p02, p03, p04, p05, p06, p07;
-    long p30, p31, p32, p33, p34, p35, p36, p37;
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
 }
 
 /**
@@ -44,34 +40,14 @@ abstract class ConcurrentCircularArrayQueueL0Pad<E> extends AbstractQueue<E> imp
  * @param <E>
  */
 public abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircularArrayQueueL0Pad<E> {
-    protected static final int SPARSE_SHIFT = Integer.getInteger("sparse.shift", 0);
-    protected static final int REF_BUFFER_PAD;
-    private static final long REF_ARRAY_BASE;
-    private static final int REF_ELEMENT_SHIFT;
-    static {
-        final int scale = UnsafeAccess.UNSAFE.arrayIndexScale(Object[].class);
-        if (4 == scale) {
-            REF_ELEMENT_SHIFT = 2 + SPARSE_SHIFT;
-        } else if (8 == scale) {
-            REF_ELEMENT_SHIFT = 3 + SPARSE_SHIFT;
-        } else {
-            throw new IllegalStateException("Unknown pointer size");
-        }
-        // 2 cache lines pad
-        REF_BUFFER_PAD = (JvmInfo.CACHE_LINE_SIZE * 2) / scale;
-        // Including the buffer pad in the array base offset
-        REF_ARRAY_BASE = UnsafeAccess.UNSAFE.arrayBaseOffset(Object[].class) + (REF_BUFFER_PAD * scale);
-    }
     protected final long mask;
     // @Stable :(
     protected final E[] buffer;
 
-    @SuppressWarnings("unchecked")
     public ConcurrentCircularArrayQueue(int capacity) {
         int actualCapacity = Pow2.roundToPowerOfTwo(capacity);
         mask = actualCapacity - 1;
-        // pad data on either end with some empty slots.
-        buffer = (E[]) new Object[(actualCapacity << SPARSE_SHIFT) + REF_BUFFER_PAD * 2];
+        buffer = SparsePaddedCircularArrayOffsetCalculator.allocate(actualCapacity);
     }
 
     /**
@@ -81,98 +57,14 @@ public abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircular
     protected final long calcElementOffset(long index) {
         return calcElementOffset(index, mask);
     }
+    
     /**
      * @param index desirable element index
      * @param mask 
      * @return the offset in bytes within the array for a given index.
      */
     protected static final long calcElementOffset(long index, long mask) {
-        return REF_ARRAY_BASE + ((index & mask) << REF_ELEMENT_SHIFT);
-    }
-    /**
-     * A plain store (no ordering/fences) of an element to a given offset
-     * 
-     * @param offset computed via {@link ConcurrentCircularArrayQueue#calcElementOffset(long)}
-     * @param e a kitty
-     */
-    protected final void spElement(long offset, E e) {
-        spElement(buffer, offset, e);
-    }
-
-    /**
-     * A plain store (no ordering/fences) of an element to a given offset
-     * 
-     * @param buffer this.buffer
-     * @param offset computed via {@link ConcurrentCircularArrayQueue#calcElementOffset(long)}
-     * @param e an orderly kitty
-     */
-    protected static final <E> void spElement(E[] buffer, long offset, E e) {
-        UNSAFE.putObject(buffer, offset, e);
-    }
-
-    /**
-     * An ordered store(store + StoreStore barrier) of an element to a given offset
-     * 
-     * @param offset computed via {@link ConcurrentCircularArrayQueue#calcElementOffset(long)}
-     * @param e an orderly kitty
-     */
-    protected final void soElement(long offset, E e) {
-        soElement(buffer, offset, e);
-    }
-
-    /**
-     * An ordered store(store + StoreStore barrier) of an element to a given offset
-     * 
-     * @param buffer this.buffer
-     * @param offset computed via {@link ConcurrentCircularArrayQueue#calcElementOffset(long)}
-     * @param e an orderly kitty
-     */
-    protected static final <E> void soElement(E[] buffer, long offset, E e) {
-        UNSAFE.putOrderedObject(buffer, offset, e);
-    }
-
-    /**
-     * A plain load (no ordering/fences) of an element from a given offset.
-     * 
-     * @param offset computed via {@link ConcurrentCircularArrayQueue#calcElementOffset(long)}
-     * @return the element at the offset
-     */
-    protected final E lpElement(long offset) {
-        return lpElement(buffer, offset);
-    }
-
-    /**
-     * A plain load (no ordering/fences) of an element from a given offset.
-     * 
-     * @param buffer this.buffer
-     * @param offset computed via {@link ConcurrentCircularArrayQueue#calcElementOffset(long)}
-     * @return the element at the offset
-     */
-    @SuppressWarnings("unchecked")
-    protected static final <E> E lpElement(E[] buffer, long offset) {
-        return (E) UNSAFE.getObject(buffer, offset);
-    }
-
-    /**
-     * A volatile load (load + LoadLoad barrier) of an element from a given offset.
-     * 
-     * @param offset computed via {@link ConcurrentCircularArrayQueue#calcElementOffset(long)}
-     * @return the element at the offset
-     */
-    protected final E lvElement(long offset) {
-        return lvElement(buffer, offset);
-    }
-
-    /**
-     * A volatile load (load + LoadLoad barrier) of an element from a given offset.
-     * 
-     * @param buffer this.buffer
-     * @param offset computed via {@link ConcurrentCircularArrayQueue#calcElementOffset(long)}
-     * @return the element at the offset
-     */
-    @SuppressWarnings("unchecked")
-    protected static final <E> E lvElement(E[] buffer, long offset) {
-        return (E) UNSAFE.getObjectVolatile(buffer, offset);
+        return SparsePaddedCircularArrayOffsetCalculator.calcElementOffset(index, mask);
     }
 
     @Override

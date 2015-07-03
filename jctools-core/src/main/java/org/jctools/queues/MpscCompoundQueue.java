@@ -23,8 +23,8 @@ import static org.jctools.util.Pow2.roundToPowerOfTwo;
  * Use a set number of parallel MPSC queues to diffuse the contention on tail.
  */
 abstract class MpscCompoundQueueL0Pad<E> extends AbstractQueue<E> implements MessagePassingQueue<E> {
-    long p00, p01, p02, p03, p04, p05, p06;
-    long p30, p31, p32, p33, p34, p35, p36, p37;
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
 }
 
 abstract class MpscCompoundQueueColdFields<E> extends MpscCompoundQueueL0Pad<E> {
@@ -50,8 +50,8 @@ abstract class MpscCompoundQueueColdFields<E> extends MpscCompoundQueueL0Pad<E> 
 }
 
 abstract class MpscCompoundQueueMidPad<E> extends MpscCompoundQueueColdFields<E> {
-    long p20, p21, p22, p23, p24, p25, p26;
-    long p30, p31, p32, p33, p34, p35, p36, p37;
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
 
     public MpscCompoundQueueMidPad(int capacity, int queueParallelism) {
         super(capacity, queueParallelism);
@@ -68,8 +68,8 @@ abstract class MpscCompoundQueueConsumerQueueIndex<E> extends MpscCompoundQueueM
 
 public class MpscCompoundQueue<E> extends MpscCompoundQueueConsumerQueueIndex<E> {
     private static final int CPUS = Runtime.getRuntime().availableProcessors();
-    long p00, p01, p02, p03, p04, p05, p06;
-    long p30, p31, p32, p33, p34, p35, p36, p37;
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
 
     public MpscCompoundQueue(int capacity) {
         this(capacity, CPUS);

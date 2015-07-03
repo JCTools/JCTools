@@ -15,8 +15,10 @@ package org.jctools.queues;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 
+import org.jctools.util.UnsafeRefArrayAccess;
+
 abstract class SpscArrayQueueColdField<E> extends ConcurrentCircularArrayQueue<E> {
-    private static final Integer MAX_LOOK_AHEAD_STEP = Integer.getInteger("jctools.spsc.max.lookahead.step", 4096);
+    static final Integer MAX_LOOK_AHEAD_STEP = Integer.getInteger("jctools.spsc.max.lookahead.step", 4096);
     protected final int lookAheadStep;
     public SpscArrayQueueColdField(int capacity) {
         super(capacity);
@@ -24,8 +26,8 @@ abstract class SpscArrayQueueColdField<E> extends ConcurrentCircularArrayQueue<E
     }
 }
 abstract class SpscArrayQueueL1Pad<E> extends SpscArrayQueueColdField<E> {
-    long p10, p11, p12, p13, p14, p15, p16;
-    long p30, p31, p32, p33, p34, p35, p36, p37;
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
 
     public SpscArrayQueueL1Pad(int capacity) {
         super(capacity);
@@ -51,8 +53,8 @@ abstract class SpscArrayQueueProducerFields<E> extends SpscArrayQueueL1Pad<E> {
 }
 
 abstract class SpscArrayQueueL2Pad<E> extends SpscArrayQueueProducerFields<E> {
-    long p20, p21, p22, p23, p24, p25, p26;
-    long p30, p31, p32, p33, p34, p35, p36, p37;
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
 
     public SpscArrayQueueL2Pad(int capacity) {
         super(capacity);
@@ -75,14 +77,6 @@ abstract class SpscArrayQueueConsumerField<E> extends SpscArrayQueueL2Pad<E> {
     }
 }
 
-abstract class SpscArrayQueueL3Pad<E> extends SpscArrayQueueConsumerField<E> {
-    long p40, p41, p42, p43, p44, p45, p46;
-    long p30, p31, p32, p33, p34, p35, p36, p37;
-
-    public SpscArrayQueueL3Pad(int capacity) {
-        super(capacity);
-    }
-}
 
 /**
  * A Single-Producer-Single-Consumer queue backed by a pre-allocated buffer.
@@ -100,7 +94,9 @@ abstract class SpscArrayQueueL3Pad<E> extends SpscArrayQueueConsumerField<E> {
  * 
  * @param <E>
  */
-public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>  implements QueueProgressIndicators {
+public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E>  implements QueueProgressIndicators {
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
     public SpscArrayQueue(final int capacity) {
         super(capacity);
     }
@@ -122,15 +118,15 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>  implements QueueP
         final long offset = calcElementOffset(index, mask);
         if (index >= producerLookAhead) {
             int step = lookAheadStep;
-            if (null == lvElement(buffer, calcElementOffset(index + step, mask))) {// LoadLoad
+            if (null == UnsafeRefArrayAccess.lvElement(buffer, calcElementOffset(index + step, mask))) {// LoadLoad
                 producerLookAhead = index + step;
             }
-            else if (null != lvElement(buffer, offset)){
+            else if (null != UnsafeRefArrayAccess.lvElement(buffer, offset)){
                 return false;
             }
         }
         soProducerIndex(index + 1); // ordered store -> atomic and ordered for size()
-        soElement(buffer, offset, e); // StoreStore
+        UnsafeRefArrayAccess.soElement(buffer, offset, e); // StoreStore
         return true;
     }
     
@@ -145,12 +141,12 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>  implements QueueP
         final long offset = calcElementOffset(index);
         // local load of field to avoid repeated loads after volatile reads
         final E[] lElementBuffer = buffer;
-        final E e = lvElement(lElementBuffer, offset);// LoadLoad
+        final E e = UnsafeRefArrayAccess.lvElement(lElementBuffer, offset);// LoadLoad
         if (null == e) {
             return null;
         }
         soConsumerIndex(index + 1); // ordered store -> atomic and ordered for size()
-        soElement(lElementBuffer, offset, null);// StoreStore
+        UnsafeRefArrayAccess.soElement(lElementBuffer, offset, null);// StoreStore
         return e;
     }
 
@@ -161,7 +157,7 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>  implements QueueP
      */
     @Override
     public E peek() {
-        return lvElement(calcElementOffset(consumerIndex));
+        return UnsafeRefArrayAccess.lvElement(buffer, calcElementOffset(consumerIndex));
     }
 
     @Override

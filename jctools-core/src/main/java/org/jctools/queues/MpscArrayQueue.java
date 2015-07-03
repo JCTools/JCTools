@@ -14,11 +14,15 @@
 package org.jctools.queues;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
+import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
+import static org.jctools.util.UnsafeRefArrayAccess.soElement;
+import static org.jctools.util.UnsafeRefArrayAccess.spElement;
+
+import org.jctools.util.UnsafeRefArrayAccess;
 
 abstract class MpscArrayQueueL1Pad<E> extends ConcurrentCircularArrayQueue<E> {
+    long p00, p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16;
-    long p30, p31, p32, p33, p34, p35, p36, p37;
-
     public MpscArrayQueueL1Pad(int capacity) {
         super(capacity);
     }
@@ -51,34 +55,32 @@ abstract class MpscArrayQueueTailField<E> extends MpscArrayQueueL1Pad<E> {
 }
 
 abstract class MpscArrayQueueMidPad<E> extends MpscArrayQueueTailField<E> {
-    long p20, p21, p22, p23, p24, p25, p26;
-    long p30, p31, p32, p33, p34, p35, p36, p37;
-
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
     public MpscArrayQueueMidPad(int capacity) {
         super(capacity);
     }
 }
 
 abstract class MpscArrayQueueHeadCacheField<E> extends MpscArrayQueueMidPad<E> {
-    private volatile long headCache;
+    private volatile long consumerIndexCache;
 
     public MpscArrayQueueHeadCacheField(int capacity) {
         super(capacity);
     }
 
     protected final long lvConsumerIndexCache() {
-        return headCache;
+        return consumerIndexCache;
     }
 
     protected final void svConsumerIndexCache(long v) {
-        headCache = v;
+        consumerIndexCache = v;
     }
 }
 
 abstract class MpscArrayQueueL2Pad<E> extends MpscArrayQueueHeadCacheField<E> {
-    long p20, p21, p22, p23, p24, p25, p26;
-    long p30, p31, p32, p33, p34, p35, p36, p37;
-
+    long p00, p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16;
     public MpscArrayQueueL2Pad(int capacity) {
         super(capacity);
     }
@@ -123,9 +125,8 @@ abstract class MpscArrayQueueConsumerField<E> extends MpscArrayQueueL2Pad<E> {
  * @param <E>
  */
 public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements QueueProgressIndicators {
-    long p40, p41, p42, p43, p44, p45, p46;
-    long p30, p31, p32, p33, p34, p35, p36, p37;
-
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
     public MpscArrayQueue(final int capacity) {
         super(capacity);
     }
@@ -173,7 +174,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements
 
         // Won CAS, move on to storing
         final long offset = calcElementOffset(currentProducerIndex, mask);
-        soElement(offset, e); // StoreStore
+        UnsafeRefArrayAccess.soElement(buffer, offset, e); // StoreStore
         return true; // AWESOME :)
     }
 
@@ -208,7 +209,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements
 
         // Won CAS, move on to storing
         final long offset = calcElementOffset(currentTail, mask);
-        soElement(offset, e);
+        soElement(buffer, offset, e);
         return 0; // AWESOME :)
     }
 

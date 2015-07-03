@@ -14,6 +14,7 @@
 package org.jctools.queues;
 
 import org.jctools.util.UnsafeAccess;
+import org.jctools.util.UnsafeRefArrayAccess;
 
 import java.util.Collection;
 import java.util.Iterator;
@@ -102,10 +103,10 @@ public final class FFBuffer<E> extends FFBufferL3Pad<E> implements Queue<E> {
         }
 
         final E[] lb = buffer;
-        if (null != lvElement(lb, calcElementOffset(tail))) {
+        if (null != UnsafeRefArrayAccess.lvElement(lb, calcElementOffset(tail))) {
             return false;
         }
-        soElement(lb, calcElementOffset(tail), e);
+        UnsafeRefArrayAccess.soElement(lb, calcElementOffset(tail), e);
         tail++;
         return true;
     }
@@ -113,11 +114,11 @@ public final class FFBuffer<E> extends FFBufferL3Pad<E> implements Queue<E> {
     public E poll() {
         final long offset = calcElementOffset(head);
         final E[] lb = buffer;
-        final E e = lvElement(lb, offset);
+        final E e = UnsafeRefArrayAccess.lvElement(lb, offset);
         if (null == e) {
             return null;
         }
-        soElement(lb, offset, null);
+        UnsafeRefArrayAccess.soElement(lb, offset, null);
         head++;
         return e;
     }
@@ -146,7 +147,7 @@ public final class FFBuffer<E> extends FFBufferL3Pad<E> implements Queue<E> {
     }
 
     private E getElement(long index) {
-        return lvElement(calcElementOffset(index));
+        return UnsafeRefArrayAccess.lvElement(buffer, calcElementOffset(index));
     }
 
     public int size() {

@@ -15,9 +15,11 @@ package org.jctools.queues;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 
+import org.jctools.util.UnsafeRefArrayAccess;
+
 abstract class SpmcArrayQueueL1Pad<E> extends ConcurrentCircularArrayQueue<E> {
-    long p10, p11, p12, p13, p14, p15, p16;
-    long p30, p31, p32, p33, p34, p35, p36, p37;
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
 
     public SpmcArrayQueueL1Pad(int capacity) {
         super(capacity);
@@ -50,8 +52,8 @@ abstract class SpmcArrayQueueProducerField<E> extends SpmcArrayQueueL1Pad<E> {
 }
 
 abstract class SpmcArrayQueueL2Pad<E> extends SpmcArrayQueueProducerField<E> {
-    long p20, p21, p22, p23, p24, p25, p26;
-    long p30, p31, p32, p33, p34, p35, p36, p37;
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
 
     public SpmcArrayQueueL2Pad(int capacity) {
         super(capacity);
@@ -84,8 +86,8 @@ abstract class SpmcArrayQueueConsumerField<E> extends SpmcArrayQueueL2Pad<E> {
 }
 
 abstract class SpmcArrayQueueMidPad<E> extends SpmcArrayQueueConsumerField<E> {
-    long p20, p21, p22, p23, p24, p25, p26;
-    long p30, p31, p32, p33, p34, p35, p36, p37;
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
 
     public SpmcArrayQueueMidPad(int capacity) {
         super(capacity);
@@ -111,8 +113,8 @@ abstract class SpmcArrayQueueProducerIndexCacheField<E> extends SpmcArrayQueueMi
 }
 
 abstract class SpmcArrayQueueL3Pad<E> extends SpmcArrayQueueProducerIndexCacheField<E> {
-    long p40, p41, p42, p43, p44, p45, p46;
-    long p30, p31, p32, p33, p34, p35, p36, p37;
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
 
     public SpmcArrayQueueL3Pad(int capacity) {
         super(capacity);
@@ -133,7 +135,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
         final long mask = this.mask;
         final long currProducerIndex = lvProducerIndex();
         final long offset = calcElementOffset(currProducerIndex, mask);
-        if (null != lvElement(buffer, offset)) {
+        if (null != UnsafeRefArrayAccess.lvElement(buffer, offset)) {
             long size = currProducerIndex - lvConsumerIndex();
             
             if(size > mask) {
@@ -141,10 +143,10 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
             }
             else {
                 // spin wait for slot to clear, buggers wait freedom
-                while(null != lvElement(buffer, offset));
+                while(null != UnsafeRefArrayAccess.lvElement(buffer, offset));
             }
         }
-        spElement(buffer, offset, e);
+        UnsafeRefArrayAccess.spElement(buffer, offset, e);
         // single producer, so store ordered is valid. It is also required to correctly publish the element
         // and for the consumers to pick up the tail value.
         soTail(currProducerIndex + 1);
@@ -171,9 +173,9 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
         final long offset = calcElementOffset(currentConsumerIndex);
         final E[] lb = buffer;
         // load plain, element happens before it's index becomes visible
-        final E e = lpElement(lb, offset);
+        final E e = UnsafeRefArrayAccess.lpElement(lb, offset);
         // store ordered, make sure nulling out is visible. Producer is waiting for this value.
-        soElement(lb, offset, null);
+        UnsafeRefArrayAccess.soElement(lb, offset, null);
         return e;
     }
 
@@ -193,7 +195,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
                     svProducerIndexCache(currProducerIndex);
                 }
             }
-        } while (null == (e = lvElement(calcElementOffset(currentConsumerIndex, mask))));
+        } while (null == (e = UnsafeRefArrayAccess.lvElement(buffer, calcElementOffset(currentConsumerIndex, mask))));
         return e;
     }
 
