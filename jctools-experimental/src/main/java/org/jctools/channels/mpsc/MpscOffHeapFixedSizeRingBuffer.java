@@ -13,15 +13,14 @@
  */
 package org.jctools.channels.mpsc;
 
-import org.jctools.channels.OffHeapFixedMessageSizeRingBuffer;
-import org.jctools.util.JvmInfo;
-import org.jctools.util.Pow2;
-import org.jctools.util.UnsafeDirectByteBuffer;
+import static org.jctools.util.UnsafeAccess.UNSAFE;
+import static org.jctools.util.UnsafeDirectByteBuffer.allocateAlignedByteBuffer;
 
 import java.nio.ByteBuffer;
 
-import static org.jctools.util.UnsafeAccess.UNSAFE;
-import static org.jctools.util.UnsafeDirectByteBuffer.*;
+import org.jctools.channels.OffHeapFixedMessageSizeRingBuffer;
+import org.jctools.util.JvmInfo;
+import org.jctools.util.Pow2;
 
 /**
  * Channel protocol: - Fixed message size - 'null' indicator in message preceding byte (potentially use same
@@ -51,44 +50,45 @@ public class MpscOffHeapFixedSizeRingBuffer extends OffHeapFixedMessageSizeRingB
     @Override
     protected final long writeAcquire() {
         long producerIndex;
-        long offsetForIndex;
+        long offset;
         do {
             producerIndex = lvProducerIndex(); // LoadLoad
-            offsetForIndex = offsetForIndex(producerIndex);
+            offset = offsetForIndex(producerIndex);
             // if the message is not ready for writing the queue is full
-            if (!this.isMessageReady(offsetForIndex)) {
+            if (!this.isReadReleased(offset)) {
                 // It is possible that due to another producer passing us we are seeing that producer completed message,
                 // if that is the case then we must retry.
-                if (producerIndex != lvProducerIndex()) {
-                    continue;// go around again
-                }
+//                if (producerIndex != lvProducerIndex()) {
+//                    continue;// go around again
+//                }
                 return EOF;
             }
         } while (!casProducerIndex(producerIndex, producerIndex + 1));
-        
+        //writeAcquireState(offset);
         // return offset for current producer index
-        return offsetForIndex;
+        return offset;
     }
 
     @Override
     protected final void writeRelease(long offset) {
-        busyIndicator(offset);
+        writeReleaseState(offset);
     }
 
     @Override
     protected final long readAcquire() {
         final long currentHead = lpConsumerIndex();
         final long offset = offsetForIndex(currentHead);
-        if (isMessageReady(offset)) {
+        if (isReadReleased(offset)) {
             return EOF;
         }
         soConsumerIndex(currentHead + 1); // StoreStore
+        //readAcquireState(offset);
         return offset;
     }
 
     @Override
     protected final void readRelease(long offset) {
-        readyIndicator(offset);
+        readReleaseState(offset);
     }
 
     private boolean casProducerIndex(final long expected, long update) {

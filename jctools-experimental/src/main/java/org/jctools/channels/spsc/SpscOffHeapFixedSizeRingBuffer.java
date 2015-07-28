@@ -78,42 +78,44 @@ public class SpscOffHeapFixedSizeRingBuffer extends OffHeapFixedMessageSizeRingB
     protected final long writeAcquire() {
         final long producerIndex = lpProducerIndex();
         final long producerLookAhead = lpLookAheadCache();
-        final long producerOffset = offsetForIndex(producerIndex);
+        final long producerOffset = offsetForIndex(bufferAddress, mask, messageSize, producerIndex);
         // verify next lookAheadStep messages are clear to write
         if (producerIndex >= producerLookAhead) {
             final long nextLookAhead = producerIndex + lookAheadStep;
-            if (isMessageReady(offsetForIndex(nextLookAhead))) {
+            if (isReadReleased(offsetForIndex(nextLookAhead))) {
                 spLookAheadCache(nextLookAhead);
             }
             // OK, can't look ahead, but maybe just next item is ready?
-            else if (!isMessageReady(producerOffset)) {
+            else if (!isReadReleased(producerOffset)) {
                 return EOF;
             }
         }
         soProducerIndex(producerIndex + 1); // StoreStore
+//        writeAcquireState(producerOffset);
         // return offset for current producer index
         return producerOffset;
     }
 
     @Override
     protected final void writeRelease(long offset) {
-        busyIndicator(offset);
+        writeReleaseState(offset);
     }
 
     @Override
     protected final long readAcquire() {
         final long consumerIndex = lpConsumerIndex();
         final long consumerOffset = offsetForIndex(consumerIndex);
-        if (isMessageReady(consumerOffset)) {
+        if (isReadReleased(consumerOffset)) {
             return EOF;
         }
         soConsumerIndex(consumerIndex + 1); // StoreStore
+//        readAcquireState(consumerOffset);
         return consumerOffset;
     }
 
     @Override
     protected final void readRelease(long offset) {
-        readyIndicator(offset);
+        readReleaseState(offset);
         
     }
 

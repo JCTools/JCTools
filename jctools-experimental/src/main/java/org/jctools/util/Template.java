@@ -39,6 +39,13 @@ public class Template {
         if(templateStream == null) {
             throw new IllegalArgumentException("Template file of the name: \'"+fileName+"\' was not found.");
         }
+        return fromStream(templateStream);
+    }
+
+    private static Template fromStream(InputStream templateStream) {
+        if(templateStream == null) {
+            throw new IllegalArgumentException("Null template stream");
+        }
         BufferedReader reader = new BufferedReader(new InputStreamReader(templateStream));
         try {
             try {

@@ -13,16 +13,17 @@
  */
 package org.jctools.channels.mapping;
 
+import static org.jctools.channels.mapping.Primitive.simplifyType;
+
+import java.lang.reflect.Constructor;
+import java.util.List;
+
+import javax.tools.Diagnostic;
+
 import org.jctools.util.CompilationResult;
 import org.jctools.util.SimpleCompiler;
 import org.jctools.util.StringWrappingJavaFile;
 import org.jctools.util.Template;
-
-import javax.tools.Diagnostic;
-import java.lang.reflect.Constructor;
-import java.util.List;
-
-import static org.jctools.channels.mapping.Primitive.simplifyType;
 
 public class Mapper<S> {
 
@@ -45,21 +46,20 @@ public class Mapper<S> {
         return Primitive.INT.sizeInBytes + inspector.getSizeInBytes();
     }
 
-    public <I> I newFlyweight(Class<I> implementationParent, String templateFile, Object ... args) {
-        try {
-            Class<?>[] constructorParameterTypes = getTypes(args);
-            Template template = Template.fromFile(implementationParent, templateFile);
-            ClassViewModel model = new ClassViewModel(implementationParent, constructorParameterTypes, structInterface, inspector);
-            String source = template.render(model);
-            debugLogSource(source);
-            CompilationResult result = compiler.compile(model.className(), source);
-            checkCompileFailures(templateFile, result);
-            return instantiateImplementation(constructorParameterTypes, model.className(), result, args);
-        } catch (RuntimeException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+    public <I> I newFlyweight(Class<I> implementationParent, String templateFileName, Object... args) {
+        Template template = Template.fromFile(implementationParent, templateFileName);
+        return newFlyweight(implementationParent, templateFileName, template, args);
+    }
+
+    public <I> I newFlyweight(Class<I> implementationParent, String templateFileName, Template template, Object... args) {
+        Class<?>[] constructorParameterTypes = getTypes(args);
+        ClassViewModel model = new ClassViewModel(implementationParent, constructorParameterTypes, structInterface,
+                inspector);
+        String source = template.render(model);
+        debugLogSource(source);
+        CompilationResult result = compiler.compile(model.className(), source);
+        checkCompileFailures(templateFileName, result);
+        return instantiateImplementation(constructorParameterTypes, model.className(), result, args);
     }
 
     private void debugLogSource(String source) {
@@ -72,13 +72,16 @@ public class Mapper<S> {
     }
 
     @SuppressWarnings("unchecked")
-    private <I> I instantiateImplementation(
-            Class<?>[] constructorParameterTypes, String name, CompilationResult result, Object[] args)
-            throws Exception {
+    private <I> I instantiateImplementation(Class<?>[] constructorParameterTypes, String name,
+            CompilationResult result, Object[] args) {
 
-        Class<I> implementation = (Class<I>) result.getClassLoader().loadClass(name);
-        Constructor<I> constructor = implementation.getConstructor(constructorParameterTypes);
-        return constructor.newInstance(args);
+        try {
+            Class<I> implementation = (Class<I>) result.getClassLoader().loadClass(name);
+            Constructor<I> constructor = implementation.getConstructor(constructorParameterTypes);
+            return constructor.newInstance(args);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private void checkCompileFailures(String templateFile, CompilationResult result) {

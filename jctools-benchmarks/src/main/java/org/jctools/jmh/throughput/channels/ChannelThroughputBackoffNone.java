@@ -20,7 +20,10 @@ import org.jctools.channels.Channel;
 import org.jctools.channels.ChannelConsumer;
 import org.jctools.channels.ChannelProducer;
 import org.jctools.channels.ChannelReceiver;
+import org.jctools.channels.mpsc.MpscChannel;
 import org.jctools.channels.spsc.SpscChannel;
+import org.jctools.util.JvmInfo;
+import org.jctools.util.Pow2;
 import org.openjdk.jmh.annotations.AuxCounters;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -36,6 +39,11 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
+import org.openjdk.jmh.profile.LinuxPerfProfiler;
+import org.openjdk.jmh.runner.Runner;
+import org.openjdk.jmh.runner.RunnerException;
+import org.openjdk.jmh.runner.options.Options;
+import org.openjdk.jmh.runner.options.OptionsBuilder;
 
 @State(Scope.Group)
 @BenchmarkMode(Mode.Throughput)
@@ -47,6 +55,11 @@ public class ChannelThroughputBackoffNone {
     private static final long DELAY_CONSUMER = Long.getLong("delay.c", 0L);
     @Param(value = { "132000" })
     int capacity;
+    public enum Type{
+        Spsc,Mpsc;
+    }
+    @Param(value = { "Spsc", "Mpsc" })
+    Type type;
     private ByteBuffer buffer;
     private Channel<Ping> channel;
     private ChannelProducer<Ping> producer;
@@ -64,15 +77,26 @@ public class ChannelThroughputBackoffNone {
                 blackhole.consume(element.getValue());
             }
         };
-        buffer = ByteBuffer.allocateDirect(capacity*(8+1)*3);
-        channel = new SpscChannel<Ping>(buffer, capacity, Ping.class);
+        buffer = ByteBuffer
+                .allocateDirect(Pow2.roundToPowerOfTwo(capacity * 2) * (8 + 4) + JvmInfo.CACHE_LINE_SIZE * 5);
+
+        switch (type) {
+        case Spsc:
+            channel = new SpscChannel<Ping>(buffer, capacity, Ping.class);
+            break;
+        case Mpsc:
+            channel = new MpscChannel<Ping>(buffer, capacity, Ping.class);
+            break;
+        default:
+            throw new IllegalArgumentException();
+        }
         producer = channel.producer();
         consumer = channel.consumer(receiver);
-        OfferCounters oc= new OfferCounters();
+        OfferCounters oc = new OfferCounters();
         PollCounters pc = new PollCounters();
-        for(int i=0;i<100000;i++) {
+        for (int i = 0; i < 100000; i++) {
             offer(oc);
-            poll(pc,null);
+            poll(pc, null);
         }
     }
 
@@ -112,12 +136,11 @@ public class ChannelThroughputBackoffNone {
     @Benchmark
     @Group("tpt")
     public void offer(OfferCounters counters) {
-    	ChannelProducer<Ping> lProducer = producer;
-		if (!lProducer.claim()) {
-			counters.offersFailed++;
-        }
-        else {
-        	Ping element = lProducer.currentElement();
+        ChannelProducer<Ping> lProducer = producer;
+        if (!lProducer.claim()) {
+            counters.offersFailed++;
+        } else {
+            Ping element = lProducer.currentElement();
             element.setValue(writeValue);
             lProducer.commit();
             counters.offersMade++;
@@ -132,8 +155,7 @@ public class ChannelThroughputBackoffNone {
     public void poll(PollCounters counters, ConsumerMarker cm) {
         if (!consumer.read()) {
             counters.pollsFailed++;
-        }
-        else {
+        } else {
             counters.pollsMade++;
         }
         if (DELAY_CONSUMER != 0) {
@@ -147,7 +169,14 @@ public class ChannelThroughputBackoffNone {
             return;
         // sadly the iteration tear down is performed from each participating thread, so we need to guess
         // which is which (can't have concurrent access to poll).
-        while (!consumer.read())
+        while (consumer.read())
             ;
+    }
+    public static void main(String[] args) throws RunnerException {
+        Options opt = new OptionsBuilder().forks(0)
+                .include(ChannelThroughputBackoffNone.class.getSimpleName()).param("type", "Mpsc")
+                .build();
+
+        new Runner(opt).run();
     }
 }

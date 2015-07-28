@@ -11,7 +11,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jctools.channels.spsc;
+package org.jctools.channels.mpsc;
+
+import static org.jctools.channels.OffHeapFixedMessageSizeRingBuffer.getRequiredBufferSize;
+
+import java.nio.ByteBuffer;
 
 import org.jctools.channels.Channel;
 import org.jctools.channels.ChannelConsumer;
@@ -21,12 +25,7 @@ import org.jctools.channels.mapping.Mapper;
 import org.jctools.util.Pow2;
 import org.jctools.util.Template;
 
-import java.nio.ByteBuffer;
-
-import static org.jctools.channels.spsc.SpscOffHeapFixedSizeRingBuffer.getLookaheadStep;
-import static org.jctools.channels.spsc.SpscOffHeapFixedSizeRingBuffer.getRequiredBufferSize;
-
-public final class SpscChannel<E> implements Channel<E> {
+public final class MpscChannel<E> implements Channel<E> {
 
     // TODO; property configuration
     private static final boolean debugEnabled = false;
@@ -36,7 +35,7 @@ public final class SpscChannel<E> implements Channel<E> {
     private final ByteBuffer buffer;
     private final int maximumCapacity;
     private final int requestedCapacity;
-    private final SpscChannelProducer<E> producer;
+    private final MpscChannelProducer<E> producer;
 
     /**
      * This is to be used for an IPC queue with the direct buffer used being a memory mapped file.
@@ -45,7 +44,7 @@ public final class SpscChannel<E> implements Channel<E> {
      * @param requestedCapacity
      */
     // TODO: take an initialize parameter
-    public SpscChannel(final ByteBuffer buffer, final int requestedCapacity, final Class<E> type) {
+    public MpscChannel(final ByteBuffer buffer, final int requestedCapacity, final Class<E> type) {
         this.requestedCapacity = requestedCapacity;
         this.maximumCapacity = getMaximumCapacity(requestedCapacity);
         this.buffer = buffer;
@@ -59,7 +58,7 @@ public final class SpscChannel<E> implements Channel<E> {
     }
 
     private int getMaximumCapacity(int requestedCapacity) {
-        return Pow2.roundToPowerOfTwo(requestedCapacity + getLookaheadStep(requestedCapacity));
+        return Pow2.roundToPowerOfTwo(requestedCapacity);
     }
 
     private void checkByteBuffer() {
@@ -102,15 +101,15 @@ public final class SpscChannel<E> implements Channel<E> {
     }
 
     @SuppressWarnings("unchecked")
-    private SpscChannelProducer<E> newProducer(final Class<E> type, final Object... args) {
-        return mapper.newFlyweight(SpscChannelProducer.class, "ChannelProducerTemplate.java",
+    private MpscChannelProducer<E> newProducer(final Class<E> type, final Object... args) {
+        return mapper.newFlyweight(MpscChannelProducer.class, "ChannelProducerTemplate.java",
                 Template.fromFile(Channel.class, "ChannelProducerTemplate.java"), args);
     }
 
     @SuppressWarnings("unchecked")
-    private SpscChannelConsumer<E> newConsumer(Object... args) {
-        return mapper.newFlyweight(SpscChannelConsumer.class, "ChannelConsumerTemplate.java",
-                Template.fromFile(Channel.class, "ChannelConsumerTemplate.java"),  args);
+    private MpscChannelConsumer<E> newConsumer(Object... args) {
+        return mapper.newFlyweight(MpscChannelConsumer.class, "ChannelConsumerTemplate.java",
+                Template.fromFile(Channel.class, "ChannelConsumerTemplate.java"), args);
     }
 
 }

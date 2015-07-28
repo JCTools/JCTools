@@ -31,8 +31,10 @@ import static org.jctools.util.UnsafeDirectByteBuffer.*;
  */
 public abstract class OffHeapFixedMessageSizeRingBuffer {
 
-    public static final int READY_MESSAGE_INDICATOR = 0;
-    public static final int BUSY_MESSAGE_INDICATOR = 1;
+    public static final int READ_RELEASE_INDICATOR = 0;
+    public static final int READ_ACQUIRE_INDICATOR = 1;
+    public static final int WRITE_RELEASE_INDICATOR = 2;
+    public static final int WRITE_ACQUIRE_INDICATOR = 3;
     public static final byte MESSAGE_INDICATOR_SIZE = 4;
     public static final int HEADER_SIZE = 4 * JvmInfo.CACHE_LINE_SIZE;
 
@@ -91,7 +93,7 @@ public abstract class OffHeapFixedMessageSizeRingBuffer {
             // mark all messages as READY
             for (int i = 0; i < actualCapacity; i++) {
                 final long offset = offsetForIndex(i);
-                readyIndicator(offset);
+                readReleaseState(offset);
             }
         }
         // consumer owns head
@@ -108,23 +110,35 @@ public abstract class OffHeapFixedMessageSizeRingBuffer {
         return lvProducerIndex() == lvConsumerIndex();
     }
 
-    protected final boolean isMessageReady(long offset) {
-        return UNSAFE.getIntVolatile(null, offset) == READY_MESSAGE_INDICATOR;
+    protected final boolean isReadReleased(long offset) {
+        return UNSAFE.getIntVolatile(null, offset) == READ_RELEASE_INDICATOR;
     }
 
-    protected final void busyIndicator(long offset) {
-        UNSAFE.putOrderedInt(null, offset, BUSY_MESSAGE_INDICATOR);
+    protected final void writeReleaseState(long offset) {
+        UNSAFE.putOrderedInt(null, offset, WRITE_RELEASE_INDICATOR);
     }
 
-    protected final void readyIndicator(long offset) {
-        UNSAFE.putOrderedInt(null, offset, READY_MESSAGE_INDICATOR);
+    protected final void readReleaseState(long offset) {
+        UNSAFE.putOrderedInt(null, offset, READ_RELEASE_INDICATOR);
+    }
+    
+    protected final void writeAcquireState(long offset) {
+        UNSAFE.putOrderedInt(null, offset, WRITE_ACQUIRE_INDICATOR);
+    }
+
+    protected final void readAcquireState(long offset) {
+        UNSAFE.putOrderedInt(null, offset, READ_ACQUIRE_INDICATOR);
     }
 
     protected final long offsetForIndex(long currentHead) {
-        return bufferAddress + ((currentHead & mask) * messageSize);
+        return offsetForIndex(bufferAddress,  mask, messageSize, currentHead);
     }
 
-    protected final long lpConsumerIndex() {
+    protected static long offsetForIndex(long bufferAddress, long mask, int messageSize, long currentHead) {
+		return bufferAddress + ((currentHead & mask) * messageSize);
+	}
+
+	protected final long lpConsumerIndex() {
         return UNSAFE.getLong(null, consumerIndexAddress);
     }
 

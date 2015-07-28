@@ -3,7 +3,7 @@ import static org.jctools.util.UnsafeAccess.UNSAFE;
 import org.jctools.channels.spsc.SpscChannelProducer;
 
 public class {{className}}
-        extends SpscChannelProducer<{{flyweightInterface}}>
+        extends {{implementationParent}}<{{flyweightInterface}}>
         implements {{flyweightInterface}} {
 
     public {{className}}({{#constructorParams}}

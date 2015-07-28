@@ -5,7 +5,7 @@ import java.nio.ByteBuffer;
 import org.jctools.channels.ChannelReceiver;
 
 public class {{className}}
-        extends SpscChannelConsumer<{{flyweightInterface}}>
+        extends {{implementationParent}}<{{flyweightInterface}}>
         implements {{flyweightInterface}} {
 
     public {{className}}(
@@ -18,10 +18,11 @@ public class {{className}}
     }
 
     public boolean read() {
-        pointer = readAcquire();
+        final long pointer = readAcquire();
         if (pointer == EOF) {
             return false;
         }
+        this.pointer = pointer;
         receiver.accept(this);
         readRelease(pointer);
         return true;
