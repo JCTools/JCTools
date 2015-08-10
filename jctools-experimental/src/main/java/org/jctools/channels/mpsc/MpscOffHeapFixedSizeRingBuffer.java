@@ -58,9 +58,9 @@ public class MpscOffHeapFixedSizeRingBuffer extends OffHeapFixedMessageSizeRingB
             if (!this.isReadReleased(offset)) {
                 // It is possible that due to another producer passing us we are seeing that producer completed message,
                 // if that is the case then we must retry.
-//                if (producerIndex != lvProducerIndex()) {
-//                    continue;// go around again
-//                }
+                if (producerIndex != lvProducerIndex()) {
+                    continue;// go around again
+                }
                 return EOF;
             }
         } while (!casProducerIndex(producerIndex, producerIndex + 1));
