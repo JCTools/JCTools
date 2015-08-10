@@ -25,9 +25,12 @@ import java.util.Iterator;
 
 import org.jctools.util.Pow2;
 
+
+
 abstract class SpscGrowableArrayQueuePrePad<E> extends AbstractQueue<E> {
-    long p0, p1, p2, p3, p4, p5, p6, p7, p8;
-    long p10, p11, p12, p13;
+    long p0, p1, p2, p3, p4, p5, p6, p7;
+    long p10, p11, p12;
+    // p13, p14, p15, p16, p17; drop 4 longs, the cold fields act as buffer
 }
 abstract class SpscGrowableArrayQueueProducerColdFields<E> extends SpscGrowableArrayQueuePrePad<E> {
     protected int maxQueueCapacity;
