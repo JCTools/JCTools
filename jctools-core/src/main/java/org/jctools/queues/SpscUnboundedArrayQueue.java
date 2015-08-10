@@ -22,21 +22,25 @@ import java.util.Iterator;
 import org.jctools.util.Pow2;
 import org.jctools.util.UnsafeAccess;
 
-abstract class SpscUnboundedArrayQueueProducerFields<E> extends AbstractQueue<E> {
-    protected long producerIndex;
+abstract class SpscUnboundedArrayQueuePrePad<E> extends AbstractQueue<E> {
+    long p0, p1, p2, p3, p4, p5, p6, p7;
+    long p10, p11, p12;
+    // p13, p14, p15, p16, p17; drop 4 longs, the cold fields act as buffer
 }
-
-abstract class SpscUnboundedArrayQueueProducerColdFields<E> extends SpscUnboundedArrayQueueProducerFields<E> {
+abstract class SpscUnboundedArrayQueueProducerColdFields<E> extends SpscUnboundedArrayQueuePrePad<E> {
     protected int producerLookAheadStep;
     protected long producerLookAhead;
     protected long producerMask;
     protected E[] producerBuffer;
 }
-
-abstract class SpscUnboundedArrayQueueL2Pad<E> extends SpscUnboundedArrayQueueProducerColdFields<E> {
-    long p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12;
+abstract class SpscUnboundedArrayQueueProducerFields<E> extends SpscUnboundedArrayQueueProducerColdFields<E> {
+    protected long producerIndex;
 }
 
+abstract class SpscUnboundedArrayQueueL2Pad<E> extends SpscUnboundedArrayQueueProducerFields<E> {
+    long p0, p1, p2, p3, p4, p5, p6, p7;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
+}
 abstract class SpscUnboundedArrayQueueConsumerColdField<E> extends SpscUnboundedArrayQueueL2Pad<E> {
     protected long consumerMask;
     protected E[] consumerBuffer;
@@ -154,7 +158,8 @@ public class SpscUnboundedArrayQueue<E> extends SpscUnboundedArrayQueueConsumerF
     private void soNext(E[] curr, E[] next) {
         soElement(curr, calcDirectOffset(curr.length -1), next);
     }
-    private E[] lvNext(E[] curr) {
+    @SuppressWarnings("unchecked")
+	private E[] lvNext(E[] curr) {
         return (E[]) lvElement(curr, calcDirectOffset(curr.length -1));
     }
     /**
