@@ -81,8 +81,8 @@ public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerFie
     }
 
     public SpscGrowableArrayQueue(final int initialCapacity, int capacity) {
-        int p2initialCapacity = roundToPowerOfTwo(initialCapacity);
-        int p2capacity = roundToPowerOfTwo(capacity);
+        int p2initialCapacity = roundToPowerOfTwo(max(initialCapacity, 32)/2);
+        int p2capacity = roundToPowerOfTwo(max(capacity, 32));
         if (p2initialCapacity >= p2capacity) {
             throw new IllegalArgumentException("Initial capacity("+initialCapacity+") rounded up to a power of 2 cannot exceed maximum capacity ("+capacity+")rounded up to a power of 2");
         }
