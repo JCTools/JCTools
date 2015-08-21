@@ -13,163 +13,180 @@
  */
 package org.jctools.queues;
 
-import java.util.Collection;
+import static org.jctools.util.UnsafeAccess.UNSAFE;
+
+import java.lang.ref.ReferenceQueue;
+import java.lang.ref.WeakReference;
+import java.util.AbstractQueue;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
-import java.util.NoSuchElementException;
+import java.util.List;
 import java.util.Queue;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Use an SPSC per producer.
  */
-abstract class MpscOnSpscL0Pad {
-    long p00, p01, p02, p03, p04, p05, p06, p07;
-    long p30, p31, p32, p33, p34, p35, p36, p37;
+abstract class MpscOnSpscL0Pad<E> extends AbstractQueue<E> {
+	long p00, p01, p02, p03, p04, p05, p06, p07;
+	long p30, p31, p32, p33, p34, p35, p36, p37;
 }
 
-@SuppressWarnings("unchecked")
-abstract class MpscOnSpscFields<E> extends MpscOnSpscL0Pad {
-    private final Queue<E>[] queues = new Queue[Integer.getInteger("producers", 4)];
-    protected final ThreadLocal<Queue<E>> producerQueue;
-    protected int tail;
-    protected Queue<E> currentQ;
+abstract class MpscOnSpscFields<E> extends MpscOnSpscL0Pad<E> {
+	private final static long QUEUES_OFFSET;
 
-    public MpscOnSpscFields(final int capacity) {
-        producerQueue = new ThreadLocal<Queue<E>>() {
-            final AtomicInteger index = new AtomicInteger();
+	static {
+		try {
+			QUEUES_OFFSET = UNSAFE.objectFieldOffset(MpscArrayQueueConsumerField.class.getDeclaredField("queues"));
+		} catch (NoSuchFieldException e) {
+			throw new RuntimeException(e);
+		}
+	}
 
-            @Override
-            protected Queue<E> initialValue() {
-                return queues[index.getAndIncrement() % queues.length];
-            }
-        };
-        for (int i = 0; i < queues.length; i++) {
-            queues[i] = new SpscArrayQueue<E>(capacity);
-        }
-        currentQ = queues[0];
-    }
+	protected final ThreadLocal<Queue<E>> producerQueue;
+	ReferenceQueue<Thread> refQ = new ReferenceQueue<Thread>();
+	protected volatile Queue<E>[] queues;
+	private static class ThreadWeakRef extends WeakReference<Thread> {
+		final Object r;
+		public ThreadWeakRef(ReferenceQueue<? super Thread> q, Object r) {
+			super(Thread.currentThread(), q);
+			this.r = r;
+		}
+	}
+	private List<ThreadWeakRef> weakRefHolder = Collections.synchronizedList(new ArrayList<ThreadWeakRef>());
+	
+	@SuppressWarnings("unchecked")
+	public MpscOnSpscFields(final int capacity) {
+		producerQueue = new ThreadLocal<Queue<E>>() {
+			@Override
+			protected Queue<E> initialValue() {
+				Queue<E> q = new SpscArrayQueue<E>(capacity);
+				addQueue(q);
+				return q;
+			}
+		};
+		Thread refProcessor = new Thread() {
+			@Override
+			public void run() {
+				while(true) {
+					try {
+						ThreadWeakRef remove = (ThreadWeakRef)refQ.remove();
+						removeQueue(remove.r);
+						weakRefHolder.remove(remove);
+					} catch (InterruptedException e) {
+						if (Thread.interrupted()) {
+							return;
+						}
+					}
+				}
+			}
+		};
+		refProcessor.setDaemon(false);
+		refProcessor.start();
+		queues = new Queue[0];
+	}
 
-    protected final Queue<E>[] getQueues() {
-        return queues;
-    }
+	@SuppressWarnings("rawtypes")
+	protected final void addQueue(Queue<E> q) {
+		Queue[] oldQs;
+		Queue[] newQs;
+		do {
+			oldQs = queues;
+			newQs = new Queue[oldQs.length + 1];
+			System.arraycopy(oldQs, 0, newQs, 0, oldQs.length);
+			newQs[oldQs.length] = q;
+		} while (!UNSAFE.compareAndSwapObject(this, QUEUES_OFFSET, oldQs, newQs));
+		weakRefHolder.add(new ThreadWeakRef(refQ, q));
+	}
+
+	@SuppressWarnings("rawtypes")
+	protected final void removeQueue(Object q) {
+		Queue[] oldQs;
+		Queue[] newQs;
+		do {
+			oldQs = queues;
+			int i = 0;
+			final int length = oldQs.length;
+			for (; i < length; i++) {
+				if (q == oldQs[i]) {
+					break;
+				}
+			}
+			// not here...
+			if (i == length) {
+				return;
+			}
+			// copy over all but that element
+			newQs = new Queue[length - 1];
+			System.arraycopy(oldQs, 0, newQs, 0, i);
+			System.arraycopy(oldQs, i + 1, newQs, i, length - i - 1);
+		} while (!UNSAFE.compareAndSwapObject(this, QUEUES_OFFSET, oldQs, newQs));
+	}
+
+	int numberOfQueues(){
+		return queues.length;
+	}
 }
 
-public final class MpscOnSpscQueue<E> extends MpscOnSpscFields<E> implements Queue<E> {
-    long p40, p41, p42, p43, p44, p45, p46;
-    long p30, p31, p32, p33, p34, p35, p36, p37;
+public final class MpscOnSpscQueue<E> extends MpscOnSpscFields<E>implements Queue<E> {
+	long p40, p41, p42, p43, p44, p45, p46;
+	long p30, p31, p32, p33, p34, p35, p36, p37;
 
-    public MpscOnSpscQueue(final int capacity) {
-        super(capacity);
-    }
+	public MpscOnSpscQueue(final int capacity) {
+		super(capacity);
+	}
 
-    public boolean add(final E e) {
-        if (offer(e)) {
-            return true;
-        }
-        throw new IllegalStateException("Queue is full");
-    }
+	@Override
+	public boolean offer(final E e) {
+		return producerQueue.get().offer(e);
+	}
 
-    public boolean offer(final E e) {
-        return producerQueue.get().offer(e);
-    }
+	@Override
+	public E poll() {
+		Queue<E>[] qs = this.queues;
+		final int start = ThreadLocalRandom.current().nextInt(qs.length);
+		for (int i = start; i < qs.length; i++) {
+			E e = qs[i].poll();
+			if (e != null)
+				return e;
+		}
+		for (int i = 0; i < start; i++) {
+			E e = qs[i].poll();
+			if (e != null)
+				return e;
+		}
+		return null;
+	}
 
-    public E poll() {
-        // int pCount = getProducerCount();
-        // if(pCount == 0){
-        // return null;
-        // }
-        Queue<E>[] qs = getQueues();
-        // int start = ThreadLocalRandom.current().nextInt(pCount);
-        // tail++;
+	@Override
+	public E peek() {
+		throw new UnsupportedOperationException();
+	}
 
-        for (int i = 0; i < qs.length; i++) {
-            E e = qs[i].poll();
-            if (e != null)
-                return e;
-        }
-        return null;
-    }
+	@Override
+	public int size() {
+		Queue<E>[] queues = this.queues;
+		int sum = 0;
+		for (Queue<E> q : queues) {
+			sum += q.size();
+		}
+		return sum;
+	}
 
-    public E remove() {
-        final E e = poll();
-        if (null == e) {
-            throw new NoSuchElementException("Queue is empty");
-        }
+	@Override
+	public boolean isEmpty() {
+		Queue<E>[] queues = this.queues;
+		for (Queue<E> q : queues) {
+			if (!q.isEmpty()) {
+				return false;
+			}
+		}
+		return true;
+	}
 
-        return e;
-    }
-
-    public E element() {
-        final E e = peek();
-        if (null == e) {
-            throw new NoSuchElementException("Queue is empty");
-        }
-
-        return e;
-    }
-
-    public E peek() {
-        throw new UnsupportedOperationException();
-    }
-
-    public int size() {
-        throw new UnsupportedOperationException();
-    }
-
-    public boolean isEmpty() {
-        throw new UnsupportedOperationException();
-    }
-
-    public boolean contains(final Object o) {
-        throw new UnsupportedOperationException();
-    }
-
-    public Iterator<E> iterator() {
-        throw new UnsupportedOperationException();
-    }
-
-    public Object[] toArray() {
-        throw new UnsupportedOperationException();
-    }
-
-    public <T> T[] toArray(final T[] a) {
-        throw new UnsupportedOperationException();
-    }
-
-    public boolean remove(final Object o) {
-        throw new UnsupportedOperationException();
-    }
-
-    public boolean containsAll(final Collection<?> c) {
-        for (final Object o : c) {
-            if (!contains(o)) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    public boolean addAll(final Collection<? extends E> c) {
-        for (final E e : c) {
-            add(e);
-        }
-
-        return true;
-    }
-
-    public boolean removeAll(final Collection<?> c) {
-        throw new UnsupportedOperationException();
-    }
-
-    public boolean retainAll(final Collection<?> c) {
-        throw new UnsupportedOperationException();
-    }
-
-    public void clear() {
-        Object value;
-        do {
-            value = poll();
-        } while (null != value);
-    }
+	@Override
+	public Iterator<E> iterator() {
+		throw new UnsupportedOperationException();
+	}
 }
