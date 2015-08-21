@@ -88,7 +88,7 @@ public class MpscCompoundQueue<E> extends MpscCompoundQueueConsumerQueueIndex<E>
             for (;;) {
                 int status = 0;
                 for (int i = start; i < start + parallelQueues; i++) {
-                    int s = queues[i & parallelQueuesMask].weakOffer(e);
+                    int s = queues[i & parallelQueuesMask].failFastOffer(e);
                     if (s == 0) {
                         return true;
                     }
@@ -144,4 +144,64 @@ public class MpscCompoundQueue<E> extends MpscCompoundQueueConsumerQueueIndex<E>
     public Iterator<E> iterator() {
         throw new UnsupportedOperationException();
     }
+    
+	@Override
+	public boolean relaxedOffer(E e) {
+		final int parallelQueuesMask = this.parallelQueuesMask;
+		int start = (int) (Thread.currentThread().getId() & parallelQueuesMask);
+        final MpscArrayQueue<E>[] queues = this.queues;
+		if (queues[start].failFastOffer(e) == 0) {
+            return true;
+        } else {
+            for (;;) {
+                int status = 0;
+                final int parallelQueues = this.parallelQueues;
+				for (int i = start+1; i < start + parallelQueues; i++) {
+                    int s = queues[i & parallelQueuesMask].failFastOffer(e);
+                    if (s == 0) {
+                        return true;
+                    }
+                    status += s;
+                }
+                if (status == parallelQueues) {
+                    return false;
+                }
+            }
+        }
+	}
+
+	@Override
+	public E relaxedPoll() {
+		int qIndex = consumerQueueIndex & parallelQueuesMask;
+        int limit = qIndex + parallelQueues;
+        E e = null;
+        for (; qIndex < limit; qIndex++) {
+            e = queues[qIndex & parallelQueuesMask].relaxedPoll();
+            if (e != null) {
+                break;
+            }
+        }
+        consumerQueueIndex = qIndex;
+        return e;
+	}
+
+	@Override
+	public E relaxedPeek() {
+		int qIndex = consumerQueueIndex & parallelQueuesMask;
+        int limit = qIndex + parallelQueues;
+        E e = null;
+        for (; qIndex < limit; qIndex++) {
+            e = queues[qIndex & parallelQueuesMask].relaxedPeek();
+            if (e != null) {
+                break;
+            }
+        }
+        consumerQueueIndex = qIndex;
+        return e;
+	}
+
+	@Override
+	public int capacity() {
+		return queues.length * queues[0].capacity();
+	}
 }

@@ -184,7 +184,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements
      * @param e new element, not null
      * @return 1 if next element cannot be filled, -1 if CAS failed, 0 if successful
      */
-    public final int weakOffer(final E e) {
+    public final int failFastOffer(final E e) {
         if (null == e) {
             throw new NullPointerException("Null is not a valid element");
         }
@@ -328,4 +328,34 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements
     public long currentConsumerIndex() {
         return lvConsumerIndex();
     }
+    
+	@Override
+	public boolean relaxedOffer(E e) {
+        return offer(e);
+	}
+
+	@Override
+	public E relaxedPoll() {
+		final E[] buffer = this.buffer;
+		final long consumerIndex = lvConsumerIndex(); // LoadLoad
+        final long offset = calcElementOffset(consumerIndex);
+
+        // If we can't see the next available element we can't poll
+        E e = lvElement(buffer, offset); // LoadLoad
+        if (null == e) {
+            return null;
+        }
+
+        spElement(buffer, offset, null);
+        soConsumerIndex(consumerIndex + 1); // StoreStore
+        return e;
+    }
+
+    @Override
+    public E relaxedPeek() {
+    	final E[] buffer = this.buffer;
+		final long mask = this.mask;
+        final long consumerIndex = lvConsumerIndex();
+        return lvElement(buffer, calcElementOffset(consumerIndex, mask));
+	}
 }

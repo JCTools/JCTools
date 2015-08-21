@@ -150,6 +150,7 @@ public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E>  implement
         return e;
     }
 
+    
     /**
      * {@inheritDoc}
      * <p>
@@ -203,4 +204,19 @@ public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E>  implement
     public long currentConsumerIndex() {
         return lvConsumerIndex();
     }
+
+	@Override
+	public boolean relaxedOffer(E message) {
+		return offer(message);
+	}
+
+	@Override
+	public E relaxedPoll() {
+		return poll();
+	}
+
+	@Override
+	public E relaxedPeek() {
+		return peek();
+	}
 }

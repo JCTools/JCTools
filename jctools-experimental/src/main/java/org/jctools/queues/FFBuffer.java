@@ -13,13 +13,10 @@
  */
 package org.jctools.queues;
 
+import java.util.Queue;
+
 import org.jctools.util.UnsafeAccess;
 import org.jctools.util.UnsafeRefArrayAccess;
-
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.NoSuchElementException;
-import java.util.Queue;
 
 abstract class FFBufferL1Pad<E> extends ConcurrentCircularArrayQueue<E> {
     public long p10, p11, p12, p13, p14, p15, p16;
@@ -90,13 +87,6 @@ public final class FFBuffer<E> extends FFBufferL3Pad<E> implements Queue<E> {
         return UnsafeAccess.UNSAFE.getLongVolatile(this, TAIL_OFFSET);
     }
 
-    public boolean add(final E e) {
-        if (offer(e)) {
-            return true;
-        }
-        throw new IllegalStateException("Queue is full");
-    }
-
     public boolean offer(final E e) {
         if (null == e) {
             throw new NullPointerException("Null is not a valid element");
@@ -123,102 +113,34 @@ public final class FFBuffer<E> extends FFBufferL3Pad<E> implements Queue<E> {
         return e;
     }
 
-    public E remove() {
-        final E e = poll();
-        if (null == e) {
-            throw new NoSuchElementException("Queue is empty");
-        }
-
-        return e;
-    }
-
-    public E element() {
-        final E e = peek();
-        if (null == e) {
-            throw new NoSuchElementException("Queue is empty");
-        }
-
-        return e;
-    }
-
+    @Override
     public E peek() {
         long currentHead = getHead();
-        return getElement(currentHead);
+        return UnsafeRefArrayAccess.lvElement(buffer, calcElementOffset(currentHead));
     }
 
-    private E getElement(long index) {
-        return UnsafeRefArrayAccess.lvElement(buffer, calcElementOffset(index));
-    }
-
+    @Override
     public int size() {
         return (int) (getTail() - getHead());
     }
 
+    @Override
     public boolean isEmpty() {
         return getTail() == getHead();
     }
 
-    public boolean contains(final Object o) {
-        if (null == o) {
-            return false;
-        }
+    @Override
+	public boolean relaxedOffer(E message) {
+		return offer(message);
+	}
 
-        for (long i = getHead(), limit = getTail(); i < limit; i++) {
-            final E e = getElement(i);
-            if (o.equals(e)) {
-                return true;
-            }
-        }
+	@Override
+	public E relaxedPoll() {
+		return poll();
+	}
 
-        return false;
-    }
-
-    public Iterator<E> iterator() {
-        throw new UnsupportedOperationException();
-    }
-
-    public Object[] toArray() {
-        throw new UnsupportedOperationException();
-    }
-
-    public <T> T[] toArray(final T[] a) {
-        throw new UnsupportedOperationException();
-    }
-
-    public boolean remove(final Object o) {
-        throw new UnsupportedOperationException();
-    }
-
-    public boolean containsAll(final Collection<?> c) {
-        for (final Object o : c) {
-            if (!contains(o)) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    public boolean addAll(final Collection<? extends E> c) {
-        for (final E e : c) {
-            add(e);
-        }
-
-        return true;
-    }
-
-    public boolean removeAll(final Collection<?> c) {
-        throw new UnsupportedOperationException();
-    }
-
-    public boolean retainAll(final Collection<?> c) {
-        throw new UnsupportedOperationException();
-    }
-
-    public void clear() {
-        Object value;
-        do {
-            value = poll();
-        } while (null != value);
-    }
+	@Override
+	public E relaxedPeek() {
+		return peek();
+	}
 }

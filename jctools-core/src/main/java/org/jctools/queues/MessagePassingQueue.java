@@ -18,7 +18,7 @@ import java.util.Queue;
 /**
  * This is a tagging interface for the queues in this library which implement a subset of the {@link Queue} interface
  * sufficient for concurrent message passing.<br>
- * Message passing queues offer happens before semantics to messages passed through, namely that writes made by the
+ * Message passing queues provide happens before semantics to messages passed through, namely that writes made by the
  * producer before offering the message are visible to the consuming thread after the message has been polled out of the
  * queue.
  * 
@@ -26,8 +26,8 @@ import java.util.Queue;
  * 
  * @param <M> the event/message type
  */
-interface MessagePassingQueue<M> {
-    
+public interface MessagePassingQueue<M> {
+    int UNBOUNDED_CAPACITY = -1;
     /**
      * Called from a producer thread subject to the restrictions appropriate to the implementation and according to the
      * {@link Queue#offer(Object)} interface.
@@ -54,12 +54,42 @@ interface MessagePassingQueue<M> {
     M peek();
 
     /**
+     * Called from a producer thread subject to the restrictions appropriate to the implementation. As opposed to 
+     * {@link Queue#offer(Object)} this method may return false without the queue being full.
+     * 
+     * @param message
+     * @return true if element was inserted into the queue, false if unable to offer
+     */
+    boolean relaxedOffer(M message);
+
+    /**
+     * Called from the consumer thread subject to the restrictions appropriate to the implementation. As opposed to 
+     * {@link Queue#poll()} this method may return null without the queue being empty.
+     * 
+     * @return a message from the queue if one is available, null if unable to poll
+     */
+    M relaxedPoll();
+
+    /**
+     * Called from the consumer thread subject to the restrictions appropriate to the implementation. As opposed to 
+     * {@link Queue#peek()} this method may return null without the queue being empty.
+     * 
+     * @return a message from the queue if one is available, null if unable to peek
+     */
+    M relaxedPeek();
+    
+    /**
      * This method's accuracy is subject to concurrent modifications happening as the size is estimated and as such is a
      * best effort rather than absolute value. For some implementations this method may be O(n) rather than O(1).
      * 
-     * @return number of messages in the queue, between 0 and queue capacity or {@link Integer#MAX_VALUE} if not bounded
+     * @return number of messages in the queue, between 0 and {@link Integer#MAX_VALUE} but less or equals to capacity (if bounded).
      */
     int size();
+    
+    /**
+     * @return the capacity of this queue or UNBOUNDED_CAPACITY if not bounded
+     */
+    int capacity();
     
     /**
      * This method's accuracy is subject to concurrent modifications happening as the observation is carried out.
@@ -67,5 +97,4 @@ interface MessagePassingQueue<M> {
      * @return true if empty, false otherwise
      */
     boolean isEmpty();
-
 }

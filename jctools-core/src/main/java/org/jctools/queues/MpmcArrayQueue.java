@@ -266,4 +266,89 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> implements
     public long currentConsumerIndex() {
         return lvConsumerIndex();
     }
+    
+    
+	@Override
+	public boolean relaxedOffer(E e) {
+		if (null == e) {
+            throw new NullPointerException("Null is not a valid element");
+        }
+
+        // local load of field to avoid repeated loads after volatile reads
+        final long mask = this.mask;
+        final long capacity = mask + 1;
+        final long[] sBuffer = sequenceBuffer;
+        long currentProducerIndex;
+        long seqOffset;
+        while (true) {
+            currentProducerIndex = lvProducerIndex(); // LoadLoad
+            seqOffset = calcSequenceOffset(currentProducerIndex, mask);
+            final long seq = lvSequence(sBuffer, seqOffset); // LoadLoad
+            final long delta = seq - currentProducerIndex;
+
+            if (delta == 0) {
+                // this is expected if we see this first time around
+                if (casProducerIndex(currentProducerIndex, currentProducerIndex + 1)) {
+                    // Successful CAS: full barrier
+                    break;
+                }
+                // failed cas, retry 1
+            } else if (delta < 0){
+                return false;
+            }
+            // another producer has moved the sequence by one, retry 2
+        }
+        // on 64bit(no compressed oops) JVM this is the same as seqOffset
+        final long elementOffset = calcElementOffset(currentProducerIndex, mask);
+        spElement(buffer, elementOffset, e);
+
+        // increment sequence by 1, the value expected by consumer
+        // (seeing this value from a producer will lead to retry 2)
+        soSequence(sBuffer, seqOffset, currentProducerIndex + 1); // StoreStore
+
+        return true;
+	}
+
+	@Override
+	public E relaxedPoll() {
+		// local load of field to avoid repeated loads after volatile reads
+        final long[] lSequenceBuffer = sequenceBuffer;
+        final long mask = this.mask;
+        long currentConsumerIndex;
+        long seqOffset;
+        while (true) {
+            currentConsumerIndex = lvConsumerIndex();// LoadLoad
+            seqOffset = calcSequenceOffset(currentConsumerIndex, mask);
+            final long seq = lvSequence(lSequenceBuffer, seqOffset);// LoadLoad
+            final long delta = seq - (currentConsumerIndex + 1);
+
+            if (delta == 0) {
+                if (casConsumerIndex(currentConsumerIndex, currentConsumerIndex + 1)) {
+                    // Successful CAS: full barrier
+                    break;
+                }
+                // failed cas, retry 1
+            } else if (delta < 0) {
+                return null;
+            }
+            // another consumer beat us and moved sequence ahead, retry 2
+        }
+        // on 64bit(no compressed oops) JVM this is the same as seqOffset
+        final long offset = calcElementOffset(currentConsumerIndex, mask);
+        
+        final E e = lpElement(buffer, offset);
+        spElement(buffer, offset, null);
+
+        // Move sequence ahead by capacity, preparing it for next offer
+        // (seeing this value from a consumer will lead to retry 2)
+        soSequence(lSequenceBuffer, seqOffset, currentConsumerIndex + mask + 1);// StoreStore
+
+        return e;
+	}
+
+	@Override
+	public E relaxedPeek() {
+        long currConsumerIndex = lvConsumerIndex();
+        return lpElement(buffer, calcElementOffset(currConsumerIndex));
+	}
 }

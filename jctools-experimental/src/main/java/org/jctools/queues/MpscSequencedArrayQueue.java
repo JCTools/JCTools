@@ -79,6 +79,12 @@ abstract class MpscSequencedArrayQueueConsumerField<E> extends MpscSequencedArra
     protected final long lvConsumerIndex() {
         return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
     }
+    protected final long lpConsumerIndex() {
+        return consumerIndex;
+    }
+    protected final void soConsumerIndex(long v) {
+        UNSAFE.putOrderedLong(this, C_INDEX_OFFSET, v);
+    }
 
 }
 
@@ -145,14 +151,12 @@ public class MpscSequencedArrayQueue<E> extends MpscSequencedArrayQueueConsumerF
         // local load of field to avoid repeated loads after volatile reads
         final long[] lSequenceBuffer = sequenceBuffer;
 
-        consumerIndex = lvConsumerIndex();// LoadLoad
+        long consumerIndex = lvConsumerIndex();// LoadLoad
         final long seqOffset = calcSequenceOffset(consumerIndex);
         final long seq = lvSequence(lSequenceBuffer, seqOffset);// LoadLoad
         final long delta = seq - (consumerIndex + 1);
 
-        if (delta == 0) {
-            consumerIndex++;
-        } else if (delta < 0) {
+        if (delta < 0) {
             // queue is empty
             return null;
         }
@@ -161,17 +165,16 @@ public class MpscSequencedArrayQueue<E> extends MpscSequencedArrayQueueConsumerF
         final long offset = calcElementOffset(consumerIndex);
         final E e = UnsafeRefArrayAccess.lpElement(buffer, offset);
         UnsafeRefArrayAccess.spElement(buffer, offset, null);
-
         // Move sequence ahead by capacity, preparing it for next offer
         // (seeing this value from a consumer will lead to retry 2)
         soSequence(lSequenceBuffer, seqOffset, consumerIndex + mask + 1);// StoreStore
-
+        soConsumerIndex(consumerIndex+1);
         return e;
     }
 
     @Override
     public E peek() {
-        return UnsafeRefArrayAccess.lvElement(buffer, calcElementOffset(lvConsumerIndex()));
+        return UnsafeRefArrayAccess.lpElement(buffer, calcElementOffset(lvConsumerIndex()));
     }
 
     @Override
@@ -190,4 +193,18 @@ public class MpscSequencedArrayQueue<E> extends MpscSequencedArrayQueueConsumerF
 
         return size;
     }
+	@Override
+	public boolean relaxedOffer(E message) {
+		return offer(message);
+	}
+
+	@Override
+	public E relaxedPoll() {
+		return poll();
+	}
+
+	@Override
+	public E relaxedPeek() {
+		return peek();
+	}
 }

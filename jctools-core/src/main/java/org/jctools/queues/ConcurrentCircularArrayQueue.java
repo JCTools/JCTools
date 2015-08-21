@@ -78,6 +78,7 @@ public abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircular
             ;
     }
     
+    @Override
     public int capacity() {
         return (int) (mask + 1);
     }

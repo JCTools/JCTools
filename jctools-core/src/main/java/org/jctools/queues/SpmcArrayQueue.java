@@ -14,6 +14,7 @@
 package org.jctools.queues;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
+import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
 
 import org.jctools.util.UnsafeRefArrayAccess;
 
@@ -42,7 +43,7 @@ abstract class SpmcArrayQueueProducerField<E> extends SpmcArrayQueueL1Pad<E> {
         return producerIndex;
     }
 
-    protected final void soTail(long v) {
+    protected final void soProducerIndex(long v) {
         UNSAFE.putOrderedLong(this, P_INDEX_OFFSET, v);
     }
 
@@ -149,7 +150,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
         UnsafeRefArrayAccess.spElement(buffer, offset, e);
         // single producer, so store ordered is valid. It is also required to correctly publish the element
         // and for the consumers to pick up the tail value.
-        soTail(currProducerIndex + 1);
+        soProducerIndex(currProducerIndex + 1);
         return true;
     }
 
@@ -235,4 +236,36 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
     public long currentConsumerIndex() {
         return lvConsumerIndex();
     }
+    
+	@Override
+	public boolean relaxedOffer(E e) {
+		if (null == e) {
+            throw new NullPointerException("Null is not a valid element");
+        }
+        final E[] buffer = this.buffer;
+        final long mask = this.mask;
+        final long producerIndex = lvProducerIndex();
+        final long offset = calcElementOffset(producerIndex, mask);
+        if (null != UnsafeRefArrayAccess.lvElement(buffer, offset)) {
+        	return false;
+        }
+        UnsafeRefArrayAccess.spElement(buffer, offset, e);
+        // single producer, so store ordered is valid. It is also required to correctly publish the element
+        // and for the consumers to pick up the tail value.
+        soProducerIndex(producerIndex + 1);
+        return true;
+	}
+
+	@Override
+	public E relaxedPoll() {
+        return poll();
+    }
+
+    @Override
+    public E relaxedPeek() {
+    	final E[] buffer = this.buffer;
+		final long mask = this.mask;
+        final long consumerIndex = lvConsumerIndex();
+        return lvElement(buffer, calcElementOffset(consumerIndex, mask));
+	}
 }
