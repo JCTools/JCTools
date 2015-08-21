@@ -13,6 +13,8 @@
  */
 package org.jctools.queues.atomic;
 
+import static org.jctools.util.Pow2.roundToPowerOfTwo;
+
 import java.util.AbstractQueue;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicLong;
@@ -33,13 +35,14 @@ public class SpscUnboundedAtomicArrayQueue<E> extends AbstractQueue<E> implement
     protected final AtomicLong consumerIndex;
     private static final Object HAS_NEXT = new Object();
 
-    public SpscUnboundedAtomicArrayQueue(final int bufferSize) {
-        int p2capacity = Pow2.roundToPowerOfTwo(bufferSize);
-        int mask = p2capacity - 1;
-        AtomicReferenceArray<Object> buffer = new AtomicReferenceArray<Object>(p2capacity + 1);
+    public SpscUnboundedAtomicArrayQueue(final int chunkSize) {
+    	int p2ChunkSize = Math.max(Pow2.roundToPowerOfTwo(chunkSize), 16);
+        
+        int mask = p2ChunkSize - 1;
+        AtomicReferenceArray<Object> buffer = new AtomicReferenceArray<Object>(p2ChunkSize + 1);
         producerBuffer = buffer;
         producerMask = mask;
-        adjustLookAheadStep(p2capacity);
+        adjustLookAheadStep(p2ChunkSize);
         consumerBuffer = buffer;
         consumerMask = mask;
         producerLookAhead = mask - 1; // we know it's all empty to start with
