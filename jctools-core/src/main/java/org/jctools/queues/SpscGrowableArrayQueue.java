@@ -13,8 +13,11 @@
  */
 package org.jctools.queues;
 
+import static java.lang.Math.max;
+import static java.lang.Math.min;
 import static org.jctools.queues.CircularArrayOffsetCalculator.allocate;
 import static org.jctools.queues.CircularArrayOffsetCalculator.calcElementOffset;
+import static org.jctools.util.Pow2.roundToPowerOfTwo;
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
 import static org.jctools.util.UnsafeRefArrayAccess.soElement;
@@ -73,25 +76,26 @@ public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerFie
         }
     }
     private final static Object JUMP = new Object();
-    public SpscGrowableArrayQueue(final int maxCapacity) {
-        this(Math.min(Pow2.roundToPowerOfTwo(maxCapacity / 2), 16), maxCapacity);
+    public SpscGrowableArrayQueue(final int capacity) {
+        this(roundToPowerOfTwo(max(capacity, 32) / 2), max(capacity, 32));
     }
 
-    public SpscGrowableArrayQueue(final int initialCapacity, int maxCapacity) {
-        if (initialCapacity >= maxCapacity) {
-            throw new IllegalArgumentException("Initial capacity cannot exceed maximum capacity");
+    public SpscGrowableArrayQueue(final int initialCapacity, int capacity) {
+        int p2initialCapacity = roundToPowerOfTwo(initialCapacity);
+        int p2capacity = roundToPowerOfTwo(initialCapacity);
+        if (p2initialCapacity >= p2capacity) {
+            throw new IllegalArgumentException("Initial capacity("+initialCapacity+") rounded up to a power of 2 cannot exceed maximum capacity ("+capacity+")rounded up to a power of 2");
         }
 
-        int p2capacity = Pow2.roundToPowerOfTwo(initialCapacity);
-        long mask = p2capacity - 1;
+        long mask = p2initialCapacity - 1;
         // need extra element to point at next array
-        E[] buffer = allocate(p2capacity+1);
+        E[] buffer = allocate(p2initialCapacity+1);
         producerBuffer = buffer;
         producerMask = mask;
-        adjustLookAheadStep(p2capacity);
+        adjustLookAheadStep(p2initialCapacity);
         consumerBuffer = buffer;
         consumerMask = mask;
-        maxQueueCapacity = Pow2.roundToPowerOfTwo(maxCapacity);
+        maxQueueCapacity = p2capacity;
         producerLookAhead = mask - 1; // we know it's all empty to start with
         soProducerIndex(0l);// serves as a StoreStore barrier to support correct publication
     }

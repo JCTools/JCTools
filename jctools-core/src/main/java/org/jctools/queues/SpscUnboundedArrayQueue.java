@@ -84,13 +84,13 @@ public class SpscUnboundedArrayQueue<E> extends SpscUnboundedArrayQueueConsumerF
     }
 
     @SuppressWarnings("unchecked")
-    public SpscUnboundedArrayQueue(final int bufferSize) {
-        int p2capacity = Pow2.roundToPowerOfTwo(bufferSize);
+    public SpscUnboundedArrayQueue(final int chunkSize) {
+        int p2capacity = Math.max(Pow2.roundToPowerOfTwo(chunkSize), 16);
         long mask = p2capacity - 1;
         E[] buffer = (E[]) new Object[p2capacity + 1];
         producerBuffer = buffer;
         producerMask = mask;
-        adjustLookAheadStep(p2capacity);
+        producerLookAheadStep = Math.min(p2capacity / 4, MAX_LOOK_AHEAD_STEP);
         consumerBuffer = buffer;
         consumerMask = mask;
         producerLookAhead = mask - 1; // we know it's all empty to start with
@@ -118,41 +118,41 @@ public class SpscUnboundedArrayQueue<E> extends SpscUnboundedArrayQueueConsumerF
         final long mask = producerMask;
         final long offset = calcWrappedOffset(index, mask);
         if (index < producerLookAhead) {
-            return writeToQueue(buffer, e, index, offset);
+            writeToQueue(buffer, e, index, offset);
         } else {
             final int lookAheadStep = producerLookAheadStep;
-            // go around the buffer or resize if full (unless we hit max capacity)
+            // go around the buffer or add a new buffer
             long lookAheadElementOffset = calcWrappedOffset(index + lookAheadStep, mask);
             if (null == lvElement(buffer, lookAheadElementOffset)) {// LoadLoad
                 producerLookAhead = index + lookAheadStep - 1; // joy, there's plenty of room
-                return writeToQueue(buffer, e, index, offset);
+                writeToQueue(buffer, e, index, offset);
             } else if (null != lvElement(buffer, calcWrappedOffset(index + 1, mask))) { // buffer is not full
-                return writeToQueue(buffer, e, index, offset);
+                writeToQueue(buffer, e, index, offset);
             } else {
-                resize(buffer, index, offset, e, mask); // add a buffer and link old to new
-                return true;
+                linkNewBuffer(buffer, index, offset, e, mask); // add a buffer and link old to new
             }
         }
-    }
-
-    private boolean writeToQueue(final E[] buffer, final E e, final long index, final long offset) {
-        soProducerIndex(index + 1);// this ensures atomic write of long on 32bit platforms
-        soElement(buffer, offset, e);// StoreStore
         return true;
     }
 
+    private void writeToQueue(final E[] buffer, final E e, final long index, final long offset) {
+        soProducerIndex(index + 1);// this ensures atomic write of long on 32bit platforms
+        soElement(buffer, offset, e);// StoreStore
+    }
+
     @SuppressWarnings("unchecked")
-    private void resize(final E[] oldBuffer, final long currIndex, final long offset, final E e,
+    private void linkNewBuffer(final E[] oldBuffer, final long currIndex, final long offset, final E e,
             final long mask) {
-        final int capacity = oldBuffer.length;
-        final E[] newBuffer = (E[]) new Object[capacity];
+    	// allocate new buffer of same length
+        final E[] newBuffer = (E[]) new Object[oldBuffer.length];
         producerBuffer = newBuffer;
         producerLookAhead = currIndex + mask - 1;
-        soProducerIndex(currIndex + 1);// this ensures correctness on 32bit platforms
-        soElement(newBuffer, offset, e);// StoreStore
+        
+        // write to new buffer
+        writeToQueue(newBuffer, e, currIndex, offset);
+        // link to next buffer and add next indicator as element of old buffer
         soNext(oldBuffer, newBuffer);
-        soElement(oldBuffer, offset, HAS_NEXT); // new buffer is visible after element is
-                                                                 // inserted
+        soElement(oldBuffer, offset, HAS_NEXT); // new buffer is visible after element is inserted
     }
 
     private void soNext(E[] curr, E[] next) {
