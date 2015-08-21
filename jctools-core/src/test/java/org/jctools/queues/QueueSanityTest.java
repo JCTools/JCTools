@@ -37,7 +37,7 @@ public class QueueSanityTest {
         list.add(test(1, 1, 1, Ordering.FIFO, null));
         list.add(test(1, 1, 0, Ordering.FIFO, null));
         list.add(test(1, 1, SIZE, Ordering.FIFO, null));
-        list.add(test(1, 1, 16, Ordering.FIFO, new SpscGrowableArrayQueue<Integer>(4, 16)));
+        list.add(test(1, 1, 32, Ordering.FIFO, new SpscGrowableArrayQueue<Integer>(4, 32)));
         list.add(test(1, 1, 0, Ordering.FIFO, new SpscUnboundedArrayQueue<Integer>(16)));
         list.add(test(1, 0, 1, Ordering.FIFO, null));
         list.add(test(1, 0, SIZE, Ordering.FIFO, null));
