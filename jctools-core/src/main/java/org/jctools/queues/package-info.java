@@ -58,7 +58,12 @@
  * <li>We use Unsafe to gain volatile/lazySet access to array elements. We could use {@link java.util.concurrent.atomic.AtomicReferenceArray} but
  * the extra reference chase and redundant boundary checks are considered too high a price to pay at this time.
  * </ol>
+ * Both use cases should be made obsolete by VarHandles at some point.
  * 
+ * <b>Avoiding redundant loads of fields<b/>
+ * Because a volatile load will force any following field access to reload the field value an effort is made to cache field values in local variables
+ * where possible and expose interfaces which allow the code to capitalize on such caching. As a convention the local variable name will be the field
+ * name and will be final.
  * @author nitsanw
  */
 package org.jctools.queues;
