@@ -120,4 +120,38 @@ abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E> {
         }
         return null;
     }
+    
+	@Override
+	public boolean relaxedOffer(E message) {
+		return offer(message);
+	}
+
+	@Override
+	public E relaxedPoll() {
+		LinkedQueueNode<E> currConsumerNode = lpConsumerNode(); // don't load twice, it's alright
+        LinkedQueueNode<E> nextNode = currConsumerNode.lvNext();
+        if (nextNode != null) {
+            // we have to null out the value because we are going to hang on to the node
+            final E nextValue = nextNode.getAndNullValue();
+            spConsumerNode(nextNode);
+            return nextValue;
+        }
+        return null;
+	}
+
+	@Override
+	public E relaxedPeek() {
+		LinkedQueueNode<E> currConsumerNode = consumerNode; // don't load twice, it's alright
+        LinkedQueueNode<E> nextNode = currConsumerNode.lvNext();
+        if (nextNode != null) {
+            return nextNode.lpValue();
+        }
+        else if (currConsumerNode != lvProducerNode()) {
+            // spin, we are no longer wait free
+            while((nextNode = currConsumerNode.lvNext()) == null);
+            // got the next node...
+            return nextNode.lpValue();
+        }
+        return null;	
+	}
 }

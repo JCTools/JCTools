@@ -28,6 +28,7 @@ import java.util.Queue;
  */
 public interface MessagePassingQueue<M> {
     int UNBOUNDED_CAPACITY = -1;
+    
     /**
      * Called from a producer thread subject to the restrictions appropriate to the implementation and according to the
      * {@link Queue#offer(Object)} interface.
@@ -54,6 +55,33 @@ public interface MessagePassingQueue<M> {
     M peek();
 
     /**
+     * This method's accuracy is subject to concurrent modifications happening as the size is estimated and as such is a
+     * best effort rather than absolute value. For some implementations this method may be O(n) rather than O(1).
+     * 
+     * @return number of messages in the queue, between 0 and {@link Integer#MAX_VALUE} but less or equals to capacity (if bounded).
+     */
+    int size();
+
+    /**
+     * Removes all items from the queue. Called from the consumer thread subject to the restrictions appropriate to the implementation and according to
+     * the {@link Queue#clear()} interface.
+     */
+    void clear();
+    
+    
+    /**
+     * This method's accuracy is subject to concurrent modifications happening as the observation is carried out.
+     * 
+     * @return true if empty, false otherwise
+     */
+    boolean isEmpty();
+    
+    /**
+     * @return the capacity of this queue or UNBOUNDED_CAPACITY if not bounded
+     */
+    int capacity();
+    
+    /**
      * Called from a producer thread subject to the restrictions appropriate to the implementation. As opposed to 
      * {@link Queue#offer(Object)} this method may return false without the queue being full.
      * 
@@ -77,24 +105,4 @@ public interface MessagePassingQueue<M> {
      * @return a message from the queue if one is available, null if unable to peek
      */
     M relaxedPeek();
-    
-    /**
-     * This method's accuracy is subject to concurrent modifications happening as the size is estimated and as such is a
-     * best effort rather than absolute value. For some implementations this method may be O(n) rather than O(1).
-     * 
-     * @return number of messages in the queue, between 0 and {@link Integer#MAX_VALUE} but less or equals to capacity (if bounded).
-     */
-    int size();
-    
-    /**
-     * @return the capacity of this queue or UNBOUNDED_CAPACITY if not bounded
-     */
-    int capacity();
-    
-    /**
-     * This method's accuracy is subject to concurrent modifications happening as the observation is carried out.
-     * 
-     * @return true if empty, false otherwise
-     */
-    boolean isEmpty();
 }

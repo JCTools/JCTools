@@ -18,7 +18,7 @@ import static org.jctools.util.UnsafeAccess.UNSAFE;
 import java.util.AbstractQueue;
 import java.util.Iterator;
 
-abstract class BaseLinkedQueuePad0<E> extends AbstractQueue<E> {
+abstract class BaseLinkedQueuePad0<E> extends AbstractQueue<E> implements MessagePassingQueue<E> {
     long p00, p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16;
 }
@@ -132,5 +132,10 @@ abstract class BaseLinkedQueue<E> extends BaseLinkedQueueConsumerNodeRef<E> {
     @Override
     public final boolean isEmpty() {
         return lvConsumerNode() == lvProducerNode();
+    }
+    
+    @Override
+    public int capacity() {
+    	return UNBOUNDED_CAPACITY;
     }
 }

@@ -100,4 +100,19 @@ public class SpscLinkedQueue<E> extends BaseLinkedQueue<E> {
             return null;
         }
     }
+    
+	@Override
+	public boolean relaxedOffer(E e) {
+		return offer(e);
+	}
+
+	@Override
+	public E relaxedPoll() {
+		return poll();
+	}
+
+	@Override
+	public E relaxedPeek() {
+		return peek();
+	}
 }

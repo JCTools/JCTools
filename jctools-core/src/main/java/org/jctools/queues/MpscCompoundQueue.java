@@ -150,13 +150,14 @@ public class MpscCompoundQueue<E> extends MpscCompoundQueueConsumerQueueIndex<E>
 		final int parallelQueuesMask = this.parallelQueuesMask;
 		int start = (int) (Thread.currentThread().getId() & parallelQueuesMask);
         final MpscArrayQueue<E>[] queues = this.queues;
-		if (queues[start].failFastOffer(e) == 0) {
+        int status = 0;
+		if ((status = queues[start].failFastOffer(e)) == 0) {
             return true;
         } else {
             for (;;) {
-                int status = 0;
+                
                 final int parallelQueues = this.parallelQueues;
-				for (int i = start+1; i < start + parallelQueues; i++) {
+				for (int i = start + 1; i < start + parallelQueues; i++) {
                     int s = queues[i & parallelQueuesMask].failFastOffer(e);
                     if (s == 0) {
                         return true;
@@ -166,6 +167,7 @@ public class MpscCompoundQueue<E> extends MpscCompoundQueueConsumerQueueIndex<E>
                 if (status == parallelQueues) {
                     return false;
                 }
+                status = 0;
             }
         }
 	}
