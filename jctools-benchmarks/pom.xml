@@ -24,25 +24,14 @@
 		<dependency>
 			<groupId>org.openjdk.jmh</groupId>
 			<artifactId>jmh-core</artifactId>
-			<version>1.6.2</version>
+			<version>1.10.4</version>
 		</dependency>
 		<dependency>
 			<groupId>org.openjdk.jmh</groupId>
 			<artifactId>jmh-generator-annprocess</artifactId>
-			<version>1.6.2</version>
+			<version>1.10.4</version>
 			<scope>provided</scope>
 		</dependency>
-		<dependency>
-            <groupId>net.openhft</groupId>
-            <artifactId>koloboke-api-jdk8</artifactId>
-            <version>0.6.6</version>
-        </dependency>
-        <dependency>
-            <groupId>net.openhft</groupId>
-            <artifactId>koloboke-impl-jdk8</artifactId>
-            <version>0.6.6</version>
-            <scope>runtime</scope>
-        </dependency>
 	</dependencies>
 
 	<properties>
