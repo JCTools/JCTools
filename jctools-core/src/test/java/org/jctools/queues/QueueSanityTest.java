@@ -34,7 +34,7 @@ public class QueueSanityTest {
     @Parameterized.Parameters
     public static Collection parameters() {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
-        list.add(test(1, 1, 1, Ordering.FIFO, null));
+        list.add(test(1, 1, 4, Ordering.FIFO, null));
         list.add(test(1, 1, 0, Ordering.FIFO, null));
         list.add(test(1, 1, SIZE, Ordering.FIFO, null));
         list.add(test(1, 1, 32, Ordering.FIFO, new SpscGrowableArrayQueue<Integer>(4, 32)));
