@@ -45,8 +45,8 @@ public class MessagePassingQueueSanityTest {
         list.add(test(1, 0, 1, Ordering.FIFO, null));// SPMC size 1
         list.add(test(1, 0, SIZE, Ordering.FIFO, null));// SPMC size SIZE
         
-//        list.add(test(0, 1, 1, Ordering.FIFO, null));
-//        list.add(test(0, 1, SIZE, Ordering.FIFO, null));
+        list.add(test(0, 1, 1, Ordering.FIFO, null));// MPSC size 1
+        list.add(test(0, 1, SIZE, Ordering.FIFO, null));// MPSC size SIZE
 //        
 //        // Compound queue minimal size is the core count
 //        list.add(test(0, 1, Runtime.getRuntime().availableProcessors(), Ordering.NONE, null));
