@@ -100,14 +100,14 @@ abstract class MpscArrayQueueConsumerField<E> extends MpscArrayQueueL2Pad<E> {
             throw new RuntimeException(e);
         }
     }
-    private volatile long consumerIndex;
+    protected long consumerIndex;
 
     public MpscArrayQueueConsumerField(int capacity) {
         super(capacity);
     }
 
     protected final long lvConsumerIndex() {
-        return consumerIndex;
+        return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
     }
 
     protected void soConsumerIndex(long l) {
@@ -129,6 +129,8 @@ abstract class MpscArrayQueueConsumerField<E> extends MpscArrayQueueL2Pad<E> {
  * @param <E>
  */
 public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements QueueProgressIndicators {
+    private final static int RECOMENDED_OFFER_BATCH = Runtime.getRuntime().availableProcessors() * 4;
+    
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
     public MpscArrayQueue(final int capacity) {
@@ -341,7 +343,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements
 	@Override
 	public E relaxedPoll() {
 		final E[] buffer = this.buffer;
-		final long consumerIndex = lvConsumerIndex(); // LoadLoad
+		final long consumerIndex = this.consumerIndex; // LoadLoad
         final long offset = calcElementOffset(consumerIndex);
 
         // If we can't see the next available element we can't poll
@@ -365,22 +367,35 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements
 
     @Override
     public int drain(Consumer<E> c) {
-        final int limit = capacity();
-        return drain(c,limit);
+        return drain(c, capacity());
     }
 
     @Override
     public int fill(Supplier<E> s) {
-        throw new UnsupportedOperationException();
+        long result = 0;// result is a long because we want to have a safepoint check at regular intervals
+        final int capacity = capacity();
+        do {
+            result += fill(s, RECOMENDED_OFFER_BATCH);
+        } while (result <= capacity);
+        return (int) result;
     }
 
+
     @Override
-    public int drain(Consumer<E> c, int limit) {
-        for (int i=0;i<limit;i++) {
-            E e = relaxedPoll();
-            if(e==null){
+    public int drain(final Consumer<E> c, final int limit) {
+        final E[] buffer = this.buffer;
+        final long mask = this.mask;
+        final long consumerIndex = this.consumerIndex;
+
+        for (int i = 0; i < limit; i++) {
+            final long index = consumerIndex + i;
+            final long offset = calcElementOffset(index, mask);
+            final E e = lvElement(buffer, offset);// LoadLoad
+            if (null == e) {
                 return i;
             }
+            soElement(buffer, offset, null);// StoreStore
+            soConsumerIndex(index + 1); // ordered store -> atomic and ordered for size()
             c.accept(e);
         }
         return limit;
@@ -388,22 +403,61 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements
 
     @Override
     public int fill(Supplier<E> s, int limit) {
-        throw new UnsupportedOperationException();
+        final long mask = this.mask;
+        final long capacity = mask + 1;
+        long cachedConsumerIndex = lvConsumerIndexCache(); // LoadLoad
+        long currentProducerIndex;
+        int actualLimit = 0;
+        do {
+            currentProducerIndex = lvProducerIndex(); // LoadLoad
+            long available = capacity - (currentProducerIndex - cachedConsumerIndex);
+            if (available <= 0) {
+                final long currConsumerIndex = lvConsumerIndex(); // LoadLoad
+                available += currConsumerIndex - cachedConsumerIndex;
+                if (available <= 0) {
+                    return 0; // FULL :(
+                } else {
+                    // update shared cached value of the consumerIndex
+                    svConsumerIndexCache(currConsumerIndex); // StoreLoad
+                    // update on stack copy, we might need this value again if we lose the CAS.
+                    cachedConsumerIndex = currConsumerIndex;
+                }
+            }
+            actualLimit = Math.min((int)available, limit);
+        } while (!casProducerIndex(currentProducerIndex, currentProducerIndex + actualLimit));
+        // right, now we claimed a few slots and can fill them with goodness
+        final E[] buffer = this.buffer;
+        for (int i = 0;i < actualLimit;i++) {
+            // Won CAS, move on to storing
+            final long offset = calcElementOffset(currentProducerIndex + i, mask);
+            soElement(buffer, offset, s.get());
+        }
+        return actualLimit;
     }
 
     @Override
     public void drain(Consumer<E> c,
-            WaitStrategy wait,
+            WaitStrategy w,
             ExitCondition exit) {
-        int idleCounter = 0;
+        final E[] buffer = this.buffer;
+        final long mask = this.mask;
+        long consumerIndex = this.consumerIndex;
+
+        int counter = 0;
         while (exit.keepRunning()) {
-            E e = relaxedPoll();
-            if(e==null){
-                idleCounter = wait.idle(idleCounter);
-                continue;
+            for (int i = 0; i < 4096; i++) {
+                final long offset = calcElementOffset(consumerIndex, mask);
+                final E e = lvElement(buffer, offset);// LoadLoad
+                if (null == e) {
+                    counter = w.idle(counter);
+                    continue;
+                }
+                consumerIndex++;
+                counter = 0;
+                soElement(buffer, offset, null);// StoreStore
+                soConsumerIndex(consumerIndex); // ordered store -> atomic and ordered for size()
+                c.accept(e);
             }
-            idleCounter = 0;
-            c.accept(e);
         }
     }
 
@@ -413,8 +467,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements
             ExitCondition exit) {
         int idleCounter = 0;
         while (exit.keepRunning()) {
-            E e = s.get();
-            while (!relaxedOffer(e)) {
+            if (fill(s, RECOMENDED_OFFER_BATCH) == 0) {
                 idleCounter = wait.idle(idleCounter);
                 continue;
             }
