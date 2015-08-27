@@ -121,15 +121,15 @@ public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E>  implement
         final long offset = calcElementOffset(producerIndex, mask);
         if (producerIndex >= producerLookAhead) {
             final int lookAheadStep = this.lookAheadStep;
-            if (null == UnsafeRefArrayAccess.lvElement(buffer, calcElementOffset(producerIndex + lookAheadStep, mask))) {// LoadLoad
+            if (null == lvElement(buffer, calcElementOffset(producerIndex + lookAheadStep, mask))) {// LoadLoad
                 producerLookAhead = producerIndex + lookAheadStep;
             }
-            else if (null != UnsafeRefArrayAccess.lvElement(buffer, offset)){
+            else if (null != lvElement(buffer, offset)){
                 return false;
             }
         }
+        soElement(buffer, offset, e); // StoreStore
         soProducerIndex(producerIndex + 1); // ordered store -> atomic and ordered for size()
-        UnsafeRefArrayAccess.soElement(buffer, offset, e); // StoreStore
         return true;
     }
     
@@ -144,27 +144,15 @@ public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E>  implement
         final long offset = calcElementOffset(consumerIndex);
         // local load of field to avoid repeated loads after volatile reads
         final E[] buffer = this.buffer;
-        return consumeElement(consumerIndex, buffer, offset);
-    }
-
-    /**
-     * If next element is available, return it and update consumer index, otherwise retun null.
-     * @param consumerIndex
-     * @param buffer
-     * @param offset
-     * @return null if no element is available, or current element
-     */
-    private E consumeElement(final long consumerIndex, final E[] buffer, final long offset) {
-        final E e = UnsafeRefArrayAccess.lvElement(buffer, offset);// LoadLoad
+        final E e = lvElement(buffer, offset);// LoadLoad
         if (null == e) {
             return null;
         }
-        soConsumerIndex(consumerIndex + 1); // ordered store -> atomic and ordered for size()
         soElement(buffer, offset, null);// StoreStore
+        soConsumerIndex(consumerIndex + 1); // ordered store -> atomic and ordered for size()
         return e;
     }
 
-    
     /**
      * {@inheritDoc}
      * <p>
@@ -236,12 +224,12 @@ public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E>  implement
 
     @Override
     public int drain(final Consumer<E> c) {
-        return drain(c, (int) (mask + 1));
+        return drain(c, capacity());
     }
     
     @Override
     public int fill(final Supplier<E> s) {
-        return fill(s, (int) (mask + 1));
+        return fill(s, capacity());
     }
     
     @Override
@@ -257,14 +245,12 @@ public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E>  implement
             if (null == e) {
                 return i;
             }
-            soConsumerIndex(index + 1); // ordered store -> atomic and ordered for size()
             soElement(buffer, offset, null);// StoreStore
+            soConsumerIndex(index + 1); // ordered store -> atomic and ordered for size()
             c.accept(e);
         }
         return limit;
     }
-    
-    
 
     @Override
     public int fill(final Supplier<E> s, final int limit) {
@@ -280,8 +266,8 @@ public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E>  implement
                 int lookAheadLimit = Math.min(lookAheadStep, limit - i); 
                 for (int j = 0; j < lookAheadLimit; j++) {
                     final long offset = calcElementOffset(index + j, mask);
-                    soProducerIndex(index + j + 1); // ordered store -> atomic and ordered for size()
                     soElement(buffer, offset, s.get()); // StoreStore
+                    soProducerIndex(index + j + 1); // ordered store -> atomic and ordered for size()
                 }
                 i += lookAheadLimit - 1;
             }
@@ -290,8 +276,8 @@ public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E>  implement
                 if (null != lvElement(buffer, offset)){
                     return i;
                 }
-                soProducerIndex(index + 1); // ordered store -> atomic and ordered for size()
                 soElement(buffer, offset, s.get()); // StoreStore
+                soProducerIndex(index + 1); // ordered store -> atomic and ordered for size()
             }
             
         }
@@ -315,8 +301,8 @@ public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E>  implement
                 }
                 consumerIndex++;
                 counter = 0;
-                soConsumerIndex(consumerIndex); // ordered store -> atomic and ordered for size()
                 soElement(buffer, offset, null);// StoreStore
+                soConsumerIndex(consumerIndex); // ordered store -> atomic and ordered for size()
                 c.accept(e);
             }
         }
@@ -335,8 +321,8 @@ public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E>  implement
                 for (int j = 0; j < lookAheadStep; j++) {
                     final long offset = calcElementOffset(producerIndex, mask);
                     producerIndex++;
-                    soProducerIndex(producerIndex); // ordered store -> atomic and ordered for size()
                     soElement(buffer, offset, s.get()); // StoreStore
+                    soProducerIndex(producerIndex); // ordered store -> atomic and ordered for size()
                 }
             }
             else {
@@ -347,8 +333,8 @@ public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E>  implement
                 }
                 producerIndex++;
                 counter=0;
-                soProducerIndex(producerIndex); // ordered store -> atomic and ordered for size()
                 soElement(buffer, offset, s.get()); // StoreStore
+                soProducerIndex(producerIndex); // ordered store -> atomic and ordered for size()
             }
         }
     }
