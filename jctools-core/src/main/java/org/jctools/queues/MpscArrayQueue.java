@@ -375,7 +375,11 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements
         long result = 0;// result is a long because we want to have a safepoint check at regular intervals
         final int capacity = capacity();
         do {
-            result += fill(s, RECOMENDED_OFFER_BATCH);
+            final int filled = fill(s, RECOMENDED_OFFER_BATCH);
+            if (filled == 0) {
+                return (int) result;
+            }
+            result += filled;
         } while (result <= capacity);
         return (int) result;
     }
