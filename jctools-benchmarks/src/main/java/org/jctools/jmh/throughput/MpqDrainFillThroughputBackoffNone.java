@@ -16,7 +16,7 @@ package org.jctools.jmh.throughput;
 import java.util.concurrent.TimeUnit;
 
 import org.jctools.queues.MessagePassingQueue;
-import org.jctools.queues.SpscArrayQueue;
+import org.jctools.queues.MessagePassingQueueByTypeFactory;
 import org.openjdk.jmh.annotations.AuxCounters;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -40,16 +40,18 @@ import org.openjdk.jmh.annotations.Warmup;
 @Measurement(iterations = 5, time = 3, timeUnit = TimeUnit.SECONDS)
 public class MpqDrainFillThroughputBackoffNone {
     private static final Integer ONE = 777;
-    SpscArrayQueue<Integer> q;
+    MessagePassingQueue<Integer> q;
     private Integer escape;
-    // @Param(value = { "SpscArrayQueue", "MpscArrayQueue", "SpmcArrayQueue", "MpmcArrayQueue" })
-    // String qType;
+    
+    @Param(value = { "SpscArrayQueue", "MpscArrayQueue", "SpmcArrayQueue", "MpmcArrayQueue" })
+    String qType;
+    
     @Param(value = { "132000" })
     int qCapacity;
 
     @Setup()
     public void createQandPrimeCompilation() {
-        q = new SpscArrayQueue<Integer>(qCapacity);
+        q = MessagePassingQueueByTypeFactory.createQueue(qType, qCapacity);
     }
 
     @AuxCounters
@@ -89,8 +91,6 @@ public class MpqDrainFillThroughputBackoffNone {
     @Group("normal")
     public void fill(final OfferCounters counters) {
         long filled = q.fill(new MessagePassingQueue.Supplier<Integer>() {
-            
-            @Override
             public Integer get() {
                 counters.offersMade++;
                 return ONE;
@@ -106,7 +106,6 @@ public class MpqDrainFillThroughputBackoffNone {
     @Group("normal")
     public void drain(final PollCounters counters, ConsumerMarker cm) {
         long drained = q.drain(new MessagePassingQueue.Consumer<Integer>() {
-            @Override
             public void accept(Integer e) {
                 if (e == ONE) {
                     counters.pollsMade++;
@@ -120,7 +119,54 @@ public class MpqDrainFillThroughputBackoffNone {
             backoff();
         }
     }
-
+//
+//    @Benchmark
+//    @Group("prepetual")
+//    public void fill(final OfferCounters counters, final Control ctl) {
+//        WaitStrategy w = new WaitStrategy(){
+//            public int idle(int idleCounter) {
+//                backoff();
+//                return idleCounter++;
+//            }
+//        };
+//        ExitCondition e = new ExitCondition() {
+//            public boolean keepRunning() {
+//                return !ctl.stopMeasurement;
+//            }
+//        };
+//        q.fill(new MessagePassingQueue.Supplier<Integer>() {
+//            public Integer get() {
+//                counters.offersMade++;
+//                return ONE;
+//            }
+//        }, w, e);
+//    }
+//
+//    @Benchmark
+//    @Group("prepetual")
+//    public void drain(final PollCounters counters, ConsumerMarker cm, final Control ctl) {
+//        WaitStrategy w = new WaitStrategy(){
+//            public int idle(int idleCounter) {
+//                backoff();
+//                return idleCounter++;
+//            }
+//        };
+//        ExitCondition e = new ExitCondition() {
+//            public boolean keepRunning() {
+//                return !ctl.stopMeasurement;
+//            }
+//        };
+//        q.drain(new MessagePassingQueue.Consumer<Integer>() {
+//            public void accept(Integer e) {
+//                if (e == ONE) {
+//                    counters.pollsMade++;
+//                } else {
+//                    escape = e;
+//                }
+//            }
+//        }, w, e);
+//    }
+    
     @TearDown(Level.Iteration)
     public void emptyQ() {
         if (marker.get() == null)
