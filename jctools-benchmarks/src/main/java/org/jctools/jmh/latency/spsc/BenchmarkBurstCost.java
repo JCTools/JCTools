@@ -13,8 +13,6 @@
  */
 package org.jctools.jmh.latency.spsc;
 
-import static org.performancehints.SpinHint.spinLoopHint;
-
 import java.util.Queue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -71,8 +69,7 @@ public class BenchmarkBurstCost {
             final Queue<AbstractEvent> q = this.q;
             while (isRunning) {
                 AbstractEvent e = null;
-                while ((e = q.poll()) == null)
-                    spinLoopHint();
+                while ((e = q.poll()) == null);
                 e.handle();
             }
         }
@@ -123,23 +120,18 @@ public class BenchmarkBurstCost {
         final Go go = GO;
         stop.lazySet(false);
         for (int i = 0; i < burst - 1; i++) {
-            while (!q.offer(go))
-                spinLoopHint();
+            while (!q.offer(go));
         }
 
-        while (!q.offer(stop))
-            spinLoopHint();
+        while (!q.offer(stop));
 
-        while (!stop.get()) {
-            spinLoopHint();
-        }
+        while (!stop.get());
     }
 
     @TearDown
     public void killConsumer() throws InterruptedException {
         consumer.isRunning = false;
-        while (!q.offer(GO))
-            spinLoopHint();
+        while (!q.offer(GO));
         consumerThread.join();
     }
 }
