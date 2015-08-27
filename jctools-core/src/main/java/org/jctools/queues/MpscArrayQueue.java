@@ -18,6 +18,10 @@ import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
 import static org.jctools.util.UnsafeRefArrayAccess.soElement;
 import static org.jctools.util.UnsafeRefArrayAccess.spElement;
 
+import org.jctools.queues.MessagePassingQueue.Consumer;
+import org.jctools.queues.MessagePassingQueue.ExitCondition;
+import org.jctools.queues.MessagePassingQueue.Supplier;
+import org.jctools.queues.MessagePassingQueue.WaitStrategy;
 import org.jctools.util.UnsafeRefArrayAccess;
 
 abstract class MpscArrayQueueL1Pad<E> extends ConcurrentCircularArrayQueue<E> {
@@ -358,4 +362,63 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements
         final long consumerIndex = lvConsumerIndex();
         return lvElement(buffer, calcElementOffset(consumerIndex, mask));
 	}
+
+    @Override
+    public int drain(Consumer<E> c) {
+        final int limit = capacity();
+        return drain(c,limit);
+    }
+
+    @Override
+    public int fill(Supplier<E> s) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public int drain(Consumer<E> c, int limit) {
+        for (int i=0;i<limit;i++) {
+            E e = relaxedPoll();
+            if(e==null){
+                return i;
+            }
+            c.accept(e);
+        }
+        return limit;
+    }
+
+    @Override
+    public int fill(Supplier<E> s, int limit) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void drain(Consumer<E> c,
+            WaitStrategy wait,
+            ExitCondition exit) {
+        int idleCounter = 0;
+        while (exit.keepRunning()) {
+            E e = relaxedPoll();
+            if(e==null){
+                idleCounter = wait.idle(idleCounter);
+                continue;
+            }
+            idleCounter = 0;
+            c.accept(e);
+        }
+    }
+
+    @Override
+    public void fill(Supplier<E> s,
+            WaitStrategy wait,
+            ExitCondition exit) {
+        int idleCounter = 0;
+        while (exit.keepRunning()) {
+            E e = s.get();
+            while (!relaxedOffer(e)) {
+                idleCounter = wait.idle(idleCounter);
+                continue;
+            }
+            idleCounter = 0;    
+        }
+    }
 }

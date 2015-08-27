@@ -14,8 +14,14 @@
 package org.jctools.queues;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
+import static org.jctools.util.UnsafeRefArrayAccess.lpElement;
 import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
+import static org.jctools.util.UnsafeRefArrayAccess.soElement;
 
+import org.jctools.queues.MessagePassingQueue.Consumer;
+import org.jctools.queues.MessagePassingQueue.ExitCondition;
+import org.jctools.queues.MessagePassingQueue.Supplier;
+import org.jctools.queues.MessagePassingQueue.WaitStrategy;
 import org.jctools.util.UnsafeRefArrayAccess;
 
 abstract class SpmcArrayQueueL1Pad<E> extends ConcurrentCircularArrayQueue<E> {
@@ -37,10 +43,10 @@ abstract class SpmcArrayQueueProducerField<E> extends SpmcArrayQueueL1Pad<E> {
             throw new RuntimeException(e);
         }
     }
-    private volatile long producerIndex;
+    protected long producerIndex;
 
     protected final long lvProducerIndex() {
-        return producerIndex;
+        return UNSAFE.getLongVolatile(this, P_INDEX_OFFSET);
     }
 
     protected final void soProducerIndex(long v) {
@@ -123,6 +129,7 @@ abstract class SpmcArrayQueueL3Pad<E> extends SpmcArrayQueueProducerIndexCacheFi
 }
 
 public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueueProgressIndicators {
+    private final static int RECOMENDED_POLL_BATCH = Runtime.getRuntime().availableProcessors() * 4;
     public SpmcArrayQueue(final int capacity) {
         super(capacity);
     }
@@ -157,7 +164,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
     @Override
     public E poll() {
         long currentConsumerIndex;
-        final long currProducerIndexCache = lvProducerIndexCache();
+        long currProducerIndexCache = lvProducerIndexCache();
         do {
             currentConsumerIndex = lvConsumerIndex();
             if (currentConsumerIndex >= currProducerIndexCache) {
@@ -165,18 +172,22 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
                 if (currentConsumerIndex >= currProducerIndex) {
                     return null;
                 } else {
+                    currProducerIndexCache = currProducerIndex;
                     svProducerIndexCache(currProducerIndex);
                 }
             }
         } while (!casHead(currentConsumerIndex, currentConsumerIndex + 1));
         // consumers are gated on latest visible tail, and so can't see a null value in the queue or overtake
         // and wrap to hit same location.
-        final long offset = calcElementOffset(currentConsumerIndex);
-        final E[] lb = buffer;
+        return removeElement(buffer, currentConsumerIndex, mask);
+    }
+
+    private E removeElement(final E[] buffer, long index, final long mask) {
+        final long offset = calcElementOffset(index, mask);
         // load plain, element happens before it's index becomes visible
-        final E e = UnsafeRefArrayAccess.lpElement(lb, offset);
+        final E e = lpElement(buffer, offset);
         // store ordered, make sure nulling out is visible. Producer is waiting for this value.
-        UnsafeRefArrayAccess.soElement(lb, offset, null);
+        soElement(buffer, offset, null);
         return e;
     }
 
@@ -196,7 +207,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
                     svProducerIndexCache(currProducerIndex);
                 }
             }
-        } while (null == (e = UnsafeRefArrayAccess.lvElement(buffer, calcElementOffset(currentConsumerIndex, mask))));
+        } while (null == (e = lvElement(buffer, calcElementOffset(currentConsumerIndex, mask))));
         return e;
     }
 
@@ -268,4 +279,109 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
         final long consumerIndex = lvConsumerIndex();
         return lvElement(buffer, calcElementOffset(consumerIndex, mask));
 	}
+    
+    @Override
+    public int drain(final Consumer<E> c) {
+        final int capacity = capacity();
+        int sum = 0;
+        while (sum < capacity) {
+            int drained = 0;
+            if((drained = drain(c, RECOMENDED_POLL_BATCH)) == 0) {
+                break;
+            }
+            sum+=drained;
+        }
+        return sum;
+    }
+    
+    @Override
+    public int fill(final Supplier<E> s) {
+        return fill(s, capacity());
+    }
+    
+    @Override
+    public int drain(final Consumer<E> c, final int limit) {
+        final E[] buffer = this.buffer;
+        final long mask = this.mask;
+        long currProducerIndexCache = lvProducerIndexCache();
+        int adjustedLimit = 0;
+        long currentConsumerIndex;
+        do {
+            currentConsumerIndex = lvConsumerIndex();
+            // is there any space in the queue?
+            if (currentConsumerIndex >= currProducerIndexCache) {
+                long currProducerIndex = lvProducerIndex();
+                if (currentConsumerIndex  >= currProducerIndex) {
+                    return 0;
+                } else {
+                    currProducerIndexCache = currProducerIndex;
+                    svProducerIndexCache(currProducerIndex);
+                }
+            }
+            // try and claim up to 'limit' elements in one go
+            int remaining = (int) (currProducerIndexCache - currentConsumerIndex);
+            adjustedLimit = Math.min(remaining, limit);
+        } while (!casHead(currentConsumerIndex, currentConsumerIndex + adjustedLimit));
+        
+        for (int i = 0; i < adjustedLimit; i++) {
+            c.accept(removeElement(buffer, currentConsumerIndex + i, mask));
+        }
+        return adjustedLimit;
+    }
+    
+    
+
+    @Override
+    public int fill(final Supplier<E> s, final int limit) {
+        final E[] buffer = this.buffer;
+        final long mask = this.mask;
+        long producerIndex = this.producerIndex;
+        
+        for (int i = 0; i < limit; i++) {
+            final long offset = calcElementOffset(producerIndex, mask);
+            if (null != lvElement(buffer, offset)){
+                return i;
+            }
+            producerIndex++;
+            soElement(buffer, offset, s.get()); // StoreStore
+            soProducerIndex(producerIndex); // ordered store -> atomic and ordered for size()
+        }
+        return limit;
+    }
+    
+    @Override
+    public void drain(final Consumer<E> c, final WaitStrategy w, final ExitCondition exit) {
+        final E[] buffer = this.buffer;
+        final long mask = this.mask;
+
+        int counter = 0;
+        while (exit.keepRunning()) {
+            int drained = 0;
+            if((drained = drain(c, RECOMENDED_POLL_BATCH)) == 0) {
+                counter = w.idle(counter);
+                continue;
+            }
+        }
+    }
+    
+    @Override
+    public void fill(final Supplier<E> s, final WaitStrategy w, final ExitCondition e) {
+        final E[] buffer = this.buffer;
+        final long mask = this.mask;
+        long producerIndex = this.producerIndex;
+        int counter = 0;
+        while (e.keepRunning()) {
+            for (int i = 0; i < 4096; i++) {
+                final long offset = calcElementOffset(producerIndex, mask);
+                if (null != lvElement(buffer, offset)){// LoadLoad
+                    counter = w.idle(counter);
+                    continue;
+                }
+                producerIndex++;
+                counter=0;
+                soElement(buffer, offset, s.get()); // StoreStore
+                soProducerIndex(producerIndex); // ordered store -> atomic and ordered for size()
+            }
+        }
+    }
 }

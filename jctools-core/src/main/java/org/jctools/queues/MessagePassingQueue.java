@@ -24,17 +24,55 @@ import java.util.Queue;
  * 
  * @author nitsanw
  * 
- * @param <M> the event/message type
+ * @param <T> the event/message type
  */
-public interface MessagePassingQueue<M> {
+public interface MessagePassingQueue<T> {
     int UNBOUNDED_CAPACITY = -1;
-    interface Supplier<M> {
-        M get();
-    }
-    interface Consumer<M> {
-        void accept(M m);
+    
+    interface Supplier<T> {
+        /**
+         * @return new element, NEVER null
+         */
+        T get();
     }
     
+    interface Consumer<T> {
+        void accept(T m);
+    }
+    
+    interface WaitStrategy {
+        /**
+         * This method can implement static or dynamic backoff. Dynamic backoff will rely on the counter for estimating how
+         * long the caller has been idling. The expected usage is:
+         * <pre>
+         * <code>
+         * int ic = 0;
+         * while(true) {
+         *   if(!isGodotArrived()) {
+         *     ic = w.idle(ic);
+         *     continue;
+         *   }
+         *   ic = 0;
+         *   // party with Godot until he goes again
+         * }
+         * </code>
+         * </pre>
+         * @param idleCounter idle calls counter, managed by the idle method until reset
+         * @return new counter value to be used on subsequent idle cycle
+         */
+        int idle(int idleCounter);
+    }
+    
+    interface ExitCondition {
+        
+        /**
+         * This method should be implemented such that the flag read or determination cannot be hoisted out of a loop
+         * which notmally means a volatile load, but with JDK9 VarHandles may mean getOpaque.
+         * 
+         * @return true as long as we should keep running
+         */
+        boolean keepRunning();
+    }
     /**
      * Called from a producer thread subject to the restrictions appropriate to the implementation and according to the
      * {@link Queue#offer(Object)} interface.
@@ -42,7 +80,7 @@ public interface MessagePassingQueue<M> {
      * @param message
      * @return true if element was inserted into the queue, false iff full
      */
-    boolean offer(M message);
+    boolean offer(T message);
 
     /**
      * Called from the consumer thread subject to the restrictions appropriate to the implementation and according to
@@ -50,7 +88,7 @@ public interface MessagePassingQueue<M> {
      * 
      * @return a message from the queue if one is available, null iff empty
      */
-    M poll();
+    T poll();
 
     /**
      * Called from the consumer thread subject to the restrictions appropriate to the implementation and according to
@@ -58,7 +96,7 @@ public interface MessagePassingQueue<M> {
      * 
      * @return a message from the queue if one is available, null iff empty
      */
-    M peek();
+    T peek();
 
     /**
      * This method's accuracy is subject to concurrent modifications happening as the size is estimated and as such is a
@@ -94,7 +132,7 @@ public interface MessagePassingQueue<M> {
      * @param message
      * @return true if element was inserted into the queue, false if unable to offer
      */
-    boolean relaxedOffer(M message);
+    boolean relaxedOffer(T message);
 
     /**
      * Called from the consumer thread subject to the restrictions appropriate to the implementation. As opposed to 
@@ -102,7 +140,7 @@ public interface MessagePassingQueue<M> {
      * 
      * @return a message from the queue if one is available, null if unable to poll
      */
-    M relaxedPoll();
+    T relaxedPoll();
 
     /**
      * Called from the consumer thread subject to the restrictions appropriate to the implementation. As opposed to 
@@ -110,8 +148,7 @@ public interface MessagePassingQueue<M> {
      * 
      * @return a message from the queue if one is available, null if unable to peek
      */
-    M relaxedPeek();
-    
+    T relaxedPeek();
     
     /**
      * Remove all available item from the queue and hand to consume. This should be semantically similar to:
@@ -124,9 +161,9 @@ public interface MessagePassingQueue<M> {
      * There's no strong commitment to the queue being empty at the end of a drain.
      * Called from a consumer thread subject to the restrictions appropriate to the implementation.
      * 
-     * @return the number of drained elements
+     * @return the number of polled elements
      */
-//    int drain(Consumer<M> c);
+    int drain(Consumer<T> c);
     
     /**
      * Stuff the queue with elements from the supplier. Semantically similar to:
@@ -136,36 +173,77 @@ public interface MessagePassingQueue<M> {
      * There's no strong commitment to the queue being full at the end of a fill.
      * Called from a producer thread subject to the restrictions appropriate to the implementation.
      * 
-     * @return the number of queued elements
+     * @return the number of offered elements
      */
-//    int fill(Supplier<M> s);
+    int fill(Supplier<T> s);
+    
     /**
      * Remove up to <i>limit</i> elements from the queue and hand to consume. This should be semantically similar to:
-     * <code><br/>
-     * M m;</br>
-     * while((m = relaxedPoll()) != null){</br>
-     *  c.accept(m);</br>
-     * }</br>
+     * <pre>
+     * <code>
+     *   M m;
+     *   while((m = relaxedPoll()) != null){
+     *     c.accept(m);
+     *   }
      * </code>
+     * </pre>
      * There's no strong commitment to the queue being empty at the end of a drain.
      * Called from a consumer thread subject to the restrictions appropriate to the implementation.
      * 
-     * @return the number of drained elements
+     * @return the number of polled elements
      */
-//    int drain(Consumer<M> c, int limit);
+    int drain(Consumer<T> c, int limit);
     
     /**
      * Stuff the queue with up to <i>limit</i> elements from the supplier. Semantically similar to:
-     * <code><br/>
-     * for(int i=0; i < limit && relaxedOffer(s.get(); i++);</br>
+     * <pre>
+     * <code>
+     *   for(int i=0; i < limit && relaxedOffer(s.get(); i++);</br>
      * </code>
+     * </pre>
      * There's no strong commitment to the queue being full at the end of a fill.
      * Called from a producer thread subject to the restrictions appropriate to the implementation.
      * 
-     * @return the number of queued elements
+     * @return the number of offered elements
      */
-//    int fill(Supplier<M> s, int limit);
+    int fill(Supplier<T> s, int limit);
     
-//    void drain(Consumer<M> c, WaitStrategy w);
-//    void fill(Supplier<M> s, WaitStrategy w);
+    /**
+     * Remove elements from the queue and hand to consume forever. Semantically similar to:
+     * <pre>
+     * <code>
+     *   int idleCounter = 0;
+     *   while(e.keepRunning()){
+     *     M m;
+     *     if((m = relaxedPoll()) != null){
+     *       c.accept(m);
+     *       idleCounter = 0;
+     *     }
+     *     else
+     *       idleCounter = w.idle(idleCounter);
+     *   }
+     * </code>
+     * </pre>
+     * Called from a consumer thread subject to the restrictions appropriate to the implementation.
+     * 
+     */
+    void drain(Consumer<T> c, WaitStrategy wait, ExitCondition exit);
+    
+    /**
+     * Stuff the queue with elements from the supplier forever. Semantically similar to:
+     * <pre>
+     * <code>
+     *   int idleCounter = 0;
+     *   while(e.keepRunning()){
+     *     if(!relaxedOffer(s.get()))
+     *       idleCounter = w.idle(idleCounter);
+     *     else
+     *       idleCounter = 0;
+     *   }
+     * </code>
+     * </pre>
+     * Called from a producer thread subject to the restrictions appropriate to the implementation.
+     * 
+     */
+     void fill(Supplier<T> s, WaitStrategy wait, ExitCondition exit);
 }

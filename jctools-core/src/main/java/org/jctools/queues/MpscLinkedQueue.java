@@ -13,6 +13,10 @@
  */
 package org.jctools.queues;
 
+import org.jctools.queues.MessagePassingQueue.Consumer;
+import org.jctools.queues.MessagePassingQueue.ExitCondition;
+import org.jctools.queues.MessagePassingQueue.Supplier;
+import org.jctools.queues.MessagePassingQueue.WaitStrategy;
 
 /**
  * This is a direct Java port of the MPSC algorithm as presented <a
@@ -154,4 +158,78 @@ abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E> {
         }
         return null;	
 	}
+	
+    @Override
+    public int drain(Consumer<E> c) {
+        long result = 0;// use long to force safepoint into loop below
+        int drained;
+        do {
+            drained = drain(c, 4096);
+            result += drained;
+        } while (drained == 4096 && result <= Integer.MAX_VALUE - 4096);
+        return (int) result;
+    }
+
+    @Override
+    public int fill(Supplier<E> s) {
+        long result = 0;// result is a long because we want to have a safepoint check at regular intervals
+        do {
+            fill(s, 4096);
+            result += 4096;
+        } while (result <= Integer.MAX_VALUE - 4096);
+        return (int) result;
+    }
+
+    @Override
+    public int drain(Consumer<E> c, int limit) {
+        LinkedQueueNode<E> chaserNode = this.consumerNode;
+        for (int i = 0; i < limit; i++) {
+            chaserNode = chaserNode.lvNext();
+            if (chaserNode == null) {
+                return i;
+            }
+            // we have to null out the value because we are going to hang on to the node
+            final E nextValue = chaserNode.getAndNullValue();
+            this.consumerNode = chaserNode;
+            c.accept(nextValue);
+        }
+        return limit;
+    }
+
+    @Override
+    public int fill(Supplier<E> s, int limit) {
+        LinkedQueueNode<E> chaserNode = producerNode;
+        for (int i = 0; i < limit; i++) {
+            offer(s.get());
+        }
+        return limit;
+    }
+    
+    @Override
+    public void drain(Consumer<E> c, WaitStrategy wait, ExitCondition exit) {
+        LinkedQueueNode<E> chaserNode = this.consumerNode;
+        int idleCounter = 0;
+        while (exit.keepRunning()) {
+            for (int i = 0; i < 4096; i++) {
+                final LinkedQueueNode<E> next = chaserNode.lvNext();
+                if (next == null) {
+                    idleCounter = wait.idle(idleCounter);
+                    continue;
+                }
+                chaserNode = next;
+                idleCounter = 0;
+                // we have to null out the value because we are going to hang on to the node
+                final E nextValue = chaserNode.getAndNullValue();
+                this.consumerNode = chaserNode;
+                c.accept(nextValue);
+            }
+        }
+    }
+    
+    @Override
+    public void fill(Supplier<E> s, WaitStrategy wait, ExitCondition exit) {
+        while (exit.keepRunning()) {
+            fill(s, 4096);
+        }
+    }
 }

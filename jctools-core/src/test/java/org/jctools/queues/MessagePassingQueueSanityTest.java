@@ -23,6 +23,7 @@ import org.jctools.queues.spec.Ordering;
 import org.jctools.queues.spec.Preference;
 import org.jctools.util.Pow2;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -35,24 +36,25 @@ public class MessagePassingQueueSanityTest {
     @Parameterized.Parameters
     public static Collection parameters() {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
-        list.add(test(1, 1, 1, Ordering.FIFO, null));
-        list.add(test(1, 1, 0, Ordering.FIFO, null));
-        list.add(test(1, 1, SIZE, Ordering.FIFO, null));
-//        list.add(test(1, 1, 32, Ordering.FIFO, new SpscGrowableArrayQueue<Integer>(4, 32)));
-//        list.add(test(1, 1, 0, Ordering.FIFO, new SpscUnboundedArrayQueue<Integer>(16)));
-        list.add(test(1, 0, 1, Ordering.FIFO, null));
-        list.add(test(1, 0, SIZE, Ordering.FIFO, null));
-        list.add(test(0, 1, 0, Ordering.FIFO, null));
-        list.add(test(0, 1, 1, Ordering.FIFO, null));
-        list.add(test(0, 1, SIZE, Ordering.FIFO, null));
-        list.add(test(0, 1, 1, Ordering.PRODUCER_FIFO, null));
-        list.add(test(0, 1, SIZE, Ordering.PRODUCER_FIFO, null));
-        // Compound queue minimal size is the core count
-        list.add(test(0, 1, Runtime.getRuntime().availableProcessors(), Ordering.NONE, null));
-        list.add(test(0, 1, SIZE, Ordering.NONE, null));
-        // Mpmc minimal size is 2
-        list.add(test(0, 0, 2, Ordering.FIFO, null));
-        list.add(test(0, 0, SIZE, Ordering.FIFO, null));
+        list.add(test(1, 1, 0, Ordering.FIFO, null));// unbounded SPSC
+        list.add(test(0, 1, 0, Ordering.FIFO, null));// unbounded MPSC
+        
+        list.add(test(1, 1, 4, Ordering.FIFO, null));// SPSC size 4
+        list.add(test(1, 1, SIZE, Ordering.FIFO, null));// SPSC size SIZE
+        
+        list.add(test(1, 0, 1, Ordering.FIFO, null));// SPMC size 1
+        list.add(test(1, 0, SIZE, Ordering.FIFO, null));// SPMC size SIZE
+        
+//        list.add(test(0, 1, 1, Ordering.FIFO, null));
+//        list.add(test(0, 1, SIZE, Ordering.FIFO, null));
+//        
+//        // Compound queue minimal size is the core count
+//        list.add(test(0, 1, Runtime.getRuntime().availableProcessors(), Ordering.NONE, null));
+//        list.add(test(0, 1, SIZE, Ordering.NONE, null));
+//        
+//        // Mpmc minimal size is 2
+//        list.add(test(0, 0, 2, Ordering.FIFO, null));
+//        list.add(test(0, 0, SIZE, Ordering.FIFO, null));
         return list;
     }
 
@@ -103,6 +105,38 @@ public class MessagePassingQueueSanityTest {
                 sum -= e.intValue();
             }
             assertEquals(0, sum);
+        }
+    }
+    int count=0;
+    Integer p;
+    @Test
+    public void sanityDrainBatch() {
+        assertEquals(0, queue.drain(e->{},SIZE));
+        assertTrue(queue.isEmpty());
+        assertTrue(queue.size() == 0);
+        count=0;
+        int i = queue.fill(()->{return count++;},SIZE);
+        final int size = i;
+        assertEquals(size, queue.size());
+        if (spec.ordering == Ordering.FIFO) {
+            // expect FIFO
+            p = queue.relaxedPeek();
+            count = 0;
+            i = queue.drain(e->{
+                // batch consumption can cause size to differ from following expectation
+                // this is because elements are 'claimed' in a batch and their consumption lags
+                if (spec.consumers == 1) {
+                    assertEquals(p, e); // peek will return the post claim peek
+                    assertEquals(size - (count + 1), queue.size()); // size will return the post claim size
+                }
+                assertEquals(count++, e.intValue());
+                p = queue.relaxedPeek();
+            });
+            p = null;
+            assertEquals(size, i);
+            assertTrue(queue.isEmpty());
+            assertTrue(queue.size() == 0);
+        } else {
         }
     }
 
@@ -244,7 +278,143 @@ public class MessagePassingQueueSanityTest {
         assertEquals("reordering detected", 0, fail.value);
 
     }
+    @Test
+    public void testHappensBeforePrepetualDrain() throws Exception {
+        final AtomicBoolean stop = new AtomicBoolean();
+        final MessagePassingQueue q = queue;
+        final Val fail = new Val();
+        Thread t1 = new Thread(new Runnable() {
+            int counter;
+            @Override
+            public void run() {
+                while (!stop.get()) {
+                    for (int i = 1; i <= 10; i++) {
+                        Val v = new Val();
+                        v.value = i;
+                        q.relaxedOffer(v);
+                    }
+                }
+            }
+        });
+        Thread t2 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while (!stop.get()) {
+                    q.drain(e->{
+                        Val v = (Val)e;
+                        if (v != null && v.value == 0) {
+                            fail.value = 1;
+                            stop.set(true);
+                        }
+                    },
+                    e -> {return e;}, 
+                    () -> {return !stop.get();} );
+                }
+            }
+        });
 
+        t1.start();
+        t2.start();
+        Thread.sleep(1000);
+        stop.set(true);
+        t1.join();
+        t2.join();
+        assertEquals("reordering detected", 0, fail.value);
+
+    }
+
+    @Test
+    public void testHappensBeforePrepetualFill() throws Exception {
+        final AtomicBoolean stop = new AtomicBoolean();
+        final MessagePassingQueue q = queue;
+        final Val fail = new Val();
+        Thread t1 = new Thread(new Runnable() {
+            int counter;
+            @Override
+            public void run() {
+                counter=1;
+                q.fill(
+                  () -> {
+                    Val v = new Val();
+                    v.value = 1 + (counter++%10);
+                    return v;
+                  }, 
+                  e -> {return e;}, 
+                  () -> {return !stop.get();} );
+            }
+        });
+        Thread t2 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while (!stop.get()) {
+                    for (int i = 0; i < 10; i++) {
+                        Val v = (Val) q.relaxedPeek();
+                        if (v != null && v.value == 0) {
+                            fail.value = 1;
+                            stop.set(true);
+                        }
+                        q.relaxedPoll();
+                    }
+                }
+            }
+        });
+
+        t1.start();
+        t2.start();
+        Thread.sleep(1000);
+        stop.set(true);
+        t1.join();
+        t2.join();
+        assertEquals("reordering detected", 0, fail.value);
+
+    }
+    
+    @Test
+    public void testHappensBeforePrepetualFillDrain() throws Exception {
+        final AtomicBoolean stop = new AtomicBoolean();
+        final MessagePassingQueue q = queue;
+        final Val fail = new Val();
+        Thread t1 = new Thread(new Runnable() {
+            int counter;
+            @Override
+            public void run() {
+                counter=1;
+                q.fill(
+                  () -> {
+                    Val v = new Val();
+                    v.value = 1 + (counter++%10);
+                    return v;
+                  }, 
+                  e -> {return e;}, 
+                  () -> {return !stop.get();} );
+            }
+        });
+        Thread t2 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while (!stop.get()) {
+                    q.drain(e->{
+                        Val v = (Val)e;
+                        if (v != null && v.value == 0) {
+                            fail.value = 1;
+                            stop.set(true);
+                        }
+                    },
+                    e -> {return e;}, 
+                    () -> {return !stop.get();} );
+                }
+            }
+        });
+
+        t1.start();
+        t2.start();
+        Thread.sleep(1000);
+        stop.set(true);
+        t1.join();
+        t2.join();
+        assertEquals("reordering detected", 0, fail.value);
+
+    }
     private static Object[] test(int producers, int consumers, int capacity, Ordering ordering,
             Queue<Integer> q) {
         ConcurrentQueueSpec spec = new ConcurrentQueueSpec(producers, consumers, capacity, ordering,

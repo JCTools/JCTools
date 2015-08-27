@@ -60,10 +60,19 @@ public class MpqThroughputBackoffNone {
 		for (int i = 0; i < 128 + 100; i++) {
 			q.poll();
 		}
+	    // stretch the queue to the limit, working through resizing and full
+        for (int i = 0; i < 128 + 100; i++) {
+            q.relaxedOffer(ONE);
+        }
+        for (int i = 0; i < 128 + 100; i++) {
+            q.relaxedPoll();
+        }
 		// make sure the important common case is exercised
 		for (int i = 0; i < 20000; i++) {
-			q.offer(ONE);
-			q.poll();
+		    q.offer(ONE);
+            q.poll();
+            q.relaxedOffer(ONE);
+            q.relaxedPoll();
 		}
 		q = MessagePassingQueueByTypeFactory.createQueue(qType, qCapacity);
 	}
@@ -102,8 +111,8 @@ public class MpqThroughputBackoffNone {
 	}
 
 	@Benchmark
-	@Group("normal")
-	public void offer(OfferCounters counters) {
+	@Group("nor")
+	public void offerNoR(OfferCounters counters) {
 		if (!q.offer(ONE)) {
 			counters.offersFailed++;
 			backoff();
@@ -116,8 +125,8 @@ public class MpqThroughputBackoffNone {
 	}
 
 	@Benchmark
-	@Group("normal")
-	public void poll(PollCounters counters, ConsumerMarker cm) {
+	@Group("nor")
+	public void pollNoR(PollCounters counters, ConsumerMarker cm) {
 		Integer e = q.poll();
 		if (e == null) {
 			counters.pollsFailed++;
@@ -133,8 +142,8 @@ public class MpqThroughputBackoffNone {
 	}
 
 	@Benchmark
-	@Group("relaxed")
-	public void relaxedOffer(OfferCounters counters) {
+	@Group("bothr")
+	public void offerBothR(OfferCounters counters) {
 		if (!q.relaxedOffer(ONE)) {
 			counters.offersFailed++;
 			backoff();
@@ -147,8 +156,8 @@ public class MpqThroughputBackoffNone {
 	}
 
 	@Benchmark
-	@Group("relaxed")
-	public void relaxedPoll(PollCounters counters, ConsumerMarker cm) {
+	@Group("bothr")
+	public void pollBothR(PollCounters counters, ConsumerMarker cm) {
 		Integer e = q.relaxedPoll();
 		if (e == null) {
 			counters.pollsFailed++;
@@ -162,7 +171,67 @@ public class MpqThroughputBackoffNone {
 			Blackhole.consumeCPU(DELAY_CONSUMER);
 		}
 	}
+    @Benchmark
+    @Group("pr")
+    public void offerPR(OfferCounters counters) {
+        if (!q.relaxedOffer(ONE)) {
+            counters.offersFailed++;
+            backoff();
+        } else {
+            counters.offersMade++;
+        }
+        if (DELAY_PRODUCER != 0) {
+            Blackhole.consumeCPU(DELAY_PRODUCER);
+        }
+    }
 
+    @Benchmark
+    @Group("pr")
+    public void pollPR(PollCounters counters, ConsumerMarker cm) {
+        Integer e = q.poll();
+        if (e == null) {
+            counters.pollsFailed++;
+            backoff();
+        } else if (e == ONE) {
+            counters.pollsMade++;
+        } else {
+            escape = e;
+        }
+        if (DELAY_CONSUMER != 0) {
+            Blackhole.consumeCPU(DELAY_CONSUMER);
+        }
+    }
+    
+    @Benchmark
+    @Group("cr")
+    public void offerCR(OfferCounters counters) {
+        if (!q.offer(ONE)) {
+            counters.offersFailed++;
+            backoff();
+        } else {
+            counters.offersMade++;
+        }
+        if (DELAY_PRODUCER != 0) {
+            Blackhole.consumeCPU(DELAY_PRODUCER);
+        }
+    }
+
+    @Benchmark
+    @Group("cr")
+    public void pollCR(PollCounters counters, ConsumerMarker cm) {
+        Integer e = q.relaxedPoll();
+        if (e == null) {
+            counters.pollsFailed++;
+            backoff();
+        } else if (e == ONE) {
+            counters.pollsMade++;
+        } else {
+            escape = e;
+        }
+        if (DELAY_CONSUMER != 0) {
+            Blackhole.consumeCPU(DELAY_CONSUMER);
+        }
+    }
 	@TearDown(Level.Iteration)
 	public void emptyQ() {
 		if (marker.get() == null)

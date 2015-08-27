@@ -115,7 +115,7 @@ abstract class MpmcArrayConcurrentQueueColdFields<E> extends ConcurrentSequenced
             long currIndex;
             long sOffset;
 
-            for (;;) {
+            while(true) {
                 currIndex = lvProducerIndex();
                 sOffset = calcSequenceOffset(currIndex, mask);
                 long delta = lvSequence(sBuffer, sOffset) - currIndex;

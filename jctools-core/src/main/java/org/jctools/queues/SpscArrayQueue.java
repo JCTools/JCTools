@@ -14,11 +14,14 @@
 package org.jctools.queues;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
+import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
+import static org.jctools.util.UnsafeRefArrayAccess.soElement;
 
+import org.jctools.util.Pow2;
 import org.jctools.util.UnsafeRefArrayAccess;
 
 abstract class SpscArrayQueueColdField<E> extends ConcurrentCircularArrayQueue<E> {
-    static final Integer MAX_LOOK_AHEAD_STEP = Integer.getInteger("jctools.spsc.max.lookahead.step", 4096);
+    static final int MAX_LOOK_AHEAD_STEP = Integer.getInteger("jctools.spsc.max.lookahead.step", 4096);
     protected final int lookAheadStep;
     public SpscArrayQueueColdField(int capacity) {
         super(capacity);
@@ -98,7 +101,7 @@ public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E>  implement
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
     public SpscArrayQueue(final int capacity) {
-        super(capacity);
+        super(Math.max(Pow2.roundToPowerOfTwo(capacity), 4));
     }
 
     /**
@@ -114,18 +117,18 @@ public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E>  implement
         // local load of field to avoid repeated loads after volatile reads
         final E[] buffer = this.buffer;
         final long mask = this.mask;
-        final long index = producerIndex;
-        final long offset = calcElementOffset(index, mask);
-        if (index >= producerLookAhead) {
-            int step = lookAheadStep;
-            if (null == UnsafeRefArrayAccess.lvElement(buffer, calcElementOffset(index + step, mask))) {// LoadLoad
-                producerLookAhead = index + step;
+        final long producerIndex = this.producerIndex;
+        final long offset = calcElementOffset(producerIndex, mask);
+        if (producerIndex >= producerLookAhead) {
+            final int lookAheadStep = this.lookAheadStep;
+            if (null == UnsafeRefArrayAccess.lvElement(buffer, calcElementOffset(producerIndex + lookAheadStep, mask))) {// LoadLoad
+                producerLookAhead = producerIndex + lookAheadStep;
             }
             else if (null != UnsafeRefArrayAccess.lvElement(buffer, offset)){
                 return false;
             }
         }
-        soProducerIndex(index + 1); // ordered store -> atomic and ordered for size()
+        soProducerIndex(producerIndex + 1); // ordered store -> atomic and ordered for size()
         UnsafeRefArrayAccess.soElement(buffer, offset, e); // StoreStore
         return true;
     }
@@ -137,16 +140,27 @@ public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E>  implement
      */
     @Override
     public E poll() {
-        final long index = consumerIndex;
-        final long offset = calcElementOffset(index);
+        final long consumerIndex = this.consumerIndex;
+        final long offset = calcElementOffset(consumerIndex);
         // local load of field to avoid repeated loads after volatile reads
-        final E[] lElementBuffer = buffer;
-        final E e = UnsafeRefArrayAccess.lvElement(lElementBuffer, offset);// LoadLoad
+        final E[] buffer = this.buffer;
+        return consumeElement(consumerIndex, buffer, offset);
+    }
+
+    /**
+     * If next element is available, return it and update consumer index, otherwise retun null.
+     * @param consumerIndex
+     * @param buffer
+     * @param offset
+     * @return null if no element is available, or current element
+     */
+    private E consumeElement(final long consumerIndex, final E[] buffer, final long offset) {
+        final E e = UnsafeRefArrayAccess.lvElement(buffer, offset);// LoadLoad
         if (null == e) {
             return null;
         }
-        soConsumerIndex(index + 1); // ordered store -> atomic and ordered for size()
-        UnsafeRefArrayAccess.soElement(lElementBuffer, offset, null);// StoreStore
+        soConsumerIndex(consumerIndex + 1); // ordered store -> atomic and ordered for size()
+        soElement(buffer, offset, null);// StoreStore
         return e;
     }
 
@@ -219,4 +233,123 @@ public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E>  implement
 	public E relaxedPeek() {
 		return peek();
 	}
+
+    @Override
+    public int drain(final Consumer<E> c) {
+        return drain(c, (int) (mask + 1));
+    }
+    
+    @Override
+    public int fill(final Supplier<E> s) {
+        return fill(s, (int) (mask + 1));
+    }
+    
+    @Override
+    public int drain(final Consumer<E> c, final int limit) {
+        final E[] buffer = this.buffer;
+        final long mask = this.mask;
+        final long consumerIndex = this.consumerIndex;
+
+        for (int i = 0; i < limit; i++) {
+            final long index = consumerIndex + i;
+            final long offset = calcElementOffset(index, mask);
+            final E e = lvElement(buffer, offset);// LoadLoad
+            if (null == e) {
+                return i;
+            }
+            soConsumerIndex(index + 1); // ordered store -> atomic and ordered for size()
+            soElement(buffer, offset, null);// StoreStore
+            c.accept(e);
+        }
+        return limit;
+    }
+    
+    
+
+    @Override
+    public int fill(final Supplier<E> s, final int limit) {
+        final E[] buffer = this.buffer;
+        final long mask = this.mask;
+        final int lookAheadStep = this.lookAheadStep;
+        final long producerIndex = this.producerIndex;
+        
+        for (int i = 0; i < limit; i++) {
+            final long index = producerIndex + i;
+            final long lookAheadElementOffset = calcElementOffset(index + lookAheadStep, mask);
+            if (null == lvElement(buffer, lookAheadElementOffset)) {// LoadLoad
+                int lookAheadLimit = Math.min(lookAheadStep, limit - i); 
+                for (int j = 0; j < lookAheadLimit; j++) {
+                    final long offset = calcElementOffset(index + j, mask);
+                    soProducerIndex(index + j + 1); // ordered store -> atomic and ordered for size()
+                    soElement(buffer, offset, s.get()); // StoreStore
+                }
+                i += lookAheadLimit - 1;
+            }
+            else {
+                final long offset = calcElementOffset(index, mask);
+                if (null != lvElement(buffer, offset)){
+                    return i;
+                }
+                soProducerIndex(index + 1); // ordered store -> atomic and ordered for size()
+                soElement(buffer, offset, s.get()); // StoreStore
+            }
+            
+        }
+        return limit;
+    }
+    
+    @Override
+    public void drain(final Consumer<E> c, final WaitStrategy w, final ExitCondition exit) {
+        final E[] buffer = this.buffer;
+        final long mask = this.mask;
+        long consumerIndex = this.consumerIndex;
+
+        int counter = 0;
+        while (exit.keepRunning()) {
+            for (int i = 0; i < 4096; i++) {
+                final long offset = calcElementOffset(consumerIndex, mask);
+                final E e = lvElement(buffer, offset);// LoadLoad
+                if (null == e) {
+                    counter = w.idle(counter);
+                    continue;
+                }
+                consumerIndex++;
+                counter = 0;
+                soConsumerIndex(consumerIndex); // ordered store -> atomic and ordered for size()
+                soElement(buffer, offset, null);// StoreStore
+                c.accept(e);
+            }
+        }
+    }
+    
+    @Override
+    public void fill(final Supplier<E> s, final WaitStrategy w, final ExitCondition e) {
+        final E[] buffer = this.buffer;
+        final long mask = this.mask;
+        final int lookAheadStep = this.lookAheadStep;
+        long producerIndex = this.producerIndex;
+        int counter = 0;
+        while (e.keepRunning()) {
+            final long lookAheadElementOffset = calcElementOffset(producerIndex + lookAheadStep, mask);
+            if (null == lvElement(buffer, lookAheadElementOffset)) {// LoadLoad
+                for (int j = 0; j < lookAheadStep; j++) {
+                    final long offset = calcElementOffset(producerIndex, mask);
+                    producerIndex++;
+                    soProducerIndex(producerIndex); // ordered store -> atomic and ordered for size()
+                    soElement(buffer, offset, s.get()); // StoreStore
+                }
+            }
+            else {
+                final long offset = calcElementOffset(producerIndex, mask);
+                if (null != lvElement(buffer, offset)){// LoadLoad
+                    counter = w.idle(counter);
+                    continue;
+                }
+                producerIndex++;
+                counter=0;
+                soProducerIndex(producerIndex); // ordered store -> atomic and ordered for size()
+                soElement(buffer, offset, s.get()); // StoreStore
+            }
+        }
+    }
 }

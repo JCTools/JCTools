@@ -351,4 +351,63 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> implements
         long currConsumerIndex = lvConsumerIndex();
         return lpElement(buffer, calcElementOffset(currConsumerIndex));
 	}
+
+    @Override
+    public int drain(Consumer<E> c) {
+        final int limit = capacity();
+        return drain(c,limit);
+    }
+
+    @Override
+    public int fill(Supplier<E> s) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public int drain(Consumer<E> c, int limit) {
+        for (int i=0;i<limit;i++) {
+            E e = relaxedPoll();
+            if(e==null){
+                return i;
+            }
+            c.accept(e);
+        }
+        return limit;
+    }
+
+    @Override
+    public int fill(Supplier<E> s, int limit) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void drain(Consumer<E> c,
+            WaitStrategy wait,
+            ExitCondition exit) {
+        int idleCounter = 0;
+        while (exit.keepRunning()) {
+            E e = relaxedPoll();
+            if(e==null){
+                idleCounter = wait.idle(idleCounter);
+                continue;
+            }
+            idleCounter = 0;
+            c.accept(e);
+        }
+    }
+
+    @Override
+    public void fill(Supplier<E> s,
+            WaitStrategy wait,
+            ExitCondition exit) {
+        int idleCounter = 0;
+        while (exit.keepRunning()) {
+            E e = s.get();
+            while (!relaxedOffer(e)) {
+                idleCounter = wait.idle(idleCounter);
+                continue;
+            }
+            idleCounter = 0;    
+        }
+    }
 }
