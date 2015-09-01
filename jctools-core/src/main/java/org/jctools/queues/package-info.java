@@ -59,11 +59,24 @@
  * the extra reference chase and redundant boundary checks are considered too high a price to pay at this time.
  * </ol>
  * Both use cases should be made obsolete by VarHandles at some point.
- * 
- * <b>Avoiding redundant loads of fields<b/>
+ * <p>
+ * <b>Avoiding redundant loads of fields</b><br>
  * Because a volatile load will force any following field access to reload the field value an effort is made to cache field values in local variables
  * where possible and expose interfaces which allow the code to capitalize on such caching. As a convention the local variable name will be the field
  * name and will be final.
+ * <p>
+ * <b>Method naming conventions</b><br>
+ * The following convention is followed in method naming to highlight volatile/ordered/plain access to fields:
+ * <ol>
+ * <li> lpFoo/spFoo: these will be plain load or stores to the field. No memory ordering is needed or expected.
+ * <li> soFoo: this is an ordered stored to the field (like {@link java.util.concurrent.atomic.AtomicInteger#lazySet(int)}). Implies an ordering of
+ * stores (StoreStore barrier before the store).
+ * <li> lv/svFoo: these are volatile load/store. A store implies a StoreLoad barrier, a load implies LoadLoad barrier before and LoadStore after.
+ * <li> casFoo: compare and swap the field. StoreLoad if successful. See {@link java.util.concurrent.atomic.AtomicInteger#compareAndSet(int, int)}
+ * <li> xchgFoo: atomically get and set the field. Effectively a StoreLoad. See {@link java.util.concurrent.atomic.AtomicInteger#getAndSet(int)}
+ * <li> xaddFoo: atomically get and add to the field. Effectively a StoreLoad. See {@link java.util.concurrent.atomic.AtomicInteger#getAndAdd(int)}
+ * </ol>
+ * It is generally expected that a volatile load signals the acquire of a field previously released by a non-plain store.
  * @author nitsanw
  */
 package org.jctools.queues;
