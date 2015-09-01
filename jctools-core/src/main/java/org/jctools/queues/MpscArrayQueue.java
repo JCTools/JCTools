@@ -129,8 +129,6 @@ abstract class MpscArrayQueueConsumerField<E> extends MpscArrayQueueL2Pad<E> {
  * @param <E>
  */
 public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements QueueProgressIndicators {
-    private final static int RECOMENDED_OFFER_BATCH = Runtime.getRuntime().availableProcessors() * 4;
-    
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
     public MpscArrayQueue(final int capacity) {
@@ -375,7 +373,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements
         long result = 0;// result is a long because we want to have a safepoint check at regular intervals
         final int capacity = capacity();
         do {
-            final int filled = fill(s, RECOMENDED_OFFER_BATCH);
+            final int filled = fill(s, MpmcArrayQueue.RECOMENDED_OFFER_BATCH);
             if (filled == 0) {
                 return (int) result;
             }
@@ -467,12 +465,12 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements
 
     @Override
     public void fill(Supplier<E> s,
-            WaitStrategy wait,
+            WaitStrategy w,
             ExitCondition exit) {
         int idleCounter = 0;
         while (exit.keepRunning()) {
-            if (fill(s, RECOMENDED_OFFER_BATCH) == 0) {
-                idleCounter = wait.idle(idleCounter);
+            if (fill(s, MpmcArrayQueue.RECOMENDED_OFFER_BATCH) == 0) {
+                idleCounter = w.idle(idleCounter);
                 continue;
             }
             idleCounter = 0;    

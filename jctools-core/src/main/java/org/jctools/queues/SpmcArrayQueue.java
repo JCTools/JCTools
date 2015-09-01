@@ -129,7 +129,6 @@ abstract class SpmcArrayQueueL3Pad<E> extends SpmcArrayQueueProducerIndexCacheFi
 }
 
 public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueueProgressIndicators {
-    private final static int RECOMENDED_POLL_BATCH = Runtime.getRuntime().availableProcessors() * 4;
     public SpmcArrayQueue(final int capacity) {
         super(capacity);
     }
@@ -286,7 +285,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
         int sum = 0;
         while (sum < capacity) {
             int drained = 0;
-            if((drained = drain(c, RECOMENDED_POLL_BATCH)) == 0) {
+            if((drained = drain(c, MpmcArrayQueue.RECOMENDED_POLL_BATCH)) == 0) {
                 break;
             }
             sum+=drained;
@@ -354,13 +353,13 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
         final E[] buffer = this.buffer;
         final long mask = this.mask;
 
-        int counter = 0;
+        int idleCounter = 0;
         while (exit.keepRunning()) {
-            int drained = 0;
-            if((drained = drain(c, RECOMENDED_POLL_BATCH)) == 0) {
-                counter = w.idle(counter);
+            if(drain(c, MpmcArrayQueue.RECOMENDED_POLL_BATCH) == 0) {
+                idleCounter = w.idle(idleCounter);
                 continue;
             }
+            idleCounter = 0;
         }
     }
     
