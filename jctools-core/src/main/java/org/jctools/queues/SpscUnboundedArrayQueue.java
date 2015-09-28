@@ -126,7 +126,7 @@ public class SpscUnboundedArrayQueue<E> extends SpscUnboundedArrayQueueConsumerF
             if (null == lvElement(buffer, lookAheadElementOffset)) {// LoadLoad
                 producerLookAhead = index + lookAheadStep - 1; // joy, there's plenty of room
                 writeToQueue(buffer, e, index, offset);
-            } else if (null != lvElement(buffer, calcWrappedOffset(index + 1, mask))) { // buffer is not full
+            } else if (null == lvElement(buffer, calcWrappedOffset(index + 1, mask))) { // buffer is not full
                 writeToQueue(buffer, e, index, offset);
             } else {
                 linkNewBuffer(buffer, index, offset, e, mask); // add a buffer and link old to new
