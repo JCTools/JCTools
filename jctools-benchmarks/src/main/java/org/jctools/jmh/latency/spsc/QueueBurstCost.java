@@ -37,7 +37,7 @@ import org.openjdk.jmh.annotations.Warmup;
 @Warmup(iterations = 10, time = 1, timeUnit = TimeUnit.SECONDS)
 @Measurement(iterations = 10, time = 1, timeUnit = TimeUnit.SECONDS)
 @SuppressWarnings("serial")
-public class BenchmarkBurstCost {
+public class QueueBurstCost {
     abstract static class AbstractEvent extends AtomicBoolean {
         abstract void handle();
     }
@@ -79,7 +79,7 @@ public class BenchmarkBurstCost {
     static final Go GO = new Go();
     final Stop stop = new Stop();
 
-    @Param({ "SpscArrayQueue", "MpmcArrayQueue", "ConcurrentLinkedQueue" })
+    @Param({ "SpscArrayQueue", "MpscArrayQueue", "SpmcArrayQueue", "MpmcArrayQueue" })
     String qType;
 
     @Param({ "1", "10", "100", "1000" })
