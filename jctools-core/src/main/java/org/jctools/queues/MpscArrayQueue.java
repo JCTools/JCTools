@@ -106,6 +106,10 @@ abstract class MpscArrayQueueConsumerField<E> extends MpscArrayQueueL2Pad<E> {
         super(capacity);
     }
 
+    protected final long lpConsumerIndex() {
+        return consumerIndex;
+    }
+
     protected final long lvConsumerIndex() {
         return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
     }
@@ -123,9 +127,9 @@ abstract class MpscArrayQueueConsumerField<E> extends MpscArrayQueueL2Pad<E> {
  * This implementation is using the <a href="http://sourceforge.net/projects/mc-fastflow/">Fast Flow</a>
  * method for polling from the queue (with minor change to correctly publish the index) and an extension of
  * the Leslie Lamport concurrent queue algorithm (originated by Martin Thompson) on the producer side.<br>
- * 
+ *
  * @author nitsanw
- * 
+ *
  * @param <E>
  */
 public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements QueueProgressIndicators {
@@ -137,11 +141,11 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements
 
     /**
      * {@inheritDoc} <br>
-     * 
+     *
      * IMPLEMENTATION NOTES:<br>
      * Lock free offer using a single CAS. As class name suggests access is permitted to many threads
      * concurrently.
-     * 
+     *
      * @see java.util.Queue#offer(java.lang.Object)
      * @see MessagePassingQueue#offer(Object)
      */
@@ -184,7 +188,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements
 
     /**
      * A wait free alternative to offer which fails on CAS failure.
-     * 
+     *
      * @param e new element, not null
      * @return 1 if next element cannot be filled, -1 if CAS failed, 0 if successful
      */
@@ -222,13 +226,13 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements
      * <p>
      * IMPLEMENTATION NOTES:<br>
      * Lock free poll using ordered loads/stores. As class name suggests access is limited to a single thread.
-     * 
+     *
      * @see java.util.Queue#poll()
      * @see MessagePassingQueue#poll()
      */
     @Override
     public E poll() {
-        final long consumerIndex = lvConsumerIndex(); // LoadLoad
+        final long consumerIndex = lpConsumerIndex();
         final long offset = calcElementOffset(consumerIndex);
         // Copy field to avoid re-reading after volatile load
         final E[] buffer = this.buffer;
@@ -260,7 +264,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements
      * <p>
      * IMPLEMENTATION NOTES:<br>
      * Lock free peek using ordered loads. As class name suggests access is limited to a single thread.
-     * 
+     *
      * @see java.util.Queue#poll()
      * @see MessagePassingQueue#poll()
      */
@@ -269,7 +273,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements
         // Copy field to avoid re-reading after volatile load
         final E[] buffer = this.buffer;
 
-        final long consumerIndex = lvConsumerIndex(); // LoadLoad
+        final long consumerIndex = lpConsumerIndex(); // LoadLoad
         final long offset = calcElementOffset(consumerIndex);
         E e = lvElement(buffer, offset);
         if (null == e) {
@@ -292,7 +296,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements
     /**
      * {@inheritDoc}
      * <p>
-     * 
+     *
      */
     @Override
     public int size() {
@@ -322,17 +326,17 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements
         // something we can fix here.
         return (lvConsumerIndex() == lvProducerIndex());
     }
-    
+
     @Override
     public long currentProducerIndex() {
         return lvProducerIndex();
     }
-    
+
     @Override
     public long currentConsumerIndex() {
         return lvConsumerIndex();
     }
-    
+
 	@Override
 	public boolean relaxedOffer(E e) {
         return offer(e);
@@ -341,7 +345,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements
 	@Override
 	public E relaxedPoll() {
 		final E[] buffer = this.buffer;
-		final long consumerIndex = this.consumerIndex; // LoadLoad
+		final long consumerIndex = lpConsumerIndex();
         final long offset = calcElementOffset(consumerIndex);
 
         // If we can't see the next available element we can't poll
@@ -359,7 +363,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements
     public E relaxedPeek() {
     	final E[] buffer = this.buffer;
 		final long mask = this.mask;
-        final long consumerIndex = lvConsumerIndex();
+        final long consumerIndex = lpConsumerIndex();
         return lvElement(buffer, calcElementOffset(consumerIndex, mask));
 	}
 
@@ -387,7 +391,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements
     public int drain(final Consumer<E> c, final int limit) {
         final E[] buffer = this.buffer;
         final long mask = this.mask;
-        final long consumerIndex = this.consumerIndex;
+        final long consumerIndex = lpConsumerIndex();
 
         for (int i = 0; i < limit; i++) {
             final long index = consumerIndex + i;
@@ -443,7 +447,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements
             ExitCondition exit) {
         final E[] buffer = this.buffer;
         final long mask = this.mask;
-        long consumerIndex = this.consumerIndex;
+        long consumerIndex = lpConsumerIndex();
 
         int counter = 0;
         while (exit.keepRunning()) {
@@ -473,7 +477,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements
                 idleCounter = w.idle(idleCounter);
                 continue;
             }
-            idleCounter = 0;    
+            idleCounter = 0;
         }
     }
 }
