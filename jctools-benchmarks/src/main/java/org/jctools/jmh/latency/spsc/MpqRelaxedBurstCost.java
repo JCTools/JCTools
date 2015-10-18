@@ -71,7 +71,7 @@ public class MpqRelaxedBurstCost {
             final MessagePassingQueue<AbstractEvent> q = this.q;
             while (isRunning) {
                 AbstractEvent e = null;
-                while ((e = q.poll()) == null);
+                while ((e = q.relaxedPoll()) == null);
                 e.handle();
             }
         }
@@ -98,15 +98,15 @@ public class MpqRelaxedBurstCost {
 
         // stretch the queue to the limit, working through resizing and full
         for (int i = 0; i < 128 + 100; i++) {
-            q.offer(GO);
+            q.relaxedOffer(GO);
         }
         for (int i = 0; i < 128 + 100; i++) {
-            q.poll();
+            q.relaxedPoll();
         }
         // make sure the important common case is exercised
         for (int i = 0; i < 20000; i++) {
-            q.offer(GO);
-            q.poll();
+            q.relaxedOffer(GO);
+            q.relaxedPoll();
         }
         q = MessagePassingQueueByTypeFactory.createQueue(qType, 128 * 1024);
         consumer = new Consumer(q);
@@ -133,7 +133,7 @@ public class MpqRelaxedBurstCost {
     @TearDown
     public void killConsumer() throws InterruptedException {
         consumer.isRunning = false;
-        while (!q.offer(GO));
+        while (!q.relaxedOffer(GO));
         consumerThread.join();
     }
 }
