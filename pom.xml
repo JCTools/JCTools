@@ -92,8 +92,8 @@
     <distributionManagement>
         <repository>
             <id>bintray-jctools-jctools</id>
-            <name>jctools-jctools-jctools-parent</name>
-            <url>https://api.bintray.com/maven/jctools/jctools/jctools-parent</url>
+            <name>jctools-jctools-jctools</name>
+            <url>https://api.bintray.com/maven/jctools/jctools</url>
         </repository>
     </distributionManagement>
 </project>
