@@ -4,7 +4,7 @@
 	<parent>
 		<groupId>org.jctools</groupId>
 		<artifactId>jctools-parent</artifactId>
-		<version>1.1-SNAPSHOT</version>
+		<version>1.2-SNAPSHOT</version>
 	</parent>
 	<artifactId>jctools-benchmarks</artifactId>
 	<packaging>jar</packaging>
