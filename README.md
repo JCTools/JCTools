@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/JCTools/JCTools.svg?branch=master)](https://travis-ci.org/JCTools/JCTools)
+
 JCTools
 ==========
 
@@ -10,61 +11,36 @@ the JDK:
 - Offheap concurrent ring buffer for ITC/IPC purposes (experimental)
 - Executor (planned)
 
-And so on...
+JCTools offers excellent performance at a reasonable price (FREE! under the Apache 2.0 License). It's stable and in use by such distiguished frameworks as Netty, RxJava and others. JCTools is also used by commercial products to great result.
 
-Build
+Get it NOW!
+==========
+
+Add the latest version as a dependency using Maven:
+```xml
+        <dependency>
+            <groupId>org.jctools</groupId>
+            <artifactId>jctools-core</artifactId>
+            <version>1.1</version>
+        </dependency>
+```
+
+
+Build it from source
 ==========
 JCTools is maven built and requires an existing Maven installation and JDK8 (only for building, runtime is 1.6 compliant).
 
 With 'MAVEN_HOME/bin' on the path and JDK8 set to your 'JAVA_HOME' you should be able to run "mvn install" from this
 directory.
 
-Install
-==========
-
-Add as a dependency using Maven:
-```xml
-        <dependency>
-            <groupId>org.jctools</groupId>
-            <artifactId>jctools-core</artifactId>
-            <version>1.0</version>
-        </dependency>
-```
-Or using Jitpack:
-```xml
-	<repository>
-	    <id>jitpack.io</id>
-	    <url>https://jitpack.io</url>
-	</repository>
-```
-You can get the same version:
-```xml
-	<dependency>
-	    <groupId>com.github.JCTools</groupId>
-	    <artifactId>JCTools</artifactId>
-	    <version>1.0</version>
-	</dependency>
-```
-Or the latest from master (which is alpha state):
-```xml
-	<dependency>
-	    <groupId>com.github.JCTools</groupId>
-	    <artifactId>JCTools</artifactId>
-	    <version>v1.1-alpha</version>
-	</dependency>
-```
-
-Latest code will be released via Jitpack with more official releases going through the Maven Central path too.
 
 Benchmarks
 ==========
 JCTools is benchmarked using both JMH benchmarks and handrolled harnesses. The benchmarks and related instructions can be
-found in the jctools-benchmarks module. Instructions included in the module README.
+found in the jctools-benchmarks module README. Go wild and please let us know how it did on your hardware.
 
-Experimental
+Come up to the lab...
 ==========
 Experimental work is available under the jctools-experimental module. Most of the stuff is developed with an eye to eventually
 porting it to the core where it will be stabilized and released, but some implementations are kept purely for reference and
-some may never graduate.
-
-
+some may never graduate. Beware the Jabberwock my child.
