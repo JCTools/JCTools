@@ -5,7 +5,7 @@
 	<groupId>org.jctools</groupId>
 	<artifactId>jctools-parent</artifactId>
 	<packaging>pom</packaging>
-	<version>1.1-SNAPSHOT</version>
+	<version>1.2-SNAPSHOT</version>
 	<name>JCTools Parent</name>
 	<organization>
 		<url>https://github.com/JCTools</url>
@@ -28,34 +28,11 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
 
-    <scm>
-        <url>https://github.com/JCTools/JCTools</url>
-        <connection>scm:git:https://github.com/JCTools/JCTools</connection>
-    </scm>
-    
-    <developers>
-       <developer><url>https://github.com/nitsanw</url></developer>
-       <developer><url>https://github.com/mjpt777</url></developer>
-       <developer><url>https://github.com/RichardWarburton</url></developer>
-    </developers>
-    
 	<modules>
 		<module>jctools-core</module>
+        <module>jctools-experimental</module>
+        <module>jctools-benchmarks</module>
 	</modules>
-	<profiles>
-		<profile>
-			<id>experimental</id>
-			<modules>
-				<module>jctools-experimental</module>
-			</modules>
-		</profile>
-		<profile>
-			<id>benchmarks</id>
-			<modules>
-				<module>jctools-benchmarks</module>
-			</modules>
-		</profile>
-	</profiles>
 	<build>
 		<plugins>
 			<plugin>
@@ -89,11 +66,4 @@
 			</plugin>
 		</plugins>
 	</build>
-    <distributionManagement>
-        <repository>
-            <id>bintray-jctools-jctools</id>
-            <name>jctools-jctools-jctools</name>
-            <url>https://api.bintray.com/maven/jctools/jctools</url>
-        </repository>
-    </distributionManagement>
 </project>

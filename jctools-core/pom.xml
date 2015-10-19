@@ -1,36 +1,45 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<modelVersion>4.0.0</modelVersion>
-	<parent>
-		<groupId>org.jctools</groupId>
-		<artifactId>jctools-parent</artifactId>
-		<version>1.1-SNAPSHOT</version>
-	</parent>
+	<groupId>org.jctools</groupId>
 	<artifactId>jctools-core</artifactId>
 	<name>Java Concurrency Tools Core Library</name>
 	<description>Java Concurrency Tools Core Library</description>
+	<version>1.2-SNAPSHOT</version>
 	<packaging>jar</packaging>
+	<url>https://github.com/JCTools</url>
+	<inceptionYear>2013</inceptionYear>
+
+	<licenses>
+		<license>
+			<name>Apache License, Version 2.0</name>
+			<url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+			<distribution>repo</distribution>
+		</license>
+	</licenses>
+
+	<prerequisites>
+		<maven>3.0</maven>
+	</prerequisites>
+
 	<properties>
-        <maven.compiler.source>1.6</maven.compiler.source>
-        <maven.compiler.target>1.6</maven.compiler.target>
-        <maven.compiler.testSource>1.8</maven.compiler.testSource>
-        <maven.compiler.testTarget>1.8</maven.compiler.testTarget>
-    </properties>
-    <dependencies>
-       <dependency>
-            <groupId>org.hamcrest</groupId>
-            <artifactId>hamcrest-all</artifactId>
-            <version>1.3</version>
-           <scope>test</scope>
-       </dependency>
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>4.11</version>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
-    
+		<maven.compiler.source>1.6</maven.compiler.source>
+		<maven.compiler.target>1.6</maven.compiler.target>
+		<maven.compiler.testSource>1.8</maven.compiler.testSource>
+		<maven.compiler.testTarget>1.8</maven.compiler.testTarget>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+	</properties>
+
+	<scm>
+		<url>https://github.com/JCTools/JCTools</url>
+		<connection>scm:git:https://github.com/JCTools/JCTools</connection>
+	</scm>
+
+	<developers>
+		<developer><url>https://github.com/nitsanw</url></developer>
+		<developer><url>https://github.com/mjpt777</url></developer>
+		<developer><url>https://github.com/RichardWarburton</url></developer>
+	</developers>
 	<build>
 		<plugins>
 			<plugin>
@@ -52,7 +61,7 @@
 				<artifactId>maven-javadoc-plugin</artifactId>
 				<version>2.9.1</version>
 				<configuration>
-				    <additionalparam>-Xdoclint:none</additionalparam>
+					<additionalparam>-Xdoclint:none</additionalparam>
 				</configuration>
 				<executions>
 					<execution>
@@ -63,7 +72,29 @@
 					</execution>
 				</executions>
 			</plugin>
-        </plugins>
-    </build>
+		</plugins>
+	</build>
+	<dependencies>
+		<dependency>
+			<groupId>org.hamcrest</groupId>
+			<artifactId>hamcrest-all</artifactId>
+			<version>1.3</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>4.11</version>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+	<!--  distributionManagement>
+		<repository>
+			<id>bintray-jctools-jctools</id>
+			<name>jctools-jctools-jctools-core</name>
+			<url>https://api.bintray.com/maven/jctools/jctools/jctools-core</url>
+		</repository>
+	</distributionManagement -->
 </project>
 
