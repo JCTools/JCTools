@@ -140,6 +140,50 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements
     }
 
     /**
+     * Attempts {@link MpscArrayQueue#offer(E)}} if and only if
+     * the current availability is above the threshold.
+     *
+     * @param e the object to offer onto the queue.
+     * @param threshold as absolute number to be compared to the current queue size.
+     * @return whether the offer is successful.
+     * @since 1.0.1
+     */
+    public boolean offerIfBelowTheshold(final E e, int threshold) {
+        if (null == e) {
+            throw new NullPointerException("Null is not a valid element");
+        }
+        // use a cached view on consumer index (potentially updated in loop)
+        final long mask = this.mask;
+        long consumerIndexCache = lvConsumerIndexCache(); // LoadLoad
+        long currentProducerIndex;
+        do {
+            currentProducerIndex = lvProducerIndex(); // LoadLoad
+            final long wrapPoint = currentProducerIndex - threshold;
+            if (consumerIndexCache <= wrapPoint) {
+                final long currHead = lvConsumerIndex(); // LoadLoad
+                if (currHead <= wrapPoint) {
+                    return false; // FULL :(
+                }
+                else {
+                    // update shared cached value of the consumerIndex
+                    svConsumerIndexCache(currHead); // StoreLoad
+                    // update on stack copy, we might need this value again if we lose the CAS.
+                    consumerIndexCache = currHead;
+                }
+            }
+        } while (!casProducerIndex(currentProducerIndex, currentProducerIndex + 1));
+        /*
+         * NOTE: the new producer index value is made visible BEFORE the element in the array. If we relied on
+         * the index visibility to poll() we would need to handle the case where the element is not visible.
+         */
+
+        // Won CAS, move on to storing
+        final long offset = calcElementOffset(currentProducerIndex, mask);
+        soElement(buffer, offset, e); // StoreStore
+        return true; // AWESOME :)
+    }
+
+    /**
      * {@inheritDoc} <br>
      *
      * IMPLEMENTATION NOTES:<br>
