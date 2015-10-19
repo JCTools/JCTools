@@ -24,9 +24,9 @@ package org.jctools.queues;
  * </ol>
  * The queue is initialized with a stub node which is set to both the producer and consumer node references.
  * From this point follow the notes on offer/poll.
- * 
+ *
  * @author nitsanw
- * 
+ *
  * @param <E>
  */
 public class SpscLinkedQueue<E> extends BaseLinkedQueue<E> {
@@ -39,7 +39,7 @@ public class SpscLinkedQueue<E> extends BaseLinkedQueue<E> {
 
     /**
      * {@inheritDoc} <br>
-     * 
+     *
      * IMPLEMENTATION NOTES:<br>
      * Offer is allowed from a SINGLE thread.<br>
      * Offer allocates a new node (holding the offered value) and:
@@ -48,7 +48,7 @@ public class SpscLinkedQueue<E> extends BaseLinkedQueue<E> {
      * <li>Sets the new node as the producerNode
      * </ol>
      * From this follows that producerNode.next is always null and for all other nodes node.next is not null.
-     * 
+     *
      * @see MessagePassingQueue#offer(Object)
      * @see java.util.Queue#offer(java.lang.Object)
      */
@@ -65,7 +65,7 @@ public class SpscLinkedQueue<E> extends BaseLinkedQueue<E> {
 
     /**
      * {@inheritDoc} <br>
-     * 
+     *
      * IMPLEMENTATION NOTES:<br>
      * Poll is allowed from a SINGLE thread.<br>
      * Poll reads the next node from the consumerNode and:
@@ -76,7 +76,7 @@ public class SpscLinkedQueue<E> extends BaseLinkedQueue<E> {
      * This means the consumerNode.value is always null, which is also the starting point for the queue.
      * Because null values are not allowed to be offered this is the only node with it's value set to null at
      * any one time.
-     * 
+     *
      */
     @Override
     public E poll() {
@@ -163,7 +163,7 @@ public class SpscLinkedQueue<E> extends BaseLinkedQueue<E> {
         }
         return limit;
     }
-    
+
     @Override
     public void drain(Consumer<E> c, WaitStrategy wait, ExitCondition exit) {
         LinkedQueueNode<E> chaserNode = this.consumerNode;
@@ -184,7 +184,7 @@ public class SpscLinkedQueue<E> extends BaseLinkedQueue<E> {
             }
         }
     }
-    
+
     @Override
     public void fill(Supplier<E> s, WaitStrategy wait, ExitCondition exit) {
         LinkedQueueNode<E> chaserNode = producerNode;

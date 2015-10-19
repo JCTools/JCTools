@@ -17,9 +17,9 @@ import static org.jctools.util.UnsafeAccess.UNSAFE;
 
 /**
  * @see MpscLinkedQueue
- *  
+ *
  * @author nitsanw
- * 
+ *
  * @param <E>
  */
 public class MpscLinkedQueue8<E> extends MpscLinkedQueue<E> {

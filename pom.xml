@@ -56,7 +56,6 @@
 			</modules>
 		</profile>
 	</profiles>
-
 	<build>
 		<plugins>
 			<plugin>
