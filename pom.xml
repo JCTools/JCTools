@@ -89,4 +89,11 @@
 			</plugin>
 		</plugins>
 	</build>
+    <distributionManagement>
+        <repository>
+            <id>bintray-jctools-jctools</id>
+            <name>jctools-jctools</name>
+            <url>https://api.bintray.com/maven/jctools/jctools</url>
+        </repository>
+    </distributionManagement>
 </project>
