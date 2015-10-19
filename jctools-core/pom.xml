@@ -68,7 +68,7 @@
 
     <distributionManagement>
         <repository>
-            <id>bintray-jctools-jctools-jctools-core</id>
+            <id>bintray-jctools-jctools</id>
             <name>jctools-jctools-jctools-core</name>
             <url>https://api.bintray.com/maven/jctools/jctools/jctools-core</url>
         </repository>
