@@ -2,20 +2,22 @@
 
 JCTools
 ==========
-
 Java Concurrency Tools for the JVM. This project aims to offer some concurrent data structures currently missing from
 the JDK:
-- Bounded lock free queues
-- SPSC/MPSC/SPMC/MPMC variations for concurrent queues
-- Alternative interfaces for queues (experimental)
-- Offheap concurrent ring buffer for ITC/IPC purposes (experimental)
-- Executor (planned)
-
+- SPSC/MPSC/SPMC/MPMC variations for concurrent queues:
+  * SPSC - Single Producer Single Consumer (Wait Free, bounded and unbounded)
+  * MPSC - Multi Producer Single Consumer (Lock less, bounded and unbounded)
+  * SPMC - Single Producer Multi Consumer (Lock less, bounded)
+  * MPMC - Multi Producer Multi Consumer (Lock less, bounded)
+- An expanded queue interface (MessagePassingQueue):
+  * relaxedOffer/Peek/Poll: trade off conflated guarantee on full/empty queue state with improved performance.
+  * drain/fill: batch read and write methods for increased throughput and reduced contention
+  
+There's more to come and contributions/suggestions are most welcome.
 JCTools offers excellent performance at a reasonable price (FREE! under the Apache 2.0 License). It's stable and in use by such distiguished frameworks as Netty, RxJava and others. JCTools is also used by commercial products to great result.
 
 Get it NOW!
 ==========
-
 Add the latest version as a dependency using Maven:
 ```xml
         <dependency>
@@ -24,15 +26,8 @@ Add the latest version as a dependency using Maven:
             <version>1.1</version>
         </dependency>
 ```
-Or use the awesome, built from source, <https://jitpack.io/> version:
-```xml
-        <dependency>
-            <groupId>com.github.JCTools.JCTools</groupId>
-            <artifactId>jctools-core</artifactId>
-            <version>1.1</version>
-        </dependency>
-```
-You'll need to add the Jitpack repository:
+
+Or use the awesome, built from source, <https://jitpack.io/> version, you'll need to add the Jitpack repository:
 ```xml
         <repository>
           <id>jitpack.io</id>
@@ -40,6 +35,16 @@ You'll need to add the Jitpack repository:
         </repository>
 ```
 
+And setup the following dependency:
+```xml
+        <dependency>
+            <groupId>com.github.JCTools.JCTools</groupId>
+            <artifactId>jctools-core</artifactId>
+            <version>1.1</version>
+        </dependency>
+```
+
+You can also depepnd on latest snapshot from this repository (live on the edge) by setting the version to '1.2-SNAPSHOT'.
 
 
 Build it from source
