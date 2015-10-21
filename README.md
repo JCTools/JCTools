@@ -24,6 +24,22 @@ Add the latest version as a dependency using Maven:
             <version>1.1</version>
         </dependency>
 ```
+Or use the awesome, built from source, <https://jitpack.io/> version:
+```xml
+        <dependency>
+            <groupId>com.github.JCTools.JCTools</groupId>
+            <artifactId>jctools-core</artifactId>
+            <version>1.1</version>
+        </dependency>
+```
+You'll need to add the Jitpack repository:
+```xml
+        <repository>
+          <id>jitpack.io</id>
+           <url>https://jitpack.io</url>
+        </repository>
+```
+
 
 
 Build it from source
