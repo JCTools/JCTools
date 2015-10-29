@@ -92,7 +92,7 @@ public class NonBlockMpmcTransferArrayQueuePerfTest {
 
 
         long duration = end - start;
-        long ops = repetitions * 1_000_000_000L / duration;
+        long ops = repetitions * 1000000000L / duration;
         String qName = queue.getClass().getSimpleName();
 
         if (showStats) {
@@ -136,7 +136,6 @@ public class NonBlockMpmcTransferArrayQueuePerfTest {
             this.repetitions = repetitions;
         }
 
-        @Override
         public void run() {
             MpmcTransferArrayQueue<Integer> consumer = this.queue;
             int i = this.repetitions;
