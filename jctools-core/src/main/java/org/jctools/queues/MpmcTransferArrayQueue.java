@@ -16,100 +16,24 @@
 package org.jctools.queues;
 
 import java.util.Random;
+import java.util.concurrent.LinkedTransferQueue;
+import java.util.concurrent.locks.LockSupport;
 
 import org.jctools.util.UnsafeAccess;
 
 @SuppressWarnings("unused")
-abstract class CI1<E> {
+abstract class MpmcTransferQueueNodeColdItem<E> {
     private int type = 0;
     private E item = null;
 }
 
-abstract class P0<E> extends CI1<E> {
+abstract class MpmcTransferQueueNodePad<E> extends MpmcTransferQueueNodeColdItem<E> {
     volatile long y0, y1, y2, y4, y5, y6 = 7L;
 }
 
 @SuppressWarnings("unused")
-abstract class HI0<E> extends P0<E> {
+abstract class MpmcTransferQueueNodeHotItem<E> extends MpmcTransferQueueNodePad<E> {
     private Thread thread;
-}
-
-class Node<E> extends HI0<E> {
-    private static final long TYPE;
-    private static final long ITEM;
-    private static final long THREAD;
-
-    static {
-        try {
-            TYPE = UnsafeAccess.UNSAFE.objectFieldOffset(CI1.class.getDeclaredField("type"));
-            ITEM = UnsafeAccess.UNSAFE.objectFieldOffset(CI1.class.getDeclaredField("item"));
-            THREAD = UnsafeAccess.UNSAFE.objectFieldOffset(HI0.class.getDeclaredField("thread"));
-
-            // now make sure we can access UNSAFE entries
-            @SuppressWarnings("rawtypes")
-            Node node = new Node();
-            Object o = new Object();
-            spItem(node, o);
-            Object lpItem1 = lpItem(node);
-            spItem(node, null);
-
-            if (lpItem1 != o) {
-                throw new Exception("Cannot access unsafe fields");
-            }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    static final void spItem(Object node, Object item) {
-        UnsafeAccess.UNSAFE.putObject(node, ITEM, item);
-    }
-
-    static final void soItem(Object node, Object item) {
-        UnsafeAccess.UNSAFE.putOrderedObject(node, ITEM, item);
-    }
-
-    // only used by the single take() method. Not used by the void take(node)
-    static final Object lvItem(Object node) {
-        return UnsafeAccess.UNSAFE.getObjectVolatile(node, ITEM);
-    }
-
-    static final Object lpItem(Object node) {
-        return UnsafeAccess.UNSAFE.getObject(node, ITEM);
-    }
-
-
-    //////////////
-    static final void spType(Object node, int type) {
-        UnsafeAccess.UNSAFE.putInt(node, TYPE, type);
-    }
-
-    static final int lpType(Object node) {
-        return UnsafeAccess.UNSAFE.getInt(node, TYPE);
-    }
-
-    ///////////
-    static final void spThread(Object node, Object thread) {
-        UnsafeAccess.UNSAFE.putObject(node, THREAD, thread);
-    }
-
-    static final void soThread(Object node, Object thread) {
-        UnsafeAccess.UNSAFE.putOrderedObject(node, THREAD, thread);
-    }
-
-    static final Object lpThread(Object node) {
-        return UnsafeAccess.UNSAFE.getObject(node, THREAD);
-    }
-
-    static final Object lvThread(Object node) {
-        return UnsafeAccess.UNSAFE.getObjectVolatile(node, THREAD);
-    }
-
-    // post-padding
-    volatile long z0, z1, z2, z4, z5, z6 = 7L;
-
-    public Node() {
-    }
 }
 
 
@@ -169,6 +93,86 @@ class Node<E> extends HI0<E> {
  * @param <E> the type of elements held in this collection
  */
 public final class MpmcTransferArrayQueue<E> extends MpmcArrayQueue<E> {
+
+    static class Node<E> extends MpmcTransferQueueNodeHotItem<E> {
+        private static final long TYPE;
+        private static final long ITEM;
+        private static final long THREAD;
+    
+        static {
+            try {
+                TYPE = UnsafeAccess.UNSAFE.objectFieldOffset(MpmcTransferQueueNodeColdItem.class.getDeclaredField("type"));
+                ITEM = UnsafeAccess.UNSAFE.objectFieldOffset(MpmcTransferQueueNodeColdItem.class.getDeclaredField("item"));
+                THREAD = UnsafeAccess.UNSAFE.objectFieldOffset(MpmcTransferQueueNodeHotItem.class.getDeclaredField("thread"));
+    
+                // now make sure we can access UNSAFE entries
+                @SuppressWarnings("rawtypes")
+                Node node = new Node();
+                Object o = new Object();
+                spItem(node, o);
+                Object lpItem1 = lpItem(node);
+                spItem(node, null);
+    
+                if (lpItem1 != o) {
+                    throw new Exception("Cannot access unsafe fields");
+                }
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+    
+        static final void spItem(Object node, Object item) {
+            UnsafeAccess.UNSAFE.putObject(node, ITEM, item);
+        }
+    
+        static final void soItem(Object node, Object item) {
+            UnsafeAccess.UNSAFE.putOrderedObject(node, ITEM, item);
+        }
+    
+        // only used by the single take() method. Not used by the void take(node)
+        static final Object lvItem(Object node) {
+            return UnsafeAccess.UNSAFE.getObjectVolatile(node, ITEM);
+        }
+    
+        static final Object lpItem(Object node) {
+            return UnsafeAccess.UNSAFE.getObject(node, ITEM);
+        }
+    
+    
+        //////////////
+        static final void spType(Object node, int type) {
+            UnsafeAccess.UNSAFE.putInt(node, TYPE, type);
+        }
+    
+        static final int lpType(Object node) {
+            return UnsafeAccess.UNSAFE.getInt(node, TYPE);
+        }
+    
+        ///////////
+        static final void spThread(Object node, Object thread) {
+            UnsafeAccess.UNSAFE.putObject(node, THREAD, thread);
+        }
+    
+        static final void soThread(Object node, Object thread) {
+            UnsafeAccess.UNSAFE.putOrderedObject(node, THREAD, thread);
+        }
+    
+        static final Object lpThread(Object node) {
+            return UnsafeAccess.UNSAFE.getObject(node, THREAD);
+        }
+    
+        static final Object lvThread(Object node) {
+            return UnsafeAccess.UNSAFE.getObjectVolatile(node, THREAD);
+        }
+    
+        // post-padding
+        volatile long z0, z1, z2, z4, z5, z6 = 7L;
+    
+        public Node() {
+        }
+    }
+    
+    
     @SuppressWarnings("boxing")
     private static final int QUEUE_SIZE = Integer.getInteger("MpmcTransferArrayQueue.size", 1024);
 
@@ -606,12 +610,12 @@ public final class MpmcTransferArrayQueue<E> extends MpmcArrayQueue<E> {
                 randomYields = randomThreadLocal.get();
             } else if (spins > 0) {
                 if (randomYields.nextInt(1024) == 0) {
-                    UnsafeAccess.UNSAFE.park(false, 1L);
+                    LockSupport.park();
                 }
                 --spins;
             } else {
                 // park can return for NO REASON (must check for thread values)
-                UnsafeAccess.UNSAFE.park(false, 0L);
+                LockSupport.park();
             }
         }
     }
@@ -619,6 +623,6 @@ public final class MpmcTransferArrayQueue<E> extends MpmcArrayQueue<E> {
     private void unpark(Object node) {
         final Object thread = Node.lpThread(node);
         Node.soThread(node, null);  // StoreStore
-        UnsafeAccess.UNSAFE.unpark(thread);
+        UnsafeAccess.UNSAFE.unpark(thread); // using unsafe to avoid casting
     }
 }
