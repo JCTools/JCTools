@@ -15,6 +15,9 @@
  */
 package org.jctools.queues;
 
+import static org.jctools.util.UnsafeRefArrayAccess.lpElement;
+import static org.jctools.util.UnsafeRefArrayAccess.spElement;
+
 import java.util.Random;
 import java.util.concurrent.LinkedTransferQueue;
 import java.util.concurrent.locks.LockSupport;
