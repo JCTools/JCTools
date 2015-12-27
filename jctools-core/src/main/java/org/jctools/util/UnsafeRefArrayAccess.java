@@ -29,19 +29,31 @@ import static org.jctools.util.UnsafeAccess.UNSAFE;
  * Load/Store methods using a <i>buffer</i> parameter are provided to allow the prevention of final field reload after a
  * LoadLoad barrier.
  * <p>
- * 
+ *
  * @author nitsanw
- * 
+ *
  * @param <E>
  */
 public final class UnsafeRefArrayAccess {
-
+    public static final long REF_ARRAY_BASE;
+    public static final int REF_ELEMENT_SHIFT;
+    static {
+        final int scale = UnsafeAccess.UNSAFE.arrayIndexScale(Object[].class);
+        if (4 == scale) {
+            REF_ELEMENT_SHIFT = 2;
+        } else if (8 == scale) {
+            REF_ELEMENT_SHIFT = 3;
+        } else {
+            throw new IllegalStateException("Unknown pointer size");
+        }
+        REF_ARRAY_BASE = UnsafeAccess.UNSAFE.arrayBaseOffset(Object[].class);
+    }
     private UnsafeRefArrayAccess() {
     }
 
     /**
      * A plain store (no ordering/fences) of an element to a given offset
-     * 
+     *
      * @param buffer this.buffer
      * @param offset computed via {@link UnsafeRefArrayAccess#calcElementOffset(long)}
      * @param e an orderly kitty
@@ -52,9 +64,9 @@ public final class UnsafeRefArrayAccess {
 
     /**
      * An ordered store(store + StoreStore barrier) of an element to a given offset
-     * 
+     *
      * @param buffer this.buffer
-     * @param offset computed via {@link UnsafeRefArrayAccess#calcElementOffset(long)}
+     * @param offset computed via {@link UnsafeRefArrayAccess#calcElementOffset}
      * @param e an orderly kitty
      */
     public static final <E> void soElement(E[] buffer, long offset, E e) {
@@ -63,7 +75,7 @@ public final class UnsafeRefArrayAccess {
 
     /**
      * A plain load (no ordering/fences) of an element from a given offset.
-     * 
+     *
      * @param buffer this.buffer
      * @param offset computed via {@link UnsafeRefArrayAccess#calcElementOffset(long)}
      * @return the element at the offset
@@ -75,7 +87,7 @@ public final class UnsafeRefArrayAccess {
 
     /**
      * A volatile load (load + LoadLoad barrier) of an element from a given offset.
-     * 
+     *
      * @param buffer this.buffer
      * @param offset computed via {@link UnsafeRefArrayAccess#calcElementOffset(long)}
      * @return the element at the offset
@@ -83,5 +95,13 @@ public final class UnsafeRefArrayAccess {
     @SuppressWarnings("unchecked")
     public static final <E> E lvElement(E[] buffer, long offset) {
         return (E) UNSAFE.getObjectVolatile(buffer, offset);
+    }
+
+    /**
+     * @param index desirable element index
+     * @return the offset in bytes within the array for a given index.
+     */
+    public static long calcElementOffset(long index) {
+        return REF_ARRAY_BASE + (index << REF_ELEMENT_SHIFT);
     }
 }
