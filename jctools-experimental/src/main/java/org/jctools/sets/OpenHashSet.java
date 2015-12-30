@@ -1,35 +1,18 @@
 package org.jctools.sets;
 
-import static org.jctools.util.UnsafeAccess.UNSAFE;
+import static org.jctools.queues.CircularArrayOffsetCalculator.calcElementOffset;
+import static org.jctools.util.UnsafeRefArrayAccess.lpElement;
+import static org.jctools.util.UnsafeRefArrayAccess.spElement;
 
 import java.util.AbstractSet;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 import org.jctools.util.Pow2;
-import org.jctools.util.UnsafeAccess;
 
 public class OpenHashSet<E> extends AbstractSet<E> {
-    private static final long REF_ARRAY_BASE;
-    private static final int REF_ELEMENT_SHIFT;
-    private static final Object TOMBSTONE = new Object();
-    static {
-        final int scale = UnsafeAccess.UNSAFE.arrayIndexScale(Object[].class);
-        if (4 == scale) {
-            REF_ELEMENT_SHIFT = 2;
-        } else if (8 == scale) {
-            REF_ELEMENT_SHIFT = 3;
-        } else {
-            throw new IllegalStateException("Unknown pointer size");
-        }
-        // Including the buffer pad in the array base offset
-        REF_ARRAY_BASE = UnsafeAccess.UNSAFE.arrayBaseOffset(Object[].class);
-    }
-    private int occupancy;
     /* current element count */
     private int size;
-    /* buffer.length -1 */
-    private int mask;
     /* buffer.length is a power of 2 */
     private E[] buffer;
     private int resizeThreshold;
@@ -37,8 +20,7 @@ public class OpenHashSet<E> extends AbstractSet<E> {
     @SuppressWarnings("unchecked")
     public OpenHashSet(int capacity) {
         int actualCapacity = Pow2.roundToPowerOfTwo(capacity);
-        mask = actualCapacity - 1;
-        // pad data on either end with some empty slots.
+        // pad data on either end with some empty slots?
         buffer = (E[]) new Object[actualCapacity];
         resizeThreshold = (int) (0.75 * actualCapacity);
     }
@@ -50,158 +32,168 @@ public class OpenHashSet<E> extends AbstractSet<E> {
 
     @Override
     public boolean add(E newVal) {
-        if (newVal == null)
-            throw new IllegalArgumentException();
-        int hash = calcHash(newVal);
-        long offset = calcOffset(hash);
-        E e = lpElement(offset);
-        if (replaceElement(e, newVal, offset)) {
-            return true;
-        } else if (e.equals(newVal)) {
-            return false;
+        final E[] buffer = this.buffer;
+        final long mask = buffer.length - 1;
+
+        final int hash = rehash(newVal.hashCode());
+        final long offset = calcElementOffset(hash, mask);
+        final E currVal = lpElement(buffer, offset);
+
+        boolean result;
+        if (currVal == null) {
+            size++;
+            spElement(buffer, offset, newVal);
+            result = true;
         }
-        return addSlowPath(newVal, hash);
+        else if (currVal.equals(newVal)) {
+            result = false;
+        }
+        else {
+            result = addSlowPath(buffer, mask, newVal, hash);
+        }
+
+        if (result && size > resizeThreshold) {
+            resize();
+        }
+        return result;
     }
 
-    protected int calcHash(Object key) {
-        int h;
-        return (key == null) ? 0 : (h = key.hashCode()) ^ (h >>> 16);
+    private void addForResize(final E[] buffer, final long mask, E newVal) {
+        final int hash = rehash(newVal.hashCode());
+        final int limit = (int) (hash + mask);
+        for (int i = hash; i <= limit; i++) {
+            final long offset = calcElementOffset(i, mask);
+            final E currVal = lpElement(buffer, offset);
+            if (currVal == null) {
+                spElement(buffer, offset, newVal);
+                return;
+            }
+        }
     }
 
-    private boolean addSlowPath(E newVal, int hash) {
-        long offset;
-        E e;
-        for (int i = hash + 1; i <= hash + mask; i++) {
-            offset = calcOffset(i);
-            e = lpElement(offset);
-            if (replaceElement(e, newVal, offset)) {
+    private boolean addSlowPath(E[] buffer, long mask, E newVal, int hash) {
+        final int limit = (int) (hash + mask);
+        for (int i = hash + 1; i <= limit; i++) {
+            final long offset = calcElementOffset(i, mask);
+            final E currVal = lpElement(buffer, offset);
+            if (currVal == null) {
+                size++;
+                spElement(buffer, offset, newVal);
                 return true;
-            } else if (e.equals(newVal)) {
+            }
+            else if (currVal.equals(newVal)) {
                 return false;
             }
         }
         return false;
-    }
-
-    private boolean replaceElement(E oldVal, E newVal, long offset) {
-        if (oldVal == null) {
-            occupancy++;
-        } else if (oldVal != TOMBSTONE) {
-            return false;
-        }
-        spElement(offset, newVal);
-        size++;
-        if (size > resizeThreshold) {
-            resize();
-        }
-        return true;
     }
 
     @SuppressWarnings("unchecked")
     private void resize() {
-        E[] oldBuffer = buffer;
-        int newCapacity = oldBuffer.length * 2;
-        buffer = (E[]) new Object[newCapacity];
-        mask = buffer.length - 1;
-        resizeThreshold = (int) (0.75 * newCapacity);
+        final E[] oldBuffer = buffer;
+        final E[] newBuffer = (E[]) new Object[oldBuffer.length * 2];
+        final long mask = newBuffer.length - 1;
         int countdown = size;
-        size = 0;
-        occupancy = 0;
         for (int i = 0; i < oldBuffer.length && countdown > 0; i++) {
-            if (oldBuffer[i] != null && oldBuffer[i] != TOMBSTONE) {
-                add(oldBuffer[i]);
+            if (oldBuffer[i] != null) {
+                addForResize(newBuffer, mask, oldBuffer[i]);
                 countdown--;
             }
         }
+
+        buffer = newBuffer;
     }
 
     @Override
     public boolean remove(Object val) {
-        if (val == null) {
-            return false;
-        }
-        int hash = calcHash(val);
-        long offset = calcOffset(hash);
-        E e = lpElement(offset);
+        final E[] buffer = this.buffer;
+        final long mask = buffer.length - 1;
+        final int hashCode = val.hashCode();
+        final int hash = rehash(val.hashCode());
+        final long offset = calcElementOffset(hash, mask);
+        final E e = lpElement(buffer, offset);
         if (e == null) {
             return false;
-        } else if (e.equals(val)) {
-            // we can null out chains of TOMBSTONES followed by a null
-            if (lpElement(calcOffset(hash + 1)) == null) {
-                spElement(offset, null);
-                while (lpElement(offset = calcOffset(--hash)) == TOMBSTONE) {
-                    spElement(offset, null);
-                }
-            } else {
-                spElement(offset, TOMBSTONE);
-            }
+        }
+        else if (e.equals(val)) {
+            spElement(buffer, offset, null);
             size--;
+            compactValueSequenceAfterRemove(buffer, mask, offset, (int) (hash + mask), hash, hashCode);
             return true;
         }
-        return removeColdPath(val, hash);
+        return removeSlowPath(val, buffer, mask, hashCode, hash);
     }
 
-    private boolean removeColdPath(Object val, int hash) {
-        long offset;
-        E e;
-        for (int i = hash + 1; i <= hash + mask; i++) {
-            offset = calcOffset(i);
-            e = lpElement(offset);
+    private boolean removeSlowPath(Object val, final E[] buffer, final long mask, final int hashCode,
+            final int hash) {
+        final int limit = (int) (hash + mask);
+        for (int i = hash + 1; i <= limit; i++) {
+            final long offset = calcElementOffset(i, mask);
+            final E e = lpElement(buffer, offset);
             if (e == null) {
                 return false;
-            } else if (e.equals(val)) {
-                // we can null out chains of TOMBSTONES followed by a null
-                if (lpElement(calcOffset(hash + 1)) == null) {
-                    spElement(offset, null);
-                    while (lpElement(offset = calcOffset(--hash)) == TOMBSTONE) {
-                        spElement(offset, null);
-                    }
-                } else {
-                    spElement(offset, TOMBSTONE);
-                }
+            }
+            else if (e.equals(val)) {
+                spElement(buffer, offset, null);
                 size--;
+                // compact same hash values
+                compactValueSequenceAfterRemove(buffer, mask, offset, limit, i, hashCode);
                 return true;
             }
         }
         return false;
+    }
+
+    private void compactValueSequenceAfterRemove(final E[] buffer, final long mask, long removedOffset,
+            final int hashIndexLimit, int removedHashIndex, int removedHashCode) {
+        for (int j = removedHashIndex + 1; j <= hashIndexLimit; j++) {
+            final long offsetSrc = calcElementOffset(removedHashIndex, mask);
+            final E src = lpElement(buffer, offsetSrc);
+            if (src == null) {
+                break;
+            }
+            if (removedHashCode != src.hashCode()) {
+                continue;
+            }
+            spElement(buffer, removedOffset, src);
+            spElement(buffer, offsetSrc, null);
+            removedOffset = offsetSrc;
+        }
+    }
+
+    private int rehash(int h) {
+        return h ^ (h >>> 16);
     }
 
     @Override
-    public boolean contains(Object val) {
-        if (val == null) {
-            return false;
-        }
-        int hash = calcHash(val);
-        long offset = calcOffset(hash);
-        E e = lpElement(offset);
+    public boolean contains(Object needle) {
+        // contains takes a snapshot of the buffer.
+        final E[] buffer = this.buffer;
+        final long mask = buffer.length - 1;
+        final int hash = rehash(needle.hashCode());
+        long offset = calcElementOffset(hash, mask);
+        final E e = lpElement(buffer, offset);
         if (e == null) {
             return false;
-        } else if (e.equals(val)) {
+        }
+        else if (e.equals(needle)) {
             return true;
         }
+        return containsSlowPath(buffer, mask, hash, needle);
+    }
+
+    private boolean containsSlowPath(final E[] buffer, final long mask, final int hash, Object needle) {
         for (int i = hash + 1; i <= hash + mask; i++) {
-            offset = calcOffset(i);
-            e = lpElement(offset);
+            final long offset = calcElementOffset(i, mask);
+            final E e = lpElement(buffer, offset);
             if (e == null) {
                 return false;
-            } else if (e.equals(val)) {
+            }
+            else if (e.equals(needle)) {
                 return true;
             }
         }
         return false;
-    }
-
-    private long calcOffset(long index) {
-        return REF_ARRAY_BASE + ((index & mask) << REF_ELEMENT_SHIFT);
-    }
-
-    private void spElement(long offset, Object e) {
-        UNSAFE.putObject(buffer, offset, e);
-    }
-
-    @SuppressWarnings("unchecked")
-    protected final E lpElement(long offset) {
-        return (E) UNSAFE.getObject(buffer, offset);
     }
 
     @Override
@@ -243,7 +235,7 @@ public class OpenHashSet<E> extends AbstractSet<E> {
             E e = null;
             for (; i < array.length; i++) {
                 e = array[i];
-                if (e != null && e != TOMBSTONE) {
+                if (e != null) {
                     nextVal = e;
                     index = i + 1;
                     return;

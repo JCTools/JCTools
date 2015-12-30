@@ -1,7 +1,6 @@
 package org.jctools.sets;
 
-import static org.jctools.util.UnsafeRefArrayAccess.REF_ARRAY_BASE;
-import static org.jctools.util.UnsafeRefArrayAccess.REF_ELEMENT_SHIFT;
+import static org.jctools.queues.CircularArrayOffsetCalculator.calcElementOffset;
 import static org.jctools.util.UnsafeRefArrayAccess.lpElement;
 import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
 import static org.jctools.util.UnsafeRefArrayAccess.soElement;
@@ -9,18 +8,19 @@ import static org.jctools.util.UnsafeRefArrayAccess.soElement;
 import java.util.AbstractSet;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
-import java.util.Set;
 
 import org.jctools.util.Pow2;
 import org.jctools.util.UnsafeAccess;
 
-public class SingleWriterHashSet<E> extends AbstractSet<E>implements Set<E> {
+public class SingleWriterHashSet<E> extends AbstractSet<E> {
     private final static long BUFFER_OFFSET;
+
     static {
         try {
-            BUFFER_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(SingleWriterHashSet.class
-                    .getDeclaredField("buffer"));
-        } catch (NoSuchFieldException e) {
+            BUFFER_OFFSET = UnsafeAccess.UNSAFE
+                    .objectFieldOffset(SingleWriterHashSet.class.getDeclaredField("buffer"));
+        }
+        catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
     }
@@ -50,8 +50,9 @@ public class SingleWriterHashSet<E> extends AbstractSet<E>implements Set<E> {
         final long mask = buffer.length - 1;
 
         final int hash = rehash(newVal.hashCode());
-        final long offset = calcCircularOffset(hash, mask);
+        final long offset = calcElementOffset(hash, mask);
         final E currVal = lpElement(buffer, offset);
+
         boolean result;
         if (currVal == null) {
             size++;
@@ -64,6 +65,7 @@ public class SingleWriterHashSet<E> extends AbstractSet<E>implements Set<E> {
         else {
             result = addSlowPath(buffer, mask, newVal, hash);
         }
+
         if (result && size > resizeThreshold) {
             resize();
         }
@@ -74,7 +76,7 @@ public class SingleWriterHashSet<E> extends AbstractSet<E>implements Set<E> {
         final int hash = rehash(newVal.hashCode());
         final int limit = (int) (hash + mask);
         for (int i = hash; i <= limit; i++) {
-            final long offset = calcCircularOffset(i, mask);
+            final long offset = calcElementOffset(i, mask);
             final E currVal = lpElement(buffer, offset);
             if (currVal == null) {
                 soElement(buffer, offset, newVal);
@@ -86,7 +88,7 @@ public class SingleWriterHashSet<E> extends AbstractSet<E>implements Set<E> {
     private boolean addSlowPath(E[] buffer, long mask, E newVal, int hash) {
         final int limit = (int) (hash + mask);
         for (int i = hash + 1; i <= limit; i++) {
-            final long offset = calcCircularOffset(i, mask);
+            final long offset = calcElementOffset(i, mask);
             final E currVal = lpElement(buffer, offset);
             if (currVal == null) {
                 size++;
@@ -102,8 +104,8 @@ public class SingleWriterHashSet<E> extends AbstractSet<E>implements Set<E> {
 
     @SuppressWarnings("unchecked")
     private void resize() {
-        E[] oldBuffer = buffer;
-        E[] newBuffer = (E[]) new Object[oldBuffer.length * 2];
+        final E[] oldBuffer = buffer;
+        final E[] newBuffer = (E[]) new Object[oldBuffer.length * 2];
         final long mask = newBuffer.length - 1;
         int countdown = size;
         for (int i = 0; i < oldBuffer.length && countdown > 0; i++) {
@@ -122,8 +124,8 @@ public class SingleWriterHashSet<E> extends AbstractSet<E>implements Set<E> {
         final long mask = buffer.length - 1;
         final int hashCode = val.hashCode();
         final int hash = rehash(val.hashCode());
-        long offset = calcCircularOffset(hash, mask);
-        E e = lpElement(buffer, offset);
+        final long offset = calcElementOffset(hash, mask);
+        final E e = lpElement(buffer, offset);
         if (e == null) {
             return false;
         }
@@ -138,12 +140,10 @@ public class SingleWriterHashSet<E> extends AbstractSet<E>implements Set<E> {
 
     private boolean removeSlowPath(Object val, final E[] buffer, final long mask, final int hashCode,
             final int hash) {
-        long offset;
-        E e;
         final int limit = (int) (hash + mask);
         for (int i = hash + 1; i <= limit; i++) {
-            offset = calcCircularOffset(i, mask);
-            e = lpElement(buffer, offset);
+            final long offset = calcElementOffset(i, mask);
+            final E e = lpElement(buffer, offset);
             if (e == null) {
                 return false;
             }
@@ -161,11 +161,12 @@ public class SingleWriterHashSet<E> extends AbstractSet<E>implements Set<E> {
     private void soBuffer(final E[] buffer) {
         UnsafeAccess.UNSAFE.putOrderedObject(this, BUFFER_OFFSET, buffer);
     }
+
     private void compactValueSequenceAfterRemove(final E[] buffer, final long mask, long removedOffset,
             final int hashIndexLimit, int removedHashIndex, int removedHashCode) {
         for (int j = removedHashIndex + 1; j <= hashIndexLimit; j++) {
-            long offsetSrc = calcCircularOffset(removedHashIndex, mask);
-            E src = lpElement(buffer, offsetSrc);
+            final long offsetSrc = calcElementOffset(removedHashIndex, mask);
+            final E src = lpElement(buffer, offsetSrc);
             if (src == null) {
                 break;
             }
@@ -183,40 +184,35 @@ public class SingleWriterHashSet<E> extends AbstractSet<E>implements Set<E> {
     }
 
     @Override
-    public boolean contains(Object newVal) {
+    public boolean contains(Object needle) {
         // contains takes a snapshot of the buffer.
-        final E[] array = buffer;
+        final E[] buffer = this.buffer;
         final long mask = buffer.length - 1;
-        final int hash = rehash(newVal.hashCode());
-        long offset = calcCircularOffset(hash, mask);
-        E e = lvElement(array, offset);
+        final int hash = rehash(needle.hashCode());
+        long offset = calcElementOffset(hash, mask);
+        final E e = lvElement(buffer, offset);
         if (e == null) {
             return false;
         }
-        else if (e.equals(newVal)) {
+        else if (e.equals(needle)) {
             return true;
         }
+        return containsSlowPath(buffer, mask, hash, needle);
+    }
+
+    private boolean containsSlowPath(final E[] buffer, final long mask, final int hash, Object needle) {
         for (int i = hash + 1; i <= hash + mask; i++) {
-            offset = calcCircularOffset(i, mask);
-            e = lvElement(array, offset);
+            final long offset = calcElementOffset(i, mask);
+            final E e = lvElement(buffer, offset);
             if (e == null) {
                 return false;
             }
-            else if (e.equals(newVal)) {
+            else if (e.equals(needle)) {
                 return true;
             }
         }
         return false;
     }
-
-    private long calcCircularOffset(long index, long mask) {
-        return REF_ARRAY_BASE + ((index & mask) << REF_ELEMENT_SHIFT);
-    }
-
-    private static long calcOffset(long index) {
-        return REF_ARRAY_BASE + (index << REF_ELEMENT_SHIFT);
-    }
-
 
     @Override
     public Iterator<E> iterator() {
