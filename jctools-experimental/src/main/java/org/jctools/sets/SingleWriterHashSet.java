@@ -134,8 +134,8 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
             return false;
         }
         else if (e.equals(val)) {
-            soElement(buffer, offset, null);
             size--;
+            soElement(buffer, offset, null);
             compactValueSequenceAfterRemove(buffer, mask, offset, (int) (hash + mask), hash, hashCode);
             return true;
         }
@@ -152,8 +152,8 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
                 return false;
             }
             else if (e.equals(val)) {
-                soElement(buffer, offset, null);
                 size--;
+                soElement(buffer, offset, null);
                 // compact same hash values
                 compactValueSequenceAfterRemove(buffer, mask, offset, limit, i, hashCode);
                 return true;
