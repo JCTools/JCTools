@@ -14,11 +14,14 @@ import org.jctools.util.UnsafeAccess;
 
 public class SingleWriterHashSet<E> extends AbstractSet<E> {
     private final static long BUFFER_OFFSET;
+    private final static long SIZE_OFFSET;
 
     static {
         try {
             BUFFER_OFFSET = UnsafeAccess.UNSAFE
                     .objectFieldOffset(SingleWriterHashSet.class.getDeclaredField("buffer"));
+            SIZE_OFFSET = UnsafeAccess.UNSAFE
+                    .objectFieldOffset(SingleWriterHashSet.class.getDeclaredField("size"));
         }
         catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
@@ -41,7 +44,8 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
 
     @Override
     public int size() {
-        return size;
+        // size read needs to by volatile so that changes are visible
+        return UnsafeAccess.UNSAFE.getIntVolatile(this, SIZE_OFFSET);
     }
 
     @Override
