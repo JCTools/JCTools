@@ -13,21 +13,6 @@ import org.jctools.util.Pow2;
 import org.jctools.util.UnsafeAccess;
 
 public class SingleWriterHashSet<E> extends AbstractSet<E> {
-    private final static long BUFFER_OFFSET;
-    private final static long SIZE_OFFSET;
-
-    static {
-        try {
-            BUFFER_OFFSET = UnsafeAccess.UNSAFE
-                    .objectFieldOffset(SingleWriterHashSet.class.getDeclaredField("buffer"));
-            SIZE_OFFSET = UnsafeAccess.UNSAFE
-                    .objectFieldOffset(SingleWriterHashSet.class.getDeclaredField("size"));
-        }
-        catch (NoSuchFieldException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
     /* current element count */
     private int size;
     /* buffer.length is a power of 2 */
@@ -39,7 +24,7 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
         int actualCapacity = Pow2.roundToPowerOfTwo(capacity);
         // pad data on either end with some empty slots?
         buffer = (E[]) new Object[actualCapacity];
-        resizeThreshold = (int) (0.75 * actualCapacity);
+        resizeThreshold = (int) (0.75 * buffer.length);
     }
 
     @Override
@@ -120,6 +105,7 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
         }
         // store ordered
         soBuffer(newBuffer);
+        resizeThreshold = (int) (0.75 * buffer.length);
     }
 
     @Override
@@ -135,8 +121,12 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
         }
         else if (e.equals(val)) {
             size--;
-            soElement(buffer, offset, null);
-            compactValueSequenceAfterRemove(buffer, mask, offset, (int) (hash + mask), hash, hashCode);
+            if (lpElement(buffer, calcElementOffset(hash + 1, mask)) == null) {
+                soElement(buffer, offset, null);
+            }
+            else {
+                compactAndRemove(buffer, mask, hash);
+            }
             return true;
         }
         return removeSlowPath(val, buffer, mask, hashCode, hash);
@@ -145,41 +135,60 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
     private boolean removeSlowPath(Object val, final E[] buffer, final long mask, final int hashCode,
             final int hash) {
         final int limit = (int) (hash + mask);
-        for (int i = hash + 1; i <= limit; i++) {
-            final long offset = calcElementOffset(i, mask);
+        for (int searchIndex = hash + 1; searchIndex <= limit; searchIndex++) {
+            final long offset = calcElementOffset(searchIndex, mask);
             final E e = lpElement(buffer, offset);
             if (e == null) {
                 return false;
             }
             else if (e.equals(val)) {
                 size--;
-                soElement(buffer, offset, null);
-                // compact same hash values
-                compactValueSequenceAfterRemove(buffer, mask, offset, limit, i, hashCode);
+                if (lpElement(buffer, calcElementOffset(hash + 1, mask)) == null) {
+                    soElement(buffer, offset, null);
+                }
+                else {
+                    compactAndRemove(buffer, mask, searchIndex);
+                }
                 return true;
             }
         }
         return false;
     }
 
-    private void soBuffer(final E[] buffer) {
-        UnsafeAccess.UNSAFE.putOrderedObject(this, BUFFER_OFFSET, buffer);
-    }
+    /*
+     * implemented as per wiki suggested algo with minor adjustments.
+     */
+    private void compactAndRemove(final E[] buffer, final long mask, int removeHashIndex) {
+        // remove(9a): [9a,9b,10a,9c,10b,11a,null] -> [9b,9c,10a,10b,null,11a,null]
+        int j = removeHashIndex;
+        while(true) {
+            int k;
+            E slotJ;
+            // skip elements which belong where they are
+            do {
+                // j := (j+1) modulo num_slots
+                j = (int) ((j + 1) & mask);
+                slotJ = lpElement(buffer, calcElementOffset(j, mask));
+                // if slot[j] is unoccupied exit
+                if (slotJ == null) {
+                    // delete last duplicate slot
+                    soElement(buffer, calcElementOffset(removeHashIndex, mask), null);
+                    return;
+                }
 
-    private void compactValueSequenceAfterRemove(final E[] buffer, final long mask, long removedOffset,
-            final int hashIndexLimit, int removedHashIndex, int removedHashCode) {
-        for (int j = removedHashIndex + 1; j <= hashIndexLimit; j++) {
-            final long offsetSrc = calcElementOffset(removedHashIndex, mask);
-            final E src = lpElement(buffer, offsetSrc);
-            if (src == null) {
-                break;
+                // k := hash(slot[j].key) modulo num_slots
+                k = (int) (rehash(slotJ.hashCode()) & mask);
+                // determine if k lies cyclically in [i,j]
+                // |    i.k.j |
+                // |....j i.k.| or  |.k..j i...|
             }
-            if (removedHashCode != src.hashCode()) {
-                continue;
-            }
-            soElement(buffer, removedOffset, src);
-            soElement(buffer, offsetSrc, null);
-            removedOffset = offsetSrc;
+            while ( (removeHashIndex  <= j) ?
+                    ((removeHashIndex < k) && (k <= j)) :
+                    ((removeHashIndex < k) || (k <= j)) );
+            // slot[removeHashIndex] := slot[j]
+            soElement(buffer, calcElementOffset(removeHashIndex, mask), slotJ);
+            // removeHashIndex := j
+            removeHashIndex = j;
         }
     }
 
@@ -223,16 +232,17 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
         return new Iter<E>(this);
     }
 
-    private final static class Iter<E> implements Iterator<E> {
+    private static class Iter<E> implements Iterator<E> {
         private final E[] buffer;
         private final SingleWriterHashSet<E> set;
-        private int index;
+        private int nextValIndex;
+        private int lastValIndex;
         private E nextVal = null;
         private E lastVal = null;
 
         public Iter(SingleWriterHashSet<E> set) {
             this.set = set;
-            this.buffer = set.buffer;
+            this.buffer = set.lvBuffer();
             findNextVal();
         }
 
@@ -246,6 +256,7 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
             if (nextVal == null)
                 throw new NoSuchElementException();
             E e = nextVal;
+            lastValIndex = nextValIndex;
             findNextVal();
             lastVal = e;
             return e;
@@ -253,13 +264,13 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
 
         private void findNextVal() {
             E[] array = buffer;
-            int i = index;
+            int i = nextValIndex;
             E e = null;
             for (; i < array.length; i++) {
                 e = array[i];
                 if (e != null) {
                     nextVal = e;
-                    index = i + 1;
+                    nextValIndex = i + 1;
                     return;
                 }
             }
@@ -272,7 +283,31 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
             if ((e = lastVal) != null) {
                 lastVal = null;
                 set.remove(e);
+                nextValIndex = lastValIndex - 1;
+                findNextVal();
             }
         }
+    }
+    private final static long BUFFER_OFFSET;
+    private final static long SIZE_OFFSET;
+
+    static {
+        try {
+            BUFFER_OFFSET = UnsafeAccess.UNSAFE
+                    .objectFieldOffset(SingleWriterHashSet.class.getDeclaredField("buffer"));
+            SIZE_OFFSET = UnsafeAccess.UNSAFE
+                    .objectFieldOffset(SingleWriterHashSet.class.getDeclaredField("size"));
+        }
+        catch (NoSuchFieldException e) {
+            throw new RuntimeException(e);
+        }
+    }
+    
+    private void soBuffer(final E[] buffer) {
+        UnsafeAccess.UNSAFE.putOrderedObject(this, BUFFER_OFFSET, buffer);
+    }
+
+    private E[] lvBuffer() {
+        return (E[]) UnsafeAccess.UNSAFE.getObjectVolatile(this, BUFFER_OFFSET);
     }
 }
