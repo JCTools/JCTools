@@ -302,11 +302,12 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
             throw new RuntimeException(e);
         }
     }
-    
+
     private void soBuffer(final E[] buffer) {
         UnsafeAccess.UNSAFE.putOrderedObject(this, BUFFER_OFFSET, buffer);
     }
 
+    @SuppressWarnings("unchecked")
     private E[] lvBuffer() {
         return (E[]) UnsafeAccess.UNSAFE.getObjectVolatile(this, BUFFER_OFFSET);
     }

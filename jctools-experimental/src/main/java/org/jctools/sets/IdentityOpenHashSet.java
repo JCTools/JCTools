@@ -157,7 +157,6 @@ public class IdentityOpenHashSet<E> extends AbstractSet<E> {
         int j = removeHashIndex;
         while(true) {
             int k;
-            E slotJ;
             // skip elements which belong where they are
             do {
                 // j := (j+1) modulo num_slots

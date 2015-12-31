@@ -1,9 +1,5 @@
 package org.jctools.sets;
 
-import static org.jctools.queues.CircularArrayOffsetCalculator.calcElementOffset;
-import static org.jctools.util.UnsafeRefArrayAccess.lpElement;
-import static org.jctools.util.UnsafeRefArrayAccess.soElement;
-
 import java.util.AbstractSet;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
@@ -161,7 +157,6 @@ public class OpenHashSet<E> extends AbstractSet<E> {
         int j = removeHashIndex;
         while(true) {
             int k;
-            E slotJ;
             // skip elements which belong where they are
             do {
                 // j := (j+1) modulo num_slots
