@@ -48,7 +48,7 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
             soElement(buffer, offset, newVal);
             result = true;
         }
-        else if (currVal.equals(newVal)) {
+        else if (newVal.equals(currVal)) {
             result = false;
         }
         else {
@@ -84,7 +84,7 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
                 soElement(buffer, offset, newVal);
                 return true;
             }
-            else if (currVal.equals(newVal)) {
+            else if (newVal.equals(currVal)) {
                 return false;
             }
         }
@@ -119,7 +119,7 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
         if (e == null) {
             return false;
         }
-        else if (e.equals(val)) {
+        else if (val.equals(e)) {
             size--;
             if (lpElement(buffer, calcElementOffset(hash + 1, mask)) == null) {
                 soElement(buffer, offset, null);
@@ -141,7 +141,7 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
             if (e == null) {
                 return false;
             }
-            else if (e.equals(val)) {
+            else if (val.equals(e)) {
                 size--;
                 if (lpElement(buffer, calcElementOffset(hash + 1, mask)) == null) {
                     soElement(buffer, offset, null);
@@ -207,7 +207,7 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
         if (e == null) {
             return false;
         }
-        else if (e.equals(needle)) {
+        else if (needle.equals(e)) {
             return true;
         }
         return containsSlowPath(buffer, mask, hash, needle);
@@ -220,7 +220,7 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
             if (e == null) {
                 return false;
             }
-            else if (e.equals(needle)) {
+            else if (needle.equals(e)) {
                 return true;
             }
         }

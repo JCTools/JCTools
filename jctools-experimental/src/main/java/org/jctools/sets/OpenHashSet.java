@@ -41,7 +41,7 @@ public class OpenHashSet<E> extends AbstractSet<E> {
             buffer[offset] = newVal;
             result = true;
         }
-        else if (currVal.equals(newVal)) {
+        else if (newVal.equals(currVal)) {
             result = false;
         }
         else {
@@ -77,7 +77,7 @@ public class OpenHashSet<E> extends AbstractSet<E> {
                 buffer[offset] = newVal;
                 return true;
             }
-            else if (currVal.equals(newVal)) {
+            else if (newVal.equals(currVal)) {
                 return false;
             }
         }
@@ -112,7 +112,7 @@ public class OpenHashSet<E> extends AbstractSet<E> {
         if (e == null) {
             return false;
         }
-        else if (e.equals(val)) {
+        else if (val.equals(e)) {
             size--;
             if (buffer[(hash + 1) & mask] == null) {
                 buffer[offset] = null;
@@ -134,7 +134,7 @@ public class OpenHashSet<E> extends AbstractSet<E> {
             if (e == null) {
                 return false;
             }
-            else if (e.equals(val)) {
+            else if (val.equals(e)) {
                 size--;
                 if (buffer[(searchIndex + 1) & mask] == null) {
                     buffer[offset] = null;
@@ -198,7 +198,7 @@ public class OpenHashSet<E> extends AbstractSet<E> {
         if (e == null) {
             return false;
         }
-        else if (e.equals(needle)) {
+        else if (needle.equals(e)) {
             return true;
         }
         return containsSlowPath(buffer, mask, hash, needle);
@@ -210,7 +210,7 @@ public class OpenHashSet<E> extends AbstractSet<E> {
             if (e == null) {
                 return false;
             }
-            else if (e.equals(needle)) {
+            else if (needle.equals(e)) {
                 return true;
             }
         }
