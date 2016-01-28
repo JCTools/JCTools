@@ -29,7 +29,7 @@ public class SpscChannelTest {
     private static final int MAXIMUM_CAPACITY = 16;
 
     private final ByteBuffer buffer = ByteBuffer.allocateDirect(128 * 1024);
-    private final SpscChannel<Example> channel = new SpscChannel<Example>(buffer, REQUESTED_CAPACITY, Example.class);
+    private final SpscChannel<Example> channel = new SpscChannel<>(buffer, REQUESTED_CAPACITY, Example.class);
     private final ChannelProducer<Example> producer = channel.producer();
 
     @Test
@@ -121,7 +121,7 @@ public class SpscChannelTest {
 
     // ---------------------------------------------------
 
-    public static interface Example {
+    public interface Example {
 
         int getFoo();
 

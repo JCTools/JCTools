@@ -11,9 +11,7 @@ import java.util.Iterator;
 import java.util.Random;
 import java.util.Set;
 
-import org.jctools.sets.OpenHashSet;
 import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;

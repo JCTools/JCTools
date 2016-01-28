@@ -47,12 +47,8 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
             size++;
             soElement(buffer, offset, newVal);
             result = true;
-        }
-        else if (newVal.equals(currVal)) {
-            result = false;
-        }
-        else {
-            result = addSlowPath(buffer, mask, newVal, hash);
+        } else {
+            result = !newVal.equals(currVal) && addSlowPath(buffer, mask, newVal, hash);
         }
 
         if (result && size > resizeThreshold) {
@@ -229,7 +225,7 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
 
     @Override
     public Iterator<E> iterator() {
-        return new Iter<E>(this);
+        return new Iter<>(this);
     }
 
     private static class Iter<E> implements Iterator<E> {

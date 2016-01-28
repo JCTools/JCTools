@@ -30,15 +30,13 @@ public class MpscArrayQueueTest {
         int i;
         for (i = 0; i < 8; ++i) {
             //Offers succeed because current size is below the HWM.
-            Assert.assertTrue(this.queue.offerIfBelowTheshold(Integer.valueOf(i), 8));
+            Assert.assertTrue(this.queue.offerIfBelowTheshold(i, 8));
         }
         //Not anymore, our offer got rejected.
-        Assert.assertFalse(this.queue.offerIfBelowTheshold(Integer.valueOf(i),
-            8));
+        Assert.assertFalse(this.queue.offerIfBelowTheshold(i, 8));
         //Also, the threshold is dynamic and different levels can be set for
         //different task priorities.
-        Assert.assertTrue(this.queue.offerIfBelowTheshold(Integer.valueOf(i),
-            16));
+        Assert.assertTrue(this.queue.offerIfBelowTheshold(i, 16));
     }
 
 }

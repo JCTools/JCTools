@@ -62,7 +62,7 @@ public class SpscChannelThroughputTest {
             }
         };
         buffer = ByteBuffer.allocateDirect(capacity*(8+1)*3);
-        channel = new SpscChannel<Ping>(buffer, capacity, Ping.class);
+        channel = new SpscChannel<>(buffer, capacity, Ping.class);
         producer = channel.producer();
         consumer = channel.consumer(receiver);
     }

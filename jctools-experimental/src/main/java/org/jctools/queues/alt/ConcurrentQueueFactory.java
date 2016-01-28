@@ -17,14 +17,13 @@ public class ConcurrentQueueFactory {
         if (qs.isBounded()) {
             // SPSC
             if (qs.consumers == 1 && qs.producers == 1) {
-
-                return new SpscArrayConcurrentQueue<E>(qs.capacity);
+                return new SpscArrayConcurrentQueue<>(qs.capacity);
             }
             else {
-                return new MpmcArrayConcurrentQueue<E>(qs.capacity);
+                return new MpmcArrayConcurrentQueue<>(qs.capacity);
             }
         }
-        return new GenericQueue<E>();
+        return new GenericQueue<>();
     }
 
     // generic queue solution to fill gaps for now

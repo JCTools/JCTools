@@ -87,7 +87,7 @@ abstract class MpmcConcurrentQueueSMBuffer<E> extends MpmcConcurrentQueueSMBuffe
 
     @SuppressWarnings("unchecked")
     protected final Object lvElement(E[] buffer, long offset) {
-        return (E) UNSAFE.getObjectVolatile(buffer, offset);
+        return UNSAFE.getObjectVolatile(buffer, offset);
     }
 }
 

@@ -207,8 +207,8 @@ abstract class SpscArrayConcurrentQueueColdFields<E> extends ConcurrentCircularA
 
     public SpscArrayConcurrentQueueColdFields(int capacity) {
         super(capacity);
-        consumer = new Consumer<E>(this);
-        producer = new Producer<E>(this);
+        consumer = new Consumer<>(this);
+        producer = new Producer<>(this);
     }
 }
 

@@ -13,9 +13,6 @@
  */
 package org.jctools.util;
 
-import java.util.AbstractQueue;
-import java.util.Iterator;
-
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 
 /**
@@ -58,7 +55,7 @@ public final class UnsafeRefArrayAccess {
      * @param offset computed via {@link UnsafeRefArrayAccess#calcElementOffset(long)}
      * @param e an orderly kitty
      */
-    public static final <E> void spElement(E[] buffer, long offset, E e) {
+    public static <E> void spElement(E[] buffer, long offset, E e) {
         UNSAFE.putObject(buffer, offset, e);
     }
 
@@ -69,7 +66,7 @@ public final class UnsafeRefArrayAccess {
      * @param offset computed via {@link UnsafeRefArrayAccess#calcElementOffset}
      * @param e an orderly kitty
      */
-    public static final <E> void soElement(E[] buffer, long offset, E e) {
+    public static <E> void soElement(E[] buffer, long offset, E e) {
         UNSAFE.putOrderedObject(buffer, offset, e);
     }
 
@@ -81,7 +78,7 @@ public final class UnsafeRefArrayAccess {
      * @return the element at the offset
      */
     @SuppressWarnings("unchecked")
-    public static final <E> E lpElement(E[] buffer, long offset) {
+    public static <E> E lpElement(E[] buffer, long offset) {
         return (E) UNSAFE.getObject(buffer, offset);
     }
 
@@ -93,7 +90,7 @@ public final class UnsafeRefArrayAccess {
      * @return the element at the offset
      */
     @SuppressWarnings("unchecked")
-    public static final <E> E lvElement(E[] buffer, long offset) {
+    public static <E> E lvElement(E[] buffer, long offset) {
         return (E) UNSAFE.getObjectVolatile(buffer, offset);
     }
 

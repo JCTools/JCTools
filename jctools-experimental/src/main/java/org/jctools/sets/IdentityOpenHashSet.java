@@ -40,12 +40,8 @@ public class IdentityOpenHashSet<E> extends AbstractSet<E> {
             size++;
             buffer[offset] = newVal;
             result = true;
-        }
-        else if (currVal == newVal) {
-            result = false;
-        }
-        else {
-            result = addSlowPath(buffer, mask, newVal, hash);
+        } else {
+            result = currVal != newVal && addSlowPath(buffer, mask, newVal, hash);
         }
 
         if (result && size > resizeThreshold) {
@@ -56,7 +52,7 @@ public class IdentityOpenHashSet<E> extends AbstractSet<E> {
 
     private void addForResize(final E[] buffer, final int mask, E newVal) {
         final int hash = rehash(newVal.hashCode());
-        final int limit = (int) (hash + mask);
+        final int limit = hash + mask;
         for (int i = hash; i <= limit; i++) {
             final int offset = i & mask;
             final E currVal = buffer[offset];
@@ -68,7 +64,7 @@ public class IdentityOpenHashSet<E> extends AbstractSet<E> {
     }
 
     private boolean addSlowPath(E[] buffer, int mask, E newVal, int hash) {
-        final int limit = (int) (hash + mask);
+        final int limit = hash + mask;
         for (int i = hash + 1; i <= limit; i++) {
             final int offset = i & mask;
             final E currVal = buffer[offset];
@@ -127,7 +123,7 @@ public class IdentityOpenHashSet<E> extends AbstractSet<E> {
 
     private boolean removeSlowPath(Object val, final E[] buffer, final int mask, final int hashCode,
             final int hash) {
-        final int limit = (int) (hash + mask);
+        final int limit = hash + mask;
         for (int searchIndex = hash + 1; searchIndex <= limit; searchIndex++) {
             final int offset = searchIndex & mask;
             final E e = buffer[offset];
@@ -160,7 +156,7 @@ public class IdentityOpenHashSet<E> extends AbstractSet<E> {
             // skip elements which belong where they are
             do {
                 // j := (j+1) modulo num_slots
-                j = (int) ((j + 1) & mask);
+                j = (j + 1) & mask;
                 // if slot[j] is unoccupied exit
                 if (buffer[j] == null) {
                     // delete last duplicate slot
@@ -169,7 +165,7 @@ public class IdentityOpenHashSet<E> extends AbstractSet<E> {
                 }
 
                 // k := hash(slot[j].key) modulo num_slots
-                k = (int) (rehash(buffer[j].hashCode()) & mask);
+                k = rehash(buffer[j].hashCode()) & mask;
                 // determine if k lies cyclically in [i,j]
                 // |    i.k.j |
                 // |....j i.k.| or  |.k..j i...|
@@ -219,7 +215,7 @@ public class IdentityOpenHashSet<E> extends AbstractSet<E> {
 
     @Override
     public Iterator<E> iterator() {
-        return new Iter<E>(this);
+        return new Iter<>(this);
     }
 
     private final static class Iter<E> implements Iterator<E> {

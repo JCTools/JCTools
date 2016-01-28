@@ -21,7 +21,7 @@ public interface QueueProgressIndicators {
      * 
      * @return the current value of the producer progress index
      */
-    public long currentProducerIndex();
+    long currentProducerIndex();
 
     /**
      * This method has no concurrent visibility semantics. The value returned may be negative. Under normal
@@ -34,5 +34,5 @@ public interface QueueProgressIndicators {
      * 
      * @return the current value of the consumer progress index
      */
-    public long currentConsumerIndex();
+    long currentConsumerIndex();
 }

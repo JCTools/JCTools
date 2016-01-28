@@ -99,7 +99,7 @@ public final class SpscOffHeapIntQueue extends AbstractQueue<Integer> {
 		}
 
 		long offset = calcElementOffset(currentTail);
-		UnsafeAccess.UNSAFE.putInt(offset, e.intValue());
+		UnsafeAccess.UNSAFE.putInt(offset, e);
 
 		setTail(currentTail + 1);
 

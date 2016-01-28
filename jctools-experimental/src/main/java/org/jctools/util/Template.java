@@ -46,18 +46,15 @@ public class Template {
         if(templateStream == null) {
             throw new IllegalArgumentException("Null template stream");
         }
-        BufferedReader reader = new BufferedReader(new InputStreamReader(templateStream));
         try {
-            try {
-                StringBuffer buffer = new StringBuffer();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(templateStream))) {
+                StringBuilder buffer = new StringBuilder();
                 String line;
                 while ((line = reader.readLine()) != null) {
                     buffer.append(line);
                     buffer.append('\n');
                 }
                 return new Template(buffer.toString());
-            } finally {
-                reader.close();
             }
         } catch (IOException e) {
             throw new IllegalArgumentException(e);
@@ -151,11 +148,7 @@ public class Template {
             try {
                 return cls.getMethod(tagName)
                           .invoke(obj);
-            } catch (NoSuchMethodException e) {
-                throw new IllegalArgumentException(e);
-            } catch (InvocationTargetException e) {
-                throw new IllegalArgumentException(e);
-            } catch (IllegalAccessException e) {
+            } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
                 throw new IllegalArgumentException(e);
             }
         } catch (IllegalAccessException e) {

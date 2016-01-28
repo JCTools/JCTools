@@ -40,7 +40,7 @@ public class TypeInspector {
     }
 
 	private void checkRemainingMethods(Class<?> klass) {
-		List<Method> methods = new ArrayList<Method>(asList(klass.getDeclaredMethods()));
+		List<Method> methods = new ArrayList<>(asList(klass.getDeclaredMethods()));
 		methods.removeAll(getters);
 		methods.removeAll(setters.values());
         for (Method method : methods)
@@ -49,7 +49,7 @@ public class TypeInspector {
 	}
 
 	private List<Method> findGetters() {
-        List<Method> methods = new ArrayList<Method>();
+        List<Method> methods = new ArrayList<>();
         for (Method method : flyweightClass.getDeclaredMethods()) {
             String name = method.getName();
 			if (!name.startsWith("get"))
@@ -83,7 +83,7 @@ public class TypeInspector {
     }
 
 	private Map<String, Method> findSetters() {
-		Map<String, Method> methods = new HashMap<String, Method>();
+		Map<String, Method> methods = new HashMap<>();
         for (Method method : flyweightClass.getDeclaredMethods()) {
             if (!method.getName().startsWith("set"))
                 continue;

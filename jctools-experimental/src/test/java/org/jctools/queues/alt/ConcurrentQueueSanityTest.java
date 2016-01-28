@@ -11,7 +11,6 @@ import org.jctools.queues.spec.Ordering;
 import org.jctools.queues.spec.Preference;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -73,7 +72,7 @@ public class ConcurrentQueueSanityTest {
             Integer e;
             while ((e = consumer.poll()) != null) {
                 assertEquals(--size, q.size());
-                sum -= e.intValue();
+                sum -= e;
             }
             assertEquals(0, sum);
         }
@@ -107,7 +106,7 @@ public class ConcurrentQueueSanityTest {
             Integer e;
             while ((e = consumer.weakPoll()) != null) {
                 assertEquals(--size, q.size());
-                sum -= e.intValue();
+                sum -= e;
             }
             assertEquals(0, sum);
         }
