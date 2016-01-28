@@ -35,7 +35,7 @@ enum Primitive implements Opcodes {
     final int loadOpcode;
     final int returnOpcode;
 
-    private Primitive(int size, Class<?> javaType, Class<?> boxedJavaType, int loadOpcode, int returnOpcode) {
+    Primitive(int size, Class<?> javaType, Class<?> boxedJavaType, int loadOpcode, int returnOpcode) {
         this.sizeInBytes = size;
 		this.javaEquivalent = javaType;
         this.boxedJavaType = boxedJavaType;

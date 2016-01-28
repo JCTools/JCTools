@@ -1,22 +1,5 @@
 package org.jctools.queues;
 
-import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.not;
-import static org.hamcrest.Matchers.sameInstance;
-import static org.jctools.queues.matchers.Matchers.emptyAndZeroSize;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assume.assumeThat;
-
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Queue;
-import java.util.concurrent.atomic.AtomicBoolean;
-
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
 import org.jctools.queues.spec.Preference;
@@ -25,6 +8,17 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Queue;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import static org.hamcrest.Matchers.*;
+import static org.jctools.queues.matchers.Matchers.emptyAndZeroSize;
+import static org.jctools.util.JvmInfo.CPUs;
+import static org.junit.Assert.*;
+import static org.junit.Assume.assumeThat;
 
 @RunWith(Parameterized.class)
 public class QueueSanityTest {
@@ -46,7 +40,7 @@ public class QueueSanityTest {
         list.add(test(0, 1, 1, Ordering.PRODUCER_FIFO, null));
         list.add(test(0, 1, SIZE, Ordering.PRODUCER_FIFO, null));
         // Compound queue minimal size is the core count
-        list.add(test(0, 1, Runtime.getRuntime().availableProcessors(), Ordering.NONE, null));
+        list.add(test(0, 1, CPUs, Ordering.NONE, null));
         list.add(test(0, 1, SIZE, Ordering.NONE, null));
         // Mpmc minimal size is 2
         list.add(test(0, 0, 2, Ordering.FIFO, null));
@@ -97,7 +91,7 @@ public class QueueSanityTest {
             Integer e;
             while ((e = queue.poll()) != null) {
                 assertEquals(--size, queue.size());
-                sum -= e.intValue();
+                sum -= e;
             }
             assertEquals(0, sum);
         }

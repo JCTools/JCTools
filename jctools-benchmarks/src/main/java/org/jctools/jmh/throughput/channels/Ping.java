@@ -15,8 +15,8 @@ package org.jctools.jmh.throughput.channels;
 
 public interface Ping {
 
-    public void setValue(long value);
+    void setValue(long value);
 
-    public long getValue();
+    long getValue();
 
 }

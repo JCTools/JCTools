@@ -16,11 +16,7 @@ package org.jctools.queues;
 import java.util.AbstractQueue;
 import java.util.Iterator;
 
-import org.jctools.queues.MessagePassingQueue.Consumer;
-import org.jctools.queues.MessagePassingQueue.ExitCondition;
-import org.jctools.queues.MessagePassingQueue.Supplier;
-import org.jctools.queues.MessagePassingQueue.WaitStrategy;
-
+import static org.jctools.util.JvmInfo.CPUs;
 import static org.jctools.util.Pow2.isPowerOfTwo;
 import static org.jctools.util.Pow2.roundToPowerOfTwo;
 
@@ -72,12 +68,11 @@ abstract class MpscCompoundQueueConsumerQueueIndex<E> extends MpscCompoundQueueM
 }
 
 public class MpscCompoundQueue<E> extends MpscCompoundQueueConsumerQueueIndex<E> {
-    private static final int CPUS = Runtime.getRuntime().availableProcessors();
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
     public MpscCompoundQueue(int capacity) {
-        this(capacity, CPUS);
+        this(capacity, CPUs);
     }
 
     public MpscCompoundQueue(int capacity, int queueParallelism) {

@@ -20,7 +20,7 @@ import org.jctools.queues.QueueByTypeFactory;
 public class BusyQueuePerfTest {
     // 15 == 32 * 1024
     public static final int REPETITIONS = Integer.getInteger("reps", 50) * 1000 * 1000;
-    public static final Integer TEST_VALUE = Integer.valueOf(777);
+    public static final Integer TEST_VALUE = 777;
 
     public static void main(final String[] args) throws Exception {
         System.out.println("capacity:" + QueueByTypeFactory.QUEUE_CAPACITY + " reps:" + REPETITIONS);

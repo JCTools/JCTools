@@ -1,7 +1,5 @@
 package org.jctools.channels.mapping;
 
-import java.lang.reflect.Type;
-
 public final class Variable {
 
     public final String type;

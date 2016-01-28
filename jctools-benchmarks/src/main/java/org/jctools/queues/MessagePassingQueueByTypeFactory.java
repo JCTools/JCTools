@@ -1,14 +1,6 @@
 package org.jctools.queues;
 
 import java.lang.reflect.Constructor;
-import java.util.ArrayDeque;
-import java.util.Queue;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.LinkedTransferQueue;
-
-import org.jctools.queues.blocking.BlockingQueueFactory;
-import org.jctools.queues.spec.ConcurrentQueueSpec;
 
 public class MessagePassingQueueByTypeFactory {
     @SuppressWarnings({ "rawtypes", "unchecked" })

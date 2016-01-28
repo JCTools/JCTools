@@ -63,7 +63,7 @@ public abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircular
      * @param mask 
      * @return the offset in bytes within the array for a given index.
      */
-    protected static final long calcElementOffset(long index, long mask) {
+    protected static long calcElementOffset(long index, long mask) {
         return SparsePaddedCircularArrayOffsetCalculator.calcElementOffset(index, mask);
     }
 

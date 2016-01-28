@@ -13,8 +13,6 @@
  */
 package org.jctools.queues.atomic;
 
-import static org.jctools.util.Pow2.roundToPowerOfTwo;
-
 import java.util.AbstractQueue;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicLong;
@@ -229,17 +227,17 @@ public class SpscUnboundedAtomicArrayQueue<E> extends AbstractQueue<E> implement
         consumerIndex.lazySet(v);
     }
 
-    private static final int calcWrappedOffset(long index, int mask) {
+    private static int calcWrappedOffset(long index, int mask) {
         return calcDirectOffset((int)index & mask);
     }
-    private static final int calcDirectOffset(int index) {
+    private static int calcDirectOffset(int index) {
         return index;
     }
-    private static final void soElement(AtomicReferenceArray<Object> buffer, int offset, Object e) {
+    private static void soElement(AtomicReferenceArray<Object> buffer, int offset, Object e) {
         buffer.lazySet(offset, e);
     }
 
-    private static final <E> Object lvElement(AtomicReferenceArray<Object> buffer, int offset) {
+    private static <E> Object lvElement(AtomicReferenceArray<Object> buffer, int offset) {
         return buffer.get(offset);
     }
     
