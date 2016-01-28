@@ -45,7 +45,7 @@ abstract class MpscOnSpscFields<E> extends MpscOnSpscL0Pad<E> {
 	}
 
 	protected final ThreadLocal<Queue<E>> producerQueue;
-	ReferenceQueue<Thread> refQ = new ReferenceQueue<Thread>();
+	ReferenceQueue<Thread> refQ = new ReferenceQueue<>();
 	protected volatile Queue<E>[] queues;
 	private static class ThreadWeakRef extends WeakReference<Thread> {
 		final Object r;
@@ -61,7 +61,7 @@ abstract class MpscOnSpscFields<E> extends MpscOnSpscL0Pad<E> {
 		producerQueue = new ThreadLocal<Queue<E>>() {
 			@Override
 			protected Queue<E> initialValue() {
-				Queue<E> q = new SpscArrayQueue<E>(capacity);
+				Queue<E> q = new SpscArrayQueue<>(capacity);
 				addQueue(q);
 				return q;
 			}

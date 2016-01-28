@@ -19,8 +19,6 @@ import java.util.List;
 
 import org.jctools.channels.spsc.SpscOffHeapFixedSizeRingBuffer;
 
-import static org.jctools.channels.mapping.Primitive.simplifyType;
-
 public class ClassViewModel {
 
     private final Class<?> implementationParent;
@@ -56,7 +54,7 @@ public class ClassViewModel {
     }
 
     public List<Variable> constructorParams() {
-        List<Variable> variables = new ArrayList<Variable>(constructorParams.length);
+        List<Variable> variables = new ArrayList<>(constructorParams.length);
         for (int i = 0; i < constructorParams.length; i++) {
             variables.add(new Variable(constructorParams[i].getName(), "arg" + i, 0, ""));
         }
@@ -65,7 +63,7 @@ public class ClassViewModel {
 
     public List<Variable> fields() {
         int fieldOffset = SpscOffHeapFixedSizeRingBuffer.MESSAGE_INDICATOR_SIZE;
-        List<Variable> fields = new ArrayList<Variable>();
+        List<Variable> fields = new ArrayList<>();
         for (Method method : inspector.getters) {
             Primitive type = Primitive.of(method.getReturnType());
             String name = method.getName().substring(3);

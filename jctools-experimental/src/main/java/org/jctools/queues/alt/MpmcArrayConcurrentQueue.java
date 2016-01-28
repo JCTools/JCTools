@@ -381,8 +381,8 @@ abstract class MpmcArrayConcurrentQueueColdFields<E> extends ConcurrentSequenced
 
     public MpmcArrayConcurrentQueueColdFields(int capacity) {
         super(capacity);
-        consumer = new Consumer<E>(this);
-        producer = new Producer<E>(this);
+        consumer = new Consumer<>(this);
+        producer = new Producer<>(this);
         producer.consumer = consumer;
         consumer.producer = producer;
     }
@@ -400,7 +400,7 @@ public final class MpmcArrayConcurrentQueue<E> extends MpmcArrayConcurrentQueueC
 
     @Override
     public int size() {
-        return (int) (((Producer<E>) producer).lvProducerIndex() - ((Consumer<E>) consumer).lvConsumerIndex());
+        return (int) (producer.lvProducerIndex() - consumer.lvConsumerIndex());
     }
 
     @Override

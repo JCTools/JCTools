@@ -7,11 +7,11 @@ public class ConcurrentQueueByTypeFactory {
     public static ConcurrentQueue<Integer> createQueue() {
         switch (QUEUE_TYPE) {
         case -1:
-            return new ConcurrentQueueFactory.GenericQueue<Integer>();
+            return new ConcurrentQueueFactory.GenericQueue<>();
 //        case 3:
 //            return new SpscArrayQueue<Integer>(QUEUE_CAPACITY);
         case 30:
-            return new SpscArrayConcurrentQueue<Integer>(QUEUE_CAPACITY);
+            return new SpscArrayConcurrentQueue<>(QUEUE_CAPACITY);
 //        case 31:
 //            return new SpscLinkedQueue<Integer>();
 //        case 5:
@@ -25,7 +25,7 @@ public class ConcurrentQueueByTypeFactory {
 //        case 7:
 //            return new MpmcArrayQueue<Integer>(QUEUE_CAPACITY);
         case 70:
-            return new MpmcArrayConcurrentQueue<Integer>(QUEUE_CAPACITY);
+            return new MpmcArrayConcurrentQueue<>(QUEUE_CAPACITY);
             
         }
         throw new IllegalArgumentException("Type: " + QUEUE_TYPE);

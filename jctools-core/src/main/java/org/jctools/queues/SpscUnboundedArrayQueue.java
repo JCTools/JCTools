@@ -94,7 +94,7 @@ public class SpscUnboundedArrayQueue<E> extends SpscUnboundedArrayQueueConsumerF
         consumerBuffer = buffer;
         consumerMask = mask;
         producerLookAhead = mask - 1; // we know it's all empty to start with
-        soProducerIndex(0l);
+        soProducerIndex(0L);
     }
 
     @Override
@@ -268,17 +268,17 @@ public class SpscUnboundedArrayQueue<E> extends SpscUnboundedArrayQueueConsumerF
         UNSAFE.putOrderedLong(this, C_INDEX_OFFSET, v);
     }
 
-    private static final long calcWrappedOffset(long index, long mask) {
+    private static long calcWrappedOffset(long index, long mask) {
         return calcDirectOffset(index & mask);
     }
-    private static final long calcDirectOffset(long index) {
+    private static long calcDirectOffset(long index) {
         return REF_ARRAY_BASE + (index << REF_ELEMENT_SHIFT);
     }
-    private static final void soElement(Object[] buffer, long offset, Object e) {
+    private static void soElement(Object[] buffer, long offset, Object e) {
         UNSAFE.putOrderedObject(buffer, offset, e);
     }
 
-    private static final <E> Object lvElement(E[] buffer, long offset) {
+    private static <E> Object lvElement(E[] buffer, long offset) {
         return UNSAFE.getObjectVolatile(buffer, offset);
     }
     

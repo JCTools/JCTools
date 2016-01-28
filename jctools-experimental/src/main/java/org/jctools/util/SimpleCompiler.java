@@ -78,7 +78,7 @@ public class SimpleCompiler {
     private class DiagnosticsHolder implements DiagnosticListener<JavaFileObject> {
 
         private final List<Diagnostic<StringWrappingJavaFile>> diagnostics
-                = new ArrayList<Diagnostic<StringWrappingJavaFile>>();
+                = new ArrayList<>();
 
         @SuppressWarnings("unchecked")
         @Override

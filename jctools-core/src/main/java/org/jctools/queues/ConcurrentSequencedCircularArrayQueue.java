@@ -50,7 +50,7 @@ public abstract class ConcurrentSequencedCircularArrayQueue<E> extends Concurren
     protected final long calcSequenceOffset(long index) {
         return calcSequenceOffset(index, mask);
     }
-    protected static final long calcSequenceOffset(long index, long mask) {
+    protected static long calcSequenceOffset(long index, long mask) {
         return ARRAY_BASE + ((index & mask) << ELEMENT_SHIFT);
     }
     protected final void soSequence(long[] buffer, long offset, long e) {

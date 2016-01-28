@@ -30,7 +30,7 @@ public class MapperTest {
     @Before
     public void malloc() {
         startAddress = UnsafeAccess.UNSAFE.allocateMemory(EXAMPLE_SIZE_IN_BYTES * 2);
-        mapper = new Mapper<Example>(Example.class, false);
+        mapper = new Mapper<>(Example.class, false);
     }
 
     @After
@@ -82,7 +82,7 @@ public class MapperTest {
 
     // ---------------------------------------------------
 
-    public static interface Example {
+    public interface Example {
 
         int getFoo();
 

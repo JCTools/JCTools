@@ -23,7 +23,7 @@ import org.jctools.queues.alt.ConcurrentQueueProducer;
 public class BusyConcurrentQueuePerfTest {
     // 15 == 32 * 1024
     public static final int REPETITIONS = Integer.getInteger("reps", 50) * 1000 * 1000;
-    public static final Integer TEST_VALUE = Integer.valueOf(777);
+    public static final Integer TEST_VALUE = 777;
 
     public static void main(final String[] args) throws Exception {
         System.out.println("capacity:" + ConcurrentQueueByTypeFactory.QUEUE_CAPACITY + " reps:" + REPETITIONS);
@@ -61,7 +61,7 @@ public class BusyConcurrentQueuePerfTest {
         final long duration = end - p.start;
         final long ops = (REPETITIONS * 1000L * 1000L * 1000L) / duration;
         System.out.format("%d - ops/sec=%,d - %s result=%d failed.poll=%d failed.offer=%d\n",
-                Integer.valueOf(runNumber), Long.valueOf(ops),
+                runNumber, ops,
                 queue.getClass().getSimpleName(), result,f,p.fails);
         return ops;
     }

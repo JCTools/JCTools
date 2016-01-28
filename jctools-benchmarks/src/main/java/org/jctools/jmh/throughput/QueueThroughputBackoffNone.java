@@ -79,7 +79,7 @@ public class QueueThroughputBackoffNone {
         }
     }
 
-    private static ThreadLocal<Object> marker = new ThreadLocal<Object>();
+    private static ThreadLocal<Object> marker = new ThreadLocal<>();
 
     @State(Scope.Thread)
     public static class ConsumerMarker {

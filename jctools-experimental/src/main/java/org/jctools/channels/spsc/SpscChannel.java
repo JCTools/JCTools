@@ -49,7 +49,7 @@ public final class SpscChannel<E> implements Channel<E> {
         this.requestedCapacity = requestedCapacity;
         this.maximumCapacity = getMaximumCapacity(requestedCapacity);
         this.buffer = buffer;
-        mapper = new Mapper<E>(type, debugEnabled);
+        mapper = new Mapper<>(type, debugEnabled);
         elementSize = mapper.getSizeInBytes();
 
         checkSufficientCapacity();

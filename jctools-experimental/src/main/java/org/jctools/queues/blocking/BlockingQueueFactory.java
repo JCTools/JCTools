@@ -71,9 +71,7 @@ public class BlockingQueueFactory {
         try {
             isTakeStratOK = takeStratClass.newInstance().supportsSpec(qs);
             isPutStratOK = putStratClass.newInstance().supportsSpec(qs);
-        } catch (IllegalAccessException e) {
-            throw new IllegalArgumentException("Error instantiating strategy");
-        } catch (InstantiationException e) {
+        } catch (IllegalAccessException | InstantiationException e) {
             throw new IllegalArgumentException("Error instantiating strategy");
         }
 
@@ -109,7 +107,7 @@ public class BlockingQueueFactory {
             }
 
             // Default bounded blocking
-            return new ArrayBlockingQueue<E>(qs.capacity);
+            return new ArrayBlockingQueue<>(qs.capacity);
         } else {
             // SPSC
             if (qs.isSpsc()) {

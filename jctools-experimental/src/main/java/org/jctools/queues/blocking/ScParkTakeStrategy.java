@@ -10,7 +10,7 @@ public final class ScParkTakeStrategy<E> implements TakeStrategy<E> {
 
     public volatile int storeFence = 0;
 
-    private AtomicReference<Thread> t = new AtomicReference<Thread>(null);
+    private AtomicReference<Thread> t = new AtomicReference<>(null);
 
     @Override
     public void signal() {

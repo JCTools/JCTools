@@ -13,13 +13,11 @@
  */
 package org.jctools.jmh.latency.spsc;
 
-import java.util.Queue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MessagePassingQueueByTypeFactory;
-import org.jctools.queues.QueueByTypeFactory;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Level;

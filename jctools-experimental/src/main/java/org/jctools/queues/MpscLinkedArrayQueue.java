@@ -22,7 +22,7 @@ public final class MpscLinkedArrayQueue<T> extends AbstractQueue<T> {
         ARA2 array = new ARA2(c + 1, 0);
         this.producerIndex = new AtomicLong();
         this.consumerIndex = new AtomicLong();
-        this.producerArray = new AtomicReference<ARA2>();
+        this.producerArray = new AtomicReference<>();
         this.consumerArray = array;
         this.producerArray.lazySet(array);
     }
