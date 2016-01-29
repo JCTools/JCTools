@@ -55,6 +55,6 @@ public class QueueOfferPoll {
         for (int i = 0; i < burstSize; i++) {
             result = q.poll();
         }
-        return result.intValue();
+        return result;
     }
 }

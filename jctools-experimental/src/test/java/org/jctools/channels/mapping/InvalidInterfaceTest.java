@@ -44,23 +44,23 @@ public class InvalidInterfaceTest {
 	// ---------------------------------------------------
 
 	public interface NoGettersOrSetters {
-		public void neitherGetterNorSetter();
+		void neitherGetterNorSetter();
 	}
 
 	public interface InvalidReturnGetter {
-		public Object getFoo();
+		Object getFoo();
 	}
 
 	public interface ParameterGetter {
-		public int getFoo(long bar);
+		int getFoo(long bar);
 	}
 
 	public interface InvalidReturnSetter{
-		public Object setFoo();
+		Object setFoo();
 	}
 
 	public interface NoParameterSetter {
-		public void setFoo();
+		void setFoo();
 	}
 
 }

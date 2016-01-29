@@ -121,7 +121,7 @@ public class SpscChannelTest {
 
     // ---------------------------------------------------
 
-    public static interface Example {
+    public interface Example {
 
         int getFoo();
 

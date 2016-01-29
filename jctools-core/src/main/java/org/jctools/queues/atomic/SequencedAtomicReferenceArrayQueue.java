@@ -31,7 +31,7 @@ abstract class SequencedAtomicReferenceArrayQueue<E> extends
     protected final long calcSequenceOffset(long index) {
         return calcSequenceOffset(index, mask);
     }
-    protected static final int calcSequenceOffset(long index, int mask) {
+    protected static int calcSequenceOffset(long index, int mask) {
         return (int)index & mask;
     }
     protected final void soSequence(AtomicLongArray buffer, int offset, long e) {

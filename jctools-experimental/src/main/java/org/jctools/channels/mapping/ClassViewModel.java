@@ -19,8 +19,6 @@ import java.util.List;
 
 import org.jctools.channels.spsc.SpscOffHeapFixedSizeRingBuffer;
 
-import static org.jctools.channels.mapping.Primitive.simplifyType;
-
 public class ClassViewModel {
 
     private final Class<?> implementationParent;
