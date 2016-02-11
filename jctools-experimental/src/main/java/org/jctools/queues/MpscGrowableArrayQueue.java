@@ -30,7 +30,8 @@ import org.jctools.util.UnsafeRefArrayAccess;
 
 abstract class MpscGrowableArrayQueuePad1<E> extends AbstractQueue<E> {
     long p01, p02, p03, p04, p05, p06, p07;
-    long p10, p11, p12, p13, p14, p15, p16, p17;}
+    long p10, p11, p12, p13, p14, p15, p16, p17;
+}
 
 abstract class MpscGrowableArrayQueueProducerFields<E> extends MpscGrowableArrayQueuePad1<E> {
     protected long producerIndex;
@@ -92,7 +93,8 @@ public class MpscGrowableArrayQueue<E> extends MpscGrowableArrayQueueConsumerFie
             throw new RuntimeException(e);
         }
         try {
-            Field iField = MpscGrowableArrayQueueColdProducerFields.class.getDeclaredField("consumerIndexCache");
+            Field iField = MpscGrowableArrayQueueColdProducerFields.class
+                    .getDeclaredField("consumerIndexCache");
             C_INDEX_CACHE_OFFSET = UNSAFE.objectFieldOffset(iField);
         }
         catch (NoSuchFieldException e) {
@@ -140,13 +142,12 @@ public class MpscGrowableArrayQueue<E> extends MpscGrowableArrayQueueConsumerFie
         long currentProducerIndex;
         long consumerIndexCache = lvConsumerIndexCache();
 
-        LoopStart:
-        do {
-
+        while (true) {
             // lower bit is indicative of resize, if we see it we spin until it's cleared
-            while (((currentProducerIndex = lvProducerIndex()) & 1) == 1) {
-                Thread.yield();
-            }
+            while (((currentProducerIndex = lvProducerIndex()) & 1) == 1)
+                ;
+            // now we have a pIndex which is even (lower bit is 0)
+
             // mask/buffer may get changed by resizing. Only used after successful CAS.
             mask = this.producerMask;
             buffer = this.producerBuffer;
@@ -158,30 +159,33 @@ public class MpscGrowableArrayQueue<E> extends MpscGrowableArrayQueueConsumerFie
                 consumerIndexCache = lvConsumerIndex();
                 if (consumerIndexCache > wrapPoint) {
                     soConsumerIndexCache(consumerIndexCache);
-                    continue;
                 }
-
-                if (atMaxCapacity) {
+                // full and cannot grow
+                else if (atMaxCapacity) {
                     return false;
                 }
                 // resize -> set lower bit
                 else if (casProducerIndex(currentProducerIndex, currentProducerIndex + 1)) {
-                    return resize(currentProducerIndex, buffer, mask, e);
+                    resize(currentProducerIndex, buffer, mask, e);
+                    return true;
                 }
                 else {
-                    continue LoopStart; // skip CAS, no point
+                    continue; // skip CAS, no point
                 }
             }
-        } while (!casProducerIndex(currentProducerIndex, currentProducerIndex + 2));
+            if (casProducerIndex(currentProducerIndex, currentProducerIndex + 2)) {
+                break;
+            }
+        }
 
         final long offset = calcElementOffset(currentProducerIndex, mask);
         soElement(buffer, offset, e);
         return true;
     }
 
-    private boolean resize(long currentProducerIndex, E[] buffer, long mask, final E e) {
+    private void resize(long currentProducerIndex, E[] buffer, long mask, final E e) {
         final int newCapacity = (int) (2 * ((mask >> 1) + 1));
-        final E[] newBuffer = allocate(newCapacity  + 1);
+        final E[] newBuffer = allocate(newCapacity + 1);
         producerBuffer = newBuffer;
         producerMask = (long) (newCapacity - 1) << 1;
         final long offsetInOld = calcElementOffset(currentProducerIndex, mask);
@@ -194,7 +198,6 @@ public class MpscGrowableArrayQueue<E> extends MpscGrowableArrayQueueConsumerFie
 
         // make resize visible to the other producers
         soProducerIndex(currentProducerIndex + 2);
-        return true;
     }
 
     private static long calcElementOffset(long index, long mask) {
@@ -215,7 +218,7 @@ public class MpscGrowableArrayQueue<E> extends MpscGrowableArrayQueueConsumerFie
 
         final long offset = calcElementOffset(index, mask);
         final Object e = lvElement(buffer, offset);// LoadLoad
-        if (null != e) {
+        if (e != null) {
             if (e == JUMP) {
                 final E[] nextBuffer = getNextBuffer(buffer, mask);
                 return newBufferPoll(nextBuffer, index);
@@ -240,14 +243,12 @@ public class MpscGrowableArrayQueue<E> extends MpscGrowableArrayQueueConsumerFie
 
         final long offset = calcElementOffset(index, mask);
         final Object e = lvElement(buffer, offset);// LoadLoad
-        if (null == e) {
-            return null;
-        }
         if (e == JUMP) {
             return newBufferPeek(getNextBuffer(buffer, mask), index);
         }
         return (E) e;
     }
+
     @SuppressWarnings("unchecked")
     private E[] getNextBuffer(final E[] buffer, final long mask) {
         return (E[]) lvElement(buffer, nextArrayOffset(mask));
@@ -263,12 +264,10 @@ public class MpscGrowableArrayQueue<E> extends MpscGrowableArrayQueueConsumerFie
         if (null == n) {
             throw new IllegalStateException("new buffer must have at least one element");
         }
-        soConsumerIndex(index + 2);// this ensures correctness on 32bit platforms
         soElement(nextBuffer, offsetInNew, null);// StoreStore
+        soConsumerIndex(index + 2);
         return n;
     }
-
-
 
     private E newBufferPeek(E[] nextBuffer, final long index) {
         final long offsetInNew = newBufferAndOffset(nextBuffer, index);
