@@ -13,6 +13,7 @@
  */
 package org.jctools.queues;
 
+import static org.jctools.util.JvmInfo.CPUs;
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeRefArrayAccess.lpElement;
 import static org.jctools.util.UnsafeRefArrayAccess.spElement;
@@ -111,8 +112,8 @@ abstract class MpmcArrayQueueConsumerField<E> extends MpmcArrayQueueL2Pad<E> {
 public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> implements QueueProgressIndicators {
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
-    final static int RECOMENDED_POLL_BATCH = Runtime.getRuntime().availableProcessors() * 4;
-    final static int RECOMENDED_OFFER_BATCH = Runtime.getRuntime().availableProcessors() * 4;
+    final static int RECOMENDED_POLL_BATCH = CPUs * 4;
+    final static int RECOMENDED_OFFER_BATCH = CPUs * 4;
     public MpmcArrayQueue(final int capacity) {
         super(validateCapacity(capacity));
     }

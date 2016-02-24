@@ -1,10 +1,7 @@
 package org.jctools.queues;
 
-import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
-import static org.hamcrest.Matchers.sameInstance;
-import static org.jctools.queues.matchers.Matchers.emptyAndZeroSize;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -13,7 +10,6 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeThat;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -23,7 +19,6 @@ import org.jctools.queues.spec.Ordering;
 import org.jctools.queues.spec.Preference;
 import org.jctools.util.Pow2;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -102,7 +97,7 @@ public class MessagePassingQueueSanityTest {
             Integer e;
             while ((e = queue.relaxedPoll()) != null) {
                 assertEquals(--size, queue.size());
-                sum -= e.intValue();
+                sum -= e;
             }
             assertEquals(0, sum);
         }

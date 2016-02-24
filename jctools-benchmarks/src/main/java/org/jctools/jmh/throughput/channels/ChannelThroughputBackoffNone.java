@@ -39,7 +39,6 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
-import org.openjdk.jmh.profile.LinuxPerfProfiler;
 import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.Options;
@@ -56,7 +55,7 @@ public class ChannelThroughputBackoffNone {
     @Param(value = { "132000" })
     int capacity;
     public enum Type{
-        Spsc,Mpsc;
+        Spsc,Mpsc
     }
     @Param(value = { "Spsc", "Mpsc" })
     Type type;

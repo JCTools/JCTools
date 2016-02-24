@@ -400,7 +400,7 @@ public final class MpmcArrayConcurrentQueue<E> extends MpmcArrayConcurrentQueueC
 
     @Override
     public int size() {
-        return (int) (((Producer<E>) producer).lvProducerIndex() - ((Consumer<E>) consumer).lvConsumerIndex());
+        return (int) (producer.lvProducerIndex() - consumer.lvConsumerIndex());
     }
 
     @Override

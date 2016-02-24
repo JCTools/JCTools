@@ -49,7 +49,7 @@ public class Template {
         BufferedReader reader = new BufferedReader(new InputStreamReader(templateStream));
         try {
             try {
-                StringBuffer buffer = new StringBuffer();
+                StringBuilder buffer = new StringBuilder();
                 String line;
                 while ((line = reader.readLine()) != null) {
                     buffer.append(line);

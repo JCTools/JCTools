@@ -14,7 +14,6 @@
 package org.jctools.queues;
 
 import static java.lang.Math.max;
-import static java.lang.Math.min;
 import static org.jctools.queues.CircularArrayOffsetCalculator.allocate;
 import static org.jctools.queues.CircularArrayOffsetCalculator.calcElementOffset;
 import static org.jctools.util.Pow2.roundToPowerOfTwo;
@@ -25,9 +24,6 @@ import static org.jctools.util.UnsafeRefArrayAccess.soElement;
 import java.lang.reflect.Field;
 import java.util.AbstractQueue;
 import java.util.Iterator;
-
-import org.jctools.util.Pow2;
-
 
 
 abstract class SpscGrowableArrayQueuePrePad<E> extends AbstractQueue<E> {
@@ -97,7 +93,7 @@ public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerFie
         consumerMask = mask;
         maxQueueCapacity = p2capacity;
         producerLookAhead = mask - 1; // we know it's all empty to start with
-        soProducerIndex(0l);// serves as a StoreStore barrier to support correct publication
+        soProducerIndex(0L);// serves as a StoreStore barrier to support correct publication
     }
 
     @Override

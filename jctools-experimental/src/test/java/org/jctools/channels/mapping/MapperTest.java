@@ -82,7 +82,7 @@ public class MapperTest {
 
     // ---------------------------------------------------
 
-    public static interface Example {
+    public interface Example {
 
         int getFoo();
 

@@ -26,7 +26,6 @@ import java.util.AbstractQueue;
 import java.util.Iterator;
 
 import org.jctools.util.Pow2;
-import org.jctools.util.UnsafeRefArrayAccess;
 
 abstract class MpscGrowableArrayQueuePad1<E> extends AbstractQueue<E> {
     long p01, p02, p03, p04, p05, p06, p07;
@@ -316,7 +315,7 @@ public class MpscGrowableArrayQueue<E> extends MpscGrowableArrayQueueConsumerFie
         UNSAFE.putOrderedLong(this, P_INDEX_OFFSET, v);
     }
 
-    private final boolean casProducerIndex(long expect, long newValue) {
+    private boolean casProducerIndex(long expect, long newValue) {
         return UNSAFE.compareAndSwapLong(this, P_INDEX_OFFSET, expect, newValue);
     }
 
@@ -324,7 +323,7 @@ public class MpscGrowableArrayQueue<E> extends MpscGrowableArrayQueueConsumerFie
         UNSAFE.putOrderedLong(this, C_INDEX_OFFSET, v);
     }
 
-    private final long lvConsumerIndexCache() {
+    private long lvConsumerIndexCache() {
         return consumerIndexCache;
     }
 

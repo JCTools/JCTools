@@ -122,7 +122,7 @@ public final class FloatingCountersSpscConcurrentArrayQueue<E> extends FloatingC
         final E e = (E) UnsafeAccess.UNSAFE.getObject(buffer, offset);
         UnsafeAccess.UNSAFE.putObject(buffer, offset, null);
 
-        head.lazySet(currHead + 1);;
+        head.lazySet(currHead + 1);
 
         return e;
     }
