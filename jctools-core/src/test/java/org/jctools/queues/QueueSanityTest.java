@@ -30,7 +30,7 @@ public class QueueSanityTest {
         list.add(test(1, 1, 4, Ordering.FIFO, null));
         list.add(test(1, 1, 0, Ordering.FIFO, null));
         list.add(test(1, 1, SIZE, Ordering.FIFO, null));
-        list.add(test(1, 1, 32, Ordering.FIFO, new SpscGrowableArrayQueue<Integer>(4, 32)));
+        list.add(test(1, 1, SIZE, Ordering.FIFO, new SpscGrowableArrayQueue<Integer>(4, SIZE)));
         list.add(test(1, 1, 0, Ordering.FIFO, new SpscUnboundedArrayQueue<Integer>(16)));
         list.add(test(1, 0, 1, Ordering.FIFO, null));
         list.add(test(1, 0, SIZE, Ordering.FIFO, null));
@@ -39,6 +39,10 @@ public class QueueSanityTest {
         list.add(test(0, 1, SIZE, Ordering.FIFO, null));
         list.add(test(0, 1, 1, Ordering.PRODUCER_FIFO, null));
         list.add(test(0, 1, SIZE, Ordering.PRODUCER_FIFO, null));
+
+        list.add(test(0, 1, 4, Ordering.FIFO, new MpscGrowableArrayQueue<>(4)));// MPSC size 1
+        list.add(test(0, 1, SIZE, Ordering.FIFO, new MpscGrowableArrayQueue<>(2, SIZE)));// MPSC size SIZE
+
         // Compound queue minimal size is the core count
         list.add(test(0, 1, CPUs, Ordering.NONE, null));
         list.add(test(0, 1, SIZE, Ordering.NONE, null));
@@ -204,6 +208,8 @@ public class QueueSanityTest {
                         v.value = i;
                         q.offer(v);
                     }
+                    // slow down the producer, this will make the queue mostly empty encouraging visibility issues.
+                    Thread.yield();
                 }
             }
         });
