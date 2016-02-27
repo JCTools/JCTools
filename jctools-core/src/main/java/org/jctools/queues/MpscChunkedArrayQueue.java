@@ -157,7 +157,8 @@ public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueConsumerField
             final long wrapPoint = (currentProducerIndex - mask);
 
             if (consumerIndexCache <= wrapPoint) {
-                consumerIndexCache = lvConsumerIndex();
+                final long consumerIndex = lvConsumerIndex();
+                consumerIndexCache = consumerIndex;
                 if (consumerIndexCache > wrapPoint) {
                     soConsumerIndexCache(consumerIndexCache);
                 }
@@ -167,7 +168,7 @@ public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueConsumerField
                 }
                 // resize -> set lower bit
                 else if (casProducerIndex(currentProducerIndex, currentProducerIndex + 1)) {
-                    resize(currentProducerIndex, buffer, mask, e);
+                    resize(currentProducerIndex, buffer, mask, e, consumerIndex);
                     return true;
                 }
                 else {
@@ -184,7 +185,7 @@ public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueConsumerField
         return true;
     }
 
-    private void resize(long currentProducerIndex, E[] buffer, long mask, final E e) {
+    private void resize(long currentProducerIndex, E[] buffer, long mask, E e, long currentConsumerIndex) {
         final E[] newBuffer = allocate(buffer.length);
         producerBuffer = newBuffer;
         // mask doesn't change
@@ -192,7 +193,14 @@ public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueConsumerField
         final long offsetInNew = modifiedCalcElementOffset(currentProducerIndex, producerMask);
         soElement(newBuffer, offsetInNew, e);
         soElement(buffer, nextArrayOffset(mask), newBuffer);
-
+        final long available = maxQueueCapacity - (currentProducerIndex - currentConsumerIndex);
+        final int newCapacity = buffer.length - 1;
+        if (available >= newCapacity) {
+            soConsumerIndexCache(currentProducerIndex);
+        }
+        else {
+            soConsumerIndexCache(currentProducerIndex - (newCapacity - available));
+        }
         // make resize visible to consumer
         soElement(buffer, offsetInOld, JUMP);
 

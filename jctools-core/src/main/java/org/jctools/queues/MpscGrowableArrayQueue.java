@@ -158,7 +158,8 @@ public class MpscGrowableArrayQueue<E> extends MpscGrowableArrayQueueConsumerFie
             final long wrapPoint = (currentProducerIndex - currCapacity);
 
             if (consumerIndexCache <= wrapPoint) {
-                consumerIndexCache = lvConsumerIndex();
+                final long consumerIndex = lvConsumerIndex();
+                consumerIndexCache = consumerIndex;
                 if (consumerIndexCache > wrapPoint) {
                     soConsumerIndexCache(consumerIndexCache);
                 }
@@ -168,7 +169,7 @@ public class MpscGrowableArrayQueue<E> extends MpscGrowableArrayQueueConsumerFie
                 }
                 // resize -> set lower bit
                 else if (casProducerIndex(currentProducerIndex, currentProducerIndex + 1)) {
-                    resize(currentProducerIndex, buffer, mask, e);
+                    resize(currentProducerIndex, buffer, mask, e, consumerIndex);
                     return true;
                 }
                 else {
@@ -185,13 +186,20 @@ public class MpscGrowableArrayQueue<E> extends MpscGrowableArrayQueueConsumerFie
         return true;
     }
 
-    private void resize(long currentProducerIndex, E[] buffer, long mask, final E e) {
+    private void resize(long currentProducerIndex, E[] buffer, long mask, E e, long currentConsumerIndex) {
         final int newCapacity = (int) (2 * ((mask >> 1) + 1));
         final E[] newBuffer = allocate(newCapacity + 1);
         producerBuffer = newBuffer;
         producerMask = (long) (newCapacity - 1) << 1;
         final long offsetInOld = modifiedCalcElementOffset(currentProducerIndex, mask);
         final long offsetInNew = modifiedCalcElementOffset(currentProducerIndex, producerMask);
+        final long available = maxQueueCapacity - (currentProducerIndex - currentConsumerIndex);
+        if (available >= newCapacity) {
+            soConsumerIndexCache(currentProducerIndex);
+        }
+        else {
+            soConsumerIndexCache(currentProducerIndex - (newCapacity - available));
+        }
         soElement(newBuffer, offsetInNew, e);
         soElement(buffer, nextArrayOffset(mask), newBuffer);
 
