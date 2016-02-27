@@ -23,9 +23,10 @@ import org.jctools.util.JvmInfo;
 import org.jctools.util.Pow2;
 
 /**
- * Channel protocol: - Fixed message size - 'null' indicator in message preceding byte (potentially use same
- * for type mapping in future) - Use FF algorithm relying on indicator to support in place detection of next
- * element existence
+ * Channel protocol:
+ * - Fixed message size
+ * - 'null' indicator in message preceding byte (potentially use same for type mapping in future)
+ * - Use Vyukov MPMC like algorithm relying on indicator to support in place detection of next element existence
  */
 public class MpscOffHeapFixedSizeRingBuffer extends OffHeapFixedMessageSizeRingBuffer {
 
@@ -51,10 +52,12 @@ public class MpscOffHeapFixedSizeRingBuffer extends OffHeapFixedMessageSizeRingB
     protected final long writeAcquire() {
         long producerIndex;
         long offset;
+
         do {
             producerIndex = lvProducerIndex(); // LoadLoad
             offset = offsetForIndex(producerIndex);
-            // if the message is not ready for writing the queue is full
+
+            // This is a bug! we need to replace with a solution a-la Vyukuv MPMC or similar slot 'phase' indicator
             if (!this.isReadReleased(offset)) {
                 // It is possible that due to another producer passing us we are seeing that producer completed message,
                 // if that is the case then we must retry.
@@ -64,7 +67,6 @@ public class MpscOffHeapFixedSizeRingBuffer extends OffHeapFixedMessageSizeRingB
                 return EOF;
             }
         } while (!casProducerIndex(producerIndex, producerIndex + 1));
-        //writeAcquireState(offset);
         // return offset for current producer index
         return offset;
     }
@@ -82,7 +84,6 @@ public class MpscOffHeapFixedSizeRingBuffer extends OffHeapFixedMessageSizeRingB
             return EOF;
         }
         soConsumerIndex(currentHead + 1); // StoreStore
-        //readAcquireState(offset);
         return offset;
     }
 
