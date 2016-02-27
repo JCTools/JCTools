@@ -102,6 +102,9 @@ public abstract class OffHeapFixedMessageSizeRingBuffer {
         }
     }
 
+    public final int capacity() {
+        return (int) (mask + 1);
+    }
     public final int size() {
         return (int) (lvProducerIndex() - lvConsumerIndex());
     }

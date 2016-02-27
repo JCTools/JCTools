@@ -51,14 +51,14 @@ public class SpscOffHeapFixedSizeRingBuffer extends OffHeapFixedMessageSizeRingB
      * This is to be used for an IPC queue with the direct buffer used being a memory mapped file.
      *
      * @param buff
-     * @param capacity in messages, actual capacity will be 
-     * @param messageSize 
+     * @param capacity in messages, actual capacity will be
+     * @param messageSize
      */
     protected SpscOffHeapFixedSizeRingBuffer(final ByteBuffer buff, final int capacity,
             final boolean isProducer, final boolean isConsumer, final boolean initialize,
             final int messageSize) {
         super(buff,capacity,isProducer,isConsumer,initialize,messageSize);
-              
+
         this.lookAheadStep = getLookaheadStep(capacity);
         // Layout of the RingBuffer (assuming 64b cache line):
         // consumerIndex(8b), pad(56b) |
@@ -101,6 +101,11 @@ public class SpscOffHeapFixedSizeRingBuffer extends OffHeapFixedMessageSizeRingB
         writeReleaseState(offset);
     }
 
+    protected final void writeRelease(long offset, int type) {
+        assert type != 0;
+        UNSAFE.putOrderedInt(null, offset, type);
+    }
+
     @Override
     protected final long readAcquire() {
         final long consumerIndex = lpConsumerIndex();
@@ -116,7 +121,7 @@ public class SpscOffHeapFixedSizeRingBuffer extends OffHeapFixedMessageSizeRingB
     @Override
     protected final void readRelease(long offset) {
         readReleaseState(offset);
-        
+
     }
 
     private long lpLookAheadCache() {
