@@ -61,8 +61,8 @@ public abstract class OffHeapFixedMessageSizeRingBuffer {
      * This is to be used for an IPC queue with the direct buffer used being a memory mapped file.
      *
      * @param buff
-     * @param capacity in messages, actual capacity will be 
-     * @param messageSize 
+     * @param capacity in messages, actual capacity will be
+     * @param messageSize
      */
     protected OffHeapFixedMessageSizeRingBuffer(final ByteBuffer buff, final int capacity,
             final boolean isProducer, final boolean isConsumer, final boolean initialize,
@@ -80,7 +80,7 @@ public abstract class OffHeapFixedMessageSizeRingBuffer {
         // Layout of the RingBuffer (assuming 64b cache line):
         // consumerIndex(8b), pad(56b) |
         // pad(64b) |
-        // producerIndex(8b), producerLookAheadCache(8b), pad(48b) |
+        // producerIndex(8b), pad(56b) |
         // pad(64b) |
         // buffer (capacity * messageSize)
         this.consumerIndexAddress = alignedAddress;
@@ -121,7 +121,7 @@ public abstract class OffHeapFixedMessageSizeRingBuffer {
     protected final void readReleaseState(long offset) {
         UNSAFE.putOrderedInt(null, offset, READ_RELEASE_INDICATOR);
     }
-    
+
     protected final void writeAcquireState(long offset) {
         UNSAFE.putOrderedInt(null, offset, WRITE_ACQUIRE_INDICATOR);
     }
@@ -161,7 +161,7 @@ public abstract class OffHeapFixedMessageSizeRingBuffer {
     protected final void soProducerIndex(final long value) {
         UNSAFE.putOrderedLong(null, producerIndexAddress, value);
     }
-    
+
     /**
      * @return a base address for a message acquired to be read, or EOF if none is available
      */
@@ -174,10 +174,10 @@ public abstract class OffHeapFixedMessageSizeRingBuffer {
      * @return a base address for a message acquired to be written, or EOF if none is available
      */
     protected abstract long writeAcquire();
-    
+
     /**
      * @param offset the base address of a message that we are done writing and can be read now
      */
     protected abstract void writeRelease(long offset);
-    
+
 }
