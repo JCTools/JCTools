@@ -29,8 +29,11 @@ public class MessagePassingQueueSanityTest {
     private static final int SIZE = 8192 * 2;
 
     @Parameterized.Parameters
-    public static Collection parameters() {
+    public static Collection<Object[]> parameters() {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
+        list.add(test(0, 1, 4, Ordering.FIFO, new MpscChunkedArrayQueue<>(4)));// MPSC size 1
+        list.add(test(0, 1, SIZE, Ordering.FIFO, new MpscChunkedArrayQueue<>(2, SIZE)));// MPSC size SIZE
+
         list.add(test(1, 1, 0, Ordering.FIFO, null));// unbounded SPSC
         list.add(test(0, 1, 0, Ordering.FIFO, null));// unbounded MPSC
 
@@ -45,6 +48,7 @@ public class MessagePassingQueueSanityTest {
 
         list.add(test(0, 1, 4, Ordering.FIFO, new MpscGrowableArrayQueue<>(4)));// MPSC size 1
         list.add(test(0, 1, SIZE, Ordering.FIFO, new MpscGrowableArrayQueue<>(2, SIZE)));// MPSC size SIZE
+
 
         list.add(test(0, 0, 2, Ordering.FIFO, null));
         list.add(test(0, 0, SIZE, Ordering.FIFO, null));
@@ -208,12 +212,13 @@ public class MessagePassingQueueSanityTest {
         assertTrue(queue.size() == 0);
 
         // Act
-        final Integer e = 1;
+        final Integer e = new Integer(1876876);
         queue.relaxedOffer(e);
         assertFalse(queue.isEmpty());
         assertEquals(1, queue.size());
 
         final Integer oh = queue.relaxedPoll();
+        assertEquals(e, oh);
 
         // Assert
         assertTrue(queue.isEmpty());

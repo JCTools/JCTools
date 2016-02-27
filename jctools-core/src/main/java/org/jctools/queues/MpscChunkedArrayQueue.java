@@ -26,21 +26,21 @@ import java.util.Iterator;
 
 import org.jctools.util.Pow2;
 
-abstract class MpscGrowableArrayQueuePad1<E> extends AbstractQueue<E> {
+abstract class MpscChunkedArrayQueuePad1<E> extends AbstractQueue<E> {
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 }
 
-abstract class MpscGrowableArrayQueueProducerFields<E> extends MpscGrowableArrayQueuePad1<E> {
+abstract class MpscChunkedArrayQueueProducerFields<E> extends MpscChunkedArrayQueuePad1<E> {
     protected long producerIndex;
 }
 
-abstract class MpscGrowableArrayQueuePad2<E> extends MpscGrowableArrayQueueProducerFields<E> {
+abstract class MpscChunkedArrayQueuePad2<E> extends MpscChunkedArrayQueueProducerFields<E> {
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 }
 
-abstract class MpscGrowableArrayQueueColdProducerFields<E> extends MpscGrowableArrayQueuePad2<E> {
+abstract class MpscChunkedArrayQueueColdProducerFields<E> extends MpscChunkedArrayQueuePad2<E> {
     protected long maxQueueCapacity;
     protected long producerMask;
     protected E[] producerBuffer;
@@ -48,26 +48,27 @@ abstract class MpscGrowableArrayQueueColdProducerFields<E> extends MpscGrowableA
 
 }
 
-abstract class MpscGrowableArrayQueuePad3<E> extends MpscGrowableArrayQueueColdProducerFields<E> {
+abstract class MpscChunkedArrayQueuePad3<E> extends MpscChunkedArrayQueueColdProducerFields<E> {
     long p0, p1, p2, p3, p4, p5, p6, p7;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 }
 
-abstract class MpscGrowableArrayQueueConsumerFields<E> extends MpscGrowableArrayQueuePad3<E> {
+abstract class MpscChunkedArrayQueueConsumerFields<E> extends MpscChunkedArrayQueuePad3<E> {
     protected long consumerMask;
     protected E[] consumerBuffer;
     protected long consumerIndex;
 }
 
 /**
- * An MPSC array queue which starts at <i>initialCapacity</i> and grows to <i>maxCapacity</i> in multiples of
- * 2. The queue grows only when the current buffer is full and elements are not copied on resize, instead a
+ * An MPSC array queue which starts at <i>initialCapacity</i> and grows to <i>maxCapacity</i> in linked chunks of the
+ * initial size.
+ * The queue grows only when the current buffer is full and elements are not copied on resize, instead a
  * link to the new buffer is stored in the old buffer for the consumer to follow.<br>
  *
  *
  * @param <E>
  */
-public class MpscGrowableArrayQueue<E> extends MpscGrowableArrayQueueConsumerFields<E>
+public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueConsumerFields<E>
         implements MessagePassingQueue<E>, QueueProgressIndicators {
     long p0, p1, p2, p3, p4, p5, p6, p7;
     long p10, p11, p12, p13, p14, p15, p16, p17;
@@ -77,21 +78,21 @@ public class MpscGrowableArrayQueue<E> extends MpscGrowableArrayQueueConsumerFie
 
     static {
         try {
-            Field iField = MpscGrowableArrayQueueProducerFields.class.getDeclaredField("producerIndex");
+            Field iField = MpscChunkedArrayQueueProducerFields.class.getDeclaredField("producerIndex");
             P_INDEX_OFFSET = UNSAFE.objectFieldOffset(iField);
         }
         catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
         try {
-            Field iField = MpscGrowableArrayQueueConsumerFields.class.getDeclaredField("consumerIndex");
+            Field iField = MpscChunkedArrayQueueConsumerFields.class.getDeclaredField("consumerIndex");
             C_INDEX_OFFSET = UNSAFE.objectFieldOffset(iField);
         }
         catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
         try {
-            Field iField = MpscGrowableArrayQueueColdProducerFields.class
+            Field iField = MpscChunkedArrayQueueColdProducerFields.class
                     .getDeclaredField("consumerIndexCache");
             C_INDEX_CACHE_OFFSET = UNSAFE.objectFieldOffset(iField);
         }
@@ -102,11 +103,11 @@ public class MpscGrowableArrayQueue<E> extends MpscGrowableArrayQueueConsumerFie
 
     private final static Object JUMP = new Object();
 
-    public MpscGrowableArrayQueue(final int maxCapacity) {
+    public MpscChunkedArrayQueue(final int maxCapacity) {
         this(Math.max(2, Pow2.roundToPowerOfTwo(maxCapacity / 8)), maxCapacity);
     }
 
-    public MpscGrowableArrayQueue(final int initialCapacity, int maxCapacity) {
+    public MpscChunkedArrayQueue(final int initialCapacity, int maxCapacity) {
         if (initialCapacity < 2) {
             throw new IllegalArgumentException("Initial capacity must be 2 or more");
         }
@@ -153,9 +154,7 @@ public class MpscGrowableArrayQueue<E> extends MpscGrowableArrayQueueConsumerFie
             // mask/buffer may get changed by resizing. Only used after successful CAS.
             mask = this.producerMask;
             buffer = this.producerBuffer;
-            final boolean atMaxCapacity = mask + 2 == maxQueueCapacity;
-            final long currCapacity = atMaxCapacity ? mask + 2 : mask;
-            final long wrapPoint = (currentProducerIndex - currCapacity);
+            final long wrapPoint = (currentProducerIndex - mask);
 
             if (consumerIndexCache <= wrapPoint) {
                 consumerIndexCache = lvConsumerIndex();
@@ -163,7 +162,7 @@ public class MpscGrowableArrayQueue<E> extends MpscGrowableArrayQueueConsumerFie
                     soConsumerIndexCache(consumerIndexCache);
                 }
                 // full and cannot grow
-                else if (atMaxCapacity) {
+                else if (consumerIndexCache == (currentProducerIndex - maxQueueCapacity)) {
                     return false;
                 }
                 // resize -> set lower bit
@@ -186,10 +185,9 @@ public class MpscGrowableArrayQueue<E> extends MpscGrowableArrayQueueConsumerFie
     }
 
     private void resize(long currentProducerIndex, E[] buffer, long mask, final E e) {
-        final int newCapacity = (int) (2 * ((mask >> 1) + 1));
-        final E[] newBuffer = allocate(newCapacity + 1);
+        final E[] newBuffer = allocate(buffer.length);
         producerBuffer = newBuffer;
-        producerMask = (long) (newCapacity - 1) << 1;
+        // mask doesn't change
         final long offsetInOld = modifiedCalcElementOffset(currentProducerIndex, mask);
         final long offsetInNew = modifiedCalcElementOffset(currentProducerIndex, producerMask);
         soElement(newBuffer, offsetInNew, e);
@@ -294,7 +292,8 @@ public class MpscGrowableArrayQueue<E> extends MpscGrowableArrayQueueConsumerFie
 
     private long newBufferAndOffset(E[] nextBuffer, final long index) {
         consumerBuffer = nextBuffer;
-        consumerMask = (nextBuffer.length - 2) << 1;
+        // mask doesn't change
+//        consumerMask = (nextBuffer.length - 2) << 1;
         final long offsetInNew = modifiedCalcElementOffset(index, consumerMask);
         return offsetInNew;
     }

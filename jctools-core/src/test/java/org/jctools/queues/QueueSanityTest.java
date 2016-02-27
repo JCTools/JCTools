@@ -27,6 +27,9 @@ public class QueueSanityTest {
     @Parameterized.Parameters
     public static Collection parameters() {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
+        list.add(test(0, 1, 4, Ordering.FIFO, new MpscChunkedArrayQueue<>(4)));// MPSC size 1
+        list.add(test(0, 1, SIZE, Ordering.FIFO, new MpscChunkedArrayQueue<>(2, SIZE)));// MPSC size SIZE
+
         list.add(test(1, 1, 4, Ordering.FIFO, null));
         list.add(test(1, 1, 0, Ordering.FIFO, null));
         list.add(test(1, 1, SIZE, Ordering.FIFO, null));
@@ -167,12 +170,13 @@ public class QueueSanityTest {
         assertThat(queue, emptyAndZeroSize());
 
         // Act
-        final Integer e = 1;
+        final Integer e = new Integer(1876876);
         queue.offer(e);
-        assertThat(queue, not(emptyAndZeroSize()));
-        assertThat(queue, hasSize(1));
+        assertFalse(queue.isEmpty());
+        assertEquals(1, queue.size());
 
         final Integer oh = queue.poll();
+        assertEquals(e, oh);
 
         // Assert
         assertThat(oh, sameInstance(e));
