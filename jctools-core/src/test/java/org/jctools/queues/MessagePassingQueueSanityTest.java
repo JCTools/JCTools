@@ -31,8 +31,8 @@ public class MessagePassingQueueSanityTest {
     @Parameterized.Parameters
     public static Collection<Object[]> parameters() {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
-        list.add(test(0, 1, 4, Ordering.FIFO, new MpscChunkedArrayQueue<>(4)));// MPSC size 1
-        list.add(test(0, 1, SIZE, Ordering.FIFO, new MpscChunkedArrayQueue<>(2, SIZE)));// MPSC size SIZE
+//        list.add(test(0, 1, 4, Ordering.FIFO, new MpscChunkedArrayQueue<>(4)));// MPSC size 1
+//        list.add(test(0, 1, SIZE, Ordering.FIFO, new MpscChunkedArrayQueue<>(2, SIZE)));// MPSC size SIZE
 
         list.add(test(1, 1, 0, Ordering.FIFO, null));// unbounded SPSC
         list.add(test(0, 1, 0, Ordering.FIFO, null));// unbounded MPSC
