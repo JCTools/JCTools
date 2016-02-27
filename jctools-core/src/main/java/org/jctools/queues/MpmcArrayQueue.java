@@ -16,7 +16,7 @@ package org.jctools.queues;
 import static org.jctools.util.JvmInfo.CPUs;
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeRefArrayAccess.lpElement;
-import static org.jctools.util.UnsafeRefArrayAccess.spElement;
+import static org.jctools.util.UnsafeRefArrayAccess.soElement;
 
 abstract class MpmcArrayQueueL1Pad<E> extends ConcurrentSequencedCircularArrayQueue<E> {
     long p00, p01, p02, p03, p04, p05, p06, p07;
@@ -95,7 +95,7 @@ abstract class MpmcArrayQueueConsumerField<E> extends MpmcArrayQueueL2Pad<E> {
  * field of the struct. There is a further alternative in the experimental project which uses iteration phase
  * markers to achieve the same algo and is closer structurally to the original, but sadly does not perform as
  * well as this implementation.<br>
- * 
+ *
  * Tradeoffs to keep in mind:
  * <ol>
  * <li>Padding for false sharing: counter fields and queue fields are all padded as well as either side of
@@ -105,7 +105,7 @@ abstract class MpmcArrayQueueConsumerField<E> extends MpmcArrayQueueL2Pad<E> {
  * <li>Power of 2 capacity: Actual elements buffer (and sequence buffer) is the closest power of 2 larger or
  * equal to the requested capacity.
  * </ol>
- * 
+ *
  * @param <E>
  *            type of the element stored in the {@link java.util.Queue}
  */
@@ -129,7 +129,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> implements
         final long mask = this.mask;
         final long capacity = mask + 1;
         final long[] sBuffer = sequenceBuffer;
-        
+
         long pIndex;
         long seqOffset;
         long seq;
@@ -151,7 +151,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> implements
                 !casProducerIndex(pIndex, pIndex + 1)); // failed to increment
 
         assert null == lpElement(buffer, calcElementOffset(pIndex, mask));
-        spElement(buffer, calcElementOffset(pIndex, mask), e);
+        soElement(buffer, calcElementOffset(pIndex, mask), e);
         soSequence(sBuffer, seqOffset, pIndex + 1); // seq++;
         return true;
 
@@ -168,7 +168,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> implements
         // local load of field to avoid repeated loads after volatile reads
         final long[] sBuffer = sequenceBuffer;
         final long mask = this.mask;
-        
+
         long cIndex;
         long seq;
         long seqOffset;
@@ -190,11 +190,11 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> implements
             }
         } while (seq > expectedSeq || // another consumer beat us to it
                 !casConsumerIndex(cIndex, cIndex + 1)); // failed the CAS
-        
+
         final long offset = calcElementOffset(cIndex, mask);
         final E e = lpElement(buffer, offset);
         assert e != null;
-        spElement(buffer, offset, null);
+        soElement(buffer, offset, null);
         soSequence(sBuffer, seqOffset, cIndex + mask + 1);// i.e. seq += capacity
         return e;
     }
@@ -239,17 +239,17 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> implements
         // nothing we can do to make this an exact method.
         return (lvConsumerIndex() == lvProducerIndex());
     }
-    
+
     @Override
     public long currentProducerIndex() {
         return lvProducerIndex();
     }
-    
+
     @Override
     public long currentConsumerIndex() {
         return lvConsumerIndex();
     }
-    
+
 	@Override
 	public boolean relaxedOffer(E e) {
 		if (null == e) {
@@ -257,7 +257,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> implements
         }
         final long mask = this.mask;
         final long[] sBuffer = sequenceBuffer;
-        
+
         long pIndex;
         long seqOffset;
         long seq;
@@ -271,7 +271,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> implements
         } while (seq > pIndex || // another producer has moved the sequence
                 !casProducerIndex(pIndex, pIndex + 1)); // failed to increment
 
-        spElement(buffer, calcElementOffset(pIndex, mask), e);
+        soElement(buffer, calcElementOffset(pIndex, mask), e);
         soSequence(sBuffer, seqOffset, pIndex + 1);
         return true;
 	}
@@ -280,7 +280,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> implements
 	public E relaxedPoll() {
         final long[] sBuffer = sequenceBuffer;
         final long mask = this.mask;
-        
+
         long cIndex;
         long seqOffset;
         long seq;
@@ -295,10 +295,10 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> implements
             }
         } while (seq > expectedSeq || // another consumer beat us to it
                 !casConsumerIndex(cIndex, cIndex + 1)); // failed the CAS
-        
+
         final long offset = calcElementOffset(cIndex, mask);
         final E e = lpElement(buffer, offset);
-        spElement(buffer, offset, null);
+        soElement(buffer, offset, null);
         soSequence(sBuffer, seqOffset, cIndex + mask + 1);
         return e;
 	}
@@ -361,7 +361,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> implements
 
             final long offset = calcElementOffset(cIndex, mask);
             final E e = lpElement(buffer, offset);
-            spElement(buffer, offset, null);
+            soElement(buffer, offset, null);
             soSequence(sBuffer, seqOffset, cIndex + mask + 1);
             c.accept(e);
         }
@@ -388,7 +388,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> implements
             } while (seq > pIndex || // another producer has moved the sequence
                     !casProducerIndex(pIndex, pIndex + 1)); // failed to increment
 
-            spElement(buffer, calcElementOffset(pIndex, mask), s.get());
+            soElement(buffer, calcElementOffset(pIndex, mask), s.get());
             soSequence(sBuffer, seqOffset, pIndex + 1);
         }
         return limit;
@@ -418,7 +418,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> implements
                 idleCounter = w.idle(idleCounter);
                 continue;
             }
-            idleCounter = 0;   
+            idleCounter = 0;
         }
     }
 }
