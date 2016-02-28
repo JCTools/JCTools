@@ -235,6 +235,9 @@ public class MessagePassingQueueSanityTest {
                         v.value = i;
                         q.relaxedOffer(v);
                     }
+                    // slow down the producer, this will make the queue mostly empty encouraging visibility
+                    // issues.
+                    Thread.yield();
                 }
             }
         });
@@ -280,6 +283,9 @@ public class MessagePassingQueueSanityTest {
                         v.value = i;
                         q.relaxedOffer(v);
                     }
+                    // slow down the producer, this will make the queue mostly empty encouraging visibility
+                    // issues.
+                    Thread.yield();
                 }
             }
         });
@@ -330,6 +336,9 @@ public class MessagePassingQueueSanityTest {
                 } , e -> {
                     return e;
                 } , () -> {
+                    // slow down the producer, this will make the queue mostly empty encouraging visibility
+                    // issues.
+                    Thread.yield();
                     return !stop.get();
                 });
             }
@@ -340,7 +349,8 @@ public class MessagePassingQueueSanityTest {
                 while (!stop.get()) {
                     for (int i = 0; i < 10; i++) {
                         Val v = (Val) q.relaxedPeek();
-                        if (v != null && v.value == 0) {
+                        int r;
+                        if (v != null && (r = v.value) == 0) {
                             fail.value = 1;
                             stop.set(true);
                         }
@@ -377,7 +387,9 @@ public class MessagePassingQueueSanityTest {
                     return v;
                 } , e -> {
                     return e;
-                } , () -> {
+                } , () -> { // slow down the producer, this will make the queue mostly empty encouraging
+                            // visibility issues.
+                    Thread.yield();
                     return !stop.get();
                 });
             }
