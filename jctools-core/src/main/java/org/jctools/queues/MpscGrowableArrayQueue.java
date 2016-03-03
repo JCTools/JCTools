@@ -326,6 +326,14 @@ public class MpscGrowableArrayQueue<E> extends MpscGrowableArrayQueueConsumerFie
         }
     }
 
+    @Override
+    public boolean isEmpty() {
+        // isEmpty observation is more 'fragile' than size(). If the indices are in motion it will return false.
+        final long lvProducerIndex = lvProducerIndex(); // load producer first
+        final long lvConsumerIndex = lvConsumerIndex();
+        return lvProducerIndex == lvConsumerIndex;
+    }
+
     private long lvProducerIndex() {
         return UNSAFE.getLongVolatile(this, P_INDEX_OFFSET);
     }
