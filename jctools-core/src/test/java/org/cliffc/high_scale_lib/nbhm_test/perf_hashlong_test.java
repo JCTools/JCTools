@@ -1,18 +1,19 @@
+package org.cliffc.high_scale_lib.nbhm_test;
+import org.cliffc.high_scale_lib.*;
+import java.util.*;
+import java.util.concurrent.atomic.*;
+import org.junit.Test;
+
 /*
  * Written by Cliff Click and released to the public domain, as explained at
  * http://creativecommons.org/licenses/publicdomain
  * Big Chunks of code shamelessly copied from Doug Lea's test harness which is also public domain.
  */
 
-
-import java.io.*;
-import org.cliffc.high_scale_lib.*;
-import java.util.*;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.*;
-import java.lang.reflect.*;
-
 public class perf_hashlong_test extends Thread {
+  @Test
+  public void benchmarkTest() { main(new String[]{"75","2","8","2","100000"}); }
+
   static int _read_ratio, _gr, _pr;
   static int _thread_min, _thread_max, _thread_incr;
   static int _table_size;
@@ -20,7 +21,6 @@ public class perf_hashlong_test extends Thread {
   static String KEYS[];
   static volatile boolean _start;
   static volatile boolean _stop;
-  static final int NUM_CPUS = Runtime.getRuntime().availableProcessors();
 
   static int check( String arg, String msg, int lower, int upper ) throws Exception {
     return check( Integer.parseInt(arg), msg, lower, upper );
@@ -31,14 +31,14 @@ public class perf_hashlong_test extends Thread {
     return x;
   }
 
-  public static void main( String args[] ) throws Exception {
+  public static void main( String args[] ) {
     // Parse args
     try { 
       _read_ratio   = check( args[0], "read%", 0, 100 );
       _thread_min   = check( args[1], "thread_min", 1, 100000 );
       _thread_max   = check( args[2], "thread_max", 1, 100000 );
       _thread_incr  = check( args[3], "thread_incr", 1, 100000 );
-      _table_size   = check( args[4], "table_size", 1, 100000000 );
+      _table_size   = check( args[4], "table_size", 100, 100000000 );
 
       _gr = (_read_ratio<<20)/100;
       _pr = (((1<<20) - _gr)>>1) + _gr;
@@ -48,7 +48,7 @@ public class perf_hashlong_test extends Thread {
 
     } catch( Exception e ) {
       System.out.println("Usage: perf_hash_test read%[0=churn test] thread-min thread-max thread-increment hash_table_size impl[All=0,Hashtable=1,HerlihyHashSet=2,CHM_16=3,CHM_256=4,CHM_4096=5,NonBlockingHashMap=6]");
-      throw e;
+      throw new RuntimeException(e);
     }
     
     System.out.print(  _read_ratio+"% gets, "+ 
@@ -84,8 +84,8 @@ public class perf_hashlong_test extends Thread {
       run_till_stable( i, num_trials );
   }
 
-  static void run_till_stable( int num_threads, int num_trials ) throws Exception {
-    NonBlockingHashMapLong<String> HM = new NonBlockingHashMapLong(true);
+  static void run_till_stable( int num_threads, int num_trials ) {
+    NonBlockingHashMapLong<String> HM = new NonBlockingHashMapLong<>(true);
     String name = "NonBlockingHashMapLong";
     System.out.printf("=== %10.10s  %3d  cnts/sec=",name,num_threads);
 
@@ -180,9 +180,10 @@ public class perf_hashlong_test extends Thread {
   final NonBlockingHashMapLong<String> _hash; // Shared hashtable
   final long[] _ops;
   final long[] _nanos;
-  perf_hashlong_test( int tnum, NonBlockingHashMapLong<String> HM, long[] ops, long [] nanos ) { _tnum = tnum; _hash = HM; _ops = ops; _nanos = nanos; }
+  public perf_hashlong_test() { _tnum=0; _hash=null; _ops=null; _nanos=null; }
+  private perf_hashlong_test( int tnum, NonBlockingHashMapLong<String> HM, long[] ops, long [] nanos ) { _tnum = tnum; _hash = HM; _ops = ops; _nanos = nanos; }
 
-  static long run_once( int num_threads, NonBlockingHashMapLong<String> HM, long[] ops, long [] nanos ) throws Exception {
+  static long run_once( int num_threads, NonBlockingHashMapLong<String> HM, long[] ops, long [] nanos ) {
     Random R = new Random();
     _start = false;
     _stop = false;
@@ -191,7 +192,6 @@ public class perf_hashlong_test extends Thread {
     HM.remove(0);
 
     int sz = HM.size();
-    int xsz=0;
     while( sz+1024 < _table_size ) {
       int idx = R.nextInt();
       for( int i=0; i<1024; i++ ) {
@@ -217,7 +217,7 @@ public class perf_hashlong_test extends Thread {
         if( (trip & 15)==15 ) idx = R.nextInt();
         if( trip++ > 1024*1024 ) {
           if( trip > 1024*1024+100 ) 
-            throw new Exception("barf trip "+sz+" "+HM.size()+" numkeys="+KEYS.length);
+            throw new RuntimeException("barf trip "+sz+" "+HM.size()+" numkeys="+KEYS.length);
           System.out.println(key);
         }
       }
@@ -240,7 +240,7 @@ public class perf_hashlong_test extends Thread {
     //System.out.println(" "+nano+" Start");
     long start = System.currentTimeMillis();
     _start = true;
-    try { Thread.sleep(2000); } catch( InterruptedException e ){}
+    try { Thread.sleep(2000); } catch( InterruptedException e ){/*empty*/}
     _stop = true;
     long stop = System.currentTimeMillis();
     //long nanox = System.nanoTime();
@@ -248,7 +248,7 @@ public class perf_hashlong_test extends Thread {
     //System.out.println(" "+nanox+" Stop");
 
     for( int i=0; i<num_threads; i++ )
-      thrs[i].join();
+      try { thrs[i].join(); } catch( InterruptedException ie ) { throw new RuntimeException(ie); }
     //long nanoy = System.nanoTime();
     //System.out.println(" "+nanoy+" Join-Done");
     return millis;
@@ -272,7 +272,7 @@ public class perf_hashlong_test extends Thread {
     int idx = reprobe;
 
     while( !_start )            // Spin till Time To Go
-      try { Thread.sleep(1); } catch( Exception e ){}
+      try { Thread.sleep(1); } catch( Exception e ){/*empty*/}
 
     long nano1 = System.nanoTime();
     int get_ops = 0;
@@ -288,8 +288,7 @@ public class perf_hashlong_test extends Thread {
       put_ops++;
 
       // Remove a key  0 probes in the future
-      int k2 = (idx+reprobe* 0) & (KEYS.length-1);
-      String key2 = KEYS[k2];
+      int k2 = idx & (KEYS.length-1);
       _hash.remove(k2);
       del_ops++;
 
@@ -306,7 +305,7 @@ public class perf_hashlong_test extends Thread {
   public void run_normal() {
     SimpleRandom R = new SimpleRandom();
     while( !_start )            // Spin till Time To Go
-      try { Thread.sleep(1); } catch( Exception e ){}
+      try { Thread.sleep(1); } catch( Exception e ){/*empty*/}
 
     long nano1 = System.nanoTime();
     int get_ops = 0;
@@ -347,9 +346,7 @@ public class perf_hashlong_test extends Thread {
     private final static long mask = (1L << 48) - 1;
     static final AtomicLong seq = new AtomicLong( -715159705);
     private long seed;
-    SimpleRandom(long s) { seed = s; }
     SimpleRandom() { seed = System.nanoTime() + seq.getAndAdd(129); }
-    public void setSeed(long s) { seed = s; }
     public int nextInt() { return next(); }
     public int next() {
       long nextseed = (seed * multiplier + addend) & mask;
