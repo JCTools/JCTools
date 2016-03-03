@@ -1,6 +1,5 @@
 package org.cliffc.high_scale_lib;
 import java.io.Serializable;
-import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import sun.misc.Unsafe;
@@ -46,7 +45,7 @@ public class ConcurrentAutoTable implements Serializable {
   public void set( long x ) { 
     CAT newcat = new CAT(null,4,x);
     // Spin until CAS works
-    while( !CAS_cat(_cat,newcat) );
+    while( !CAS_cat(_cat,newcat) ) {/*empty*/}
   }
 
   /**
@@ -90,12 +89,12 @@ public class ConcurrentAutoTable implements Serializable {
 
   // The underlying array of concurrently updated long counters
   private volatile CAT _cat = new CAT(null,16/*Start Small, Think Big!*/,0L);
-  private static final AtomicReferenceFieldUpdater<ConcurrentAutoTable,CAT> _catUpdater =
+  private static AtomicReferenceFieldUpdater<ConcurrentAutoTable,CAT> _catUpdater =
     AtomicReferenceFieldUpdater.newUpdater(ConcurrentAutoTable.class,CAT.class, "_cat");
   private boolean CAS_cat( CAT oldcat, CAT newcat ) { return _catUpdater.compareAndSet(this,oldcat,newcat); }
 
   // Hash spreader
-  private static final int hash() {
+  private static int hash() {
     //int h = (int)Thread.currentThread().getId();
     int h = System.identityHashCode(Thread.currentThread());
     return h<<3;                // Pad out cache lines.  The goal is to avoid cache-line contention
@@ -112,13 +111,13 @@ public class ConcurrentAutoTable implements Serializable {
       assert i >= 0 && i < ary.length;
       return _Lbase + i * _Lscale;
     }
-    private final static boolean CAS( long[] A, int idx, long old, long nnn ) {
+    private static boolean CAS( long[] A, int idx, long old, long nnn ) {
       return _unsafe.compareAndSwapLong( A, rawIndex(A,idx), old, nnn );
     }
    
-    volatile long _resizers;    // count of threads attempting a resize
-    static private final AtomicLongFieldUpdater<CAT> _resizerUpdater =
-      AtomicLongFieldUpdater.newUpdater(CAT.class, "_resizers");
+    //volatile long _resizers;    // count of threads attempting a resize
+    //static private final AtomicLongFieldUpdater<CAT> _resizerUpdater =
+    //  AtomicLongFieldUpdater.newUpdater(CAT.class, "_resizers");
 
     private final CAT _next;
     private volatile long _fuzzy_sum_cache;
@@ -160,7 +159,7 @@ public class ConcurrentAutoTable implements Serializable {
       //r += newbytes;
       if( master._cat != this ) return old; // Already doubled, don't bother
       //if( (r>>17) != 0 ) {      // Already too much allocation attempts?
-      //  // TODO - use a wait with timeout, so we'll wakeup as soon as the new
+      //  // We could use a wait with timeout, so we'll wakeup as soon as the new
       //  // table is ready, or after the timeout in any case.  Annoyingly, this
       //  // breaks the non-blocking property - so for now we just briefly sleep.
       //  //synchronized( this ) { wait(8*megs); }         // Timeout - we always wakeup
@@ -172,7 +171,7 @@ public class ConcurrentAutoTable implements Serializable {
       // Take 1 stab at updating the CAT with the new larger size.  If this
       // fails, we assume some other thread already expanded the CAT - so we
       // do not need to retry until it succeeds.
-      while( master._cat == this && !master.CAS_cat(this,newcat) ) ;
+      while( master._cat == this && !master.CAS_cat(this,newcat) ) {/*empty*/}
       return old;
     }
     
@@ -182,8 +181,7 @@ public class ConcurrentAutoTable implements Serializable {
     public long sum( ) {
       long sum = _next == null ? 0 : _next.sum(); // Recursively get cached sum
       final long[] t = _t;
-      for( int i=0; i<t.length; i++ )
-        sum += t[i];
+      for( long cnt : t ) sum += cnt;
       return sum;
     }
 
@@ -199,39 +197,6 @@ public class ConcurrentAutoTable implements Serializable {
         _fuzzy_time = millis;   // Indicate freshness of cached value
       }
       return _fuzzy_sum_cache;  // Return cached sum
-    }
-
-    // Update all table slots with CAS.
-    public void all_or ( long mask ) {
-      long[] t = _t;
-      for( int i=0; i<t.length; i++ ) {
-        boolean done = false;
-        while( !done ) {
-          long old = t[i];
-          done = CAS(t,i, old, old|mask );
-        }
-      }
-      if( _next != null ) _next.all_or(mask);
-    }
-    
-    public void all_and( long mask ) {
-      long[] t = _t;
-      for( int i=0; i<t.length; i++ ) {
-        boolean done = false;
-        while( !done ) {
-          long old = t[i];
-          done = CAS(t,i, old, old&mask );
-        }
-      }
-      if( _next != null ) _next.all_and(mask);
-    }
-    
-    // Set/stomp all table slots.  No CAS.
-    public void all_set( long val ) {
-      long[] t = _t;
-      for( int i=0; i<t.length; i++ ) 
-        t[i] = val;
-      if( _next != null ) _next.all_set(val);
     }
 
     public String toString( ) { return Long.toString(sum()); }
