@@ -1,30 +1,28 @@
-/*
- * Written by Cliff Click and released to the public domain, as explained at
- * http://creativecommons.org/licenses/publicdomain
- * Additional test cases provided by Andy Martin of TeleAtlas.
- */
-
-package Testing.NBHM_Tester;
+package org.cliffc.high_scale_lib.nbhm_test;
+import org.cliffc.high_scale_lib.*;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
 import java.io.*;
 import java.util.*;
-import java.util.Map.Entry;
 import java.util.concurrent.*;
-import junit.framework.TestCase;
-import org.cliffc.high_scale_lib.*;
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
-// Test NonBlockingHashMapLong via JUnit
-public class NBHML_Tester2 extends TestCase {
-  public static void main(String args[]) {
-    org.junit.runner.JUnitCore.main("Testing.NBHM_Tester.NBHML_Tester2");
-  }
+/*
+ * Written by Cliff Click and released to the public domain, as explained at
+ * http://creativecommons.org/licenses/publicdomain
+ */
 
-  private NonBlockingHashMapLong<String> _nbhml;
-  protected void setUp   () { _nbhml = new NonBlockingHashMapLong<String>(); }
-  protected void tearDown() { _nbhml = null; }
+// Test NonBlockingHashMapLong via JUnit
+public class NBHML_Tester2 {
+
+  static private NonBlockingHashMapLong<String> _nbhml;
+  @BeforeClass public static void setUp   () { _nbhml = new NonBlockingHashMapLong<>(); }
+  @AfterClass  public static void tearDown() { _nbhml = null; }
 
   // Test some basic stuff; add a few keys, remove a few keys
+  @Test
   public void testBasic() {
     assertTrue ( _nbhml.isEmpty() );
     assertThat ( _nbhml.put(1,"v1"), nullValue() );
@@ -86,7 +84,7 @@ public class NBHML_Tester2 extends TestCase {
     checkSizes("values()",vals.size(),vals.iterator(),expectedSize);
     Set<Long> keys = _nbhml.keySet();
     checkSizes("keySet()",keys.size(),keys.iterator(),expectedSize);
-    Set<Entry<Long,String>> ents = _nbhml.entrySet();
+    Set<Map.Entry<Long,String>> ents = _nbhml.entrySet();
     checkSizes("entrySet()",ents.size(),ents.iterator(),expectedSize);
   }
 
@@ -102,6 +100,7 @@ public class NBHML_Tester2 extends TestCase {
   }
 
 
+  @Test
   public void testIterationBig2() {
     final int CNT = 10000;
     assertThat( _nbhml.size(), is(0) );
@@ -112,38 +111,36 @@ public class NBHML_Tester2 extends TestCase {
       assertThat( s, is(v) );
     }
     assertThat( _nbhml.size(), is(CNT) );
+    _nbhml.clear();
   }
 
 
+  @Test
   public void testIteration() {
     assertTrue ( _nbhml.isEmpty() );
     assertThat ( _nbhml.put(1,"v1"), nullValue() );
     assertThat ( _nbhml.put(2,"v2"), nullValue() );
 
     String str1 = "";
-    for( Iterator<Map.Entry<Long,String>> i = _nbhml.entrySet().iterator(); i.hasNext(); ) {
-      Map.Entry<Long,String> e = i.next();
+    for( Map.Entry<Long,String> e : _nbhml.entrySet() )
       str1 += e.getKey();
-    }
     assertThat("found all entries",str1,anyOf(is("12"),is("21")));
 
     String str2 = "";
-    for( Iterator<Long> i = _nbhml.keySet().iterator(); i.hasNext(); ) {
-      Long key = i.next();
+    for( Long key : _nbhml.keySet() )
       str2 += key;
-    }
     assertThat("found all keys",str2,anyOf(is("12"),is("21")));
 
     String str3 = "";
-    for( Iterator<String> i = _nbhml.values().iterator(); i.hasNext(); ) {
-      String val = i.next();
+    for( String val : _nbhml.values() )
       str3 += val;
-    }
     assertThat("found all vals",str3,anyOf(is("v1v2"),is("v2v1")));
 
     assertThat("toString works",_nbhml.toString(), anyOf(is("{1=v1, 2=v2}"),is("{2=v2, 1=v1}")));
+    _nbhml.clear();
   }
 
+  @Test
   public void testSerial() {
     assertTrue ( _nbhml.isEmpty() );
     assertThat ( _nbhml.put(0x12345678L,"v1"), nullValue() );
@@ -168,14 +165,13 @@ public class NBHML_Tester2 extends TestCase {
       in.close();
       assertEquals(_nbhml.toString(),nbhml.toString());
       if( !f.delete() ) throw new IOException("delete failed");
-    } catch(IOException ex) {
-      ex.printStackTrace();
-    } catch(ClassNotFoundException ex) {
+    } catch(IOException|ClassNotFoundException ex) {
       ex.printStackTrace();
     }
 
   }
 
+  @Test
   public void testIterationBig() {
     final int CNT = 10000;
     assertThat( _nbhml.size(), is(0) );
@@ -207,11 +203,13 @@ public class NBHML_Tester2 extends TestCase {
     }
     assertThat("Found "+(CNT-2)+" ints",sz,is(CNT-2));
     assertThat("Found all integers in list",sum,is(CNT*(CNT-1)/2 - (3+4)));
+    _nbhml.clear();
   }
 
   // Do some simple concurrent testing
+  @Test
   public void testConcurrentSimple() throws InterruptedException {
-    final NonBlockingHashMapLong<String> nbhml = new NonBlockingHashMapLong<String>();
+    final NonBlockingHashMapLong<String> nbhml = new NonBlockingHashMapLong<>();
 
     // In 2 threads, add & remove even & odd elements concurrently
     final int num_thrds = 2;
@@ -227,7 +225,7 @@ public class NBHML_Tester2 extends TestCase {
       ts[i].join();
 
     // In the end, all members should be removed
-    StringBuffer buf = new StringBuffer();
+    StringBuilder buf = new StringBuilder();
     buf.append("Should be emptyset but has these elements: {");
     boolean found = false;
     for( long x : nbhml.keySet() ) {
@@ -236,9 +234,7 @@ public class NBHML_Tester2 extends TestCase {
     }
     if( found ) System.out.println(buf+" }");
     assertThat( "concurrent size=0", nbhml.size(), is(0) );
-    for( long x : nbhml.keySet() ) {
-      assertTrue("No elements so never get here",false);
-    }
+    assertThat( "keySet size==0", nbhml.keySet().size(), is(0));
   }
 
   void work_helper(NonBlockingHashMapLong<String> nbhml, int d, int num_thrds) {
@@ -260,14 +256,15 @@ public class NBHML_Tester2 extends TestCase {
 
 
   // --- Customer Test Case 1 ------------------------------------------------
+  @Test
   public final void testNonBlockingHashMapSize() {
-    NonBlockingHashMapLong<String> items = new NonBlockingHashMapLong<String>();
-    items.put(Long.valueOf(100), "100");
-    items.put(Long.valueOf(101), "101");
+    NonBlockingHashMapLong<String> items = new NonBlockingHashMapLong<>();
+    items.put(100L, "100");
+    items.put(101L, "101");
 
     assertEquals("keySet().size()", 2, items.keySet().size());
-    assertTrue("keySet().contains(100)", items.keySet().contains(Long.valueOf(100)));
-    assertTrue("keySet().contains(101)", items.keySet().contains(Long.valueOf(101)));
+    assertTrue("keySet().contains(100)", items.keySet().contains(100L));
+    assertTrue("keySet().contains(101)", items.keySet().contains(101L));
 
     assertEquals("values().size()", 2, items.values().size());
     assertTrue("values().contains(\"100\")", items.values().contains("100"));
@@ -276,11 +273,11 @@ public class NBHML_Tester2 extends TestCase {
     assertEquals("entrySet().size()", 2, items.entrySet().size());
     boolean found100 = false;
     boolean found101 = false;
-    for (Entry<Long, String> entry : items.entrySet()) {
-      if (entry.getKey().equals(Long.valueOf(100))) {
+    for (Map.Entry<Long, String> entry : items.entrySet()) {
+      if (entry.getKey().equals(100L)) {
         assertEquals("entry[100].getValue()==\"100\"", "100", entry.getValue());
         found100 = true;
-      } else if (entry.getKey().equals(Long.valueOf(101))) {
+      } else if (entry.getKey().equals(101L)) {
         assertEquals("entry[101].getValue()==\"101\"", "101", entry.getValue());
         found101 = true;
       }
@@ -291,18 +288,19 @@ public class NBHML_Tester2 extends TestCase {
 
   // --- Customer Test Case 2 ------------------------------------------------
   // Concurrent insertion & then iterator test.
-  static public void testNonBlockingHashMapIterator() throws InterruptedException {
+  @Test
+  public void testNonBlockingHashMapIterator() throws InterruptedException {
     final int ITEM_COUNT1 = 1000;
     final int THREAD_COUNT = 5;
     final int PER_CNT = ITEM_COUNT1/THREAD_COUNT;
     final int ITEM_COUNT = PER_CNT*THREAD_COUNT; // fix roundoff for odd thread counts
 
-    NonBlockingHashMapLong<TestKey> nbhml = new NonBlockingHashMapLong<TestKey>();
+    NonBlockingHashMapLong<TestKey> nbhml = new NonBlockingHashMapLong<>();
     // use a barrier to open the gate for all threads at once to avoid rolling
     // start and no actual concurrency
     final CyclicBarrier barrier = new CyclicBarrier(THREAD_COUNT);
     final ExecutorService ex = Executors.newFixedThreadPool(THREAD_COUNT);
-    final CompletionService<Object> co = new ExecutorCompletionService<Object>(ex);
+    final CompletionService<Object> co = new ExecutorCompletionService<>(ex);
     for( int i=0; i<THREAD_COUNT; i++ ) {
       co.submit(new NBHMLFeeder(nbhml, PER_CNT, barrier, i*PER_CNT));
     }
@@ -413,7 +411,7 @@ public class NBHML_Tester2 extends TestCase {
 
   // ---
   static private class TestKeyFeeder {
-    private final Hashtable<Integer, List<TestKey>> _items = new Hashtable<Integer, List<TestKey>>();
+    private final Hashtable<Integer, List<TestKey>> _items = new Hashtable<>();
     private int _size = 0;
     public int size() { return _size;  }
     // Put items into the hashtable, sorted by 'type' into LinkedLists.
@@ -421,22 +419,22 @@ public class NBHML_Tester2 extends TestCase {
       _size++;
       final TestKey item = new TestKey(id, type, hash);
       if( !_items.containsKey(type) )
-        _items.put(type, new LinkedList<TestKey>());
+        _items.put(type, new LinkedList<>());
       _items.get(type).add(item);
     }
 
     public NonBlockingHashMapLong<TestKey> getMapMultithreaded() throws InterruptedException, ExecutionException {
       final int threadCount = _items.keySet().size();
-      final NonBlockingHashMapLong<TestKey> map = new NonBlockingHashMapLong<TestKey>();
+      final NonBlockingHashMapLong<TestKey> map = new NonBlockingHashMapLong<>();
 
       // use a barrier to open the gate for all threads at once to avoid rolling start and no actual concurrency
       final CyclicBarrier barrier = new CyclicBarrier(threadCount);
       final ExecutorService ex = Executors.newFixedThreadPool(threadCount);
-      final CompletionService<Integer> co = new ExecutorCompletionService<Integer>(ex);
+      final CompletionService<Integer> co = new ExecutorCompletionService<>(ex);
       for( Integer type : _items.keySet() ) {
         // A linked-list of things to insert
         List<TestKey> items = _items.get(type);
-        TestKeyFeederThread feeder = new TestKeyFeederThread(type, items, map, barrier);
+        TestKeyFeederThread feeder = new TestKeyFeederThread(items, map, barrier);
         co.submit(feeder);
       }
 
@@ -453,12 +451,10 @@ public class NBHML_Tester2 extends TestCase {
 
   // --- TestKeyFeederThread
   static private class TestKeyFeederThread implements Callable<Integer> {
-    private final int _type;
     private final NonBlockingHashMapLong<TestKey> _map;
     private final List<TestKey> _items;
     private final CyclicBarrier _barrier;
-    public TestKeyFeederThread(final int type, final List<TestKey> items, final NonBlockingHashMapLong<TestKey> map, final CyclicBarrier barrier) {
-      _type = type;
+    public TestKeyFeederThread(final List<TestKey> items, final NonBlockingHashMapLong<TestKey> map, final CyclicBarrier barrier) {
       _map = map;
       _items = items;
       _barrier = barrier;
@@ -483,6 +479,7 @@ public class NBHML_Tester2 extends TestCase {
   }
 
   // ---
+  @Test
   public void testNonBlockingHashMapIteratorMultithreaded() throws InterruptedException, ExecutionException {
     TestKeyFeeder feeder = getTestKeyFeeder();
     final int itemCount = feeder.size();
@@ -500,10 +497,8 @@ public class NBHML_Tester2 extends TestCase {
       iteratorCount++;
     // sometimes a different result comes back the second time
     int iteratorCount2 = 0;
-    for( Iterator<TestKey> it = items.values().iterator(); it.hasNext(); ) {
+    for( TestKey m2 : items.values() )
       iteratorCount2++;
-      it.next();
-    }
     assertEquals("iterator counts differ", iteratorCount, iteratorCount2);
     assertEquals("values().iterator() count", itemCount, iteratorCount);
   }
