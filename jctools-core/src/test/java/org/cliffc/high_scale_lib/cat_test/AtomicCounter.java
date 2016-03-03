@@ -1,4 +1,4 @@
-package org.cliffc.high_scale_lib;
+package org.cliffc.high_scale_lib.cat_test;
 import java.util.concurrent.atomic.*;
 public final class AtomicCounter extends Counter {
   public String name() { return "Atomic"; }

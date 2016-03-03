@@ -1,4 +1,4 @@
-package org.cliffc.high_scale_lib;
+package org.cliffc.high_scale_lib.cat_test;
 public final class RaceyCounter extends Counter {
   private long _cnt;
   public long get(){ return _cnt; }

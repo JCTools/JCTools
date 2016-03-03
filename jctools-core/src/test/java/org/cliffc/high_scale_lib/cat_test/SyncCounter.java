@@ -1,4 +1,4 @@
-package org.cliffc.high_scale_lib;
+package org.cliffc.high_scale_lib.cat_test;
 public final class SyncCounter extends Counter {
   public String name() { return "Synchronized"; }
   private long _cnt;

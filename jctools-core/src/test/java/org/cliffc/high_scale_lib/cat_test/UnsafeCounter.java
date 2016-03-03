@@ -1,4 +1,4 @@
-package org.cliffc.high_scale_lib;
+package org.cliffc.high_scale_lib.cat_test;
 import java.lang.reflect.Field;
 import sun.misc.Unsafe;
 

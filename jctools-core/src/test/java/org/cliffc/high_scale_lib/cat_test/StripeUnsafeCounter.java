@@ -1,4 +1,4 @@
-package org.cliffc.high_scale_lib;
+package org.cliffc.high_scale_lib.cat_test;
 public final class StripeUnsafeCounter extends Counter {
   private final UnsafeCounter _cnts[];
   StripeUnsafeCounter(int stripes) {

@@ -1,4 +1,6 @@
-package org.cliffc.high_scale_lib;
+package org.cliffc.high_scale_lib.cat_test;
+import org.cliffc.high_scale_lib.ConcurrentAutoTable;
+
 public final class CATCounter extends Counter {
   public String name() { return "CAT"; }
   private final ConcurrentAutoTable _tab = new ConcurrentAutoTable();

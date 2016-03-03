@@ -1,4 +1,4 @@
-package org.cliffc.high_scale_lib;
+package org.cliffc.high_scale_lib.cat_test;
 import java.util.concurrent.locks.*;
 public final class StripeLockCounter extends Counter {
   private final int _stripes;

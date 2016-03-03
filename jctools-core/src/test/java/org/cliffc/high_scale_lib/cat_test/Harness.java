@@ -1,4 +1,4 @@
-package org.cliffc.high_scale_lib;
+package org.cliffc.high_scale_lib.cat_test;
 import org.junit.Test;
 
 /*
@@ -9,7 +9,7 @@ import org.junit.Test;
 public class Harness extends Thread {
 
   @Test
-  public void benchmarkTest() { main(new String[]{"1","10","1","12"}); }
+  public void benchmarkTest() { main(new String[]{"2","8","2","0"}); }
 
   static int _thread_min, _thread_max, _thread_incr;
   static int _ctr_impl;
@@ -190,7 +190,7 @@ public class Harness extends Thread {
     // Run threads
     long start = System.currentTimeMillis();
     _start = true;
-    try { Thread.sleep(2000); } catch( InterruptedException e ){}
+    try { Thread.sleep(2000); } catch( InterruptedException e ){/*empty*/}
     _stop = true;
     long stop = System.currentTimeMillis();
     long millis = stop-start;
@@ -198,7 +198,7 @@ public class Harness extends Thread {
     for( int i=0; i<num_threads; i++ ) {
       try {
         thrs[i].join();
-      } catch( InterruptedException e ) { }
+      } catch( InterruptedException e ) {/*empty*/}
     }
     return millis;
   }
@@ -206,7 +206,7 @@ public class Harness extends Thread {
   // What a worker thread does
   public void run() {
     while( !_start )            // Spin till Time To Go
-      try { Thread.sleep(1); } catch( InterruptedException e ){}
+      try { Thread.sleep(1); } catch( InterruptedException e ){/*empty*/}
 
     int ops = 0;
     while( !_stop ) {

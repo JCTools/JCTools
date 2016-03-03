@@ -1,4 +1,4 @@
-package org.cliffc.high_scale_lib;
+package org.cliffc.high_scale_lib.cat_test;
 public abstract class Counter {
   public abstract String name();
   public abstract long get();
