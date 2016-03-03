@@ -81,6 +81,9 @@ public class MpscCompoundQueue<E> extends MpscCompoundQueueConsumerQueueIndex<E>
 
     @Override
     public boolean offer(final E e) {
+        if (null == e) {
+            throw new NullPointerException();
+        }
         int start = (int) (Thread.currentThread().getId() & parallelQueuesMask);
         if (queues[start].offer(e)) {
             return true;
@@ -144,9 +147,12 @@ public class MpscCompoundQueue<E> extends MpscCompoundQueueConsumerQueueIndex<E>
     public Iterator<E> iterator() {
         throw new UnsupportedOperationException();
     }
-    
+
 	@Override
 	public boolean relaxedOffer(E e) {
+	    if (null == e) {
+            throw new NullPointerException();
+        }
 		final int parallelQueuesMask = this.parallelQueuesMask;
 		int start = (int) (Thread.currentThread().getId() & parallelQueuesMask);
         final MpscArrayQueue<E>[] queues = this.queues;
@@ -155,7 +161,7 @@ public class MpscCompoundQueue<E> extends MpscCompoundQueueConsumerQueueIndex<E>
             return true;
         } else {
             for (;;) {
-                
+
                 final int parallelQueues = this.parallelQueues;
 				for (int i = start + 1; i < start + parallelQueues; i++) {
                     int s = queues[i & parallelQueuesMask].failFastOffer(e);
@@ -206,7 +212,7 @@ public class MpscCompoundQueue<E> extends MpscCompoundQueueConsumerQueueIndex<E>
 	public int capacity() {
 		return queues.length * queues[0].capacity();
 	}
-	
+
 
     @Override
     public int drain(Consumer<E> c) {
@@ -263,7 +269,7 @@ public class MpscCompoundQueue<E> extends MpscCompoundQueueConsumerQueueIndex<E>
                 idleCounter = wait.idle(idleCounter);
                 continue;
             }
-            idleCounter = 0;    
+            idleCounter = 0;
         }
     }
 }

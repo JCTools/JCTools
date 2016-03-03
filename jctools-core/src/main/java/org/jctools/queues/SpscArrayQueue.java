@@ -112,7 +112,7 @@ public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E>  implement
     @Override
     public boolean offer(final E e) {
         if (null == e) {
-            throw new NullPointerException("Null is not a valid element");
+            throw new NullPointerException();
         }
         // local load of field to avoid repeated loads after volatile reads
         final E[] buffer = this.buffer;

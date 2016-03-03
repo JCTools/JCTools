@@ -53,11 +53,11 @@ public class SpscLinkedQueue<E> extends BaseLinkedQueue<E> {
      * @see java.util.Queue#offer(java.lang.Object)
      */
     @Override
-    public boolean offer(final E nextValue) {
-        if (nextValue == null) {
-            throw new IllegalArgumentException("null elements not allowed");
+    public boolean offer(final E e) {
+        if (null == e) {
+            throw new NullPointerException();
         }
-        final LinkedQueueNode<E> nextNode = new LinkedQueueNode<E>(nextValue);
+        final LinkedQueueNode<E> nextNode = new LinkedQueueNode<E>(e);
         producerNode.soNext(nextNode);
         producerNode = nextNode;
         return true;

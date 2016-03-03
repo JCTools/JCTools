@@ -196,7 +196,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements
     @Override
     public boolean offer(final E e) {
         if (null == e) {
-            throw new NullPointerException("Null is not a valid element");
+            throw new NullPointerException();
         }
 
         // use a cached view on consumer index (potentially updated in loop)

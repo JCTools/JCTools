@@ -67,7 +67,10 @@ public class MessagePassingQueueSanityTest {
     public void clear() {
         queue.clear();
     }
-
+    @Test(expected=NullPointerException.class)
+    public void relaxedOfferNullResultsInNPE(){
+        queue.relaxedOffer(null);
+    }
     @Test
     public void sanity() {
         for (int i = 0; i < SIZE; i++) {

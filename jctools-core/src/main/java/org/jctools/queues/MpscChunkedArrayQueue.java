@@ -136,8 +136,9 @@ public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueConsumerField
     @Override
     public boolean offer(final E e) {
         if (null == e) {
-            throw new NullPointerException("Null is not a valid element");
+            throw new NullPointerException();
         }
+
         final long maxQueueCapacity = this.maxQueueCapacity;
 
         long mask;

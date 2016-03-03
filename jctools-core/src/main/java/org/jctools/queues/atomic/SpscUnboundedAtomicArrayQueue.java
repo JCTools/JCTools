@@ -35,7 +35,7 @@ public class SpscUnboundedAtomicArrayQueue<E> extends AbstractQueue<E> implement
 
     public SpscUnboundedAtomicArrayQueue(final int chunkSize) {
     	int p2ChunkSize = Math.max(Pow2.roundToPowerOfTwo(chunkSize), 16);
-        
+
         int mask = p2ChunkSize - 1;
         AtomicReferenceArray<Object> buffer = new AtomicReferenceArray<Object>(p2ChunkSize + 1);
         producerBuffer = buffer;
@@ -62,7 +62,7 @@ public class SpscUnboundedAtomicArrayQueue<E> extends AbstractQueue<E> implement
     @Override
     public final boolean offer(final E e) {
         if (null == e) {
-            throw new NullPointerException("Null is not a valid element");
+            throw new NullPointerException();
         }
         // local load of field to avoid repeated loads after volatile reads
         final AtomicReferenceArray<Object> buffer = producerBuffer;
@@ -240,12 +240,12 @@ public class SpscUnboundedAtomicArrayQueue<E> extends AbstractQueue<E> implement
     private static <E> Object lvElement(AtomicReferenceArray<Object> buffer, int offset) {
         return buffer.get(offset);
     }
-    
+
     @Override
     public long currentProducerIndex() {
         return lvProducerIndex();
     }
-    
+
     @Override
     public long currentConsumerIndex() {
         return lvConsumerIndex();

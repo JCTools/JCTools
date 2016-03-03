@@ -18,6 +18,8 @@ import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeRefArrayAccess.lpElement;
 import static org.jctools.util.UnsafeRefArrayAccess.soElement;
 
+import java.util.Objects;
+
 abstract class MpmcArrayQueueL1Pad<E> extends ConcurrentSequencedCircularArrayQueue<E> {
     long p00, p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16;
@@ -126,6 +128,9 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> implements
 
     @Override
     public boolean offer(final E e) {
+        if (null == e) {
+            throw new NullPointerException();
+        }
         final long mask = this.mask;
         final long capacity = mask + 1;
         final long[] sBuffer = sequenceBuffer;
@@ -253,7 +258,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> implements
 	@Override
 	public boolean relaxedOffer(E e) {
 		if (null == e) {
-            throw new NullPointerException("Null is not a valid element");
+            throw new NullPointerException();
         }
         final long mask = this.mask;
         final long[] sBuffer = sequenceBuffer;
