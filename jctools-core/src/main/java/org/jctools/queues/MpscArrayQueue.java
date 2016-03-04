@@ -27,6 +27,7 @@ import org.jctools.util.UnsafeRefArrayAccess;
 abstract class MpscArrayQueueL1Pad<E> extends ConcurrentCircularArrayQueue<E> {
     long p00, p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16;
+
     public MpscArrayQueueL1Pad(int capacity) {
         super(capacity);
     }
@@ -37,12 +38,14 @@ abstract class MpscArrayQueueTailField<E> extends MpscArrayQueueL1Pad<E> {
 
     static {
         try {
-            P_INDEX_OFFSET = UNSAFE.objectFieldOffset(MpscArrayQueueTailField.class
-                    .getDeclaredField("producerIndex"));
-        } catch (NoSuchFieldException e) {
+            P_INDEX_OFFSET = UNSAFE
+                    .objectFieldOffset(MpscArrayQueueTailField.class.getDeclaredField("producerIndex"));
+        }
+        catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
     }
+
     private volatile long producerIndex;
 
     public MpscArrayQueueTailField(int capacity) {
@@ -61,6 +64,7 @@ abstract class MpscArrayQueueTailField<E> extends MpscArrayQueueL1Pad<E> {
 abstract class MpscArrayQueueMidPad<E> extends MpscArrayQueueTailField<E> {
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
+
     public MpscArrayQueueMidPad(int capacity) {
         super(capacity);
     }
@@ -85,6 +89,7 @@ abstract class MpscArrayQueueHeadCacheField<E> extends MpscArrayQueueMidPad<E> {
 abstract class MpscArrayQueueL2Pad<E> extends MpscArrayQueueHeadCacheField<E> {
     long p00, p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16;
+
     public MpscArrayQueueL2Pad(int capacity) {
         super(capacity);
     }
@@ -92,14 +97,17 @@ abstract class MpscArrayQueueL2Pad<E> extends MpscArrayQueueHeadCacheField<E> {
 
 abstract class MpscArrayQueueConsumerField<E> extends MpscArrayQueueL2Pad<E> {
     private final static long C_INDEX_OFFSET;
+
     static {
         try {
-            C_INDEX_OFFSET = UNSAFE.objectFieldOffset(MpscArrayQueueConsumerField.class
-                    .getDeclaredField("consumerIndex"));
-        } catch (NoSuchFieldException e) {
+            C_INDEX_OFFSET = UNSAFE
+                    .objectFieldOffset(MpscArrayQueueConsumerField.class.getDeclaredField("consumerIndex"));
+        }
+        catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
     }
+
     protected long consumerIndex;
 
     public MpscArrayQueueConsumerField(int capacity) {
@@ -132,19 +140,22 @@ abstract class MpscArrayQueueConsumerField<E> extends MpscArrayQueueL2Pad<E> {
  *
  * @param <E>
  */
-public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements QueueProgressIndicators {
+public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E>implements QueueProgressIndicators {
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
+
     public MpscArrayQueue(final int capacity) {
         super(capacity);
     }
 
     /**
-     * Attempts {@link MpscArrayQueue#offer(E)}} if and only if
-     * the current availability is above the threshold.
+     * Attempts {@link MpscArrayQueue#offer(E)}} if and only if the current availability is above the
+     * threshold.
      *
-     * @param e the object to offer onto the queue.
-     * @param threshold as absolute number to be compared to the current queue size.
+     * @param e
+     *            the object to offer onto the queue.
+     * @param threshold
+     *            as absolute number to be compared to the current queue size.
      * @return whether the offer is successful.
      * @since 1.0.1
      */
@@ -211,7 +222,8 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements
                 final long currHead = lvConsumerIndex(); // LoadLoad
                 if (currHead <= wrapPoint) {
                     return false; // FULL :(
-                } else {
+                }
+                else {
                     // update shared cached value of the consumerIndex
                     svConsumerIndexCache(currHead); // StoreLoad
                     // update on stack copy, we might need this value again if we lose the CAS.
@@ -233,7 +245,8 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements
     /**
      * A wait free alternative to offer which fails on CAS failure.
      *
-     * @param e new element, not null
+     * @param e
+     *            new element, not null
      * @return 1 if next element cannot be filled, -1 if CAS failed, 0 if successful
      */
     public final int failFastOffer(final E e) {
@@ -249,7 +262,8 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements
             long currHead = lvConsumerIndex(); // LoadLoad
             if (currHead <= wrapPoint) {
                 return 1; // FULL :(
-            } else {
+            }
+            else {
                 svConsumerIndexCache(currHead); // StoreLoad
             }
         }
@@ -293,7 +307,8 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements
                 do {
                     e = lvElement(buffer, offset);
                 } while (e == null);
-            } else {
+            }
+            else {
                 return null;
             }
         }
@@ -330,7 +345,8 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements
                 do {
                     e = lvElement(buffer, offset);
                 } while (e == null);
-            } else {
+            }
+            else {
                 return null;
             }
         }
@@ -381,15 +397,15 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements
         return lvConsumerIndex();
     }
 
-	@Override
-	public boolean relaxedOffer(E e) {
+    @Override
+    public boolean relaxedOffer(E e) {
         return offer(e);
-	}
+    }
 
-	@Override
-	public E relaxedPoll() {
-		final E[] buffer = this.buffer;
-		final long consumerIndex = lpConsumerIndex();
+    @Override
+    public E relaxedPoll() {
+        final E[] buffer = this.buffer;
+        final long consumerIndex = lpConsumerIndex();
         final long offset = calcElementOffset(consumerIndex);
 
         // If we can't see the next available element we can't poll
@@ -405,11 +421,11 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements
 
     @Override
     public E relaxedPeek() {
-    	final E[] buffer = this.buffer;
-		final long mask = this.mask;
+        final E[] buffer = this.buffer;
+        final long mask = this.mask;
         final long consumerIndex = lpConsumerIndex();
         return lvElement(buffer, calcElementOffset(consumerIndex, mask));
-	}
+    }
 
     @Override
     public int drain(Consumer<E> c) {
@@ -429,7 +445,6 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements
         } while (result <= capacity);
         return (int) result;
     }
-
 
     @Override
     public int drain(final Consumer<E> c, final int limit) {
@@ -466,18 +481,19 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements
                 available += currConsumerIndex - cachedConsumerIndex;
                 if (available <= 0) {
                     return 0; // FULL :(
-                } else {
+                }
+                else {
                     // update shared cached value of the consumerIndex
                     svConsumerIndexCache(currConsumerIndex); // StoreLoad
                     // update on stack copy, we might need this value again if we lose the CAS.
                     cachedConsumerIndex = currConsumerIndex;
                 }
             }
-            actualLimit = Math.min((int)available, limit);
+            actualLimit = Math.min((int) available, limit);
         } while (!casProducerIndex(currentProducerIndex, currentProducerIndex + actualLimit));
         // right, now we claimed a few slots and can fill them with goodness
         final E[] buffer = this.buffer;
-        for (int i = 0;i < actualLimit;i++) {
+        for (int i = 0; i < actualLimit; i++) {
             // Won CAS, move on to storing
             final long offset = calcElementOffset(currentProducerIndex + i, mask);
             soElement(buffer, offset, s.get());
@@ -486,9 +502,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements
     }
 
     @Override
-    public void drain(Consumer<E> c,
-            WaitStrategy w,
-            ExitCondition exit) {
+    public void drain(Consumer<E> c, WaitStrategy w, ExitCondition exit) {
         final E[] buffer = this.buffer;
         final long mask = this.mask;
         long consumerIndex = lpConsumerIndex();
@@ -512,9 +526,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements
     }
 
     @Override
-    public void fill(Supplier<E> s,
-            WaitStrategy w,
-            ExitCondition exit) {
+    public void fill(Supplier<E> s, WaitStrategy w, ExitCondition exit) {
         int idleCounter = 0;
         while (exit.keepRunning()) {
             if (fill(s, MpmcArrayQueue.RECOMENDED_OFFER_BATCH) == 0) {

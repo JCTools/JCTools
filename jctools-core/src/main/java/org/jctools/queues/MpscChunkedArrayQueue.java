@@ -60,10 +60,9 @@ abstract class MpscChunkedArrayQueueConsumerFields<E> extends MpscChunkedArrayQu
 }
 
 /**
- * An MPSC array queue which starts at <i>initialCapacity</i> and grows to <i>maxCapacity</i> in linked chunks of the
- * initial size.
- * The queue grows only when the current buffer is full and elements are not copied on resize, instead a
- * link to the new buffer is stored in the old buffer for the consumer to follow.<br>
+ * An MPSC array queue which starts at <i>initialCapacity</i> and grows to <i>maxCapacity</i> in linked chunks
+ * of the initial size. The queue grows only when the current buffer is full and elements are not copied on
+ * resize, instead a link to the new buffer is stored in the old buffer for the consumer to follow.<br>
  *
  *
  * @param <E>
@@ -112,7 +111,8 @@ public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueConsumerField
             throw new IllegalArgumentException("Initial capacity must be 2 or more");
         }
         if (Pow2.roundToPowerOfTwo(initialCapacity) >= Pow2.roundToPowerOfTwo(maxCapacity)) {
-            throw new IllegalArgumentException("Initial capacity cannot exceed maximum capacity(both rounded up to a power of 2)");
+            throw new IllegalArgumentException(
+                    "Initial capacity cannot exceed maximum capacity(both rounded up to a power of 2)");
         }
 
         int p2capacity = Pow2.roundToPowerOfTwo(initialCapacity);
@@ -302,7 +302,7 @@ public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueConsumerField
     private long newBufferAndOffset(E[] nextBuffer, final long index) {
         consumerBuffer = nextBuffer;
         // mask doesn't change
-//        consumerMask = (nextBuffer.length - 2) << 1;
+        // consumerMask = (nextBuffer.length - 2) << 1;
         final long offsetInNew = modifiedCalcElementOffset(index, consumerMask);
         return offsetInNew;
     }
@@ -433,34 +433,34 @@ public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueConsumerField
     public int drain(final Consumer<E> c, final int limit) {
         int i = 0;
         E m;
-        for (; i < limit && (m = relaxedPoll()) != null; i++){
-          c.accept(m);
+        for (; i < limit && (m = relaxedPoll()) != null; i++) {
+            c.accept(m);
         }
         return i;
-//        E[] buffer = consumerBuffer;
-//        long mask = consumerMask;
-//        final long consumerIndex = this.consumerIndex;
-//
-//        for (int i = 0; i < limit; i++) {
-//            final long index = consumerIndex + 2 * i;
-//            final long offset = modifiedCalcElementOffset(index, mask);
-//            E e = lvElement(buffer, offset);// LoadLoad
-//            if (null == e) {
-//                return i;
-//            }
-//            if (e == JUMP) {
-//                final E[] nextBuffer = getNextBuffer(buffer, mask);
-//                e = newBufferPoll(nextBuffer, index);
-//                buffer = nextBuffer;
-//                mask = consumerMask;
-//            }
-//            else {
-//                soElement(buffer, offset, null);
-//                soConsumerIndex(index + 2);
-//            }
-//            c.accept(e);
-//        }
-//        return limit;
+        // E[] buffer = consumerBuffer;
+        // long mask = consumerMask;
+        // final long consumerIndex = this.consumerIndex;
+        //
+        // for (int i = 0; i < limit; i++) {
+        // final long index = consumerIndex + 2 * i;
+        // final long offset = modifiedCalcElementOffset(index, mask);
+        // E e = lvElement(buffer, offset);// LoadLoad
+        // if (null == e) {
+        // return i;
+        // }
+        // if (e == JUMP) {
+        // final E[] nextBuffer = getNextBuffer(buffer, mask);
+        // e = newBufferPoll(nextBuffer, index);
+        // buffer = nextBuffer;
+        // mask = consumerMask;
+        // }
+        // else {
+        // soElement(buffer, offset, null);
+        // soConsumerIndex(index + 2);
+        // }
+        // c.accept(e);
+        // }
+        // return limit;
     }
 
     @Override
@@ -469,66 +469,66 @@ public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueConsumerField
         for (i = 0; i < limit && relaxedOffer(s.get()); i++)
             ;
         return i;
-//        final long maxQueueCapacity = this.maxQueueCapacity;
-//        long mask;
-//        E[] buffer;
-//        long currentProducerIndex;
-//        long consumerIndexCache = lvConsumerIndexCache();
-//        int actualLimit_2 = 0;
-//        while (true) {
-//            // lower bit is indicative of resize, if we see it we spin until it's cleared
-//            while (((currentProducerIndex = lvProducerIndex()) & 1) == 1)
-//                ;
-//            // now we have a pIndex which is even (lower bit is 0)
-//
-//            long available_2 = maxQueueCapacity - (currentProducerIndex - consumerIndexCache);
-//            if (available_2 <= 0) {
-//                final long currConsumerIndex = lvConsumerIndex(); // LoadLoad
-//                available_2 += currConsumerIndex - consumerIndexCache;
-//                if (available_2 <= 0) {
-//                    return 0; // FULL :(
-//                }
-//                else {
-//                    // update shared cached value of the consumerIndex
-//                    soConsumerIndexCache(currConsumerIndex); // StoreLoad
-//                    // update on stack copy, we might need this value again if we lose the CAS.
-//                    consumerIndexCache = currConsumerIndex;
-//                }
-//            }
-//            actualLimit_2 = Math.min((int) available_2, limit * 2);
-//            // mask/buffer may get changed by resizing. Only used after successful CAS.
-//            mask = this.producerMask;
-//            buffer = this.producerBuffer;
-//            final boolean atMaxCapacity = mask + 2 == maxQueueCapacity;
-//            final long currCapacity = atMaxCapacity ? mask + 1 : mask;
-//            long currAvailable_2 = currCapacity - (currentProducerIndex - consumerIndexCache);
-//
-//            if (currAvailable_2 < actualLimit_2) {
-//                // potentially this resize is premature, should only happen if:
-//                // currAvailable_2 < actualLimit_2 -> requested fill limit exceed current buffer availability
-//                // currAvailable_2 < actualLimit_2 -> we are not at the max capacity
-//                // we resize and insert single element. We could try a batch insert here but this is a rare
-//                // event
-//                // and we do not want to prolong it by holding all producers up until the fill is done
-//                if (casProducerIndex(currentProducerIndex, currentProducerIndex + 1)) {
-//                    resize(currentProducerIndex, buffer, mask, s.get());
-//                    return 1;
-//                }
-//                else {
-//                    continue; // skip CAS, no point
-//                }
-//            }
-//            if (casProducerIndex(currentProducerIndex, currentProducerIndex + actualLimit_2)) {
-//                break;
-//            }
-//        }
-//
-//        // right, now we claimed a few slots and can fill them with goodness
-//        for (int i = 0; i < actualLimit_2; i += 2) {
-//            final long offset = modifiedCalcElementOffset(currentProducerIndex, mask);
-//            soElement(buffer, offset, s.get());
-//        }
-//        return actualLimit_2 / 2;
+        // final long maxQueueCapacity = this.maxQueueCapacity;
+        // long mask;
+        // E[] buffer;
+        // long currentProducerIndex;
+        // long consumerIndexCache = lvConsumerIndexCache();
+        // int actualLimit_2 = 0;
+        // while (true) {
+        // // lower bit is indicative of resize, if we see it we spin until it's cleared
+        // while (((currentProducerIndex = lvProducerIndex()) & 1) == 1)
+        // ;
+        // // now we have a pIndex which is even (lower bit is 0)
+        //
+        // long available_2 = maxQueueCapacity - (currentProducerIndex - consumerIndexCache);
+        // if (available_2 <= 0) {
+        // final long currConsumerIndex = lvConsumerIndex(); // LoadLoad
+        // available_2 += currConsumerIndex - consumerIndexCache;
+        // if (available_2 <= 0) {
+        // return 0; // FULL :(
+        // }
+        // else {
+        // // update shared cached value of the consumerIndex
+        // soConsumerIndexCache(currConsumerIndex); // StoreLoad
+        // // update on stack copy, we might need this value again if we lose the CAS.
+        // consumerIndexCache = currConsumerIndex;
+        // }
+        // }
+        // actualLimit_2 = Math.min((int) available_2, limit * 2);
+        // // mask/buffer may get changed by resizing. Only used after successful CAS.
+        // mask = this.producerMask;
+        // buffer = this.producerBuffer;
+        // final boolean atMaxCapacity = mask + 2 == maxQueueCapacity;
+        // final long currCapacity = atMaxCapacity ? mask + 1 : mask;
+        // long currAvailable_2 = currCapacity - (currentProducerIndex - consumerIndexCache);
+        //
+        // if (currAvailable_2 < actualLimit_2) {
+        // // potentially this resize is premature, should only happen if:
+        // // currAvailable_2 < actualLimit_2 -> requested fill limit exceed current buffer availability
+        // // currAvailable_2 < actualLimit_2 -> we are not at the max capacity
+        // // we resize and insert single element. We could try a batch insert here but this is a rare
+        // // event
+        // // and we do not want to prolong it by holding all producers up until the fill is done
+        // if (casProducerIndex(currentProducerIndex, currentProducerIndex + 1)) {
+        // resize(currentProducerIndex, buffer, mask, s.get());
+        // return 1;
+        // }
+        // else {
+        // continue; // skip CAS, no point
+        // }
+        // }
+        // if (casProducerIndex(currentProducerIndex, currentProducerIndex + actualLimit_2)) {
+        // break;
+        // }
+        // }
+        //
+        // // right, now we claimed a few slots and can fill them with goodness
+        // for (int i = 0; i < actualLimit_2; i += 2) {
+        // final long offset = modifiedCalcElementOffset(currentProducerIndex, mask);
+        // soElement(buffer, offset, s.get());
+        // }
+        // return actualLimit_2 / 2;
     }
 
     @Override
@@ -536,51 +536,51 @@ public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueConsumerField
         int idleCounter = 0;
         while (exit.keepRunning()) {
             E e = relaxedPoll();
-            if(e == null){
+            if (e == null) {
                 idleCounter = w.idle(idleCounter);
                 continue;
             }
             idleCounter = 0;
             c.accept(e);
         }
-//        E[] buffer = consumerBuffer;
-//        long mask = consumerMask;
-//        final long consumerIndex = this.consumerIndex;
-//
-//        while (exit.keepRunning()) {
-//            for (int i = 0; i < 4096; i++) {
-//                final long index = consumerIndex + 2 * i;
-//                final long offset = modifiedCalcElementOffset(index, mask);
-//                E e = lvElement(buffer, offset);// LoadLoad
-//                if (null == e) {
-//                    e = waitForElement(buffer, offset, w, exit);
-//                    if (e == null) {
-//                        return;
-//                    }
-//                }
-//                if (e == JUMP) {
-//                    final E[] nextBuffer = getNextBuffer(buffer, mask);
-//                    e = newBufferPoll(nextBuffer, index);
-//                    buffer = nextBuffer;
-//                    mask = consumerMask;
-//                }
-//                else {
-//                    soElement(buffer, offset, null);
-//                    soConsumerIndex(index + 2);
-//                }
-//                c.accept(e);
-//            }
-//        }
+        // E[] buffer = consumerBuffer;
+        // long mask = consumerMask;
+        // final long consumerIndex = this.consumerIndex;
+        //
+        // while (exit.keepRunning()) {
+        // for (int i = 0; i < 4096; i++) {
+        // final long index = consumerIndex + 2 * i;
+        // final long offset = modifiedCalcElementOffset(index, mask);
+        // E e = lvElement(buffer, offset);// LoadLoad
+        // if (null == e) {
+        // e = waitForElement(buffer, offset, w, exit);
+        // if (e == null) {
+        // return;
+        // }
+        // }
+        // if (e == JUMP) {
+        // final E[] nextBuffer = getNextBuffer(buffer, mask);
+        // e = newBufferPoll(nextBuffer, index);
+        // buffer = nextBuffer;
+        // mask = consumerMask;
+        // }
+        // else {
+        // soElement(buffer, offset, null);
+        // soConsumerIndex(index + 2);
+        // }
+        // c.accept(e);
+        // }
+        // }
     }
-//
-//    private E waitForElement(E[] buffer, final long offset, WaitStrategy w, ExitCondition exit) {
-//        E e;
-//        int counter = 0;
-//        while ((e = lvElement(buffer, offset)) == null && exit.keepRunning()) {
-//            counter = w.idle(counter);
-//        }
-//        return e;
-//    }
+    //
+    // private E waitForElement(E[] buffer, final long offset, WaitStrategy w, ExitCondition exit) {
+    // E e;
+    // int counter = 0;
+    // while ((e = lvElement(buffer, offset)) == null && exit.keepRunning()) {
+    // counter = w.idle(counter);
+    // }
+    // return e;
+    // }
 
     @Override
     public void fill(Supplier<E> s, WaitStrategy w, ExitCondition exit) {
@@ -593,13 +593,13 @@ public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueConsumerField
             }
             idleCounter = 0;
         }
-//        int idleCounter = 0;
-//        while (exit.keepRunning()) {
-//            if (fill(s, MpmcArrayQueue.RECOMENDED_OFFER_BATCH) == 0) {
-//                idleCounter = w.idle(idleCounter);
-//                continue;
-//            }
-//            idleCounter = 0;
-//        }
+        // int idleCounter = 0;
+        // while (exit.keepRunning()) {
+        // if (fill(s, MpmcArrayQueue.RECOMENDED_OFFER_BATCH) == 0) {
+        // idleCounter = w.idle(idleCounter);
+        // continue;
+        // }
+        // idleCounter = 0;
+        // }
     }
 }
