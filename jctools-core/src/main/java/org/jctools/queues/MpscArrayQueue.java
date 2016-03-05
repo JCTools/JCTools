@@ -18,10 +18,6 @@ import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
 import static org.jctools.util.UnsafeRefArrayAccess.soElement;
 import static org.jctools.util.UnsafeRefArrayAccess.spElement;
 
-import org.jctools.queues.MessagePassingQueue.Consumer;
-import org.jctools.queues.MessagePassingQueue.ExitCondition;
-import org.jctools.queues.MessagePassingQueue.Supplier;
-import org.jctools.queues.MessagePassingQueue.WaitStrategy;
 import org.jctools.util.UnsafeRefArrayAccess;
 
 abstract class MpscArrayQueueL1Pad<E> extends ConcurrentCircularArrayQueue<E> {
@@ -70,23 +66,25 @@ abstract class MpscArrayQueueMidPad<E> extends MpscArrayQueueTailField<E> {
     }
 }
 
-abstract class MpscArrayQueueHeadCacheField<E> extends MpscArrayQueueMidPad<E> {
-    private volatile long consumerIndexCache;
+abstract class MpscArrayQueueHeadLimitField<E> extends MpscArrayQueueMidPad<E> {
+    // First unavailable index the producer may claim up to before rereading the consumer index
+    private volatile long producerLimit;
 
-    public MpscArrayQueueHeadCacheField(int capacity) {
+    public MpscArrayQueueHeadLimitField(int capacity) {
         super(capacity);
+        this.producerLimit = capacity;
     }
 
-    protected final long lvConsumerIndexCache() {
-        return consumerIndexCache;
+    protected final long lvProducerLimit() {
+        return producerLimit;
     }
 
-    protected final void svConsumerIndexCache(long v) {
-        consumerIndexCache = v;
+    protected final void svProducerLimit(long v) {
+        producerLimit = v;
     }
 }
 
-abstract class MpscArrayQueueL2Pad<E> extends MpscArrayQueueHeadCacheField<E> {
+abstract class MpscArrayQueueL2Pad<E> extends MpscArrayQueueHeadLimitField<E> {
     long p00, p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16;
 
@@ -165,21 +163,23 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E>implements 
         }
         // use a cached view on consumer index (potentially updated in loop)
         final long mask = this.mask;
-        long consumerIndexCache = lvConsumerIndexCache(); // LoadLoad
+        long producerLimit = lvProducerLimit(); // LoadLoad
         long currentProducerIndex;
         do {
             currentProducerIndex = lvProducerIndex(); // LoadLoad
-            final long wrapPoint = currentProducerIndex - threshold;
-            if (consumerIndexCache <= wrapPoint) {
+
+            long available = producerLimit - currentProducerIndex;
+            if (available >= threshold) {
                 final long currHead = lvConsumerIndex(); // LoadLoad
+                final long capacity = mask + 1;
+                final long wrapPoint = currentProducerIndex - threshold;
                 if (currHead <= wrapPoint) {
                     return false; // FULL :(
                 }
                 else {
-                    // update shared cached value of the consumerIndex
-                    svConsumerIndexCache(currHead); // StoreLoad
-                    // update on stack copy, we might need this value again if we lose the CAS.
-                    consumerIndexCache = currHead;
+                    // update producer limit to the next index that we must recheck the consumer index
+                    producerLimit = currHead + capacity;
+                    svProducerLimit(producerLimit); // StoreLoad
                 }
             }
         } while (!casProducerIndex(currentProducerIndex, currentProducerIndex + 1));
@@ -212,22 +212,21 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E>implements 
 
         // use a cached view on consumer index (potentially updated in loop)
         final long mask = this.mask;
-        final long capacity = mask + 1;
-        long consumerIndexCache = lvConsumerIndexCache(); // LoadLoad
+        long producerLimit = lvProducerLimit(); // LoadLoad
         long currentProducerIndex;
         do {
             currentProducerIndex = lvProducerIndex(); // LoadLoad
-            final long wrapPoint = currentProducerIndex - capacity;
-            if (consumerIndexCache <= wrapPoint) {
+            if (currentProducerIndex >= producerLimit) {
                 final long currHead = lvConsumerIndex(); // LoadLoad
-                if (currHead <= wrapPoint) {
+
+                final long capacity = mask + 1;
+                producerLimit = currHead + capacity;
+                if (currentProducerIndex >= producerLimit) {
                     return false; // FULL :(
                 }
                 else {
-                    // update shared cached value of the consumerIndex
-                    svConsumerIndexCache(currHead); // StoreLoad
-                    // update on stack copy, we might need this value again if we lose the CAS.
-                    consumerIndexCache = currHead;
+                    // update producer limit to the next index that we must recheck the consumer index
+                    svProducerLimit(producerLimit); // StoreLoad
                 }
             }
         } while (!casProducerIndex(currentProducerIndex, currentProducerIndex + 1));
@@ -256,15 +255,16 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E>implements 
         final long mask = this.mask;
         final long capacity = mask + 1;
         final long currentTail = lvProducerIndex(); // LoadLoad
-        final long consumerIndexCache = lvConsumerIndexCache(); // LoadLoad
-        final long wrapPoint = currentTail - capacity;
-        if (consumerIndexCache <= wrapPoint) {
-            long currHead = lvConsumerIndex(); // LoadLoad
-            if (currHead <= wrapPoint) {
+        long producerLimit = lvProducerLimit(); // LoadLoad
+        if (currentTail >= producerLimit) {
+            final long currHead = lvConsumerIndex(); // LoadLoad
+            producerLimit = currHead + capacity;
+            if (currentTail >= producerLimit) {
                 return 1; // FULL :(
             }
             else {
-                svConsumerIndexCache(currHead); // StoreLoad
+                // update producer limit to the next index that we must recheck the consumer index
+                svProducerLimit(producerLimit); // StoreLoad
             }
         }
 
@@ -470,23 +470,22 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E>implements 
     public int fill(Supplier<E> s, int limit) {
         final long mask = this.mask;
         final long capacity = mask + 1;
-        long cachedConsumerIndex = lvConsumerIndexCache(); // LoadLoad
+        long producerLimit = lvProducerLimit(); // LoadLoad
         long currentProducerIndex;
         int actualLimit = 0;
         do {
             currentProducerIndex = lvProducerIndex(); // LoadLoad
-            long available = capacity - (currentProducerIndex - cachedConsumerIndex);
+            long available = producerLimit - currentProducerIndex;
             if (available <= 0) {
                 final long currConsumerIndex = lvConsumerIndex(); // LoadLoad
-                available += currConsumerIndex - cachedConsumerIndex;
+                producerLimit = currConsumerIndex + capacity;
+                available = producerLimit - currentProducerIndex;
                 if (available <= 0) {
                     return 0; // FULL :(
                 }
                 else {
-                    // update shared cached value of the consumerIndex
-                    svConsumerIndexCache(currConsumerIndex); // StoreLoad
-                    // update on stack copy, we might need this value again if we lose the CAS.
-                    cachedConsumerIndex = currConsumerIndex;
+                    // update producer limit to the next index that we must recheck the consumer index
+                    svProducerLimit(producerLimit); // StoreLoad
                 }
             }
             actualLimit = Math.min((int) available, limit);

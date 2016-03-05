@@ -35,8 +35,13 @@ public class MpscArrayQueueTest {
         //Not anymore, our offer got rejected.
         Assert.assertFalse(this.queue.offerIfBelowTheshold(i,
             8));
+        Assert.assertFalse(this.queue.offerIfBelowTheshold(i, 7));
+        Assert.assertFalse(this.queue.offerIfBelowTheshold(i, 1));
+        Assert.assertFalse(this.queue.offerIfBelowTheshold(i, 0));
+
         //Also, the threshold is dynamic and different levels can be set for
         //different task priorities.
+        Assert.assertTrue(this.queue.offerIfBelowTheshold(i, 9));
         Assert.assertTrue(this.queue.offerIfBelowTheshold(i,
             16));
     }
