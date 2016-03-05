@@ -26,32 +26,25 @@ import org.junit.runners.Parameterized;
 @RunWith(Parameterized.class)
 public class MessagePassingQueueSanityTest {
 
-    private static final int SIZE = 8192 * 2;
+    static final int SIZE = 8192 * 2;
 
     @Parameterized.Parameters
     public static Collection<Object[]> parameters() {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
-//        list.add(test(0, 1, 4, Ordering.FIFO, new MpscChunkedArrayQueue<>(4)));// MPSC size 1
-//        list.add(test(0, 1, SIZE, Ordering.FIFO, new MpscChunkedArrayQueue<>(2, SIZE)));// MPSC size SIZE
+        list.add(makeMpq(1, 1, 0, Ordering.FIFO, null));// unbounded SPSC
+        list.add(makeMpq(0, 1, 0, Ordering.FIFO, null));// unbounded MPSC
 
-        list.add(test(1, 1, 0, Ordering.FIFO, null));// unbounded SPSC
-        list.add(test(0, 1, 0, Ordering.FIFO, null));// unbounded MPSC
+        list.add(makeMpq(1, 1, 4, Ordering.FIFO, null));// SPSC size 4
+        list.add(makeMpq(1, 1, SIZE, Ordering.FIFO, null));// SPSC size SIZE
 
-        list.add(test(1, 1, 4, Ordering.FIFO, null));// SPSC size 4
-        list.add(test(1, 1, SIZE, Ordering.FIFO, null));// SPSC size SIZE
+        list.add(makeMpq(1, 0, 1, Ordering.FIFO, null));// SPMC size 1
+        list.add(makeMpq(1, 0, SIZE, Ordering.FIFO, null));// SPMC size SIZE
 
-        list.add(test(1, 0, 1, Ordering.FIFO, null));// SPMC size 1
-        list.add(test(1, 0, SIZE, Ordering.FIFO, null));// SPMC size SIZE
+        list.add(makeMpq(0, 1, 1, Ordering.FIFO, null));// MPSC size 1
+        list.add(makeMpq(0, 1, SIZE, Ordering.FIFO, null));// MPSC size SIZE
 
-        list.add(test(0, 1, 1, Ordering.FIFO, null));// MPSC size 1
-        list.add(test(0, 1, SIZE, Ordering.FIFO, null));// MPSC size SIZE
-
-        list.add(test(0, 1, 4, Ordering.FIFO, new MpscGrowableArrayQueue<>(4)));// MPSC size 1
-        list.add(test(0, 1, SIZE, Ordering.FIFO, new MpscGrowableArrayQueue<>(2, SIZE)));// MPSC size SIZE
-
-
-        list.add(test(0, 0, 2, Ordering.FIFO, null));
-        list.add(test(0, 0, SIZE, Ordering.FIFO, null));
+        list.add(makeMpq(0, 0, 2, Ordering.FIFO, null));
+        list.add(makeMpq(0, 0, SIZE, Ordering.FIFO, null));
         return list;
     }
 
@@ -445,7 +438,7 @@ public class MessagePassingQueueSanityTest {
 
     }
 
-    private static Object[] test(int producers, int consumers, int capacity, Ordering ordering,
+    static Object[] makeMpq(int producers, int consumers, int capacity, Ordering ordering,
             Queue<Integer> q) {
         ConcurrentQueueSpec spec = new ConcurrentQueueSpec(producers, consumers, capacity, ordering,
                 Preference.NONE);
