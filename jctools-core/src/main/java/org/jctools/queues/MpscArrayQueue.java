@@ -67,6 +67,17 @@ abstract class MpscArrayQueueMidPad<E> extends MpscArrayQueueTailField<E> {
 }
 
 abstract class MpscArrayQueueHeadLimitField<E> extends MpscArrayQueueMidPad<E> {
+    private final static long P_LIMIT_OFFSET;
+
+    static {
+        try {
+            P_LIMIT_OFFSET = UNSAFE
+                    .objectFieldOffset(MpscArrayQueueHeadLimitField.class.getDeclaredField("producerLimit"));
+        }
+        catch (NoSuchFieldException e) {
+            throw new RuntimeException(e);
+        }
+    }
     // First unavailable index the producer may claim up to before rereading the consumer index
     private volatile long producerLimit;
 
@@ -79,8 +90,8 @@ abstract class MpscArrayQueueHeadLimitField<E> extends MpscArrayQueueMidPad<E> {
         return producerLimit;
     }
 
-    protected final void svProducerLimit(long v) {
-        producerLimit = v;
+    protected final void soProducerLimit(long v) {
+        UNSAFE.putOrderedLong(this, P_LIMIT_OFFSET, v);
     }
 }
 
@@ -164,32 +175,33 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E>implements 
         // use a cached view on consumer index (potentially updated in loop)
         final long mask = this.mask;
         long producerLimit = lvProducerLimit(); // LoadLoad
-        long currentProducerIndex;
+        long pIndex;
         do {
-            currentProducerIndex = lvProducerIndex(); // LoadLoad
+            pIndex = lvProducerIndex(); // LoadLoad
 
-            long available = producerLimit - currentProducerIndex;
+            long available = producerLimit - pIndex;
             if (available >= threshold) {
-                final long currHead = lvConsumerIndex(); // LoadLoad
+                final long cIndex = lvConsumerIndex(); // LoadLoad
                 final long capacity = mask + 1;
-                final long wrapPoint = currentProducerIndex - threshold;
-                if (currHead <= wrapPoint) {
+                final long wrapPoint = pIndex - threshold;
+                if (cIndex <= wrapPoint) {
                     return false; // FULL :(
                 }
                 else {
                     // update producer limit to the next index that we must recheck the consumer index
-                    producerLimit = currHead + capacity;
-                    svProducerLimit(producerLimit); // StoreLoad
+                    producerLimit = cIndex + capacity;
+                    // this is racy, but the race is benign
+                    soProducerLimit(producerLimit);
                 }
             }
-        } while (!casProducerIndex(currentProducerIndex, currentProducerIndex + 1));
+        } while (!casProducerIndex(pIndex, pIndex + 1));
         /*
          * NOTE: the new producer index value is made visible BEFORE the element in the array. If we relied on
          * the index visibility to poll() we would need to handle the case where the element is not visible.
          */
 
         // Won CAS, move on to storing
-        final long offset = calcElementOffset(currentProducerIndex, mask);
+        final long offset = calcElementOffset(pIndex, mask);
         soElement(buffer, offset, e); // StoreStore
         return true; // AWESOME :)
     }
@@ -213,31 +225,31 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E>implements 
         // use a cached view on consumer index (potentially updated in loop)
         final long mask = this.mask;
         long producerLimit = lvProducerLimit(); // LoadLoad
-        long currentProducerIndex;
+        long pIndex;
         do {
-            currentProducerIndex = lvProducerIndex(); // LoadLoad
-            if (currentProducerIndex >= producerLimit) {
-                final long currHead = lvConsumerIndex(); // LoadLoad
+            pIndex = lvProducerIndex(); // LoadLoad
+            if (pIndex >= producerLimit) {
+                final long cIndex = lvConsumerIndex(); // LoadLoad
+                producerLimit = cIndex + mask + 1;
 
-                final long capacity = mask + 1;
-                producerLimit = currHead + capacity;
-                if (currentProducerIndex >= producerLimit) {
+                if (pIndex >= producerLimit) {
                     return false; // FULL :(
                 }
                 else {
                     // update producer limit to the next index that we must recheck the consumer index
-                    svProducerLimit(producerLimit); // StoreLoad
+                    // this is racy, but the race is benign
+                    soProducerLimit(producerLimit);
                 }
             }
-        } while (!casProducerIndex(currentProducerIndex, currentProducerIndex + 1));
+        } while (!casProducerIndex(pIndex, pIndex + 1));
         /*
          * NOTE: the new producer index value is made visible BEFORE the element in the array. If we relied on
          * the index visibility to poll() we would need to handle the case where the element is not visible.
          */
 
         // Won CAS, move on to storing
-        final long offset = calcElementOffset(currentProducerIndex, mask);
-        UnsafeRefArrayAccess.soElement(buffer, offset, e); // StoreStore
+        final long offset = calcElementOffset(pIndex, mask);
+        soElement(buffer, offset, e); // StoreStore
         return true; // AWESOME :)
     }
 
@@ -254,27 +266,27 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E>implements 
         }
         final long mask = this.mask;
         final long capacity = mask + 1;
-        final long currentTail = lvProducerIndex(); // LoadLoad
+        final long pIndex = lvProducerIndex(); // LoadLoad
         long producerLimit = lvProducerLimit(); // LoadLoad
-        if (currentTail >= producerLimit) {
-            final long currHead = lvConsumerIndex(); // LoadLoad
-            producerLimit = currHead + capacity;
-            if (currentTail >= producerLimit) {
+        if (pIndex >= producerLimit) {
+            final long cIndex = lvConsumerIndex(); // LoadLoad
+            producerLimit = cIndex + capacity;
+            if (pIndex >= producerLimit) {
                 return 1; // FULL :(
             }
             else {
                 // update producer limit to the next index that we must recheck the consumer index
-                svProducerLimit(producerLimit); // StoreLoad
+                soProducerLimit(producerLimit); // StoreLoad
             }
         }
 
         // look Ma, no loop!
-        if (!casProducerIndex(currentTail, currentTail + 1)) {
+        if (!casProducerIndex(pIndex, pIndex + 1)) {
             return -1; // CAS FAIL :(
         }
 
         // Won CAS, move on to storing
-        final long offset = calcElementOffset(currentTail, mask);
+        final long offset = calcElementOffset(pIndex, mask);
         soElement(buffer, offset, e);
         return 0; // AWESOME :)
     }
@@ -290,8 +302,8 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E>implements 
      */
     @Override
     public E poll() {
-        final long consumerIndex = lpConsumerIndex();
-        final long offset = calcElementOffset(consumerIndex);
+        final long cIndex = lpConsumerIndex();
+        final long offset = calcElementOffset(cIndex);
         // Copy field to avoid re-reading after volatile load
         final E[] buffer = this.buffer;
 
@@ -303,7 +315,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E>implements 
              * winning the CAS on offer but before storing the element in the queue. Other producers may go on
              * to fill up the queue after this element.
              */
-            if (consumerIndex != lvProducerIndex()) {
+            if (cIndex != lvProducerIndex()) {
                 do {
                     e = lvElement(buffer, offset);
                 } while (e == null);
@@ -314,7 +326,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E>implements 
         }
 
         spElement(buffer, offset, null);
-        soConsumerIndex(consumerIndex + 1); // StoreStore
+        soConsumerIndex(cIndex + 1); // StoreStore
         return e;
     }
 
@@ -332,8 +344,8 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E>implements 
         // Copy field to avoid re-reading after volatile load
         final E[] buffer = this.buffer;
 
-        final long consumerIndex = lpConsumerIndex(); // LoadLoad
-        final long offset = calcElementOffset(consumerIndex);
+        final long cIndex = lpConsumerIndex(); // LoadLoad
+        final long offset = calcElementOffset(cIndex);
         E e = lvElement(buffer, offset);
         if (null == e) {
             /*
@@ -341,7 +353,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E>implements 
              * winning the CAS on offer but before storing the element in the queue. Other producers may go on
              * to fill up the queue after this element.
              */
-            if (consumerIndex != lvProducerIndex()) {
+            if (cIndex != lvProducerIndex()) {
                 do {
                     e = lvElement(buffer, offset);
                 } while (e == null);
@@ -366,13 +378,13 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E>implements 
          * event of concurrent polls/offers to this method the size is OVER estimated as we read consumer
          * index BEFORE the producer index.
          */
-        long after = lvConsumerIndex();
+        long afterCIndex = lvConsumerIndex();
         while (true) {
-            final long before = after;
+            final long beforeCIndex = afterCIndex;
             final long currentProducerIndex = lvProducerIndex();
-            after = lvConsumerIndex();
-            if (before == after) {
-                return (int) (currentProducerIndex - after);
+            afterCIndex = lvConsumerIndex();
+            if (beforeCIndex == afterCIndex) {
+                return (int) (currentProducerIndex - afterCIndex);
             }
         }
     }
@@ -405,8 +417,8 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E>implements 
     @Override
     public E relaxedPoll() {
         final E[] buffer = this.buffer;
-        final long consumerIndex = lpConsumerIndex();
-        final long offset = calcElementOffset(consumerIndex);
+        final long cIndex = lpConsumerIndex();
+        final long offset = calcElementOffset(cIndex);
 
         // If we can't see the next available element we can't poll
         E e = lvElement(buffer, offset); // LoadLoad
@@ -415,7 +427,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E>implements 
         }
 
         spElement(buffer, offset, null);
-        soConsumerIndex(consumerIndex + 1); // StoreStore
+        soConsumerIndex(cIndex + 1); // StoreStore
         return e;
     }
 
@@ -423,8 +435,8 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E>implements 
     public E relaxedPeek() {
         final E[] buffer = this.buffer;
         final long mask = this.mask;
-        final long consumerIndex = lpConsumerIndex();
-        return lvElement(buffer, calcElementOffset(consumerIndex, mask));
+        final long cIndex = lpConsumerIndex();
+        return lvElement(buffer, calcElementOffset(cIndex, mask));
     }
 
     @Override
@@ -450,10 +462,10 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E>implements 
     public int drain(final Consumer<E> c, final int limit) {
         final E[] buffer = this.buffer;
         final long mask = this.mask;
-        final long consumerIndex = lpConsumerIndex();
+        final long cIndex = lpConsumerIndex();
 
         for (int i = 0; i < limit; i++) {
-            final long index = consumerIndex + i;
+            final long index = cIndex + i;
             final long offset = calcElementOffset(index, mask);
             final E e = lvElement(buffer, offset);// LoadLoad
             if (null == e) {
@@ -471,30 +483,30 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E>implements 
         final long mask = this.mask;
         final long capacity = mask + 1;
         long producerLimit = lvProducerLimit(); // LoadLoad
-        long currentProducerIndex;
+        long pIndex;
         int actualLimit = 0;
         do {
-            currentProducerIndex = lvProducerIndex(); // LoadLoad
-            long available = producerLimit - currentProducerIndex;
+            pIndex = lvProducerIndex(); // LoadLoad
+            long available = producerLimit - pIndex;
             if (available <= 0) {
-                final long currConsumerIndex = lvConsumerIndex(); // LoadLoad
-                producerLimit = currConsumerIndex + capacity;
-                available = producerLimit - currentProducerIndex;
+                final long cIndex = lvConsumerIndex(); // LoadLoad
+                producerLimit = cIndex + capacity;
+                available = producerLimit - pIndex;
                 if (available <= 0) {
                     return 0; // FULL :(
                 }
                 else {
                     // update producer limit to the next index that we must recheck the consumer index
-                    svProducerLimit(producerLimit); // StoreLoad
+                    soProducerLimit(producerLimit); // StoreLoad
                 }
             }
             actualLimit = Math.min((int) available, limit);
-        } while (!casProducerIndex(currentProducerIndex, currentProducerIndex + actualLimit));
+        } while (!casProducerIndex(pIndex, pIndex + actualLimit));
         // right, now we claimed a few slots and can fill them with goodness
         final E[] buffer = this.buffer;
         for (int i = 0; i < actualLimit; i++) {
             // Won CAS, move on to storing
-            final long offset = calcElementOffset(currentProducerIndex + i, mask);
+            final long offset = calcElementOffset(pIndex + i, mask);
             soElement(buffer, offset, s.get());
         }
         return actualLimit;
@@ -504,21 +516,21 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E>implements 
     public void drain(Consumer<E> c, WaitStrategy w, ExitCondition exit) {
         final E[] buffer = this.buffer;
         final long mask = this.mask;
-        long consumerIndex = lpConsumerIndex();
+        long cIndex = lpConsumerIndex();
 
         int counter = 0;
         while (exit.keepRunning()) {
             for (int i = 0; i < 4096; i++) {
-                final long offset = calcElementOffset(consumerIndex, mask);
+                final long offset = calcElementOffset(cIndex, mask);
                 final E e = lvElement(buffer, offset);// LoadLoad
                 if (null == e) {
                     counter = w.idle(counter);
                     continue;
                 }
-                consumerIndex++;
+                cIndex++;
                 counter = 0;
                 soElement(buffer, offset, null);// StoreStore
-                soConsumerIndex(consumerIndex); // ordered store -> atomic and ordered for size()
+                soConsumerIndex(cIndex); // ordered store -> atomic and ordered for size()
                 c.accept(e);
             }
         }
