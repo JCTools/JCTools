@@ -15,8 +15,8 @@ public class MpscGrowableQueueSanityTest extends QueueSanityTest {
     @Parameterized.Parameters
     public static Collection<Object[]> parameters() {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
-        list.add(makeQueue(0, 1, 4, Ordering.FIFO, new MpscGrowableArrayQueue<>(4)));// MPSC size 1
-        list.add(makeQueue(0, 1, SIZE, Ordering.FIFO, new MpscGrowableArrayQueue<>(2, SIZE)));// MPSC size SIZE
+        list.add(makeQueue(0, 1, 4, Ordering.FIFO, new MpscChunkedArrayQueue<>(2, 4, false)));// MPSC size 1
+        list.add(makeQueue(0, 1, SIZE, Ordering.FIFO, new MpscChunkedArrayQueue<>(8, SIZE, false)));// MPSC size SIZE
         return list;
     }
 

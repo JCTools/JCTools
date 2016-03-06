@@ -148,6 +148,12 @@ public class MessagePassingQueueSanityTest {
             assertFalse(queue.isEmpty());
             assertTrue(queue.size() == currentSize);
         }
+        if (spec.isBounded()) {
+            assertEquals(spec.capacity, currentSize);
+        }
+        else {
+            assertEquals(SIZE, currentSize);
+        }
     }
 
     @Test
