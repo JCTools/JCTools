@@ -422,37 +422,43 @@ public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueConsumerField
     @SuppressWarnings("unchecked")
     @Override
     public E relaxedPoll() {
-        final E[] buffer = consumerBuffer;
-        final long index = consumerIndex;
-        final long mask = consumerMask;
+        if (false) {
+            final E[] buffer = consumerBuffer;
+            final long index = consumerIndex;
+            final long mask = consumerMask;
 
-        final long offset = modifiedCalcElementOffset(index, mask);
-        Object e = lvElement(buffer, offset);// LoadLoad
-        if (e != null) {
-            if (e == JUMP) {
-                final E[] nextBuffer = getNextBuffer(buffer, mask);
-                return newBufferPoll(nextBuffer, index);
+            final long offset = modifiedCalcElementOffset(index, mask);
+            Object e = lvElement(buffer, offset);// LoadLoad
+            if (e != null) {
+                if (e == JUMP) {
+                    final E[] nextBuffer = getNextBuffer(buffer, mask);
+                    return newBufferPoll(nextBuffer, index);
+                }
+                soElement(buffer, offset, null);
+                soConsumerIndex(index + 2);
             }
-            soElement(buffer, offset, null);
-            soConsumerIndex(index + 2);
+            return (E) e;
         }
-        return (E) e;
+        return poll();
     }
 
     @SuppressWarnings("unchecked")
     @Override
     public E relaxedPeek() {
-        final E[] buffer = consumerBuffer;
-        final long index = consumerIndex;
-        final long mask = consumerMask;
+        if (false) {
+            final E[] buffer = consumerBuffer;
+            final long index = consumerIndex;
+            final long mask = consumerMask;
 
-        final long offset = modifiedCalcElementOffset(index, mask);
-        Object e = lvElement(buffer, offset);// LoadLoad
+            final long offset = modifiedCalcElementOffset(index, mask);
+            Object e = lvElement(buffer, offset);// LoadLoad
 
-        if (e == JUMP) {
-            return newBufferPeek(getNextBuffer(buffer, mask), index);
+            if (e == JUMP) {
+                return newBufferPeek(getNextBuffer(buffer, mask), index);
+            }
+            return (E) e;
         }
-        return (E) e;
+        return peek();
     }
 
     @Override
