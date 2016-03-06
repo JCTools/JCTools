@@ -13,11 +13,6 @@
  */
 package org.jctools.queues;
 
-import org.jctools.queues.MessagePassingQueue.Consumer;
-import org.jctools.queues.MessagePassingQueue.ExitCondition;
-import org.jctools.queues.MessagePassingQueue.Supplier;
-import org.jctools.queues.MessagePassingQueue.WaitStrategy;
-
 /**
  * This is a direct Java port of the MPSC algorithm as presented
  * <a href="http://www.1024cores.net/home/lock-free-algorithms/queues/non-intrusive-mpsc-node-based-queue"> on
@@ -30,9 +25,8 @@ import org.jctools.queues.MessagePassingQueue.WaitStrategy;
  * The queue is initialized with a stub node which is set to both the producer and consumer node references.
  * From this point follow the notes on offer/poll.
  *
+ * @param <E> the type of elements in this queue
  * @author nitsanw
- *
- * @param <E>
  */
 abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E> {
     protected MpscLinkedQueue() {
@@ -203,10 +197,16 @@ abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E> {
 
     @Override
     public int fill(Supplier<E> s, int limit) {
-        LinkedQueueNode<E> chaserNode = producerNode;
-        for (int i = 0; i < limit; i++) {
-            offer(s.get());
+        if (limit == 0) return 0;
+        LinkedQueueNode<E> tail = new LinkedQueueNode<E>(s.get());
+        final LinkedQueueNode<E> head = tail;
+        for (int i = 1; i < limit; i++) {
+            final LinkedQueueNode<E> temp = new LinkedQueueNode<E>(s.get());
+            tail.soNext(temp);
+            tail = temp;
         }
+        final LinkedQueueNode<E> oldPNode = xchgProducerNode(tail);
+        oldPNode.soNext(head);
         return limit;
     }
 
