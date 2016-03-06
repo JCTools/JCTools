@@ -168,7 +168,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E>implements 
      */
     public boolean offerIfBelowTheshold(final E e, int threshold) {
         if (null == e) {
-            throw new NullPointerException("Null is not a valid element");
+            throw new NullPointerException();
         }
         // use a cached view on consumer index (potentially updated in loop)
         final long mask = this.mask;
@@ -260,7 +260,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E>implements 
      */
     public final int failFastOffer(final E e) {
         if (null == e) {
-            throw new NullPointerException("Null is not a valid element");
+            throw new NullPointerException();
         }
         final long mask = this.mask;
         final long capacity = mask + 1;
