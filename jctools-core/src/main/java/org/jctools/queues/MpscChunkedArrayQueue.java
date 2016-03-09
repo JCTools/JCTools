@@ -170,34 +170,20 @@ public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueConsumerField
             // mask/buffer may get changed by resizing -> only use for array access after successful CAS.
             mask = this.producerMask;
             buffer = this.producerBuffer;
-            // by loading the fields between the pIndex load and CAS we guarantee the index and the fields
-            // 'match'
+            // a successful CAS ties the ordering, lv(pIndex)-[mask/buffer]->cas(pIndex)
 
             // assumption behind this optimization is that queue is almost always empty or near empty
             if (producerLimit <= pIndex) {
-                final long consumerIndex = lvConsumerIndex();
-                final long maxQueueCapacity = this.maxQueueCapacity;
-                long bufferCapacity = (!isFixedChunkSize && mask + 2 == maxQueueCapacity) ? maxQueueCapacity
-                        : mask;
-
-                if (consumerIndex + bufferCapacity > pIndex) {
-                    if (!casProducerLimit(producerLimit, consumerIndex + bufferCapacity)) {
-                        continue; // 1 - skip CAS, no point
-                    }
-                    // 0 - goto pIndex CAS
-                }
-                // full and cannot grow
-                else if (consumerIndex == (pIndex - maxQueueCapacity)) {
-                    return false; // 2
-                }
-                // grab index for resize -> set lower bit
-                else if (casProducerIndex(pIndex, pIndex + 1)) {
-                    // resize will adjust the consumerIndexCache
-                    resize(pIndex, buffer, mask, e, consumerIndex);
-                    return true; // 3
-                }
-                else {
-                    continue; // 1 - skip CAS, no point
+                int result = offerSlowPath(e, mask, buffer, pIndex, producerLimit);
+                switch (result) {
+                case 0:
+                    break;
+                case 1:
+                    continue;
+                case 2:
+                    return false;
+                case 3:
+                    return true;
                 }
             }
 
@@ -211,39 +197,65 @@ public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueConsumerField
         return true;
     }
 
-    private void resize(long pIndex, E[] oldBuffer, long oldMask, E e, long cIndex) {
-        int newBufferLength = oldBuffer.length;
-        if (isFixedChunkSize) {
-            newBufferLength = oldBuffer.length;
+    private int offerSlowPath(final E e, long mask, E[] buffer, long pIndex, long producerLimit) {
+        int result;
+        final long consumerIndex = lvConsumerIndex();
+        final long maxQueueCapacity = this.maxQueueCapacity;
+        long bufferCapacity = (!isFixedChunkSize && mask + 2 == maxQueueCapacity) ? maxQueueCapacity
+                : mask;
+
+        if (consumerIndex + bufferCapacity > pIndex) {
+            if (!casProducerLimit(producerLimit, consumerIndex + bufferCapacity)) {
+                result = 1;// retry from top
+            }
+            result = 0;// 0 - goto pIndex CAS
         }
-        else {
-            if (oldBuffer.length - 1 == maxQueueCapacity) {
+        // full and cannot grow
+        else if (consumerIndex == (pIndex - maxQueueCapacity)) {
+            result = 2;// -> return false;
+        }
+        // grab index for resize -> set lower bit
+        else if (casProducerIndex(pIndex, pIndex + 1)) {
+            // resize will adjust the consumerIndexCache
+            int newBufferLength = buffer.length;
+            if (isFixedChunkSize) {
+                newBufferLength = buffer.length;
+            }
+            else {
+                if (buffer.length - 1 == maxQueueCapacity) {
+                    throw new IllegalStateException();
+                }
+                newBufferLength = 2 * buffer.length - 1;
+            }
+
+            final E[] newBuffer = allocate(newBufferLength);
+
+            producerBuffer = newBuffer;
+            producerMask = (newBufferLength - 2) << 1;
+
+            final long offsetInOld = modifiedCalcElementOffset(pIndex, mask);
+            final long offsetInNew = modifiedCalcElementOffset(pIndex, producerMask);
+            soElement(newBuffer, offsetInNew, e);
+            soElement(buffer, nextArrayOffset(mask), newBuffer);
+            final long available = maxQueueCapacity - (pIndex - consumerIndex);
+
+            if (available <= 0) {
                 throw new IllegalStateException();
             }
-            newBufferLength = 2 * oldBuffer.length - 1;
+            // invalidate racing CASs
+            soProducerLimit(pIndex + Math.min(mask, available));
+
+            // make resize visible to consumer
+            soElement(buffer, offsetInOld, JUMP);
+
+            // make resize visible to the other producers
+            soProducerIndex(pIndex + 2);
+            result = 3;// -> return true
         }
-
-        final E[] newBuffer = allocate(newBufferLength);
-
-        producerBuffer = newBuffer;
-        producerMask = (newBufferLength - 2) << 1;
-
-        final long offsetInOld = modifiedCalcElementOffset(pIndex, oldMask);
-        final long offsetInNew = modifiedCalcElementOffset(pIndex, producerMask);
-        soElement(newBuffer, offsetInNew, e);
-        soElement(oldBuffer, nextArrayOffset(oldMask), newBuffer);
-        final long available = maxQueueCapacity - (pIndex - cIndex);
-        if (available <= 0) {
-            throw new IllegalStateException();
+        else {
+            result = 1;// failed resize attempt, retry from top
         }
-        // invalidate racing CASs
-        soProducerLimit(pIndex + Math.min(oldMask, available));
-
-        // make resize visible to consumer
-        soElement(oldBuffer, offsetInOld, JUMP);
-
-        // make resize visible to the other producers
-        soProducerIndex(pIndex + 2);
+        return result;
     }
 
     /**
@@ -268,20 +280,25 @@ public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueConsumerField
 
         final long offset = modifiedCalcElementOffset(index, mask);
         Object e = lvElement(buffer, offset);// LoadLoad
-        if (e == null && index != lvProducerIndex()) {
-            // poll() == null iff queue is empty, null element is not strong enough indicator, so we must
-            // check the producer index. If the queue is indeed not empty we spin until element is visible.
-            while ((e = lvElement(buffer, offset)) == null)
-                ;
-        }
-        if (e != null) {
-            if (e == JUMP) {
-                final E[] nextBuffer = getNextBuffer(buffer, mask);
-                return newBufferPoll(nextBuffer, index);
+        if (e == null) {
+            if (index != lvProducerIndex()) {
+                // poll() == null iff queue is empty, null element is not strong enough indicator, so we must
+                // check the producer index. If the queue is indeed not empty we spin until element is
+                // visible.
+                do {
+                    e = lvElement(buffer, offset);
+                } while (e == null);
             }
-            soElement(buffer, offset, null);
-            soConsumerIndex(index + 2);
+            else {
+                return null;
+            }
         }
+        if (e == JUMP) {
+            final E[] nextBuffer = getNextBuffer(buffer, mask);
+            return newBufferPoll(nextBuffer, index);
+        }
+        soElement(buffer, offset, null);
+        soConsumerIndex(index + 2);
         return (E) e;
     }
 
@@ -342,7 +359,6 @@ public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueConsumerField
 
     private long newBufferAndOffset(E[] nextBuffer, final long index) {
         consumerBuffer = nextBuffer;
-        // mask doesn't change
         consumerMask = (nextBuffer.length - 2) << 1;
         final long offsetInNew = modifiedCalcElementOffset(index, consumerMask);
         return offsetInNew;
@@ -422,48 +438,37 @@ public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueConsumerField
     @SuppressWarnings("unchecked")
     @Override
     public E relaxedPoll() {
-        if (false) {
-            final E[] buffer = consumerBuffer;
-            final long index = consumerIndex;
-            final long mask = consumerMask;
+        final E[] buffer = consumerBuffer;
+        final long index = consumerIndex;
+        final long mask = consumerMask;
 
-            final long offset = modifiedCalcElementOffset(index, mask);
-            Object e = lvElement(buffer, offset);// LoadLoad
-            if (e != null) {
-                if (e == JUMP) {
-                    final E[] nextBuffer = getNextBuffer(buffer, mask);
-                    return newBufferPoll(nextBuffer, index);
-                }
-                soElement(buffer, offset, null);
-                soConsumerIndex(index + 2);
-            }
-            return (E) e;
+        final long offset = modifiedCalcElementOffset(index, mask);
+        Object e = lvElement(buffer, offset);// LoadLoad
+        if (e == null) {
+            return null;
         }
-        return poll();
+        if (e == JUMP) {
+            final E[] nextBuffer = getNextBuffer(buffer, mask);
+            return newBufferPoll(nextBuffer, index);
+        }
+        soElement(buffer, offset, null);
+        soConsumerIndex(index + 2);
+        return (E) e;
     }
 
     @SuppressWarnings("unchecked")
     @Override
     public E relaxedPeek() {
-        if (false) {
-            final E[] buffer = consumerBuffer;
-            final long index = consumerIndex;
-            final long mask = consumerMask;
+        final E[] buffer = consumerBuffer;
+        final long index = consumerIndex;
+        final long mask = consumerMask;
 
-            final long offset = modifiedCalcElementOffset(index, mask);
-            Object e = lvElement(buffer, offset);// LoadLoad
-
-            if (e == JUMP) {
-                return newBufferPeek(getNextBuffer(buffer, mask), index);
-            }
-            return (E) e;
+        final long offset = modifiedCalcElementOffset(index, mask);
+        Object e = lvElement(buffer, offset);// LoadLoad
+        if (e == JUMP) {
+            return newBufferPeek(getNextBuffer(buffer, mask), index);
         }
-        return peek();
-    }
-
-    @Override
-    public int drain(Consumer<E> c) {
-        return drain(c, capacity());
+        return (E) e;
     }
 
     @Override
@@ -481,22 +486,31 @@ public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueConsumerField
     }
 
     @Override
-    public int drain(final Consumer<E> c, final int limit) {
-        int i = 0;
-        E m;
-        for (; i < limit && (m = relaxedPoll()) != null; i++) {
-            c.accept(m);
+    public int fill(Supplier<E> s, int limit) {
+        // bug, fixing shortly
+        if (size() == capacity()) {
+            return 0;
         }
-        return i;
+
+        final E e = s.get();
+        if (!offer(e)) {
+            throw new IllegalStateException();
+        }
+
+        return 1;
     }
 
     @Override
-    public int fill(Supplier<E> s, int limit) {
-        int i = 0;
-        // BUG: if queue is full, will take from supplier and drop on the floor
-        for (i = 0; i < limit && relaxedOffer(s.get()); i++)
-            ;
-        return i;
+    public void fill(Supplier<E> s, WaitStrategy w, ExitCondition exit) {
+        int idleCounter = 0;
+        while (exit.keepRunning()) {
+            E e = s.get();
+            // BUG: note that if queue is full at the time of exit, last item will 'fall on the floor'
+            while (!offer(e) && exit.keepRunning()) {
+                idleCounter = w.idle(idleCounter);
+            }
+            idleCounter = 0;
+        }
     }
 
     @Override
@@ -514,15 +528,18 @@ public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueConsumerField
     }
 
     @Override
-    public void fill(Supplier<E> s, WaitStrategy w, ExitCondition exit) {
-        int idleCounter = 0;
-        while (exit.keepRunning()) {
-            E e = s.get();
-            while (!relaxedOffer(e)) {
-                idleCounter = w.idle(idleCounter);
-                continue;
-            }
-            idleCounter = 0;
-        }
+    public int drain(Consumer<E> c) {
+        return drain(c, capacity());
     }
+
+    @Override
+    public int drain(final Consumer<E> c, final int limit) {
+        int i = 0;
+        E m;
+        for (; i < limit && (m = relaxedPoll()) != null; i++) {
+            c.accept(m);
+        }
+        return i;
+    }
+
 }
