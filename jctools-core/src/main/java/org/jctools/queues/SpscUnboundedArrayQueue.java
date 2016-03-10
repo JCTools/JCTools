@@ -160,7 +160,10 @@ public class SpscUnboundedArrayQueue<E> extends SpscUnboundedArrayQueueConsumerF
     }
     @SuppressWarnings("unchecked")
 	private E[] lvNext(E[] curr) {
-        return (E[]) lvElement(curr, calcDirectOffset(curr.length -1));
+        final long nextArrayOffset = calcDirectOffset(curr.length -1);
+        final E[] nextBuffer = (E[]) lvElement(curr, nextArrayOffset);
+        soElement(curr, nextArrayOffset, null);
+        return nextBuffer;
     }
     /**
      * {@inheritDoc}

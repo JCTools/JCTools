@@ -234,7 +234,10 @@ public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerFie
 
     @SuppressWarnings("unchecked")
     private E[] getNextBuffer(final E[] buffer, final long mask) {
-        return (E[]) lvElement(buffer, nextArrayOffset(mask));
+        final long nextArrayOffset = nextArrayOffset(mask);
+        final E[] nextBuffer = (E[]) lvElement(buffer, nextArrayOffset);
+        soElement(buffer, nextArrayOffset, null);
+        return nextBuffer;
     }
 
     private long nextArrayOffset(final long mask) {
