@@ -60,10 +60,12 @@ public class MessagePassingQueueSanityTest {
     public void clear() {
         queue.clear();
     }
-    @Test(expected=NullPointerException.class)
-    public void relaxedOfferNullResultsInNPE(){
+
+    @Test(expected = NullPointerException.class)
+    public void relaxedOfferNullResultsInNPE() {
         queue.relaxedOffer(null);
     }
+
     @Test
     public void sanity() {
         for (int i = 0; i < SIZE; i++) {
@@ -444,8 +446,7 @@ public class MessagePassingQueueSanityTest {
 
     }
 
-    static Object[] makeMpq(int producers, int consumers, int capacity, Ordering ordering,
-            Queue<Integer> q) {
+    static Object[] makeMpq(int producers, int consumers, int capacity, Ordering ordering, Queue<Integer> q) {
         ConcurrentQueueSpec spec = new ConcurrentQueueSpec(producers, consumers, capacity, ordering,
                 Preference.NONE);
         if (q == null) {
