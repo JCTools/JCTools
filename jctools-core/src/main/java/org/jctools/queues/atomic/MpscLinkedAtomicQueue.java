@@ -86,20 +86,14 @@ public final class MpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
         LinkedQueueAtomicNode<E> currConsumerNode = lpConsumerNode(); // don't load twice, it's alright
         LinkedQueueAtomicNode<E> nextNode = currConsumerNode.lvNext();
         if (nextNode != null) {
-            // we have to null out the value because we are going to hang on to the node
-            final E nextValue = nextNode.getAndNullValue();
-            spConsumerNode(nextNode);
-            return nextValue;
+            return getSingleConsumerNodeValue(currConsumerNode, nextNode);
         }
         else if (currConsumerNode != lvProducerNode()) {
             // spin, we are no longer wait free
             while((nextNode = currConsumerNode.lvNext()) == null);
             // got the next node...
 
-            // we have to null out the value because we are going to hang on to the node
-            final E nextValue = nextNode.getAndNullValue();
-            spConsumerNode(nextNode);
-            return nextValue;
+            return getSingleConsumerNodeValue(currConsumerNode, nextNode);
         }
         return null;
     }

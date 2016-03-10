@@ -80,12 +80,10 @@ public final class SpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
      */
     @Override
     public E poll() {
-        final LinkedQueueAtomicNode<E> nextNode = lpConsumerNode().lvNext();
+        final LinkedQueueAtomicNode<E> currConsumerNode = lpConsumerNode();
+        final LinkedQueueAtomicNode<E> nextNode = currConsumerNode.lvNext();
         if (nextNode != null) {
-            // we have to null out the value because we are going to hang on to the node
-            final E nextValue = nextNode.getAndNullValue();
-            spConsumerNode(nextNode);
-            return nextValue;
+            return getSingleConsumerNodeValue(currConsumerNode, nextNode);
         }
         return null;
     }
