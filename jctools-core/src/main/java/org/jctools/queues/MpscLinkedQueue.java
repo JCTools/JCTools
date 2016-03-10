@@ -87,10 +87,7 @@ abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E> {
         LinkedQueueNode<E> currConsumerNode = lpConsumerNode(); // don't load twice, it's alright
         LinkedQueueNode<E> nextNode = currConsumerNode.lvNext();
         if (nextNode != null) {
-            // we have to null out the value because we are going to hang on to the node
-            final E nextValue = nextNode.getAndNullValue();
-            spConsumerNode(nextNode);
-            return nextValue;
+            return getSingleConsumerNodeValue(currConsumerNode, nextNode);
         }
         else if (currConsumerNode != lvProducerNode()) {
             // spin, we are no longer wait free
@@ -98,10 +95,7 @@ abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E> {
                 ;
             // got the next node...
 
-            // we have to null out the value because we are going to hang on to the node
-            final E nextValue = nextNode.getAndNullValue();
-            consumerNode = nextNode;
-            return nextValue;
+            return getSingleConsumerNodeValue(currConsumerNode, nextNode);
         }
         return null;
     }
@@ -124,52 +118,6 @@ abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E> {
     }
 
     @Override
-    public boolean relaxedOffer(E message) {
-        return offer(message);
-    }
-
-    @Override
-    public E relaxedPoll() {
-        LinkedQueueNode<E> currConsumerNode = lpConsumerNode(); // don't load twice, it's alright
-        LinkedQueueNode<E> nextNode = currConsumerNode.lvNext();
-        if (nextNode != null) {
-            // we have to null out the value because we are going to hang on to the node
-            final E nextValue = nextNode.getAndNullValue();
-            spConsumerNode(nextNode);
-            return nextValue;
-        }
-        return null;
-    }
-
-    @Override
-    public E relaxedPeek() {
-        LinkedQueueNode<E> currConsumerNode = consumerNode; // don't load twice, it's alright
-        LinkedQueueNode<E> nextNode = currConsumerNode.lvNext();
-        if (nextNode != null) {
-            return nextNode.lpValue();
-        }
-        else if (currConsumerNode != lvProducerNode()) {
-            // spin, we are no longer wait free
-            while ((nextNode = currConsumerNode.lvNext()) == null)
-                ;
-            // got the next node...
-            return nextNode.lpValue();
-        }
-        return null;
-    }
-
-    @Override
-    public int drain(Consumer<E> c) {
-        long result = 0;// use long to force safepoint into loop below
-        int drained;
-        do {
-            drained = drain(c, 4096);
-            result += drained;
-        } while (drained == 4096 && result <= Integer.MAX_VALUE - 4096);
-        return (int) result;
-    }
-
-    @Override
     public int fill(Supplier<E> s) {
         long result = 0;// result is a long because we want to have a safepoint check at regular intervals
         do {
@@ -177,22 +125,6 @@ abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E> {
             result += 4096;
         } while (result <= Integer.MAX_VALUE - 4096);
         return (int) result;
-    }
-
-    @Override
-    public int drain(Consumer<E> c, int limit) {
-        LinkedQueueNode<E> chaserNode = this.consumerNode;
-        for (int i = 0; i < limit; i++) {
-            chaserNode = chaserNode.lvNext();
-            if (chaserNode == null) {
-                return i;
-            }
-            // we have to null out the value because we are going to hang on to the node
-            final E nextValue = chaserNode.getAndNullValue();
-            this.consumerNode = chaserNode;
-            c.accept(nextValue);
-        }
-        return limit;
     }
 
     @Override
@@ -208,27 +140,6 @@ abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E> {
         final LinkedQueueNode<E> oldPNode = xchgProducerNode(tail);
         oldPNode.soNext(head);
         return limit;
-    }
-
-    @Override
-    public void drain(Consumer<E> c, WaitStrategy wait, ExitCondition exit) {
-        LinkedQueueNode<E> chaserNode = this.consumerNode;
-        int idleCounter = 0;
-        while (exit.keepRunning()) {
-            for (int i = 0; i < 4096; i++) {
-                final LinkedQueueNode<E> next = chaserNode.lvNext();
-                if (next == null) {
-                    idleCounter = wait.idle(idleCounter);
-                    continue;
-                }
-                chaserNode = next;
-                idleCounter = 0;
-                // we have to null out the value because we are going to hang on to the node
-                final E nextValue = chaserNode.getAndNullValue();
-                this.consumerNode = chaserNode;
-                c.accept(nextValue);
-            }
-        }
     }
 
     @Override

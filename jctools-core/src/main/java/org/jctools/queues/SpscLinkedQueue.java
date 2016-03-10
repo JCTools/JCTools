@@ -80,50 +80,12 @@ public class SpscLinkedQueue<E> extends BaseLinkedQueue<E> {
      */
     @Override
     public E poll() {
-        final LinkedQueueNode<E> nextNode = consumerNode.lvNext();
-        if (nextNode != null) {
-            // we have to null out the value because we are going to hang on to the node
-            final E nextValue = nextNode.getAndNullValue();
-            consumerNode = nextNode;
-            return nextValue;
-        }
-        return null;
+        return relaxedPoll();
     }
 
     @Override
     public E peek() {
-        final LinkedQueueNode<E> nextNode = consumerNode.lvNext();
-        if (nextNode != null) {
-            return nextNode.lpValue();
-        } else {
-            return null;
-        }
-    }
-
-    @Override
-    public boolean relaxedOffer(E e) {
-        return offer(e);
-    }
-
-    @Override
-    public E relaxedPoll() {
-        return poll();
-    }
-
-    @Override
-    public E relaxedPeek() {
-        return peek();
-    }
-
-    @Override
-    public int drain(Consumer<E> c) {
-        long result = 0;// use long to force safepoint into loop below
-        int drained;
-        do {
-            drained = drain(c, 4096);
-            result += drained;
-        } while (drained == 4096 && result <= Integer.MAX_VALUE - 4096);
-        return (int) result;
+        return relaxedPeek();
     }
 
     @Override
@@ -134,22 +96,6 @@ public class SpscLinkedQueue<E> extends BaseLinkedQueue<E> {
             result += 4096;
         } while (result <= Integer.MAX_VALUE - 4096);
         return (int) result;
-    }
-
-    @Override
-    public int drain(Consumer<E> c, int limit) {
-        LinkedQueueNode<E> chaserNode = this.consumerNode;
-        for (int i = 0; i < limit; i++) {
-            chaserNode = chaserNode.lvNext();
-            if (chaserNode == null) {
-                return i;
-            }
-            // we have to null out the value because we are going to hang on to the node
-            final E nextValue = chaserNode.getAndNullValue();
-            this.consumerNode = chaserNode;
-            c.accept(nextValue);
-        }
-        return limit;
     }
 
     @Override
@@ -164,26 +110,6 @@ public class SpscLinkedQueue<E> extends BaseLinkedQueue<E> {
         return limit;
     }
 
-    @Override
-    public void drain(Consumer<E> c, WaitStrategy wait, ExitCondition exit) {
-        LinkedQueueNode<E> chaserNode = this.consumerNode;
-        int idleCounter = 0;
-        while (exit.keepRunning()) {
-            for (int i = 0; i < 4096; i++) {
-                final LinkedQueueNode<E> next = chaserNode.lvNext();
-                if (next == null) {
-                    idleCounter = wait.idle(idleCounter);
-                    continue;
-                }
-                chaserNode = next;
-                idleCounter = 0;
-                // we have to null out the value because we are going to hang on to the node
-                final E nextValue = chaserNode.getAndNullValue();
-                this.consumerNode = chaserNode;
-                c.accept(nextValue);
-            }
-        }
-    }
 
     @Override
     public void fill(Supplier<E> s, WaitStrategy wait, ExitCondition exit) {
