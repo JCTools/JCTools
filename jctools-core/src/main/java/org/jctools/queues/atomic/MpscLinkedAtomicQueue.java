@@ -49,7 +49,7 @@ public final class MpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
      * This works because each producer is guaranteed to 'plant' a new node and link the old node. No 2 producers can
      * get the same producer node as part of XCHG guarantee.
      *
-     * @see MessagePassingQueue#offer(Object)
+     * @see org.jctools.queues.MessagePassingQueue#offer(Object)
      * @see java.util.Queue#offer(java.lang.Object)
      */
     @Override
@@ -78,7 +78,7 @@ public final class MpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
      * This means the consumerNode.value is always null, which is also the starting point for the queue. Because null
      * values are not allowed to be offered this is the only node with it's value set to null at any one time.
      *
-     * @see MessagePassingQueue#poll()
+     * @see org.jctools.queues.MessagePassingQueue#poll()
      * @see java.util.Queue#poll()
      */
     @Override
