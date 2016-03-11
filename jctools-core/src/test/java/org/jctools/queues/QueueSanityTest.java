@@ -34,11 +34,13 @@ public class QueueSanityTest {
         list.add(makeQueue(1, 1, SIZE, Ordering.FIFO, null));
         list.add(makeQueue(1, 1, SIZE, Ordering.FIFO, new SpscGrowableArrayQueue<Integer>(4, SIZE)));
         list.add(makeQueue(1, 1, 0, Ordering.FIFO, new SpscUnboundedArrayQueue<Integer>(16)));
+
         list.add(makeQueue(1, 0, 1, Ordering.FIFO, null));
         list.add(makeQueue(1, 0, SIZE, Ordering.FIFO, null));
         list.add(makeQueue(0, 1, 0, Ordering.FIFO, null));
         list.add(makeQueue(0, 1, 1, Ordering.FIFO, null));
         list.add(makeQueue(0, 1, SIZE, Ordering.FIFO, null));
+
         list.add(makeQueue(0, 1, 1, Ordering.PRODUCER_FIFO, null));
         list.add(makeQueue(0, 1, SIZE, Ordering.PRODUCER_FIFO, null));
 
@@ -241,6 +243,45 @@ public class QueueSanityTest {
         t1.join();
         t2.join();
         assertEquals("reordering detected", 0, fail.value);
+
+    }
+
+    @Test
+    public void testSize() throws Exception {
+        assumeThat(spec.isBounded(), is(true));
+        final AtomicBoolean stop = new AtomicBoolean();
+        final Queue q = queue;
+        final Val fail = new Val();
+        Thread t1 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while (!stop.get()) {
+                    q.offer(1);
+                    q.poll();
+                    // slow down the producer, this will make the queue mostly empty encouraging visibility issues.
+                    Thread.yield();
+                }
+            }
+        });
+        Thread t2 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while (!stop.get()) {
+                    int size = q.size();
+                    if(size != 0 && size != 1) {
+                        fail.value++;
+                    }
+                }
+            }
+        });
+
+        t1.start();
+        t2.start();
+        Thread.sleep(1000);
+        stop.set(true);
+        t1.join();
+        t2.join();
+        assertEquals("Unexpected size observed", 0, fail.value);
 
     }
 
