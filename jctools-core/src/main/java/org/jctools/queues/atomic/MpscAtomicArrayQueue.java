@@ -49,7 +49,7 @@ public final class MpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E>
      * concurrently.
      *
      * @see java.util.Queue#offer(java.lang.Object)
-     * @see MessagePassingQueue#offer(Object)
+     * @see org.jctools.queues.MessagePassingQueue#offer(Object)
      */
     @Override
     public boolean offer(final E e) {
@@ -130,7 +130,7 @@ public final class MpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E>
      * Lock free poll using ordered loads/stores. As class name suggests access is limited to a single thread.
      *
      * @see java.util.Queue#poll()
-     * @see MessagePassingQueue#poll()
+     * @see org.jctools.queues.MessagePassingQueue#poll()
      */
     @Override
     public E poll() {
@@ -168,7 +168,7 @@ public final class MpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E>
      * Lock free peek using ordered loads. As class name suggests access is limited to a single thread.
      *
      * @see java.util.Queue#poll()
-     * @see MessagePassingQueue#poll()
+     * @see org.jctools.queues.MessagePassingQueue#poll()
      */
     @Override
     public E peek() {
