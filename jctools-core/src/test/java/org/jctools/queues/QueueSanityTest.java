@@ -250,7 +250,7 @@ public class QueueSanityTest {
     public void testSize() throws Exception {
         assumeThat(spec.isBounded(), is(true));
         final AtomicBoolean stop = new AtomicBoolean();
-        final Queue q = queue;
+        final Queue<Integer> q = queue;
         final Val fail = new Val();
         Thread t1 = new Thread(new Runnable() {
             @Override
@@ -258,8 +258,6 @@ public class QueueSanityTest {
                 while (!stop.get()) {
                     q.offer(1);
                     q.poll();
-                    // slow down the producer, this will make the queue mostly empty encouraging visibility issues.
-                    Thread.yield();
                 }
             }
         });
