@@ -7,27 +7,41 @@ import org.jctools.util.UnsafeAccess;
  * Generated code. This is a mockup for methods passing primitives only.
  *
  * @author yak
- *
  */
-public class DemoProxyResult extends SpscOffHeapFixedSizeRingBuffer implements ProxyChannel<Demo1>, Demo1 {
+public class DemoProxyResult extends SpscOffHeapFixedSizeRingBuffer implements ProxyChannel<DemoIFace>, DemoIFace {
 
     public DemoProxyResult(int capacity) {
         super(capacity, 13);
     }
 
     @Override
-    public Demo1 proxyInstance(Demo1 impl) {
-        // need to construct a friend class which is very similar, and support passing objects.
-        return null;
+    public DemoIFace proxyInstance(DemoIFace impl) {
+        return new DemoIFace() {
+
+            @Override
+            public void call1(int x, int y) {
+                // TODO: What to do here?
+            }
+
+            @Override
+            public void call2(float x, double y, boolean z) {
+                // TODO: What to do here?
+            }
+
+            @Override
+            public void call3() {
+                // TODO: What to do here?
+            }
+        };
     }
 
     @Override
-    public Demo1 proxy() {
+    public DemoIFace proxy() {
         return this;
     }
 
     @Override
-    public int process(Demo1 impl, int limit) {
+    public int process(DemoIFace impl, int limit) {
         int i = 0;
         for (; i < limit; i++) {
             long rOffset = this.readAcquire();
@@ -38,26 +52,26 @@ public class DemoProxyResult extends SpscOffHeapFixedSizeRingBuffer implements P
             // Start off with a switch and see how we do. The compiler *should* be able to convert a large switch
             // to a lookup table and *should* be better equipped to make the call.
             switch (type) {
-            case 1: {
-                int x = UnsafeAccess.UNSAFE.getInt(rOffset + 4);
-                int y = UnsafeAccess.UNSAFE.getInt(rOffset + 8);
-                this.readRelease(rOffset);
-                impl.call1(x, y);
-                break;
-            }
-            case 2: {
-                float x = UnsafeAccess.UNSAFE.getFloat(rOffset + 4);
-                double y = UnsafeAccess.UNSAFE.getDouble(rOffset + 8);
-                boolean z = UnsafeAccess.UNSAFE.getBoolean(null, rOffset + 16);
-                this.readRelease(rOffset);
-                impl.call2(x, y, z);
-                break;
-            }
-            case 3: {
-                this.readRelease(rOffset);
-                impl.call3();
-                break;
-            }
+                case 1: {
+                    int x = UnsafeAccess.UNSAFE.getInt(rOffset + 4);
+                    int y = UnsafeAccess.UNSAFE.getInt(rOffset + 8);
+                    this.readRelease(rOffset);
+                    impl.call1(x, y);
+                    break;
+                }
+                case 2: {
+                    float x = UnsafeAccess.UNSAFE.getFloat(rOffset + 4);
+                    double y = UnsafeAccess.UNSAFE.getDouble(rOffset + 8);
+                    boolean z = UnsafeAccess.UNSAFE.getBoolean(null, rOffset + 16);
+                    this.readRelease(rOffset);
+                    impl.call2(x, y, z);
+                    break;
+                }
+                case 3: {
+                    this.readRelease(rOffset);
+                    impl.call3();
+                    break;
+                }
             }
         }
 
@@ -81,7 +95,7 @@ public class DemoProxyResult extends SpscOffHeapFixedSizeRingBuffer implements P
         long wOffset = this.writeAcquire();
         UnsafeAccess.UNSAFE.putFloat(wOffset + 4, x);
         UnsafeAccess.UNSAFE.putDouble(wOffset + 8, y);
-        UnsafeAccess.UNSAFE.putBoolean(null, wOffset + 8, z);
+        UnsafeAccess.UNSAFE.putBoolean(null, wOffset + 16, z);
         this.writeRelease(wOffset, 2);
     }
 
