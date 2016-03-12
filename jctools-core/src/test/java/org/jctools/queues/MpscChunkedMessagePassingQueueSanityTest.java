@@ -5,7 +5,6 @@ import java.util.Collection;
 
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
-import org.junit.Ignore;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -22,5 +21,4 @@ public class MpscChunkedMessagePassingQueueSanityTest extends MessagePassingQueu
     public MpscChunkedMessagePassingQueueSanityTest(ConcurrentQueueSpec spec, MessagePassingQueue<Integer> queue) {
         super(spec, queue);
     }
-
 }
