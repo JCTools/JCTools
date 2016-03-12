@@ -58,8 +58,9 @@ public class SpscLinkedQueue<E> extends BaseLinkedQueue<E> {
             throw new NullPointerException();
         }
         final LinkedQueueNode<E> nextNode = new LinkedQueueNode<E>(e);
+        final LinkedQueueNode<E> producerNode = lpProducerNode();
         producerNode.soNext(nextNode);
-        producerNode = nextNode;
+        spProducerNode(nextNode);
         return true;
     }
 
@@ -100,13 +101,17 @@ public class SpscLinkedQueue<E> extends BaseLinkedQueue<E> {
 
     @Override
     public int fill(Supplier<E> s, int limit) {
-        LinkedQueueNode<E> chaserNode = producerNode;
-        for (int i = 0; i < limit; i++) {
-            final LinkedQueueNode<E> nextNode = new LinkedQueueNode<E>(s.get());
-            chaserNode.soNext(nextNode);
-            chaserNode = nextNode;
-            this.producerNode = chaserNode;
+        if (limit == 0) return 0;
+        LinkedQueueNode<E> tail = new LinkedQueueNode<E>(s.get());
+        final LinkedQueueNode<E> head = tail;
+        for (int i = 1; i < limit; i++) {
+            final LinkedQueueNode<E> temp = new LinkedQueueNode<E>(s.get());
+            tail.soNext(temp);
+            tail = temp;
         }
+        final LinkedQueueNode<E> oldPNode = lpProducerNode();
+        oldPNode.soNext(head);
+        spProducerNode(tail);
         return limit;
     }
 
