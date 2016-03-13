@@ -16,6 +16,8 @@ public class FixedSizeStripedLongCounterV6 extends FixedSizeStripedLongCounter {
 
     @Override
     protected void inc(long offset, long delta) {
+        // Local load to avoid reloading after volatile read
+        long[] cells = this.cells;
         long v;
         do {
             v = UNSAFE.getLongVolatile(cells, offset);
@@ -24,6 +26,8 @@ public class FixedSizeStripedLongCounterV6 extends FixedSizeStripedLongCounter {
 
     @Override
     protected long getAndReset(long offset) {
+        // Local load to avoid reloading after volatile read
+        long[] cells = this.cells;
         long v;
         do {
             v = UNSAFE.getLongVolatile(cells, offset);
