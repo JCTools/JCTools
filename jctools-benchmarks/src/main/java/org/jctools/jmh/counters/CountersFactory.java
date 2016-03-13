@@ -1,7 +1,6 @@
 package org.jctools.jmh.counters;
 
-import org.jctools.counters.FixedSizeStripedLongCounterV6;
-import org.jctools.counters.FixedSizeStripedLongCounterV8;
+import org.jctools.counters.FixedSizeStripedLongCounter;
 import org.openjdk.jmh.annotations.CompilerControl;
 import org.openjdk.jmh.annotations.CompilerControl.Mode;
 
@@ -29,9 +28,11 @@ public class CountersFactory {
             case LongAdder:
                 return new LongAdderCounter();
             case FixedSizeStripedV6:
-                return new FixedSizeStripedCounterV6(STRIPES_COUNT);
+                return new FixedSizeStripedCounter(
+                    org.jctools.counters.CountersFactory.createFixedSizeStripedCounterV6(STRIPES_COUNT));
             case FixedSizeStripedV8:
-                return new FixedSizeStripedCounterV8(STRIPES_COUNT);
+                return new FixedSizeStripedCounter(
+                    org.jctools.counters.CountersFactory.createFixedSizeStripedCounterV8(STRIPES_COUNT));
             default:
                 throw new IllegalArgumentException();
         }
@@ -63,15 +64,23 @@ public class CountersFactory {
         }
     }
 
-    static class FixedSizeStripedCounterV6 extends FixedSizeStripedLongCounterV6 implements Counter {
-        public FixedSizeStripedCounterV6(int stripesCount) {
-            super(stripesCount);
-        }
-    }
+    static class FixedSizeStripedCounter implements Counter {
+        private FixedSizeStripedLongCounter counter;
 
-    static class FixedSizeStripedCounterV8 extends FixedSizeStripedLongCounterV8 implements Counter {
-        public FixedSizeStripedCounterV8(int stripesCount) {
-            super(stripesCount);
+        public FixedSizeStripedCounter(FixedSizeStripedLongCounter impl) {
+            counter = impl;
+        }
+
+        @Override
+        @CompilerControl(Mode.INLINE)
+        public void inc() {
+            counter.inc();
+        }
+
+        @Override
+        @CompilerControl(Mode.INLINE)
+        public long get() {
+            return counter.get();
         }
     }
 }

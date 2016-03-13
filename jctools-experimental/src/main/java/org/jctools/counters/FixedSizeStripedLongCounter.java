@@ -14,7 +14,7 @@ import static org.jctools.util.UnsafeAccess.UNSAFE;
  *
  * @author Tolstopyatov Vsevolod
  */
-abstract class FixedSizeStripedLongCounter extends PaddedHeader implements Counter {
+public abstract class FixedSizeStripedLongCounter extends PaddedHeader implements Counter {
 
     private static final int LONG_ARRAY_BASE = Unsafe.ARRAY_LONG_BASE_OFFSET;
     private static final int LONG_SCALE_SHIFT = 3;

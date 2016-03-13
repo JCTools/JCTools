@@ -8,7 +8,7 @@ import static org.jctools.util.UnsafeAccess.UNSAFE;
  *
  * @author Tolstopyatov Vsevolod
  */
-public class FixedSizeStripedLongCounterV6 extends FixedSizeStripedLongCounter {
+class FixedSizeStripedLongCounterV6 extends FixedSizeStripedLongCounter {
 
     public FixedSizeStripedLongCounterV6(int stripesCount) {
         super(stripesCount);
