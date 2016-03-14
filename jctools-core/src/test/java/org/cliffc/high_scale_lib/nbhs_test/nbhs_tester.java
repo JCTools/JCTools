@@ -17,7 +17,7 @@ import static org.junit.Assert.*;
 public class nbhs_tester {
 
   static private NonBlockingHashSet<String> _nbhs;
-  @BeforeClass public static void setUp   () { _nbhs = new NonBlockingHashSet<>(); }
+  @BeforeClass public static void setUp   () { _nbhs = new NonBlockingHashSet<String>(); }
   @AfterClass  public static void tearDown() { _nbhs = null; }
 
   // Test some basic stuff; add a few keys, remove a few keys
@@ -127,7 +127,9 @@ public class nbhs_tester {
       in.close();
       assertEquals(_nbhs.toString(),nbhs.toString());
       if( !f.delete() ) throw new IOException("delete failed");
-    } catch(IOException|ClassNotFoundException ex) {
+    } catch(IOException ex) {
+      ex.printStackTrace();
+    } catch(ClassNotFoundException ex) {
       ex.printStackTrace();
     }
 
