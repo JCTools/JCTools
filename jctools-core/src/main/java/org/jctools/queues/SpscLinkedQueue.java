@@ -53,13 +53,14 @@ public class SpscLinkedQueue<E> extends BaseLinkedQueue<E> {
      * @see java.util.Queue#offer(java.lang.Object)
      */
     @Override
-    public boolean offer(final E nextValue) {
-        if (nextValue == null) {
-            throw new IllegalArgumentException("null elements not allowed");
+    public boolean offer(final E e) {
+        if (null == e) {
+            throw new NullPointerException();
         }
-        final LinkedQueueNode<E> nextNode = new LinkedQueueNode<E>(nextValue);
+        final LinkedQueueNode<E> nextNode = new LinkedQueueNode<E>(e);
+        final LinkedQueueNode<E> producerNode = lpProducerNode();
         producerNode.soNext(nextNode);
-        producerNode = nextNode;
+        spProducerNode(nextNode);
         return true;
     }
 
@@ -80,50 +81,12 @@ public class SpscLinkedQueue<E> extends BaseLinkedQueue<E> {
      */
     @Override
     public E poll() {
-        final LinkedQueueNode<E> nextNode = consumerNode.lvNext();
-        if (nextNode != null) {
-            // we have to null out the value because we are going to hang on to the node
-            final E nextValue = nextNode.getAndNullValue();
-            consumerNode = nextNode;
-            return nextValue;
-        }
-        return null;
+        return relaxedPoll();
     }
 
     @Override
     public E peek() {
-        final LinkedQueueNode<E> nextNode = consumerNode.lvNext();
-        if (nextNode != null) {
-            return nextNode.lpValue();
-        } else {
-            return null;
-        }
-    }
-
-    @Override
-    public boolean relaxedOffer(E e) {
-        return offer(e);
-    }
-
-    @Override
-    public E relaxedPoll() {
-        return poll();
-    }
-
-    @Override
-    public E relaxedPeek() {
-        return peek();
-    }
-
-    @Override
-    public int drain(Consumer<E> c) {
-        long result = 0;// use long to force safepoint into loop below
-        int drained;
-        do {
-            drained = drain(c, 4096);
-            result += drained;
-        } while (drained == 4096 && result <= Integer.MAX_VALUE - 4096);
-        return (int) result;
+        return relaxedPeek();
     }
 
     @Override
@@ -137,53 +100,21 @@ public class SpscLinkedQueue<E> extends BaseLinkedQueue<E> {
     }
 
     @Override
-    public int drain(Consumer<E> c, int limit) {
-        LinkedQueueNode<E> chaserNode = this.consumerNode;
-        for (int i = 0; i < limit; i++) {
-            chaserNode = chaserNode.lvNext();
-            if (chaserNode == null) {
-                return i;
-            }
-            // we have to null out the value because we are going to hang on to the node
-            final E nextValue = chaserNode.getAndNullValue();
-            this.consumerNode = chaserNode;
-            c.accept(nextValue);
-        }
-        return limit;
-    }
-
-    @Override
     public int fill(Supplier<E> s, int limit) {
-        LinkedQueueNode<E> chaserNode = producerNode;
-        for (int i = 0; i < limit; i++) {
-            final LinkedQueueNode<E> nextNode = new LinkedQueueNode<E>(s.get());
-            chaserNode.soNext(nextNode);
-            chaserNode = nextNode;
-            this.producerNode = chaserNode;
+        if (limit == 0) return 0;
+        LinkedQueueNode<E> tail = new LinkedQueueNode<E>(s.get());
+        final LinkedQueueNode<E> head = tail;
+        for (int i = 1; i < limit; i++) {
+            final LinkedQueueNode<E> temp = new LinkedQueueNode<E>(s.get());
+            tail.soNext(temp);
+            tail = temp;
         }
+        final LinkedQueueNode<E> oldPNode = lpProducerNode();
+        oldPNode.soNext(head);
+        spProducerNode(tail);
         return limit;
     }
 
-    @Override
-    public void drain(Consumer<E> c, WaitStrategy wait, ExitCondition exit) {
-        LinkedQueueNode<E> chaserNode = this.consumerNode;
-        int idleCounter = 0;
-        while (exit.keepRunning()) {
-            for (int i = 0; i < 4096; i++) {
-                final LinkedQueueNode<E> next = chaserNode.lvNext();
-                if (next == null) {
-                    idleCounter = wait.idle(idleCounter);
-                    continue;
-                }
-                chaserNode = next;
-                idleCounter = 0;
-                // we have to null out the value because we are going to hang on to the node
-                final E nextValue = chaserNode.getAndNullValue();
-                this.consumerNode = chaserNode;
-                c.accept(nextValue);
-            }
-        }
-    }
 
     @Override
     public void fill(Supplier<E> s, WaitStrategy wait, ExitCondition exit) {

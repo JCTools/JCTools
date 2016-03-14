@@ -26,9 +26,9 @@ import org.jctools.queues.QueueProgressIndicators;
  * This implementation is using the <a href="http://sourceforge.net/projects/mc-fastflow/">Fast Flow</a>
  * method for polling from the queue (with minor change to correctly publish the index) and an extension of
  * the Leslie Lamport concurrent queue algorithm (originated by Martin Thompson) on the producer side.<br>
- * 
+ *
  * @author nitsanw
- * 
+ *
  * @param <E>
  */
 public final class MpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E>
@@ -43,18 +43,18 @@ public final class MpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E>
     }
     /**
      * {@inheritDoc} <br>
-     * 
+     *
      * IMPLEMENTATION NOTES:<br>
      * Lock free offer using a single CAS. As class name suggests access is permitted to many threads
      * concurrently.
-     * 
+     *
      * @see java.util.Queue#offer(java.lang.Object)
-     * @see MessagePassingQueue#offer(Object)
+     * @see org.jctools.queues.MessagePassingQueue#offer(Object)
      */
     @Override
     public boolean offer(final E e) {
         if (null == e) {
-            throw new NullPointerException("Null is not a valid element");
+            throw new NullPointerException();
         }
 
         // use a cached view on consumer index (potentially updated in loop)
@@ -90,7 +90,7 @@ public final class MpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E>
 
     /**
      * A wait free alternative to offer which fails on CAS failure.
-     * 
+     *
      * @param e new element, not null
      * @return 1 if next element cannot be filled, -1 if CAS failed, 0 if successful
      */
@@ -128,9 +128,9 @@ public final class MpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E>
      * <p>
      * IMPLEMENTATION NOTES:<br>
      * Lock free poll using ordered loads/stores. As class name suggests access is limited to a single thread.
-     * 
+     *
      * @see java.util.Queue#poll()
-     * @see MessagePassingQueue#poll()
+     * @see org.jctools.queues.MessagePassingQueue#poll()
      */
     @Override
     public E poll() {
@@ -166,9 +166,9 @@ public final class MpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E>
      * <p>
      * IMPLEMENTATION NOTES:<br>
      * Lock free peek using ordered loads. As class name suggests access is limited to a single thread.
-     * 
+     *
      * @see java.util.Queue#poll()
-     * @see MessagePassingQueue#poll()
+     * @see org.jctools.queues.MessagePassingQueue#poll()
      */
     @Override
     public E peek() {
@@ -198,7 +198,7 @@ public final class MpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E>
     /**
      * {@inheritDoc}
      * <p>
-     * 
+     *
      */
     @Override
     public int size() {
@@ -228,12 +228,12 @@ public final class MpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E>
         // something we can fix here.
         return (lvConsumerIndex() == lvProducerIndex());
     }
-    
+
     @Override
     public long currentProducerIndex() {
         return lvProducerIndex();
     }
-    
+
     @Override
     public long currentConsumerIndex() {
         return lvConsumerIndex();

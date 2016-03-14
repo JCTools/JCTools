@@ -53,7 +53,7 @@ abstract class SpscGrowableArrayQueueConsumerFields<E> extends SpscGrowableArray
     protected long consumerIndex;
 }
 
-public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerFields<E> 
+public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerFields<E>
     implements QueueProgressIndicators {
     private final static long P_INDEX_OFFSET;
     private final static long C_INDEX_OFFSET;
@@ -109,7 +109,7 @@ public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerFie
     @Override
     public final boolean offer(final E e) {
         if (null == e) {
-            throw new NullPointerException("Null is not a valid element");
+            throw new NullPointerException();
         }
         // local load of field to avoid repeated loads after volatile reads
         final E[] buffer = producerBuffer;
@@ -217,14 +217,14 @@ public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerFie
         // local load of field to avoid repeated loads after volatile reads
         final E[] buffer = consumerBuffer;
         final long index = consumerIndex;
-        
+
         final long mask = consumerMask;
         final long offset = calcElementOffset(index, mask);
         final Object e = lvElement(buffer, offset);// LoadLoad
         if (null != e) {
             if(e == JUMP) {
                 final E[] nextBuffer = getNextBuffer(buffer, mask);
-                return newBufferPoll(nextBuffer, index); 
+                return newBufferPoll(nextBuffer, index);
             }
             soConsumerIndex(index + 1);// this ensures size correctness on 32bit platforms
             soElement(buffer, offset, null);// StoreStore
@@ -234,7 +234,10 @@ public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerFie
 
     @SuppressWarnings("unchecked")
     private E[] getNextBuffer(final E[] buffer, final long mask) {
-        return (E[]) lvElement(buffer, nextArrayOffset(mask));
+        final long nextArrayOffset = nextArrayOffset(mask);
+        final E[] nextBuffer = (E[]) lvElement(buffer, nextArrayOffset);
+        soElement(buffer, nextArrayOffset, null);
+        return nextBuffer;
     }
 
     private long nextArrayOffset(final long mask) {
@@ -330,7 +333,7 @@ public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerFie
     public long currentProducerIndex() {
         return lvProducerIndex();
     }
-    
+
     @Override
     public long currentConsumerIndex() {
         return lvConsumerIndex();

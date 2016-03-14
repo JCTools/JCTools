@@ -1,5 +1,7 @@
 package org.jctools.queues;
 
+import org.jctools.queues.atomic.AtomicQueueFactory;
+import org.jctools.queues.atomic.SpscUnboundedAtomicArrayQueue;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
 import org.jctools.queues.spec.Preference;
@@ -23,35 +25,31 @@ import static org.junit.Assume.assumeThat;
 @RunWith(Parameterized.class)
 public class QueueSanityTest {
 
-    private static final int SIZE = 8192 * 2;
+    public static final int SIZE = 8192 * 2;
     @Parameterized.Parameters
     public static Collection parameters() {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
-        list.add(test(0, 1, 4, Ordering.FIFO, new MpscChunkedArrayQueue<>(4)));// MPSC size 1
-        list.add(test(0, 1, SIZE, Ordering.FIFO, new MpscChunkedArrayQueue<>(2, SIZE)));// MPSC size SIZE
+        list.add(makeQueue(1, 1, 4, Ordering.FIFO, null));
+        list.add(makeQueue(1, 1, 0, Ordering.FIFO, null));
+        list.add(makeQueue(1, 1, SIZE, Ordering.FIFO, null));
+        list.add(makeQueue(1, 1, SIZE, Ordering.FIFO, new SpscGrowableArrayQueue<Integer>(4, SIZE)));
+        list.add(makeQueue(1, 1, 0, Ordering.FIFO, new SpscUnboundedArrayQueue<Integer>(16)));
 
-        list.add(test(1, 1, 4, Ordering.FIFO, null));
-        list.add(test(1, 1, 0, Ordering.FIFO, null));
-        list.add(test(1, 1, SIZE, Ordering.FIFO, null));
-        list.add(test(1, 1, SIZE, Ordering.FIFO, new SpscGrowableArrayQueue<Integer>(4, SIZE)));
-        list.add(test(1, 1, 0, Ordering.FIFO, new SpscUnboundedArrayQueue<Integer>(16)));
-        list.add(test(1, 0, 1, Ordering.FIFO, null));
-        list.add(test(1, 0, SIZE, Ordering.FIFO, null));
-        list.add(test(0, 1, 0, Ordering.FIFO, null));
-        list.add(test(0, 1, 1, Ordering.FIFO, null));
-        list.add(test(0, 1, SIZE, Ordering.FIFO, null));
-        list.add(test(0, 1, 1, Ordering.PRODUCER_FIFO, null));
-        list.add(test(0, 1, SIZE, Ordering.PRODUCER_FIFO, null));
+        list.add(makeQueue(1, 0, 1, Ordering.FIFO, null));
+        list.add(makeQueue(1, 0, SIZE, Ordering.FIFO, null));
+        list.add(makeQueue(0, 1, 0, Ordering.FIFO, null));
+        list.add(makeQueue(0, 1, 1, Ordering.FIFO, null));
+        list.add(makeQueue(0, 1, SIZE, Ordering.FIFO, null));
 
-        list.add(test(0, 1, 4, Ordering.FIFO, new MpscGrowableArrayQueue<>(4)));// MPSC size 1
-        list.add(test(0, 1, SIZE, Ordering.FIFO, new MpscGrowableArrayQueue<>(2, SIZE)));// MPSC size SIZE
+        list.add(makeQueue(0, 1, 1, Ordering.PRODUCER_FIFO, null));
+        list.add(makeQueue(0, 1, SIZE, Ordering.PRODUCER_FIFO, null));
 
         // Compound queue minimal size is the core count
-        list.add(test(0, 1, CPUs, Ordering.NONE, null));
-        list.add(test(0, 1, SIZE, Ordering.NONE, null));
+        list.add(makeQueue(0, 1, CPUs, Ordering.NONE, null));
+        list.add(makeQueue(0, 1, SIZE, Ordering.NONE, null));
         // Mpmc minimal size is 2
-        list.add(test(0, 0, 2, Ordering.FIFO, null));
-        list.add(test(0, 0, SIZE, Ordering.FIFO, null));
+        list.add(makeQueue(0, 0, 2, Ordering.FIFO, null));
+        list.add(makeQueue(0, 0, SIZE, Ordering.FIFO, null));
         return list;
     }
 
@@ -165,6 +163,11 @@ public class QueueSanityTest {
         assertThat(sum, is(0));
     }
 
+    @Test(expected=NullPointerException.class)
+    public void offerNullResultsInNPE(){
+        queue.offer(null);
+    }
+
     @Test
     public void whenOfferItemAndPollItemThenSameInstanceReturnedAndQueueIsEmpty() {
         assertThat(queue, emptyAndZeroSize());
@@ -243,11 +246,56 @@ public class QueueSanityTest {
 
     }
 
-    private static Object[] test(int producers, int consumers, int capacity, Ordering ordering, Queue<Integer> q) {
+    @Test
+    public void testSize() throws Exception {
+        assumeThat(spec.isBounded(), is(true));
+        final AtomicBoolean stop = new AtomicBoolean();
+        final Queue<Integer> q = queue;
+        final Val fail = new Val();
+        Thread t1 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while (!stop.get()) {
+                    q.offer(1);
+                    q.poll();
+                }
+            }
+        });
+        Thread t2 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while (!stop.get()) {
+                    int size = q.size();
+                    if(size != 0 && size != 1) {
+                        fail.value++;
+                    }
+                }
+            }
+        });
+
+        t1.start();
+        t2.start();
+        Thread.sleep(1000);
+        stop.set(true);
+        t1.join();
+        t2.join();
+        assertEquals("Unexpected size observed", 0, fail.value);
+
+    }
+
+    public static Object[] makeQueue(int producers, int consumers, int capacity, Ordering ordering, Queue<Integer> q) {
         ConcurrentQueueSpec spec = new ConcurrentQueueSpec(producers, consumers, capacity, ordering,
                 Preference.NONE);
         if(q == null) {
             q = QueueFactory.newQueue(spec);
+        }
+        return new Object[] { spec, q };
+    }
+    public static Object[] makeAtomic(int producers, int consumers, int capacity, Ordering ordering, Queue<Integer> q) {
+        ConcurrentQueueSpec spec = new ConcurrentQueueSpec(producers, consumers, capacity, ordering,
+                Preference.NONE);
+        if(q == null) {
+            q = AtomicQueueFactory.newQueue(spec);
         }
         return new Object[] { spec, q };
     }

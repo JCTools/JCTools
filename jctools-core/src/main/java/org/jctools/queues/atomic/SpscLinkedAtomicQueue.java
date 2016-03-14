@@ -23,9 +23,9 @@ package org.jctools.queues.atomic;
  * </ol>
  * The queue is initialized with a stub node which is set to both the producer and consumer node references. From this
  * point follow the notes on offer/poll.
- * 
+ *
  * @author nitsanw
- * 
+ *
  * @param <E>
  */
 public final class SpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
@@ -40,7 +40,7 @@ public final class SpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
 
     /**
      * {@inheritDoc} <br>
-     * 
+     *
      * IMPLEMENTATION NOTES:<br>
      * Offer is allowed from a SINGLE thread.<br>
      * Offer allocates a new node (holding the offered value) and:
@@ -49,16 +49,16 @@ public final class SpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
      * <li>Sets the new node as the producerNode
      * </ol>
      * From this follows that producerNode.next is always null and for all other nodes node.next is not null.
-     * 
+     *
      * @see MessagePassingQueue#offer(Object)
      * @see java.util.Queue#offer(java.lang.Object)
      */
     @Override
-    public boolean offer(final E nextValue) {
-        if (nextValue == null) {
-            throw new IllegalArgumentException("null elements not allowed");
+    public boolean offer(final E e) {
+        if (null == e) {
+            throw new NullPointerException();
         }
-        final LinkedQueueAtomicNode<E> nextNode = new LinkedQueueAtomicNode<E>(nextValue);
+        final LinkedQueueAtomicNode<E> nextNode = new LinkedQueueAtomicNode<E>(e);
         lpProducerNode().soNext(nextNode);
         spProducerNode(nextNode);
         return true;
@@ -66,7 +66,7 @@ public final class SpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
 
     /**
      * {@inheritDoc} <br>
-     * 
+     *
      * IMPLEMENTATION NOTES:<br>
      * Poll is allowed from a SINGLE thread.<br>
      * Poll reads the next node from the consumerNode and:
@@ -76,16 +76,14 @@ public final class SpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
      * </ol>
      * This means the consumerNode.value is always null, which is also the starting point for the queue. Because null
      * values are not allowed to be offered this is the only node with it's value set to null at any one time.
-     * 
+     *
      */
     @Override
     public E poll() {
-        final LinkedQueueAtomicNode<E> nextNode = lpConsumerNode().lvNext();
+        final LinkedQueueAtomicNode<E> currConsumerNode = lpConsumerNode();
+        final LinkedQueueAtomicNode<E> nextNode = currConsumerNode.lvNext();
         if (nextNode != null) {
-            // we have to null out the value because we are going to hang on to the node
-            final E nextValue = nextNode.getAndNullValue();
-            spConsumerNode(nextNode);
-            return nextValue;
+            return getSingleConsumerNodeValue(currConsumerNode, nextNode);
         }
         return null;
     }

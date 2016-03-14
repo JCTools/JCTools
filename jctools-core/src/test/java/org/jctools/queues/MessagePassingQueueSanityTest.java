@@ -14,6 +14,7 @@ import java.util.Collection;
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.jctools.queues.QueueSanityTest.Val;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
 import org.jctools.queues.spec.Preference;
@@ -26,32 +27,25 @@ import org.junit.runners.Parameterized;
 @RunWith(Parameterized.class)
 public class MessagePassingQueueSanityTest {
 
-    private static final int SIZE = 8192 * 2;
+    static final int SIZE = 8192 * 2;
 
     @Parameterized.Parameters
     public static Collection<Object[]> parameters() {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
-//        list.add(test(0, 1, 4, Ordering.FIFO, new MpscChunkedArrayQueue<>(4)));// MPSC size 1
-//        list.add(test(0, 1, SIZE, Ordering.FIFO, new MpscChunkedArrayQueue<>(2, SIZE)));// MPSC size SIZE
+        list.add(makeMpq(1, 1, 0, Ordering.FIFO, null));// unbounded SPSC
+        list.add(makeMpq(0, 1, 0, Ordering.FIFO, null));// unbounded MPSC
 
-        list.add(test(1, 1, 0, Ordering.FIFO, null));// unbounded SPSC
-        list.add(test(0, 1, 0, Ordering.FIFO, null));// unbounded MPSC
+        list.add(makeMpq(1, 1, 4, Ordering.FIFO, null));// SPSC size 4
+        list.add(makeMpq(1, 1, SIZE, Ordering.FIFO, null));// SPSC size SIZE
 
-        list.add(test(1, 1, 4, Ordering.FIFO, null));// SPSC size 4
-        list.add(test(1, 1, SIZE, Ordering.FIFO, null));// SPSC size SIZE
+        list.add(makeMpq(1, 0, 1, Ordering.FIFO, null));// SPMC size 1
+        list.add(makeMpq(1, 0, SIZE, Ordering.FIFO, null));// SPMC size SIZE
 
-        list.add(test(1, 0, 1, Ordering.FIFO, null));// SPMC size 1
-        list.add(test(1, 0, SIZE, Ordering.FIFO, null));// SPMC size SIZE
+        list.add(makeMpq(0, 1, 1, Ordering.FIFO, null));// MPSC size 1
+        list.add(makeMpq(0, 1, SIZE, Ordering.FIFO, null));// MPSC size SIZE
 
-        list.add(test(0, 1, 1, Ordering.FIFO, null));// MPSC size 1
-        list.add(test(0, 1, SIZE, Ordering.FIFO, null));// MPSC size SIZE
-
-        list.add(test(0, 1, 4, Ordering.FIFO, new MpscGrowableArrayQueue<>(4)));// MPSC size 1
-        list.add(test(0, 1, SIZE, Ordering.FIFO, new MpscGrowableArrayQueue<>(2, SIZE)));// MPSC size SIZE
-
-
-        list.add(test(0, 0, 2, Ordering.FIFO, null));
-        list.add(test(0, 0, SIZE, Ordering.FIFO, null));
+        list.add(makeMpq(0, 0, 2, Ordering.FIFO, null));
+        list.add(makeMpq(0, 0, SIZE, Ordering.FIFO, null));
         return list;
     }
 
@@ -66,6 +60,11 @@ public class MessagePassingQueueSanityTest {
     @Before
     public void clear() {
         queue.clear();
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void relaxedOfferNullResultsInNPE() {
+        queue.relaxedOffer(null);
     }
 
     @Test
@@ -151,6 +150,12 @@ public class MessagePassingQueueSanityTest {
             currentSize++;
             assertFalse(queue.isEmpty());
             assertTrue(queue.size() == currentSize);
+        }
+        if (spec.isBounded()) {
+            assertEquals(spec.capacity, currentSize);
+        }
+        else {
+            assertEquals(SIZE, currentSize);
         }
     }
 
@@ -442,8 +447,44 @@ public class MessagePassingQueueSanityTest {
 
     }
 
-    private static Object[] test(int producers, int consumers, int capacity, Ordering ordering,
-            Queue<Integer> q) {
+    @Test
+    public void testSize() throws Exception {
+        assumeThat(spec.isBounded(), is(true));
+        final AtomicBoolean stop = new AtomicBoolean();
+        final MessagePassingQueue<Integer> q = queue;
+        final Val fail = new Val();
+        Thread t1 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while (!stop.get()) {
+                    q.relaxedOffer(1);
+                    q.relaxedPoll();
+                }
+            }
+        });
+        Thread t2 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while (!stop.get()) {
+                    int size = q.size();
+                    if(size != 0 && size != 1) {
+                        fail.value++;
+                    }
+                }
+            }
+        });
+
+        t1.start();
+        t2.start();
+        Thread.sleep(1000);
+        stop.set(true);
+        t1.join();
+        t2.join();
+        assertEquals("Unexpected size observed", 0, fail.value);
+
+    }
+
+    static Object[] makeMpq(int producers, int consumers, int capacity, Ordering ordering, Queue<Integer> q) {
         ConcurrentQueueSpec spec = new ConcurrentQueueSpec(producers, consumers, capacity, ordering,
                 Preference.NONE);
         if (q == null) {

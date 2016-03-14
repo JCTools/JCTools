@@ -110,7 +110,7 @@ public class SpscUnboundedArrayQueue<E> extends SpscUnboundedArrayQueueConsumerF
     @Override
     public final boolean offer(final E e) {
         if (null == e) {
-            throw new NullPointerException("Null is not a valid element");
+            throw new NullPointerException();
         }
         // local load of field to avoid repeated loads after volatile reads
         final E[] buffer = producerBuffer;
@@ -147,7 +147,7 @@ public class SpscUnboundedArrayQueue<E> extends SpscUnboundedArrayQueueConsumerF
         final E[] newBuffer = (E[]) new Object[oldBuffer.length];
         producerBuffer = newBuffer;
         producerLookAhead = currIndex + mask - 1;
-        
+
         // write to new buffer
         writeToQueue(newBuffer, e, currIndex, offset);
         // link to next buffer and add next indicator as element of old buffer
@@ -160,7 +160,10 @@ public class SpscUnboundedArrayQueue<E> extends SpscUnboundedArrayQueueConsumerF
     }
     @SuppressWarnings("unchecked")
 	private E[] lvNext(E[] curr) {
-        return (E[]) lvElement(curr, calcDirectOffset(curr.length -1));
+        final long nextArrayOffset = calcDirectOffset(curr.length -1);
+        final E[] nextBuffer = (E[]) lvElement(curr, nextArrayOffset);
+        soElement(curr, nextArrayOffset, null);
+        return nextBuffer;
     }
     /**
      * {@inheritDoc}
@@ -281,12 +284,12 @@ public class SpscUnboundedArrayQueue<E> extends SpscUnboundedArrayQueueConsumerF
     private static <E> Object lvElement(E[] buffer, long offset) {
         return UNSAFE.getObjectVolatile(buffer, offset);
     }
-    
+
     @Override
     public long currentProducerIndex() {
         return lvProducerIndex();
     }
-    
+
     @Override
     public long currentConsumerIndex() {
         return lvConsumerIndex();

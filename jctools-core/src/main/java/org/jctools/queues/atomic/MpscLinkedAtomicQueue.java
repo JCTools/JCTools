@@ -23,9 +23,9 @@ package org.jctools.queues.atomic;
  * </ol>
  * The queue is initialized with a stub node which is set to both the producer and consumer node references. From this
  * point follow the notes on offer/poll.
- * 
+ *
  * @author nitsanw
- * 
+ *
  * @param <E>
  */
 public final class MpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
@@ -48,16 +48,16 @@ public final class MpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
      * </ol>
      * This works because each producer is guaranteed to 'plant' a new node and link the old node. No 2 producers can
      * get the same producer node as part of XCHG guarantee.
-     * 
-     * @see MessagePassingQueue#offer(Object)
+     *
+     * @see org.jctools.queues.MessagePassingQueue#offer(Object)
      * @see java.util.Queue#offer(java.lang.Object)
      */
     @Override
-    public final boolean offer(final E nextValue) {
-        if (nextValue == null) {
-            throw new IllegalArgumentException("null elements not allowed");
+    public final boolean offer(final E e) {
+        if (null == e) {
+            throw new NullPointerException();
         }
-        final LinkedQueueAtomicNode<E> nextNode = new LinkedQueueAtomicNode<E>(nextValue);
+        final LinkedQueueAtomicNode<E> nextNode = new LinkedQueueAtomicNode<E>(e);
         final LinkedQueueAtomicNode<E> prevProducerNode = xchgProducerNode(nextNode);
         // Should a producer thread get interrupted here the chain WILL be broken until that thread is resumed
         // and completes the store in prev.next.
@@ -77,8 +77,8 @@ public final class MpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
      * </ol>
      * This means the consumerNode.value is always null, which is also the starting point for the queue. Because null
      * values are not allowed to be offered this is the only node with it's value set to null at any one time.
-     * 
-     * @see MessagePassingQueue#poll()
+     *
+     * @see org.jctools.queues.MessagePassingQueue#poll()
      * @see java.util.Queue#poll()
      */
     @Override
@@ -86,20 +86,14 @@ public final class MpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
         LinkedQueueAtomicNode<E> currConsumerNode = lpConsumerNode(); // don't load twice, it's alright
         LinkedQueueAtomicNode<E> nextNode = currConsumerNode.lvNext();
         if (nextNode != null) {
-            // we have to null out the value because we are going to hang on to the node
-            final E nextValue = nextNode.getAndNullValue();
-            spConsumerNode(nextNode);
-            return nextValue;
+            return getSingleConsumerNodeValue(currConsumerNode, nextNode);
         }
         else if (currConsumerNode != lvProducerNode()) {
             // spin, we are no longer wait free
             while((nextNode = currConsumerNode.lvNext()) == null);
             // got the next node...
-            
-            // we have to null out the value because we are going to hang on to the node
-            final E nextValue = nextNode.getAndNullValue();
-            spConsumerNode(nextNode);
-            return nextValue;
+
+            return getSingleConsumerNodeValue(currConsumerNode, nextNode);
         }
         return null;
     }

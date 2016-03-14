@@ -38,7 +38,7 @@ abstract class MpscOnSpscFields<E> extends MpscOnSpscL0Pad<E> {
 
 	static {
 		try {
-			QUEUES_OFFSET = UNSAFE.objectFieldOffset(MpscArrayQueueConsumerField.class.getDeclaredField("queues"));
+			QUEUES_OFFSET = UNSAFE.objectFieldOffset(MpscOnSpscFields.class.getDeclaredField("queues"));
 		} catch (NoSuchFieldException e) {
 			throw new RuntimeException(e);
 		}
@@ -55,7 +55,7 @@ abstract class MpscOnSpscFields<E> extends MpscOnSpscL0Pad<E> {
 		}
 	}
 	private List<ThreadWeakRef> weakRefHolder = Collections.synchronizedList(new ArrayList<ThreadWeakRef>());
-	
+
 	@SuppressWarnings("unchecked")
 	public MpscOnSpscFields(final int capacity) {
 		producerQueue = new ThreadLocal<Queue<E>>() {

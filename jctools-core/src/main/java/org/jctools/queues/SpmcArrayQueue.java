@@ -136,7 +136,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
     @Override
     public boolean offer(final E e) {
         if (null == e) {
-            throw new NullPointerException("Null is not a valid element");
+            throw new NullPointerException();
         }
         final E[] buffer = this.buffer;
         final long mask = this.mask;
@@ -144,7 +144,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
         final long offset = calcElementOffset(currProducerIndex, mask);
         if (null != UnsafeRefArrayAccess.lvElement(buffer, offset)) {
             long size = currProducerIndex - lvConsumerIndex();
-            
+
             if(size > mask) {
                 return false;
             }
@@ -227,26 +227,26 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
             }
         }
     }
-    
+
     @Override
     public boolean isEmpty() {
-        // Order matters! 
+        // Order matters!
         // Loading consumer before producer allows for producer increments after consumer index is read.
         // This ensures the correctness of this method at least for the consumer thread. Other threads POV is not really
         // something we can fix here.
         return (lvConsumerIndex() == lvProducerIndex());
     }
-    
+
     @Override
     public long currentProducerIndex() {
         return lvProducerIndex();
     }
-    
+
     @Override
     public long currentConsumerIndex() {
         return lvConsumerIndex();
     }
-    
+
 	@Override
 	public boolean relaxedOffer(E e) {
 		if (null == e) {
@@ -278,7 +278,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
         final long consumerIndex = lvConsumerIndex();
         return lvElement(buffer, calcElementOffset(consumerIndex, mask));
 	}
-    
+
     @Override
     public int drain(final Consumer<E> c) {
         final int capacity = capacity();
@@ -292,12 +292,12 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
         }
         return sum;
     }
-    
+
     @Override
     public int fill(final Supplier<E> s) {
         return fill(s, capacity());
     }
-    
+
     @Override
     public int drain(final Consumer<E> c, final int limit) {
         final E[] buffer = this.buffer;
@@ -321,21 +321,21 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
             int remaining = (int) (currProducerIndexCache - currentConsumerIndex);
             adjustedLimit = Math.min(remaining, limit);
         } while (!casHead(currentConsumerIndex, currentConsumerIndex + adjustedLimit));
-        
+
         for (int i = 0; i < adjustedLimit; i++) {
             c.accept(removeElement(buffer, currentConsumerIndex + i, mask));
         }
         return adjustedLimit;
     }
-    
-    
+
+
 
     @Override
     public int fill(final Supplier<E> s, final int limit) {
         final E[] buffer = this.buffer;
         final long mask = this.mask;
         long producerIndex = this.producerIndex;
-        
+
         for (int i = 0; i < limit; i++) {
             final long offset = calcElementOffset(producerIndex, mask);
             if (null != lvElement(buffer, offset)){
@@ -347,7 +347,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
         }
         return limit;
     }
-    
+
     @Override
     public void drain(final Consumer<E> c, final WaitStrategy w, final ExitCondition exit) {
         final E[] buffer = this.buffer;
@@ -362,7 +362,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
             idleCounter = 0;
         }
     }
-    
+
     @Override
     public void fill(final Supplier<E> s, final WaitStrategy w, final ExitCondition e) {
         final E[] buffer = this.buffer;

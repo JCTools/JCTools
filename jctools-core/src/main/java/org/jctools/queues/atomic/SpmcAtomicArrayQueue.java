@@ -36,7 +36,7 @@ public final class SpmcAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E> 
     @Override
     public boolean offer(final E e) {
         if (null == e) {
-            throw new NullPointerException("Null is not a valid element");
+            throw new NullPointerException();
         }
         final AtomicReferenceArray<E> buffer = this.buffer;
         final int mask = this.mask;
@@ -44,7 +44,7 @@ public final class SpmcAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E> 
         final int offset = calcElementOffset(currProducerIndex, mask);
         if (null != lvElement(buffer, offset)) {
             long size = currProducerIndex - lvConsumerIndex();
-            
+
             if(size > mask) {
                 return false;
             }
@@ -123,21 +123,21 @@ public final class SpmcAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E> 
             }
         }
     }
-    
+
     @Override
     public boolean isEmpty() {
-        // Order matters! 
+        // Order matters!
         // Loading consumer before producer allows for producer increments after consumer index is read.
         // This ensures the correctness of this method at least for the consumer thread. Other threads POV is not really
         // something we can fix here.
         return (lvConsumerIndex() == lvProducerIndex());
     }
-    
+
     @Override
     public long currentProducerIndex() {
         return lvProducerIndex();
     }
-    
+
     @Override
     public long currentConsumerIndex() {
         return lvConsumerIndex();

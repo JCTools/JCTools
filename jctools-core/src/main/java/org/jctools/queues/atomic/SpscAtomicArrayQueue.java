@@ -29,9 +29,9 @@ import org.jctools.queues.QueueProgressIndicators;
  * <i>2010 - Pisa - SPSC Queues on Shared Cache Multi-Core Systems.pdf<br>
  * 2012 - Junchang- BQueue- Efﬁcient and Practical Queuing.pdf <br>
  * </i> This implementation is wait free.
- * 
+ *
  * @author akarnokd
- * 
+ *
  * @param <E>
  */
 public final class SpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E> implements QueueProgressIndicators {
@@ -50,7 +50,7 @@ public final class SpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E> 
     @Override
     public boolean offer(E e) {
         if (null == e) {
-            throw new NullPointerException("Null is not a valid element");
+            throw new NullPointerException();
         }
         // local load of field to avoid repeated loads after volatile reads
         final AtomicReferenceArray<E> buffer = this.buffer;
@@ -112,7 +112,7 @@ public final class SpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E> 
     public long currentProducerIndex() {
         return lvProducerIndex();
     }
-    
+
     @Override
     public long currentConsumerIndex() {
         return lvConsumerIndex();
@@ -125,7 +125,7 @@ public final class SpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E> 
     private void soConsumerIndex(long newIndex) {
         consumerIndex.lazySet(newIndex);
     }
-    
+
     private long lvConsumerIndex() {
         return consumerIndex.get();
     }

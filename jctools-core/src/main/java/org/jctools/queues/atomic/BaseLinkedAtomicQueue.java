@@ -17,6 +17,8 @@ import java.util.AbstractQueue;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.jctools.queues.MessagePassingQueue;
+
 abstract class BaseLinkedAtomicQueue<E> extends AbstractQueue<E> {
     private final AtomicReference<LinkedQueueAtomicNode<E>> producerNode;
     private final AtomicReference<LinkedQueueAtomicNode<E>> consumerNode;
@@ -39,7 +41,7 @@ abstract class BaseLinkedAtomicQueue<E> extends AbstractQueue<E> {
     protected final LinkedQueueAtomicNode<E> lvConsumerNode() {
         return consumerNode.get();
     }
-    
+
     protected final LinkedQueueAtomicNode<E> lpConsumerNode() {
         return consumerNode.get();
     }
@@ -56,18 +58,24 @@ abstract class BaseLinkedAtomicQueue<E> extends AbstractQueue<E> {
      * <p>
      * IMPLEMENTATION NOTES:<br>
      * This is an O(n) operation as we run through all the nodes and count them.<br>
-     * 
+     *
      * @see java.util.Queue#size()
      */
     @Override
     public final int size() {
+        // Read consumer first, this is important because if the producer is node is 'older' than the consumer the
+        // consumer may overtake it (consume past it). This will lead to an infinite loop below.
         LinkedQueueAtomicNode<E> chaserNode = lvConsumerNode();
         final LinkedQueueAtomicNode<E> producerNode = lvProducerNode();
         int size = 0;
         // must chase the nodes all the way to the producer node, but there's no need to chase a moving target.
-        while (chaserNode != producerNode && size < Integer.MAX_VALUE) {
+        while (chaserNode != producerNode && chaserNode != null && size < Integer.MAX_VALUE) {
             LinkedQueueAtomicNode<E> next;
-            while((next = chaserNode.lvNext()) == null);
+            next = chaserNode.lvNext();
+            // check if this node has been consumed
+            if (next == chaserNode) {
+                next = lvConsumerNode();
+            }
             chaserNode = next;
             size++;
         }
@@ -80,11 +88,20 @@ abstract class BaseLinkedAtomicQueue<E> extends AbstractQueue<E> {
      * Queue is empty when producerNode is the same as consumerNode. An alternative implementation would be to observe
      * the producerNode.value is null, which also means an empty queue because only the consumerNode.value is allowed to
      * be null.
-     * 
+     *
      * @see MessagePassingQueue#isEmpty()
      */
     @Override
     public final boolean isEmpty() {
         return lvConsumerNode() == lvProducerNode();
+    }
+
+    protected E getSingleConsumerNodeValue(LinkedQueueAtomicNode<E> currConsumerNode, LinkedQueueAtomicNode<E> nextNode) {
+        // we have to null out the value because we are going to hang on to the node
+        final E nextValue = nextNode.getAndNullValue();
+        // fix up the next ref to prevent promoted nodes from keep new ones alive
+        currConsumerNode.soNext(currConsumerNode);
+        spConsumerNode(nextNode);
+        return nextValue;
     }
 }
