@@ -133,24 +133,23 @@ public class SpscUnboundedAtomicArrayQueue<E> extends AbstractQueue<E> implement
             soElement(buffer, offset, null);// StoreStore
             return (E) e;
         } else if (isNextBuffer) {
-            return newBufferPoll(lvNext(buffer), index, mask);
+            return newBufferPoll(buffer, index, mask);
         }
 
         return null;
     }
 
     @SuppressWarnings("unchecked")
-    private E newBufferPoll(AtomicReferenceArray<Object> nextBuffer, final long index, final int mask) {
+    private E newBufferPoll(AtomicReferenceArray<Object> buffer, final long index, final int mask) {
+        AtomicReferenceArray<Object> nextBuffer = lvNext(buffer);
         consumerBuffer = nextBuffer;
         final int offsetInNew = calcWrappedOffset(index, mask);
         final E n = (E) lvElement(nextBuffer, offsetInNew);// LoadLoad
-        if (null == n) {
-            return null;
-        } else {
-            soConsumerIndex(index + 1);// this ensures correctness on 32bit platforms
-            soElement(nextBuffer, offsetInNew, null);// StoreStore
-            return n;
-        }
+        soConsumerIndex(index + 1);// this ensures correctness on 32bit platforms
+        soElement(nextBuffer, offsetInNew, null);// StoreStore
+        // prevent extended retention if the buffer is in old gen and the nextBuffer is in young gen
+        soNext(buffer, null);
+        return n;
     }
 
     /**

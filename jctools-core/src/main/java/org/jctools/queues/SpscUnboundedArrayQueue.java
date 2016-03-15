@@ -185,24 +185,23 @@ public class SpscUnboundedArrayQueue<E> extends SpscUnboundedArrayQueueConsumerF
             soElement(buffer, offset, null);// StoreStore
             return (E) e;
         } else if (isNextBuffer) {
-            return newBufferPoll(lvNext(buffer), index, mask);
+            return newBufferPoll(buffer, index, mask);
         }
 
         return null;
     }
 
     @SuppressWarnings("unchecked")
-    private E newBufferPoll(E[] nextBuffer, final long index, final long mask) {
+    private E newBufferPoll(E[] buffer, final long index, final long mask) {
+        E[] nextBuffer = lvNext(buffer);
         consumerBuffer = nextBuffer;
         final long offsetInNew = calcWrappedOffset(index, mask);
         final E n = (E) lvElement(nextBuffer, offsetInNew);// LoadLoad
-        if (null == n) {
-            return null;
-        } else {
-            soConsumerIndex(index + 1);// this ensures correctness on 32bit platforms
-            soElement(nextBuffer, offsetInNew, null);// StoreStore
-            return n;
-        }
+        soConsumerIndex(index + 1);// this ensures correctness on 32bit platforms
+        soElement(nextBuffer, offsetInNew, null);// StoreStore
+        // prevent extended retention if the buffer is in old gen and the nextBuffer is in young gen
+        soNext(buffer, null);
+        return n;
     }
 
     /**
