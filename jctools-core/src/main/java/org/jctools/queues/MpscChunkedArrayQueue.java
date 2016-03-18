@@ -44,7 +44,7 @@ abstract class MpscChunkedArrayQueueColdProducerFields<E> extends MpscChunkedArr
     protected long maxQueueCapacity;
     protected long producerMask;
     protected E[] producerBuffer;
-    protected volatile long prodcuerLimit;
+    protected volatile long producerLimit;
     protected boolean isFixedChunkSize = false;
 }
 
@@ -91,7 +91,7 @@ public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueConsumerField
             throw new RuntimeException(e);
         }
         try {
-            Field iField = MpscChunkedArrayQueueColdProducerFields.class.getDeclaredField("prodcuerLimit");
+            Field iField = MpscChunkedArrayQueueColdProducerFields.class.getDeclaredField("producerLimit");
             P_LIMIT_OFFSET = UNSAFE.objectFieldOffset(iField);
         }
         catch (NoSuchFieldException e) {
@@ -404,7 +404,7 @@ public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueConsumerField
     }
 
     private long lvProducerLimit() {
-        return prodcuerLimit;
+        return producerLimit;
     }
 
     private boolean casProducerLimit(long expect, long newValue) {
