@@ -14,6 +14,7 @@ import java.util.Collection;
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.jctools.queues.QueueSanityTest.Val;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
 import org.jctools.queues.spec.Preference;
@@ -443,6 +444,43 @@ public class MessagePassingQueueSanityTest {
         t1.join();
         t2.join();
         assertEquals("reordering detected", 0, fail.value);
+
+    }
+
+    @Test
+    public void testSize() throws Exception {
+        assumeThat(spec.isBounded(), is(true));
+        final AtomicBoolean stop = new AtomicBoolean();
+        final MessagePassingQueue<Integer> q = queue;
+        final Val fail = new Val();
+        Thread t1 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while (!stop.get()) {
+                    q.relaxedOffer(1);
+                    q.relaxedPoll();
+                }
+            }
+        });
+        Thread t2 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while (!stop.get()) {
+                    int size = q.size();
+                    if(size != 0 && size != 1) {
+                        fail.value++;
+                    }
+                }
+            }
+        });
+
+        t1.start();
+        t2.start();
+        Thread.sleep(1000);
+        stop.set(true);
+        t1.join();
+        t2.join();
+        assertEquals("Unexpected size observed", 0, fail.value);
 
     }
 

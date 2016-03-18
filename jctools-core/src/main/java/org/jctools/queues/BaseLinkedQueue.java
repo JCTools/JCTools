@@ -18,7 +18,7 @@ import static org.jctools.util.UnsafeAccess.UNSAFE;
 import java.util.AbstractQueue;
 import java.util.Iterator;
 
-abstract class BaseLinkedQueuePad0<E> extends AbstractQueue<E> implements MessagePassingQueue<E> {
+abstract class BaseLinkedQueuePad0<E> extends AbstractQueue<E>implements MessagePassingQueue<E> {
     long p00, p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16;
 }
@@ -28,12 +28,16 @@ abstract class BaseLinkedQueueProducerNodeRef<E> extends BaseLinkedQueuePad0<E> 
 
     static {
         try {
-            P_NODE_OFFSET = UNSAFE.objectFieldOffset(BaseLinkedQueueProducerNodeRef.class.getDeclaredField("producerNode"));
-        } catch (NoSuchFieldException e) {
+            P_NODE_OFFSET = UNSAFE
+                    .objectFieldOffset(BaseLinkedQueueProducerNodeRef.class.getDeclaredField("producerNode"));
+        }
+        catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
     }
+
     protected LinkedQueueNode<E> producerNode;
+
     protected final void spProducerNode(LinkedQueueNode<E> node) {
         producerNode = node;
     }
@@ -58,12 +62,16 @@ abstract class BaseLinkedQueueConsumerNodeRef<E> extends BaseLinkedQueuePad1<E> 
 
     static {
         try {
-            C_NODE_OFFSET = UNSAFE.objectFieldOffset(BaseLinkedQueueConsumerNodeRef.class.getDeclaredField("consumerNode"));
-        } catch (NoSuchFieldException e) {
+            C_NODE_OFFSET = UNSAFE
+                    .objectFieldOffset(BaseLinkedQueueConsumerNodeRef.class.getDeclaredField("consumerNode"));
+        }
+        catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
     }
+
     protected LinkedQueueNode<E> consumerNode;
+
     protected final void spConsumerNode(LinkedQueueNode<E> node) {
         consumerNode = node;
     }
@@ -79,8 +87,8 @@ abstract class BaseLinkedQueueConsumerNodeRef<E> extends BaseLinkedQueuePad1<E> 
 }
 
 /**
- * A base data structure for concurrent linked queues. For convenience also pulled in common single consumer methods
- * since at this time there's no plan to implement MC.
+ * A base data structure for concurrent linked queues. For convenience also pulled in common single consumer
+ * methods since at this time there's no plan to implement MC.
  *
  * @author nitsanw
  *
@@ -106,12 +114,13 @@ abstract class BaseLinkedQueue<E> extends BaseLinkedQueueConsumerNodeRef<E> {
      */
     @Override
     public final int size() {
-        // Read consumer first, this is important because if the producer is node is 'older' than the consumer the
-        // consumer may overtake it (consume past it). This will lead to an infinite loop below.
+        // Read consumer first, this is important because if the producer is node is 'older' than the consumer
+        // the consumer may overtake it (consume past it). This will lead to an infinite loop below.
         LinkedQueueNode<E> chaserNode = lvConsumerNode();
         final LinkedQueueNode<E> producerNode = lvProducerNode();
         int size = 0;
-        // must chase the nodes all the way to the producer node, but there's no need to chase a moving target.
+        // must chase the nodes all the way to the producer node, but there's no need to chase a moving
+        // target.
         while (chaserNode != producerNode && chaserNode != null && size < Integer.MAX_VALUE) {
             LinkedQueueNode<E> next;
             next = chaserNode.lvNext();
@@ -129,9 +138,9 @@ abstract class BaseLinkedQueue<E> extends BaseLinkedQueueConsumerNodeRef<E> {
      * {@inheritDoc} <br>
      * <p>
      * IMPLEMENTATION NOTES:<br>
-     * Queue is empty when producerNode is the same as consumerNode. An alternative implementation would be to observe
-     * the producerNode.value is null, which also means an empty queue because only the consumerNode.value is allowed to
-     * be null.
+     * Queue is empty when producerNode is the same as consumerNode. An alternative implementation would be to
+     * observe the producerNode.value is null, which also means an empty queue because only the
+     * consumerNode.value is allowed to be null.
      *
      * @see MessagePassingQueue#isEmpty()
      */
@@ -142,15 +151,19 @@ abstract class BaseLinkedQueue<E> extends BaseLinkedQueueConsumerNodeRef<E> {
 
     @Override
     public int capacity() {
-    	return UNBOUNDED_CAPACITY;
+        return UNBOUNDED_CAPACITY;
     }
 
     protected E getSingleConsumerNodeValue(LinkedQueueNode<E> currConsumerNode, LinkedQueueNode<E> nextNode) {
         // we have to null out the value because we are going to hang on to the node
         final E nextValue = nextNode.getAndNullValue();
-        // fix up the next ref to prevent promoted nodes from keep new ones alive
+
+        // Fix up the next ref of currConsumerNode to prevent promoted nodes from keep new ones alive.
+        // We use a reference to self instead of null because null is already a meaningful value (the next of
+        // producer node is null).
         currConsumerNode.soNext(currConsumerNode);
         spConsumerNode(nextNode);
+        // currConsumerNode is now no longer referenced and can be collected
         return nextValue;
     }
 

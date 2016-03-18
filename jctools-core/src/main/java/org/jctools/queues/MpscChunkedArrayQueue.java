@@ -330,7 +330,10 @@ public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueConsumerField
 
     @SuppressWarnings("unchecked")
     private E[] getNextBuffer(final E[] buffer, final long mask) {
-        return (E[]) lvElement(buffer, nextArrayOffset(mask));
+        final long nextArrayOffset = nextArrayOffset(mask);
+        final E[] nextBuffer = (E[]) lvElement(buffer, nextArrayOffset);
+        soElement(buffer, nextArrayOffset, null);
+        return nextBuffer;
     }
 
     private long nextArrayOffset(final long mask) {
@@ -472,6 +475,112 @@ public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueConsumerField
     }
 
     @Override
+    public int fill(Supplier<E> s, int batchSize) {
+        long mask;
+        E[] buffer;
+        long pIndex;
+        int claimedSlots;
+        while (true) {
+            long producerLimit = lvProducerLimit();
+            pIndex = lvProducerIndex();
+            // lower bit is indicative of resize, if we see it we spin until it's cleared
+            if ((pIndex & 1) == 1) {
+                continue;
+            }
+            // pIndex is even (lower bit is 0) -> actual index is (pIndex >> 1)
+
+            // mask/buffer may get changed by resizing -> only use for array access after successful CAS.
+            mask = this.producerMask;
+            buffer = this.producerBuffer;
+            // a successful CAS ties the ordering, lv(pIndex)->[mask/buffer]->cas(pIndex)
+
+            // we want 'limit' slots, but will settle for whatever is visible to 'producerLimit'
+            long batchIndex = Math.min(producerLimit, pIndex + 2 * batchSize);
+
+            if (pIndex == producerLimit || producerLimit < batchIndex) {
+                int result = offerSlowPath(s, mask, buffer, pIndex, producerLimit);
+                switch (result) {
+                case 1:
+                    continue;
+                case 2:
+                    return 0;
+                case 3:
+                    return 1;
+                }
+            }
+
+            // claim limit slots at once
+            if (casProducerIndex(pIndex, batchIndex)) {
+                claimedSlots = (int) ((batchIndex - pIndex) / 2);
+                break;
+            }
+        }
+
+        int i = 0;
+        for (i = 0; i < claimedSlots; i++) {
+            final long offset = modifiedCalcElementOffset(pIndex + 2 * i, mask);
+            soElement(buffer, offset, s.get());
+        }
+        return claimedSlots;
+    }
+
+
+    private int offerSlowPath(Supplier<E> s, long mask, E[] buffer, long pIndex, long producerLimit) {
+        final long consumerIndex = lvConsumerIndex();
+        final long maxQueueCapacity = this.maxQueueCapacity;
+        long bufferCapacity = (!isFixedChunkSize && mask + 2 == maxQueueCapacity) ? maxQueueCapacity
+                : mask;
+
+        final long newProducerLimit = consumerIndex + bufferCapacity;
+        if (newProducerLimit > pIndex) {
+            casProducerLimit(producerLimit, newProducerLimit);
+        }
+        // full and cannot grow
+        else if (consumerIndex + maxQueueCapacity == pIndex) {
+            return 2;// -> return false;
+        }
+        // grab index for resize -> set lower bit
+        else if (casProducerIndex(pIndex, pIndex + 1)) {
+            // resize will adjust the consumerIndexCache
+            int newBufferLength = buffer.length;
+            if (isFixedChunkSize) {
+                newBufferLength = buffer.length;
+            }
+            else {
+                if (buffer.length - 1 == maxQueueCapacity) {
+                    throw new IllegalStateException();
+                }
+                newBufferLength = 2 * buffer.length - 1;
+            }
+
+            final E[] newBuffer = allocate(newBufferLength);
+
+            producerBuffer = newBuffer;
+            producerMask = (newBufferLength - 2) << 1;
+
+            final long offsetInOld = modifiedCalcElementOffset(pIndex, mask);
+            final long offsetInNew = modifiedCalcElementOffset(pIndex, producerMask);
+            soElement(newBuffer, offsetInNew, s.get());
+            soElement(buffer, nextArrayOffset(mask), newBuffer);
+            final long available = maxQueueCapacity - (pIndex - consumerIndex);
+
+            if (available <= 0) {
+                throw new IllegalStateException();
+            }
+            // invalidate racing CASs
+            soProducerLimit(pIndex + Math.min(mask, available));
+
+            // make resize visible to consumer
+            soElement(buffer, offsetInOld, JUMP);
+
+            // make resize visible to the other producers
+            soProducerIndex(pIndex + 2);
+            return 3;// -> return true
+        }
+        return 1;// failed resize attempt, retry from top
+    }
+
+    @Override
     public int fill(Supplier<E> s) {
         long result = 0;// result is a long because we want to have a safepoint check at regular intervals
         final int capacity = capacity();
@@ -486,30 +595,19 @@ public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueConsumerField
     }
 
     @Override
-    public int fill(Supplier<E> s, int limit) {
-        // bug, fixing shortly
-        if (size() == capacity()) {
-            return 0;
-        }
+    public void fill(Supplier<E> s,
+            WaitStrategy w,
+            ExitCondition exit) {
 
-        final E e = s.get();
-        if (!offer(e)) {
-            throw new IllegalStateException();
-        }
-
-        return 1;
-    }
-
-    @Override
-    public void fill(Supplier<E> s, WaitStrategy w, ExitCondition exit) {
-        int idleCounter = 0;
         while (exit.keepRunning()) {
-            E e = s.get();
-            // BUG: note that if queue is full at the time of exit, last item will 'fall on the floor'
-            while (!offer(e) && exit.keepRunning()) {
+            while (fill(s, MpmcArrayQueue.RECOMENDED_OFFER_BATCH) != 0) {
+                continue;
+            }
+            int idleCounter = 0;
+            while (fill(s, MpmcArrayQueue.RECOMENDED_OFFER_BATCH) == 0 && exit.keepRunning()) {
                 idleCounter = w.idle(idleCounter);
             }
-            idleCounter = 0;
+
         }
     }
 
@@ -541,5 +639,4 @@ public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueConsumerField
         }
         return i;
     }
-
 }
