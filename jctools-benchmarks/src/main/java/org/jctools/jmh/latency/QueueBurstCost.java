@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jctools.jmh.latency.spsc;
+package org.jctools.jmh.latency;
 
 import java.util.Queue;
 import java.util.concurrent.TimeUnit;
