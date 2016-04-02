@@ -1,16 +1,17 @@
 package org.jctools.counters;
 
-import org.jctools.util.JvmInfo;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import static org.junit.Assert.*;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import org.jctools.util.JvmInfo;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 /**
  * @author Tolstopyatov Vsevolod
@@ -46,27 +47,37 @@ public class FixedSizeStripedLongCounterTest {
     @Test
     public void testMultipleThreadsCounterSanity() throws Exception {
         int threadsCount = JvmInfo.CPUs;
-        int workUnit = 100;
+        AtomicLong summary = new AtomicLong();
+        AtomicBoolean running = new AtomicBoolean(true);
         CountDownLatch startLatch = new CountDownLatch(1);
         CountDownLatch finishLatch = new CountDownLatch(threadsCount);
-
+        AtomicBoolean fail = new AtomicBoolean(false);
         for (int i = 0; i < threadsCount; i++) {
             new Thread(() -> {
                 try {
+                    Counter c = counter;
                     startLatch.await();
-                    for (int j = 0; j < workUnit; j++) {
-                        counter.inc();
+                    long local = 0;
+                    while (running.get()) {
+                        c.inc();
+                        local++;
                     }
-                    finishLatch.countDown();
+                    summary.addAndGet(local);
                 } catch (Exception e) {
-                    fail();
+                    fail.set(true);
+                }
+                finally {
+                    finishLatch.countDown();
                 }
             }).start();
         }
 
         startLatch.countDown();
+        Thread.sleep(1000);
+        running.set(false);
         finishLatch.await();
-        assertSanity(workUnit * threadsCount);
+        assertFalse(fail.get());
+        assertSanity(summary.get());
     }
 
     private void assertSanity(long expected) {
