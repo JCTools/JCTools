@@ -28,6 +28,9 @@ abstract class FixedSizeStripedLongCounterFields extends FixedSizeStripedLongCou
     protected final long[] cells;
     protected final int mask;
     protected FixedSizeStripedLongCounterFields(int stripesCount) {
+        if (stripesCount <= 0) {
+            throw new IllegalArgumentException("Expecting a stripesCount that is larger than 0");
+        }
         int size = Pow2.roundToPowerOfTwo(stripesCount);
         cells = new long[CACHE_LINE_IN_LONGS * size];
         mask = (size - 1);
