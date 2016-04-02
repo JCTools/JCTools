@@ -15,12 +15,12 @@ class FixedSizeStripedLongCounterV8 extends FixedSizeStripedLongCounter {
     }
 
     @Override
-    protected void inc(long offset, long delta) {
+    protected void inc(long[] cells, long offset, long delta) {
         UNSAFE.getAndAddLong(cells, offset, delta);
     }
 
     @Override
-    protected long getAndReset(long offset) {
+    protected long getAndReset(long[] cells, long offset) {
         return UNSAFE.getAndSetLong(cells, offset, 0L);
     }
 }

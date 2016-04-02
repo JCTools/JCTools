@@ -1,12 +1,11 @@
 package org.jctools.counters;
 
-import org.jctools.util.JvmInfo;
-import org.jctools.util.Pow2;
-import sun.misc.Unsafe;
+import static org.jctools.util.UnsafeAccess.UNSAFE;
 
 import java.util.concurrent.ThreadLocalRandom;
 
-import static org.jctools.util.UnsafeAccess.UNSAFE;
+import org.jctools.util.JvmInfo;
+import org.jctools.util.Pow2;
 
 /**
  * Basic class representing static striped long counter with
@@ -14,25 +13,45 @@ import static org.jctools.util.UnsafeAccess.UNSAFE;
  *
  * @author Tolstopyatov Vsevolod
  */
-public abstract class FixedSizeStripedLongCounter extends PaddedHeader implements Counter {
-
-    private static final int LONG_ARRAY_BASE = Unsafe.ARRAY_LONG_BASE_OFFSET;
-    private static final int LONG_SCALE_SHIFT = 3;
-    private static final int PADDING = JvmInfo.CACHE_LINE_SIZE / 8;
-
+abstract class FixedSizeStripedLongCounterPrePad {
+    long l01, l02, l03, l04, l05, l06, l07, l08;
+    long l9, l10, l11, l12, l13, l14, l15;
+}
+abstract class FixedSizeStripedLongCounterFields extends FixedSizeStripedLongCounterPrePad {
+    protected static final int CACHE_LINE_IN_LONGS = JvmInfo.CACHE_LINE_SIZE / 8;
+    // place first element at the end of the cache line of the array object
+    protected static final long COUNTER_ARRAY_BASE = Math.max(UNSAFE.arrayBaseOffset(long[].class), JvmInfo.CACHE_LINE_SIZE - 8);
+    // element shift is enlarged to include the padding, still aligned to long
+    protected static final long ELEMENT_SHIFT = Integer.numberOfTrailingZeros(JvmInfo.CACHE_LINE_SIZE);
+    
+    // we pad each element in the array to effectively write a counter in each cache line
     protected final long[] cells;
     protected final int mask;
+    protected FixedSizeStripedLongCounterFields(int stripesCount) {
+        int size = Pow2.roundToPowerOfTwo(stripesCount);
+        cells = new long[CACHE_LINE_IN_LONGS * size];
+        mask = (size - 1);
+    }
+}
+
+public abstract class FixedSizeStripedLongCounter extends FixedSizeStripedLongCounterFields implements Counter {
+    long l02, l03, l04, l05, l06, l07, l08;
+    long l9, l10, l11, l12, l13, l14, l15, l16;
+
+    private static final long PROBE = getProbeOffset();
+
+    private static long getProbeOffset() {
+        try {
+            Class<?> tk = Thread.class;
+            return UNSAFE.objectFieldOffset(tk.getDeclaredField("threadLocalRandomProbe"));
+
+        } catch (NoSuchFieldException e) {
+            return -1L;
+        }
+    }
 
     public FixedSizeStripedLongCounter(int stripesCount) {
-        int size = Pow2.roundToPowerOfTwo(PADDING * stripesCount);
-        cells = new long[size];
-        /*
-         * Trick to avoid cells.length modulo + padding alignment.
-         * It's faster to use precalculated mask, because
-         * JIT can't deduce that cells is final field, throw away length dec call
-         * and fold it with consecutive 'and' op for alignment.
-         */
-        mask = (cells.length - 1) & ~(PADDING - 1);
+        super(stripesCount);
     }
 
     @Override
@@ -42,34 +61,41 @@ public abstract class FixedSizeStripedLongCounter extends PaddedHeader implement
 
     @Override
     public void inc(long delta) {
-        inc(index(), delta);
+        inc(cells, counterOffset(index()), delta);
     }
 
     @Override
     public long get() {
         long result = 0L;
-        for (int i = 0; i < cells.length; i += PADDING) {
-            result += UNSAFE.getLongVolatile(cells, LONG_ARRAY_BASE + (i << LONG_SCALE_SHIFT));
+        long[] cells = this.cells;
+        int length = mask + 1;
+        for (int i = 0; i < length; i++) {
+            result += UNSAFE.getLongVolatile(cells, counterOffset(i));
         }
         return result;
+    }
+
+    private long counterOffset(long i) {
+        return COUNTER_ARRAY_BASE + (i << ELEMENT_SHIFT);
     }
 
     @Override
     public long getAndReset() {
         long result = 0L;
-        for (int i = 0; i < cells.length; i += PADDING) {
-            result += getAndReset(LONG_ARRAY_BASE + (i << LONG_SCALE_SHIFT));
+        long[] cells = this.cells;
+        int length = mask + 1;
+        for (int i = 0; i < length; i++) {
+            result += getAndReset(cells, counterOffset(i));
         }
         return result;
     }
 
-    protected abstract void inc(long offset, long value);
+    protected abstract void inc(long[] cells, long offset, long value);
 
-    protected abstract long getAndReset(long offset);
+    protected abstract long getAndReset(long[] cells, long offset);
 
     private int index() {
-        int index = probe() & mask;
-        return LONG_ARRAY_BASE + (index << LONG_SCALE_SHIFT);
+        return probe() & mask;
     }
 
 
@@ -102,21 +128,5 @@ public abstract class FixedSizeStripedLongCounter extends PaddedHeader implement
         probe ^= probe << 5;
         return probe;
     }
-
-    private static final long PROBE = getProbeOffset();
-
-    private static long getProbeOffset() {
-        try {
-            Class<?> tk = Thread.class;
-            return UNSAFE.objectFieldOffset(tk.getDeclaredField("threadLocalRandomProbe"));
-
-        } catch (NoSuchFieldException e) {
-            return -1L;
-        }
-    }
 }
 
-abstract class PaddedHeader {
-    long l01, l02, l03, l04, l05, l06, l07, l08;
-    long l9, l10, l11, l12, l13, l14, l15, l16;
-}
