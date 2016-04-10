@@ -17,61 +17,10 @@ import static java.lang.Math.max;
 import static org.jctools.queues.CircularArrayOffsetCalculator.allocate;
 import static org.jctools.queues.CircularArrayOffsetCalculator.calcElementOffset;
 import static org.jctools.util.Pow2.roundToPowerOfTwo;
-import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
 import static org.jctools.util.UnsafeRefArrayAccess.soElement;
 
-import java.lang.reflect.Field;
-import java.util.AbstractQueue;
-import java.util.Iterator;
-
-
-abstract class SpscGrowableArrayQueuePrePad<E> extends AbstractQueue<E> {
-    long p0, p1, p2, p3, p4, p5, p6, p7;
-    long p10, p11, p12;
-    // p13, p14, p15, p16, p17; drop 4 longs, the cold fields act as buffer
-}
-abstract class SpscGrowableArrayQueueProducerColdFields<E> extends SpscGrowableArrayQueuePrePad<E> {
-    protected int maxQueueCapacity;
-    protected int producerLookAheadStep;
-    protected long producerLookAhead;
-    protected long producerMask;
-    protected E[] producerBuffer;
-}
-abstract class SpscGrowableArrayQueueProducerFields<E> extends SpscGrowableArrayQueueProducerColdFields<E> {
-    protected long producerIndex;
-}
-
-abstract class SpscGrowableArrayQueueL2Pad<E> extends SpscGrowableArrayQueueProducerFields<E> {
-    long p0, p1, p2, p3, p4, p5, p6, p7;
-    long p10, p11, p12, p13, p14, p15, p16, p17;
-}
-
-abstract class SpscGrowableArrayQueueConsumerFields<E> extends SpscGrowableArrayQueueL2Pad<E> {
-    protected long consumerMask;
-    protected E[] consumerBuffer;
-    protected long consumerIndex;
-}
-
-public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerFields<E>
-    implements QueueProgressIndicators {
-    private final static long P_INDEX_OFFSET;
-    private final static long C_INDEX_OFFSET;
-    static {
-        try {
-            Field iField = SpscGrowableArrayQueueProducerFields.class.getDeclaredField("producerIndex");
-            P_INDEX_OFFSET = UNSAFE.objectFieldOffset(iField);
-        } catch (NoSuchFieldException e) {
-            throw new RuntimeException(e);
-        }
-        try {
-            Field iField = SpscGrowableArrayQueueConsumerFields.class.getDeclaredField("consumerIndex");
-            C_INDEX_OFFSET = UNSAFE.objectFieldOffset(iField);
-        } catch (NoSuchFieldException e) {
-            throw new RuntimeException(e);
-        }
-    }
-    private final static Object JUMP = new Object();
+public class SpscGrowableArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
     public SpscGrowableArrayQueue(final int capacity) {
         this(roundToPowerOfTwo(max(capacity, 32) / 2), max(capacity, 32));
     }
@@ -94,11 +43,6 @@ public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerFie
         maxQueueCapacity = p2capacity;
         producerLookAhead = mask - 1; // we know it's all empty to start with
         soProducerIndex(0L);// serves as a StoreStore barrier to support correct publication
-    }
-
-    @Override
-    public final Iterator<E> iterator() {
-        throw new UnsupportedOperationException();
     }
 
     /**
@@ -184,7 +128,7 @@ public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerFie
                 // consumer index has not changed since adjusting the lookAhead index, we're full
                 return false;
             }
-            // if consumerInde x progressed enough so that current size indicates it is on same buffer
+            // if consumerIndex progressed enough so that current size indicates it is on same buffer
             long firstIndexInCurrentBuffer = producerLookAhead - maxCapacity + prevElementsInOtherBuffers;
             if (currConsumerIndex >= firstIndexInCurrentBuffer) {
                 // job done, we've now settled into our final state
@@ -289,53 +233,7 @@ public class SpscGrowableArrayQueue<E> extends SpscGrowableArrayQueueConsumerFie
         return lvElement(nextBuffer, offsetInNew);// LoadLoad
     }
 
-    @Override
-    public final int size() {
-        /*
-         * It is possible for a thread to be interrupted or reschedule between the read of the producer and
-         * consumer indices, therefore protection is required to ensure size is within valid range. In the
-         * event of concurrent polls/offers to this method the size is OVER estimated as we read consumer
-         * index BEFORE the producer index.
-         */
-        long after = lvConsumerIndex();
-        while (true) {
-            final long before = after;
-            final long currentProducerIndex = lvProducerIndex();
-            after = lvConsumerIndex();
-            if (before == after) {
-                return (int) (currentProducerIndex - after);
-            }
-        }
-    }
-
     private void adjustLookAheadStep(int capacity) {
         producerLookAheadStep = Math.min(capacity / 4, SpscArrayQueue.MAX_LOOK_AHEAD_STEP);
-    }
-
-    private long lvProducerIndex() {
-        return UNSAFE.getLongVolatile(this, P_INDEX_OFFSET);
-    }
-
-    private long lvConsumerIndex() {
-        return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
-    }
-
-    private void soProducerIndex(long v) {
-        UNSAFE.putOrderedLong(this, P_INDEX_OFFSET, v);
-    }
-
-    private void soConsumerIndex(long v) {
-        UNSAFE.putOrderedLong(this, C_INDEX_OFFSET, v);
-    }
-
-
-    @Override
-    public long currentProducerIndex() {
-        return lvProducerIndex();
-    }
-
-    @Override
-    public long currentConsumerIndex() {
-        return lvConsumerIndex();
     }
 }

@@ -15,73 +15,13 @@ package org.jctools.queues;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 
-import java.lang.reflect.Field;
-import java.util.AbstractQueue;
-import java.util.Iterator;
-
 import org.jctools.util.Pow2;
-import org.jctools.util.UnsafeAccess;
 
-abstract class SpscUnboundedArrayQueuePrePad<E> extends AbstractQueue<E> {
-    long p0, p1, p2, p3, p4, p5, p6, p7;
-    long p10, p11, p12;
-    // p13, p14, p15, p16, p17; drop 4 longs, the cold fields act as buffer
-}
-abstract class SpscUnboundedArrayQueueProducerColdFields<E> extends SpscUnboundedArrayQueuePrePad<E> {
-    protected int producerLookAheadStep;
-    protected long producerLookAhead;
-    protected long producerMask;
-    protected E[] producerBuffer;
-}
-abstract class SpscUnboundedArrayQueueProducerFields<E> extends SpscUnboundedArrayQueueProducerColdFields<E> {
-    protected long producerIndex;
-}
+import static org.jctools.util.UnsafeRefArrayAccess.REF_ARRAY_BASE;
+import static org.jctools.util.UnsafeRefArrayAccess.REF_ELEMENT_SHIFT;
 
-abstract class SpscUnboundedArrayQueueL2Pad<E> extends SpscUnboundedArrayQueueProducerFields<E> {
-    long p0, p1, p2, p3, p4, p5, p6, p7;
-    long p10, p11, p12, p13, p14, p15, p16, p17;
-}
-abstract class SpscUnboundedArrayQueueConsumerColdField<E> extends SpscUnboundedArrayQueueL2Pad<E> {
-    protected long consumerMask;
-    protected E[] consumerBuffer;
-}
-
-abstract class SpscUnboundedArrayQueueConsumerField<E> extends SpscUnboundedArrayQueueConsumerColdField<E> {
-    protected long consumerIndex;
-}
-
-public class SpscUnboundedArrayQueue<E> extends SpscUnboundedArrayQueueConsumerField<E>
-    implements QueueProgressIndicators{
-    static final int MAX_LOOK_AHEAD_STEP = Integer.getInteger("jctools.spsc.max.lookahead.step", 4096);
-    private final static long P_INDEX_OFFSET;
-    private final static long C_INDEX_OFFSET;
-    private static final long REF_ARRAY_BASE;
-    private static final int REF_ELEMENT_SHIFT;
-    private static final Object HAS_NEXT = new Object();
-    static {
-        final int scale = UnsafeAccess.UNSAFE.arrayIndexScale(Object[].class);
-        if (4 == scale) {
-            REF_ELEMENT_SHIFT = 2;
-        } else if (8 == scale) {
-            REF_ELEMENT_SHIFT = 3;
-        } else {
-            throw new IllegalStateException("Unknown pointer size");
-        }
-        // Including the buffer pad in the array base offset
-        REF_ARRAY_BASE = UnsafeAccess.UNSAFE.arrayBaseOffset(Object[].class);
-        try {
-            Field iField = SpscUnboundedArrayQueueProducerFields.class.getDeclaredField("producerIndex");
-            P_INDEX_OFFSET = UNSAFE.objectFieldOffset(iField);
-        } catch (NoSuchFieldException e) {
-            throw new RuntimeException(e);
-        }
-        try {
-            Field iField = SpscUnboundedArrayQueueConsumerField.class.getDeclaredField("consumerIndex");
-            C_INDEX_OFFSET = UNSAFE.objectFieldOffset(iField);
-        } catch (NoSuchFieldException e) {
-            throw new RuntimeException(e);
-        }
-    }
+public class SpscUnboundedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
+    private static final int MAX_LOOK_AHEAD_STEP = Integer.getInteger("jctools.spsc.max.lookahead.step", 4096);
 
     @SuppressWarnings("unchecked")
     public SpscUnboundedArrayQueue(final int chunkSize) {
@@ -95,11 +35,6 @@ public class SpscUnboundedArrayQueue<E> extends SpscUnboundedArrayQueueConsumerF
         consumerMask = mask;
         producerLookAhead = mask - 1; // we know it's all empty to start with
         soProducerIndex(0L);
-    }
-
-    @Override
-    public final Iterator<E> iterator() {
-        throw new UnsupportedOperationException();
     }
 
     /**
@@ -152,7 +87,7 @@ public class SpscUnboundedArrayQueue<E> extends SpscUnboundedArrayQueueConsumerF
         writeToQueue(newBuffer, e, currIndex, offset);
         // link to next buffer and add next indicator as element of old buffer
         soNext(oldBuffer, newBuffer);
-        soElement(oldBuffer, offset, HAS_NEXT); // new buffer is visible after element is inserted
+        soElement(oldBuffer, offset, JUMP); // new buffer is visible after element is inserted
     }
 
     private void soNext(E[] curr, E[] next) {
@@ -179,7 +114,7 @@ public class SpscUnboundedArrayQueue<E> extends SpscUnboundedArrayQueueConsumerF
         final long mask = consumerMask;
         final long offset = calcWrappedOffset(index, mask);
         final Object e = lvElement(buffer, offset);// LoadLoad
-        boolean isNextBuffer = e == HAS_NEXT;
+        boolean isNextBuffer = e == JUMP;
         if (null != e && !isNextBuffer) {
             soConsumerIndex(index + 1);// this ensures correctness on 32bit platforms
             soElement(buffer, offset, null);// StoreStore
@@ -217,7 +152,7 @@ public class SpscUnboundedArrayQueue<E> extends SpscUnboundedArrayQueueConsumerF
         final long mask = consumerMask;
         final long offset = calcWrappedOffset(index, mask);
         final Object e = lvElement(buffer, offset);// LoadLoad
-        if (e == HAS_NEXT) {
+        if (e == JUMP) {
             return newBufferPeek(lvNext(buffer), index, mask);
         }
 
@@ -231,66 +166,17 @@ public class SpscUnboundedArrayQueue<E> extends SpscUnboundedArrayQueueConsumerF
         return (E) lvElement(nextBuffer, offsetInNew);// LoadLoad
     }
 
-    @Override
-    public final int size() {
-        /*
-         * It is possible for a thread to be interrupted or reschedule between the read of the producer and
-         * consumer indices, therefore protection is required to ensure size is within valid range. In the
-         * event of concurrent polls/offers to this method the size is OVER estimated as we read consumer
-         * index BEFORE the producer index.
-         */
-        long after = lvConsumerIndex();
-        while (true) {
-            final long before = after;
-            final long currentProducerIndex = lvProducerIndex();
-            after = lvConsumerIndex();
-            if (before == after) {
-                return (int) (currentProducerIndex - after);
-            }
-        }
-    }
-
-    private void adjustLookAheadStep(int capacity) {
-        producerLookAheadStep = Math.min(capacity / 4, MAX_LOOK_AHEAD_STEP);
-    }
-
-    private long lvProducerIndex() {
-        return UNSAFE.getLongVolatile(this, P_INDEX_OFFSET);
-    }
-
-    private long lvConsumerIndex() {
-        return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
-    }
-
-    private void soProducerIndex(long v) {
-        UNSAFE.putOrderedLong(this, P_INDEX_OFFSET, v);
-    }
-
-    private void soConsumerIndex(long v) {
-        UNSAFE.putOrderedLong(this, C_INDEX_OFFSET, v);
-    }
-
     private static long calcWrappedOffset(long index, long mask) {
         return calcDirectOffset(index & mask);
     }
+
     private static long calcDirectOffset(long index) {
         return REF_ARRAY_BASE + (index << REF_ELEMENT_SHIFT);
     }
     private static void soElement(Object[] buffer, long offset, Object e) {
         UNSAFE.putOrderedObject(buffer, offset, e);
     }
-
     private static <E> Object lvElement(E[] buffer, long offset) {
         return UNSAFE.getObjectVolatile(buffer, offset);
-    }
-
-    @Override
-    public long currentProducerIndex() {
-        return lvProducerIndex();
-    }
-
-    @Override
-    public long currentConsumerIndex() {
-        return lvConsumerIndex();
     }
 }
