@@ -6,7 +6,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-import sun.misc.Unsafe;
+import static org.jctools.util.UnsafeAccess.UNSAFE; 
 
 /*
  * Written by Cliff Click and released to the public domain, as explained at
@@ -84,15 +84,14 @@ public class NonBlockingHashMapLong<TypeV>
   private static final int REPROBE_LIMIT=10; // Too many reprobes then force a table-resize
 
   // --- Bits to allow Unsafe access to arrays
-  private static final Unsafe _unsafe = UtilUnsafe.getUnsafe();
-  private static final int _Obase  = _unsafe.arrayBaseOffset(Object[].class);
-  private static final int _Oscale = _unsafe.arrayIndexScale(Object[].class);
+  private static final int _Obase  = UNSAFE.arrayBaseOffset(Object[].class);
+  private static final int _Oscale = UNSAFE.arrayIndexScale(Object[].class);
   private static long rawIndex(final Object[] ary, final int idx) {
     assert idx >= 0 && idx < ary.length;
     return _Obase + idx * _Oscale;
   }
-  private static final int _Lbase  = _unsafe.arrayBaseOffset(long[].class);
-  private static final int _Lscale = _unsafe.arrayIndexScale(long[].class);
+  private static final int _Lbase  = UNSAFE.arrayBaseOffset(long[].class);
+  private static final int _Lscale = UNSAFE.arrayIndexScale(long[].class);
   private static long rawIndex(final long[] ary, final int idx) {
     assert idx >= 0 && idx < ary.length;
     return _Lbase + idx * _Lscale;
@@ -105,14 +104,14 @@ public class NonBlockingHashMapLong<TypeV>
     Field f;
     try { f = NonBlockingHashMapLong.class.getDeclaredField("_chm"); }
     catch( java.lang.NoSuchFieldException e ) { throw new RuntimeException(e); }
-    _chm_offset = _unsafe.objectFieldOffset(f);
+    _chm_offset = UNSAFE.objectFieldOffset(f);
 
     try { f = NonBlockingHashMapLong.class.getDeclaredField("_val_1"); }
     catch( java.lang.NoSuchFieldException e ) { throw new RuntimeException(e); }
-    _val_1_offset = _unsafe.objectFieldOffset(f);
+    _val_1_offset = UNSAFE.objectFieldOffset(f);
   }
   private final boolean CAS( final long offset, final Object old, final Object nnn ) {
-    return _unsafe.compareAndSwapObject(this, offset, old, nnn );
+    return UNSAFE.compareAndSwapObject(this, offset, old, nnn );
   }
 
   // --- Adding a 'prime' bit onto Values via wrapping with a junk wrapper class
@@ -444,10 +443,10 @@ public class NonBlockingHashMapLong<TypeV>
     // --- key,val -------------------------------------------------------------
     // Access K,V for a given idx
     private boolean CAS_key( int idx, long   old, long   key ) {
-      return _unsafe.compareAndSwapLong  ( _keys, rawIndex(_keys, idx), old, key );
+      return UNSAFE.compareAndSwapLong  ( _keys, rawIndex(_keys, idx), old, key );
     }
     private boolean CAS_val( int idx, Object old, Object val ) {
-      return _unsafe.compareAndSwapObject( _vals, rawIndex(_vals, idx), old, val );
+      return UNSAFE.compareAndSwapObject( _vals, rawIndex(_vals, idx), old, val );
     }
 
     final long   [] _keys;

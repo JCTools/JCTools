@@ -6,8 +6,7 @@ import java.util.AbstractSet;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicInteger;
-import sun.misc.Unsafe;
-
+import static org.jctools.util.UnsafeAccess.UNSAFE;
 /*
  * Written by Cliff Click and released to the public domain, as explained at
  * http://creativecommons.org/licenses/publicdomain
@@ -39,7 +38,6 @@ import sun.misc.Unsafe;
 
 public class NonBlockingSetInt extends AbstractSet<Integer> implements Serializable {
   private static final long serialVersionUID = 1234123412341234123L;
-  private static final Unsafe _unsafe = UtilUnsafe.getUnsafe();
 
   // --- Bits to allow atomic update of the NBSI
   private static final long _nbsi_offset;
@@ -49,10 +47,10 @@ public class NonBlockingSetInt extends AbstractSet<Integer> implements Serializa
       f = NonBlockingSetInt.class.getDeclaredField("_nbsi"); 
     } catch( java.lang.NoSuchFieldException e ) {
     } 
-    _nbsi_offset = _unsafe.objectFieldOffset(f);
+    _nbsi_offset = UNSAFE.objectFieldOffset(f);
   }
   private final boolean CAS_nbsi( NBSI old, NBSI nnn ) {
-    return _unsafe.compareAndSwapObject(this, _nbsi_offset, old, nnn );
+    return UNSAFE.compareAndSwapObject(this, _nbsi_offset, old, nnn );
   }
 
   // The actual Set of Joy, which changes during a resize event.  The
@@ -210,14 +208,14 @@ public class NonBlockingSetInt extends AbstractSet<Integer> implements Serializa
     // The Bits
     private final long _bits[];
     // --- Bits to allow Unsafe access to arrays
-    private static final int _Lbase  = _unsafe.arrayBaseOffset(long[].class);
-    private static final int _Lscale = _unsafe.arrayIndexScale(long[].class);
+    private static final int _Lbase  = UNSAFE.arrayBaseOffset(long[].class);
+    private static final int _Lscale = UNSAFE.arrayIndexScale(long[].class);
     private static long rawIndex(final long[] ary, final int idx) {
       assert idx >= 0 && idx < ary.length;
       return _Lbase + idx * _Lscale;
     }
     private final boolean CAS( int idx, long old, long nnn ) {
-      return _unsafe.compareAndSwapLong( _bits, rawIndex(_bits, idx), old, nnn );
+      return UNSAFE.compareAndSwapLong( _bits, rawIndex(_bits, idx), old, nnn );
     }
 
     // --- Resize
@@ -231,10 +229,10 @@ public class NonBlockingSetInt extends AbstractSet<Integer> implements Serializa
         f = NBSI.class.getDeclaredField("_new"); 
       } catch( java.lang.NoSuchFieldException e ) {
       } 
-      _new_offset = _unsafe.objectFieldOffset(f);
+      _new_offset = UNSAFE.objectFieldOffset(f);
     }
     private final boolean CAS_new( NBSI nnn ) {
-      return _unsafe.compareAndSwapObject(this, _new_offset, null, nnn );
+      return UNSAFE.compareAndSwapObject(this, _new_offset, null, nnn );
     }
 
     private transient final AtomicInteger _copyIdx;   // Used to count bits started copying

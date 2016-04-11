@@ -1,8 +1,8 @@
 package org.jctools.maps;
-import java.io.Serializable;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import static org.jctools.util.UnsafeAccess.UNSAFE;
 
-import sun.misc.Unsafe;
+import java.io.Serializable;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater; 
 
 /*
  * Written by Cliff Click and released to the public domain, as explained at
@@ -104,15 +104,14 @@ public class ConcurrentAutoTable implements Serializable {
   private static class CAT implements Serializable {
     
     // Unsafe crud: get a function which will CAS arrays
-    private static final Unsafe _unsafe = UtilUnsafe.getUnsafe();
-    private static final int _Lbase  = _unsafe.arrayBaseOffset(long[].class);
-    private static final int _Lscale = _unsafe.arrayIndexScale(long[].class);
+    private static final int _Lbase  = UNSAFE.arrayBaseOffset(long[].class);
+    private static final int _Lscale = UNSAFE.arrayIndexScale(long[].class);
     private static long rawIndex(long[] ary, int i) {
       assert i >= 0 && i < ary.length;
       return _Lbase + i * _Lscale;
     }
     private static boolean CAS( long[] A, int idx, long old, long nnn ) {
-      return _unsafe.compareAndSwapLong( A, rawIndex(A,idx), old, nnn );
+      return UNSAFE.compareAndSwapLong( A, rawIndex(A,idx), old, nnn );
     }
    
     //volatile long _resizers;    // count of threads attempting a resize
