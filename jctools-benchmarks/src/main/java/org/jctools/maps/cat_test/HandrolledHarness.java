@@ -1,15 +1,19 @@
 package org.jctools.maps.cat_test;
-import org.junit.Test;
 
 /*
- * Written by Cliff Click and released to the public domain, as explained at
- * http://creativecommons.org/licenses/publicdomain
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
-
-public class Harness extends Thread {
-
-  @Test
-  public void benchmarkTest() { main(new String[]{"2","8","2","0"}); }
+public class HandrolledHarness extends Thread {
 
   static int _thread_min, _thread_max, _thread_incr;
   static int _ctr_impl;
@@ -167,17 +171,17 @@ public class Harness extends Thread {
   final int _tnum;
   final Counter _C;
   final long[] _ops;
-  public Harness() { _tnum=-1; _C=null; _ops=null; }
-  private Harness( int tnum, Counter C, long[] ops ) { _tnum = tnum; _C = C; _ops = ops; }
+  public HandrolledHarness() { _tnum=-1; _C=null; _ops=null; }
+  private HandrolledHarness( int tnum, Counter C, long[] ops ) { _tnum = tnum; _C = C; _ops = ops; }
 
   static long run_once( int num_threads, Counter C, long[] ops ) {
     _start = false;
     _stop = false;
 
     // Launch threads
-    Harness thrs[] = new Harness[num_threads];
+    HandrolledHarness thrs[] = new HandrolledHarness[num_threads];
     for( int i=0; i<num_threads; i++ ) {
-      thrs[i] = new Harness(i, C, ops);
+      thrs[i] = new HandrolledHarness(i, C, ops);
       //int h1 = System.identityHashCode(thrs[i]);
       //int h2 = h1;
       //h2 ^= (h2>>>20) ^ (h2>>>12);

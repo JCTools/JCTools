@@ -1,6 +1,7 @@
 package org.jctools.jmh.counters;
 
 import org.jctools.counters.FixedSizeStripedLongCounter;
+import org.jctools.maps.ConcurrentAutoTable;
 import org.openjdk.jmh.annotations.CompilerControl;
 import org.openjdk.jmh.annotations.CompilerControl.Mode;
 
@@ -18,7 +19,8 @@ public class CountersFactory {
         AtomicLong,
         LongAdder,
         FixedSizeStripedV6,
-        FixedSizeStripedV8
+        FixedSizeStripedV8,
+        CAT
     }
 
     static Counter build(CounterType type) {
@@ -33,6 +35,8 @@ public class CountersFactory {
             case FixedSizeStripedV8:
                 return new FixedSizeStripedCounter(
                     org.jctools.counters.CountersFactory.createFixedSizeStripedCounterV8(STRIPES_COUNT));
+            case CAT:
+                return new ConcurrentAutoTableCounter();
             default:
                 throw new IllegalArgumentException();
         }
@@ -75,6 +79,26 @@ public class CountersFactory {
         @CompilerControl(Mode.INLINE)
         public void inc() {
             counter.inc();
+        }
+
+        @Override
+        @CompilerControl(Mode.INLINE)
+        public long get() {
+            return counter.get();
+        }
+    }
+    
+    static class ConcurrentAutoTableCounter implements Counter {
+        private final ConcurrentAutoTable counter;
+
+        public ConcurrentAutoTableCounter() {
+            counter = new ConcurrentAutoTable();
+        }
+
+        @Override
+        @CompilerControl(Mode.INLINE)
+        public void inc() {
+            counter.add(1);
         }
 
         @Override
