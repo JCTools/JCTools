@@ -83,7 +83,7 @@ public class perf_hashlong_test extends Thread {
   }
 
   static void run_till_stable( int num_threads, int num_trials ) {
-    NonBlockingHashMapLong<String> HM = new NonBlockingHashMapLong<>(true);
+    NonBlockingHashMapLong<String> HM = new NonBlockingHashMapLong<String>(true);
     String name = "NonBlockingHashMapLong";
     System.out.printf("=== %10.10s  %3d  cnts/sec=",name,num_threads);
 

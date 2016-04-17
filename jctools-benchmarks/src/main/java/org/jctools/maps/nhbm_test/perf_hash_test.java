@@ -23,10 +23,10 @@ public class perf_hash_test extends Thread {
     switch( impl ) {
     case 1: return null; //new Hashtable<String,String>(0);
     case 2: return null; // new CliffWrapHerlihy(); // was a non-blocking HashSet implementation from Maurice Herlihy
-    case 3: return new ConcurrentHashMap<>(16,0.75f,  16); // force to   16 striping
-    case 4: return new ConcurrentHashMap<>(16,0.75f, 256); // force to  256 striping
-    case 5: return new ConcurrentHashMap<>(16,0.75f,4096); // force to 4096 striping
-    case 6: return new NonBlockingHashMap<>();
+    case 3: return new ConcurrentHashMap<String,String>(16,0.75f,  16); // force to   16 striping
+    case 4: return new ConcurrentHashMap<String,String>(16,0.75f, 256); // force to  256 striping
+    case 5: return new ConcurrentHashMap<String,String>(16,0.75f,4096); // force to 4096 striping
+    case 6: return new NonBlockingHashMap<String,String>();
     default: throw new Error("Bad imple");
     }
   }

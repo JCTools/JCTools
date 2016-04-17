@@ -108,7 +108,7 @@ public class perf_set_test extends Thread {
     Set<Integer> AS;
     switch( impl ) {
     case 1: AS = ConcurrentHashMap.newKeySet(); break;
-    case 2: AS = new NonBlockingHashSet<>(); break;
+    case 2: AS = new NonBlockingHashSet<Integer>(); break;
     case 3: AS = new NonBlockingSetInt(); break;
     default: throw new Error("unimplemented");
     }
