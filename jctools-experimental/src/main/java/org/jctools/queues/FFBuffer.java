@@ -97,22 +97,24 @@ public final class FFBuffer<E> extends FFBufferL3Pad<E> implements Queue<E> {
         }
 
         final E[] lb = buffer;
-        if (null != UnsafeRefArrayAccess.lvElement(lb, calcElementOffset(tail))) {
+        final long t = tail;
+        final long offset = calcElementOffset(t);
+        if (null != UnsafeRefArrayAccess.lvElement(lb, offset)) { // read acquire
             return false;
         }
-        UnsafeRefArrayAccess.soElement(lb, calcElementOffset(tail), e);
-        tail++;
+        UnsafeRefArrayAccess.soElement(lb, offset, e); // write release
+        tail = t + 1;
         return true;
     }
 
     public E poll() {
         final long offset = calcElementOffset(head);
         final E[] lb = buffer;
-        final E e = UnsafeRefArrayAccess.lvElement(lb, offset);
+        final E e = UnsafeRefArrayAccess.lvElement(lb, offset); // write acquire
         if (null == e) {
             return null;
         }
-        UnsafeRefArrayAccess.soElement(lb, offset, null);
+        UnsafeRefArrayAccess.soElement(lb, offset, null); // read release
         head++;
         return e;
     }
@@ -203,7 +205,7 @@ public final class FFBuffer<E> extends FFBufferL3Pad<E> implements Queue<E> {
                 idleCounter = wait.idle(idleCounter);
                 continue;
             }
-            idleCounter = 0;    
+            idleCounter = 0;
         }
     }
 }
