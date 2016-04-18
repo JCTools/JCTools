@@ -17,7 +17,7 @@ public class ConcurrentQueueByTypeFactory {
 //        case 5:
 //            return new SpmcArrayQueue<Integer>(QUEUE_CAPACITY);
 //        case 6:
-//            return new MpscArrayQueue<Integer>(QUEUE_CAPACITY);
+//            return new MpscArrayConcurrentQueue<Integer>(QUEUE_CAPACITY);
 //        case 61:
 //            return new MpscCompoundQueue<Integer>(QUEUE_CAPACITY);
 //        case 62:
@@ -26,7 +26,7 @@ public class ConcurrentQueueByTypeFactory {
 //            return new MpmcArrayQueue<Integer>(QUEUE_CAPACITY);
         case 70:
             return new MpmcArrayConcurrentQueue<Integer>(QUEUE_CAPACITY);
-            
+
         }
         throw new IllegalArgumentException("Type: " + QUEUE_TYPE);
     }

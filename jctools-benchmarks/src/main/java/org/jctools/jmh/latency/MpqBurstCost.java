@@ -17,6 +17,8 @@ import java.util.Queue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.jctools.queues.MessagePassingQueue;
+import org.jctools.queues.MessagePassingQueueByTypeFactory;
 import org.jctools.queues.QueueByTypeFactory;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -37,7 +39,7 @@ import org.openjdk.jmh.annotations.Warmup;
 @Warmup(iterations = 10, time = 1, timeUnit = TimeUnit.SECONDS)
 @Measurement(iterations = 10, time = 1, timeUnit = TimeUnit.SECONDS)
 @SuppressWarnings("serial")
-public class QueueBurstCost {
+public class MpqBurstCost {
     abstract static class AbstractEvent extends AtomicBoolean {
         abstract void handle();
     }
@@ -58,19 +60,19 @@ public class QueueBurstCost {
     }
 
     static class Consumer implements Runnable {
-        final Queue<AbstractEvent> q;
+        final MessagePassingQueue<AbstractEvent> q;
         volatile boolean isRunning = true;
 
-        public Consumer(Queue<AbstractEvent> q) {
+        public Consumer(MessagePassingQueue<AbstractEvent> q) {
             this.q = q;
         }
 
         @Override
         public void run() {
-            final Queue<AbstractEvent> q = this.q;
+            final MessagePassingQueue<AbstractEvent> q = this.q;
             while (isRunning) {
                 AbstractEvent e = null;
-                if ((e = q.poll()) == null) {
+                if ((e = q.relaxedPoll()) == null) {
                     continue;
                 }
                 e.handle();
@@ -90,14 +92,14 @@ public class QueueBurstCost {
     @Param("1")
     int consumerCount;
 
-    Queue<AbstractEvent> q;
+    MessagePassingQueue<AbstractEvent> q;
 
     private Thread[] consumerThreads;
     private Consumer consumer;
 
     @Setup(Level.Trial)
     public void setupQueueAndConsumers() {
-        q = QueueByTypeFactory.createQueue(qType, 128);
+        q = MessagePassingQueueByTypeFactory.createQueue(qType, 128);
 
         // stretch the queue to the limit, working through resizing and full
         for (int i = 0; i < 128 + 100; i++) {
@@ -111,7 +113,7 @@ public class QueueBurstCost {
             q.offer(GO);
             q.poll();
         }
-        q = QueueByTypeFactory.createQueue(qType, 128 * 1024);
+        q = MessagePassingQueueByTypeFactory.createQueue(qType, 128 * 1024);
         consumer = new Consumer(q);
         consumerThreads = new Thread[consumerCount];
         for (int i = 0; i < consumerCount; i++) {
@@ -123,16 +125,19 @@ public class QueueBurstCost {
     @Benchmark
     public void burstCost(Stop stop) {
         final int burst = burstSize;
-        final Queue<AbstractEvent> q = this.q;
+        final MessagePassingQueue<AbstractEvent> q = this.q;
         final Go go = GO;
         stop.lazySet(false);
         for (int i = 0; i < burst - 1; i++) {
-            while (!q.offer(go));
+            while (!q.offer(go))
+                ;
         }
 
-        while (!q.offer(stop));
+        while (!q.offer(stop))
+            ;
 
-        while (!stop.get());
+        while (!stop.get())
+            ;
     }
 
     @TearDown
