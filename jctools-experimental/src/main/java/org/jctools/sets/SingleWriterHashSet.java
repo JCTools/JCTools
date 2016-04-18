@@ -47,7 +47,8 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
             size++;
             soElement(buffer, offset, newVal);
             result = true;
-        } else {
+        }
+        else {
             result = !newVal.equals(currVal) && addSlowPath(buffer, mask, newVal, hash);
         }
 
@@ -128,8 +129,7 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
         return removeSlowPath(val, buffer, mask, hashCode, hash);
     }
 
-    private boolean removeSlowPath(Object val, final E[] buffer, final long mask, final int hashCode,
-            final int hash) {
+    private boolean removeSlowPath(Object val, E[] buffer, long mask, int hashCode, int hash) {
         final int limit = (int) (hash + mask);
         for (int searchIndex = hash + 1; searchIndex <= limit; searchIndex++) {
             final long offset = calcElementOffset(searchIndex, mask);
@@ -157,7 +157,7 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
     private void compactAndRemove(final E[] buffer, final long mask, int removeHashIndex) {
         // remove(9a): [9a,9b,10a,9c,10b,11a,null] -> [9b,9c,10a,10b,null,11a,null]
         int j = removeHashIndex;
-        while(true) {
+        while (true) {
             int k;
             E slotJ;
             // skip elements which belong where they are
@@ -176,11 +176,9 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
                 k = (int) (rehash(slotJ.hashCode()) & mask);
                 // determine if k lies cyclically in [i,j]
                 // |    i.k.j |
-                // |....j i.k.| or  |.k..j i...|
-            }
-            while ( (removeHashIndex  <= j) ?
-                    ((removeHashIndex < k) && (k <= j)) :
-                    ((removeHashIndex < k) || (k <= j)) );
+                // |....j i.k.| or |.k..j i...|
+            } while ((removeHashIndex <= j) ? ((removeHashIndex < k) && (k <= j))
+                    : ((removeHashIndex < k) || (k <= j)));
             // slot[removeHashIndex] := slot[j]
             soElement(buffer, calcElementOffset(removeHashIndex, mask), slotJ);
             // removeHashIndex := j
@@ -284,6 +282,7 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
             }
         }
     }
+
     private final static long BUFFER_OFFSET;
     private final static long SIZE_OFFSET;
 
