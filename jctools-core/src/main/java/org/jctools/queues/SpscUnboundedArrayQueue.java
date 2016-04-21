@@ -13,12 +13,13 @@
  */
 package org.jctools.queues;
 
-import static org.jctools.util.UnsafeAccess.UNSAFE;
-
 import org.jctools.util.Pow2;
 
+import static org.jctools.queues.CircularArrayOffsetCalculator.calcElementOffset;
 import static org.jctools.util.UnsafeRefArrayAccess.REF_ARRAY_BASE;
 import static org.jctools.util.UnsafeRefArrayAccess.REF_ELEMENT_SHIFT;
+import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
+import static org.jctools.util.UnsafeRefArrayAccess.soElement;
 
 public class SpscUnboundedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
     private static final int MAX_LOOK_AHEAD_STEP = Integer.getInteger("jctools.spsc.max.lookahead.step", 4096);
@@ -51,17 +52,17 @@ public class SpscUnboundedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
         final E[] buffer = producerBuffer;
         final long index = producerIndex;
         final long mask = producerMask;
-        final long offset = calcWrappedOffset(index, mask);
+        final long offset = calcElementOffset(index, mask);
         if (index < producerLookAhead) {
             writeToQueue(buffer, e, index, offset);
         } else {
             final int lookAheadStep = producerLookAheadStep;
             // go around the buffer or add a new buffer
-            long lookAheadElementOffset = calcWrappedOffset(index + lookAheadStep, mask);
+            long lookAheadElementOffset = calcElementOffset(index + lookAheadStep, mask);
             if (null == lvElement(buffer, lookAheadElementOffset)) {// LoadLoad
                 producerLookAhead = index + lookAheadStep - 1; // joy, there's plenty of room
                 writeToQueue(buffer, e, index, offset);
-            } else if (null == lvElement(buffer, calcWrappedOffset(index + 1, mask))) { // buffer is not full
+            } else if (null == lvElement(buffer, calcElementOffset(index + 1, mask))) { // buffer is not full
                 writeToQueue(buffer, e, index, offset);
             } else {
                 linkNewBuffer(buffer, index, offset, e, mask); // add a buffer and link old to new
@@ -72,7 +73,7 @@ public class SpscUnboundedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
 
     private void writeToQueue(final E[] buffer, final E e, final long index, final long offset) {
         soProducerIndex(index + 1);// this ensures atomic write of long on 32bit platforms
-        soElement(buffer, offset, e);// StoreStore
+        soElement(buffer, offset, e);
     }
 
     @SuppressWarnings("unchecked")
@@ -87,15 +88,15 @@ public class SpscUnboundedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
         writeToQueue(newBuffer, e, currIndex, offset);
         // link to next buffer and add next indicator as element of old buffer
         soNext(oldBuffer, newBuffer);
-        soElement(oldBuffer, offset, JUMP); // new buffer is visible after element is inserted
+        soElement(oldBuffer, offset, JUMP);
     }
 
     private void soNext(E[] curr, E[] next) {
-        soElement(curr, calcDirectOffset(curr.length -1), next);
+        soElement(curr, REF_ARRAY_BASE + ((long) (curr.length - 1) << REF_ELEMENT_SHIFT), next);
     }
     @SuppressWarnings("unchecked")
 	private E[] lvNext(E[] curr) {
-        final long nextArrayOffset = calcDirectOffset(curr.length -1);
+        final long nextArrayOffset = REF_ARRAY_BASE + ((long) (curr.length - 1) << REF_ELEMENT_SHIFT);
         final E[] nextBuffer = (E[]) lvElement(curr, nextArrayOffset);
         soElement(curr, nextArrayOffset, null);
         return nextBuffer;
@@ -112,12 +113,12 @@ public class SpscUnboundedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
         final E[] buffer = consumerBuffer;
         final long index = consumerIndex;
         final long mask = consumerMask;
-        final long offset = calcWrappedOffset(index, mask);
+        final long offset = calcElementOffset(index, mask);
         final Object e = lvElement(buffer, offset);// LoadLoad
         boolean isNextBuffer = e == JUMP;
         if (null != e && !isNextBuffer) {
             soConsumerIndex(index + 1);// this ensures correctness on 32bit platforms
-            soElement(buffer, offset, null);// StoreStore
+            soElement(buffer, offset, null);
             return (E) e;
         } else if (isNextBuffer) {
             return newBufferPoll(buffer, index, mask);
@@ -130,10 +131,10 @@ public class SpscUnboundedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
     private E newBufferPoll(E[] buffer, final long index, final long mask) {
         E[] nextBuffer = lvNext(buffer);
         consumerBuffer = nextBuffer;
-        final long offsetInNew = calcWrappedOffset(index, mask);
-        final E n = (E) lvElement(nextBuffer, offsetInNew);// LoadLoad
+        final long offsetInNew = calcElementOffset(index, mask);
+        final E n = lvElement(nextBuffer, offsetInNew);// LoadLoad
         soConsumerIndex(index + 1);// this ensures correctness on 32bit platforms
-        soElement(nextBuffer, offsetInNew, null);// StoreStore
+        soElement(nextBuffer, offsetInNew, null);
         // prevent extended retention if the buffer is in old gen and the nextBuffer is in young gen
         soNext(buffer, null);
         return n;
@@ -150,7 +151,7 @@ public class SpscUnboundedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
         final E[] buffer = consumerBuffer;
         final long index = consumerIndex;
         final long mask = consumerMask;
-        final long offset = calcWrappedOffset(index, mask);
+        final long offset = calcElementOffset(index, mask);
         final Object e = lvElement(buffer, offset);// LoadLoad
         if (e == JUMP) {
             return newBufferPeek(lvNext(buffer), index, mask);
@@ -162,21 +163,7 @@ public class SpscUnboundedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
     @SuppressWarnings("unchecked")
     private E newBufferPeek(E[] nextBuffer, final long index, final long mask) {
         consumerBuffer = nextBuffer;
-        final long offsetInNew = calcWrappedOffset(index, mask);
-        return (E) lvElement(nextBuffer, offsetInNew);// LoadLoad
-    }
-
-    private static long calcWrappedOffset(long index, long mask) {
-        return calcDirectOffset(index & mask);
-    }
-
-    private static long calcDirectOffset(long index) {
-        return REF_ARRAY_BASE + (index << REF_ELEMENT_SHIFT);
-    }
-    private static void soElement(Object[] buffer, long offset, Object e) {
-        UNSAFE.putOrderedObject(buffer, offset, e);
-    }
-    private static <E> Object lvElement(E[] buffer, long offset) {
-        return UNSAFE.getObjectVolatile(buffer, offset);
+        final long offsetInNew = calcElementOffset(index, mask);
+        return lvElement(nextBuffer, offsetInNew);// LoadLoad
     }
 }
