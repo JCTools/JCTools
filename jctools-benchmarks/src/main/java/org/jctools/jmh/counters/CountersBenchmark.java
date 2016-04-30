@@ -17,9 +17,14 @@ public class CountersBenchmark {
     @Param
     CountersFactory.CounterType counterType;
 
+    @Param("0")
+    int stripes;
+
     @Setup
     public void buildCounter() {
-        counter = CountersFactory.build(counterType);
+        if (stripes <= 0)
+            stripes = Runtime.getRuntime().availableProcessors();
+        counter = CountersFactory.build(counterType, stripes);
     }
 
     @Benchmark

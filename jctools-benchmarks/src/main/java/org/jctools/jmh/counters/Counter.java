@@ -1,13 +1,14 @@
 package org.jctools.jmh.counters;
 
 /**
- * Adapter interface to benchmark different kind of counters.
+ * Adapter interface to benchmark different kind of counters. Using an abstract class rather to avoid class cast check
+ * on JVMs which do not do CHA for interfaces (OpenJDK at current time)
  *
  * @author Tolstopyatov Vsevolod
  */
-interface Counter {
+abstract class Counter {
 
-    void inc();
+    abstract void inc();
 
-    long get();
+    abstract long get();
 }

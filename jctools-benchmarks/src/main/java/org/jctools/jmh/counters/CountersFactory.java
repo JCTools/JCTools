@@ -13,8 +13,6 @@ import java.util.concurrent.atomic.LongAdder;
  */
 public class CountersFactory {
 
-    private static final int STRIPES_COUNT = Runtime.getRuntime().availableProcessors() * 4;
-
     public enum CounterType {
         AtomicLong,
         LongAdder,
@@ -23,7 +21,7 @@ public class CountersFactory {
         CAT
     }
 
-    static Counter build(CounterType type) {
+    static Counter build(CounterType type, int stripes) {
         switch (type) {
             case AtomicLong:
                 return new AtomicLongCounter();
@@ -31,10 +29,10 @@ public class CountersFactory {
                 return new LongAdderCounter();
             case FixedSizeStripedV6:
                 return new FixedSizeStripedCounter(
-                    org.jctools.counters.CountersFactory.createFixedSizeStripedCounterV6(STRIPES_COUNT));
+                    org.jctools.counters.CountersFactory.createFixedSizeStripedCounterV6(stripes));
             case FixedSizeStripedV8:
                 return new FixedSizeStripedCounter(
-                    org.jctools.counters.CountersFactory.createFixedSizeStripedCounterV8(STRIPES_COUNT));
+                    org.jctools.counters.CountersFactory.createFixedSizeStripedCounterV8(stripes));
             case CAT:
                 return new ConcurrentAutoTableCounter();
             default:
@@ -42,34 +40,42 @@ public class CountersFactory {
         }
     }
 
-    @SuppressWarnings("serial")
-    static class AtomicLongCounter extends AtomicLong implements Counter {
+    // For consistent and fair benchmarking, always use counter as field
+
+    static class AtomicLongCounter extends Counter {
+        private final AtomicLong counter = new AtomicLong();
 
         @Override
         @CompilerControl(Mode.INLINE)
         public void inc() {
-            super.incrementAndGet();
-        }
-    }
-
-    @SuppressWarnings("serial")
-    static class LongAdderCounter extends LongAdder implements Counter {
-
-        @Override
-        @CompilerControl(Mode.INLINE)
-        public void inc() {
-            super.increment();
+            counter.incrementAndGet();
         }
 
         @Override
         @CompilerControl(Mode.INLINE)
         public long get() {
-            return super.sum();
+            return counter.get();
         }
     }
 
-    static class FixedSizeStripedCounter implements Counter {
-        private FixedSizeStripedLongCounter counter;
+    static class LongAdderCounter extends Counter {
+        private final LongAdder counter = new LongAdder();
+
+        @Override
+        @CompilerControl(Mode.INLINE)
+        public void inc() {
+            counter.increment();
+        }
+
+        @Override
+        @CompilerControl(Mode.INLINE)
+        public long get() {
+            return counter.sum();
+        }
+    }
+
+    static class FixedSizeStripedCounter extends Counter {
+        private final FixedSizeStripedLongCounter counter;
 
         public FixedSizeStripedCounter(FixedSizeStripedLongCounter impl) {
             counter = impl;
@@ -87,8 +93,8 @@ public class CountersFactory {
             return counter.get();
         }
     }
-    
-    static class ConcurrentAutoTableCounter implements Counter {
+
+    static class ConcurrentAutoTableCounter extends Counter {
         private final ConcurrentAutoTable counter;
 
         public ConcurrentAutoTableCounter() {
