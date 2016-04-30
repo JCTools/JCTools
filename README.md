@@ -23,7 +23,7 @@ Add the latest version as a dependency using Maven:
         <dependency>
             <groupId>org.jctools</groupId>
             <artifactId>jctools-core</artifactId>
-            <version>1.1</version>
+            <version>1.2</version>
         </dependency>
 ```
 
@@ -40,11 +40,11 @@ And setup the following dependency:
         <dependency>
             <groupId>com.github.JCTools.JCTools</groupId>
             <artifactId>jctools-core</artifactId>
-            <version>1.1</version>
+            <version>1.2</version>
         </dependency>
 ```
 
-You can also depepnd on latest snapshot from this repository (live on the edge) by setting the version to '1.2-SNAPSHOT'.
+You can also depend on latest snapshot from this repository (live on the edge) by setting the version to '1.3-SNAPSHOT'.
 
 
 Build it from source
