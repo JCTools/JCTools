@@ -31,7 +31,7 @@ public class SpscUnboundedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
         producerLookAheadStep = Math.min(p2capacity / 4, SpscArrayQueue.MAX_LOOK_AHEAD_STEP);
         consumerBuffer = buffer;
         consumerMask = mask;
-        producerLookAhead = mask - 1; // we know it's all empty to start with
+        producerLimit = mask - 1; // we know it's all empty to start with
         soProducerIndex(0L);
     }
 
@@ -41,7 +41,7 @@ public class SpscUnboundedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
         // go around the buffer or add a new buffer
         long lookAheadElementOffset = calcElementOffset(index + lookAheadStep, mask);
         if (null == lvElement(buffer, lookAheadElementOffset)) {// LoadLoad
-            producerLookAhead = index + lookAheadStep - 1; // joy, there's plenty of room
+            producerLimit = index + lookAheadStep - 1; // joy, there's plenty of room
             writeToQueue(buffer, e, index, offset);
         } else if (null == lvElement(buffer, calcElementOffset(index + 1, mask))) { // buffer is not full
             writeToQueue(buffer, e, index, offset);
@@ -57,7 +57,7 @@ public class SpscUnboundedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
     	// allocate new buffer of same length
         final E[] newBuffer = (E[]) new Object[oldBuffer.length];
         producerBuffer = newBuffer;
-        producerLookAhead = currIndex + mask - 1;
+        producerLimit = currIndex + mask - 1;
 
         // write to new buffer
         writeToQueue(newBuffer, e, currIndex, offset);

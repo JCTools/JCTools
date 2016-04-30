@@ -19,7 +19,7 @@ abstract class BaseSpscLinkedArrayQueuePrePad<E> extends AbstractQueue<E> {
 abstract class BaseSpscLinkedArrayQueueProducerColdFields<E> extends BaseSpscLinkedArrayQueuePrePad<E> {
     protected int maxQueueCapacity; // ignored by the unbounded implementation
     protected int producerLookAheadStep;
-    protected long producerLookAhead;
+    protected long producerLimit;
     protected long producerMask;
     protected E[] producerBuffer;
 }
@@ -112,15 +112,19 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueConsu
     
 
     protected final void soNext(E[] curr, E[] next) {
-        soElement(curr, REF_ARRAY_BASE + ((long) (curr.length - 1) << REF_ELEMENT_SHIFT), next);
+        soElement(curr, nextArrayOffset(curr), next);
     }
     
     @SuppressWarnings("unchecked")
     protected final E[] lvNext(E[] curr) {
-        final long nextArrayOffset = REF_ARRAY_BASE + ((long) (curr.length - 1) << REF_ELEMENT_SHIFT);
+        final long nextArrayOffset = nextArrayOffset(curr);
         final E[] nextBuffer = (E[]) lvElement(curr, nextArrayOffset);
         soElement(curr, nextArrayOffset, null);
         return nextBuffer;
+    }
+
+    private long nextArrayOffset(E[] curr) {
+        return REF_ARRAY_BASE + ((long) (curr.length - 1) << REF_ELEMENT_SHIFT);
     }
     
     /**
@@ -139,7 +143,7 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueConsu
         final long mask = producerMask;
         final long offset = calcElementOffset(index, mask);
         // expected hot path
-        if (index < producerLookAhead) {
+        if (index < producerLimit) {
             writeToQueue(buffer, e, index, offset);
             return true;
         }

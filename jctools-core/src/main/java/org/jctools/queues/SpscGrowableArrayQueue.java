@@ -41,7 +41,7 @@ public class SpscGrowableArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
         consumerBuffer = buffer;
         consumerMask = mask;
         maxQueueCapacity = p2capacity;
-        producerLookAhead = mask - 1; // we know it's all empty to start with
+        producerLimit = mask - 1; // we know it's all empty to start with
         soProducerIndex(0L);// serves as a StoreStore barrier to support correct publication
     }
 
@@ -54,7 +54,7 @@ public class SpscGrowableArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
             long lookAheadElementOffset = calcElementOffset(index + lookAheadStep, mask);
             // Try and look ahead a number of elements so we don't have to do this all the time
             if (null == lvElement(buffer, lookAheadElementOffset)) {
-                producerLookAhead = index + lookAheadStep - 1; // joy, there's plenty of room
+                producerLimit = index + lookAheadStep - 1; // joy, there's plenty of room
                 writeToQueue(buffer, e, index, offset);
                 return true;
             }
@@ -80,15 +80,15 @@ public class SpscGrowableArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
                     long currConsumerIndex = lvConsumerIndex();
                     // use lookAheadStep to store the consumer distance from final buffer
                     producerLookAheadStep = -(int) (index - currConsumerIndex);
-                    producerLookAhead = currConsumerIndex + maxCapacity - 1;
+                    producerLimit = currConsumerIndex + maxCapacity - 1;
                 } else {
-                    producerLookAhead = index + producerMask - 1;
+                    producerLimit = index + producerMask - 1;
                     adjustLookAheadStep(newCapacity);
                 }
                 final long offsetInNew = calcElementOffset(index, producerMask);
                 soProducerIndex(index + 1);// this ensures correctness on 32bit platforms
                 soElement(newBuffer, offsetInNew, e);// StoreStore
-                soElement(buffer, nextArrayOffset(mask), newBuffer); // new buffer is visible after element is inserted
+                soNext(buffer, newBuffer); // new buffer is visible after element is inserted
                 soElement(buffer, offset, JUMP); // new buffer is visible after element is inserted // double the buffer and link old to new
             }
             return true;
@@ -107,7 +107,7 @@ public class SpscGrowableArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
                 return false;
             }
             // if consumerIndex progressed enough so that current size indicates it is on same buffer
-            long firstIndexInCurrentBuffer = producerLookAhead - maxCapacity + prevElementsInOtherBuffers;
+            long firstIndexInCurrentBuffer = producerLimit - maxCapacity + prevElementsInOtherBuffers;
             if (currConsumerIndex >= firstIndexInCurrentBuffer) {
                 // job done, we've now settled into our final state
                 adjustLookAheadStep(maxCapacity);
@@ -117,15 +117,12 @@ public class SpscGrowableArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
                 // how many elements out of buffer?
                 producerLookAheadStep = (int) (currConsumerIndex - firstIndexInCurrentBuffer);
             }
-            producerLookAhead = currConsumerIndex + maxCapacity;
+            producerLimit = currConsumerIndex + maxCapacity;
             writeToQueue(buffer, e, index, offset);
             return true;
         }
     }
 
-    private long nextArrayOffset(final long mask) {
-        return calcElementOffset(mask + 1, (mask << 1) + 1);
-    }
 
     private void adjustLookAheadStep(int capacity) {
         producerLookAheadStep = Math.min(capacity / 4, SpscArrayQueue.MAX_LOOK_AHEAD_STEP);
