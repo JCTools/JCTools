@@ -13,16 +13,13 @@
  */
 package org.jctools.queues;
 
-import org.jctools.util.Pow2;
-
 import static org.jctools.queues.CircularArrayOffsetCalculator.calcElementOffset;
-import static org.jctools.util.UnsafeRefArrayAccess.REF_ARRAY_BASE;
-import static org.jctools.util.UnsafeRefArrayAccess.REF_ELEMENT_SHIFT;
 import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
 import static org.jctools.util.UnsafeRefArrayAccess.soElement;
 
+import org.jctools.util.Pow2;
+
 public class SpscUnboundedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
-    private static final int MAX_LOOK_AHEAD_STEP = Integer.getInteger("jctools.spsc.max.lookahead.step", 4096);
 
     @SuppressWarnings("unchecked")
     public SpscUnboundedArrayQueue(final int chunkSize) {
@@ -31,49 +28,27 @@ public class SpscUnboundedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
         E[] buffer = (E[]) new Object[p2capacity + 1];
         producerBuffer = buffer;
         producerMask = mask;
-        producerLookAheadStep = Math.min(p2capacity / 4, MAX_LOOK_AHEAD_STEP);
+        producerLookAheadStep = Math.min(p2capacity / 4, SpscArrayQueue.MAX_LOOK_AHEAD_STEP);
         consumerBuffer = buffer;
         consumerMask = mask;
         producerLookAhead = mask - 1; // we know it's all empty to start with
         soProducerIndex(0L);
     }
 
-    /**
-     * {@inheritDoc}
-     * <p>
-     * This implementation is correct for single producer thread use only.
-     */
-    @Override
-    public final boolean offer(final E e) {
-        if (null == e) {
-            throw new NullPointerException();
-        }
-        // local load of field to avoid repeated loads after volatile reads
-        final E[] buffer = producerBuffer;
-        final long index = producerIndex;
-        final long mask = producerMask;
-        final long offset = calcElementOffset(index, mask);
-        if (index < producerLookAhead) {
+
+    protected boolean offerColdPath(final E[] buffer, final long mask, final E e, final long index, final long offset) {
+        final int lookAheadStep = producerLookAheadStep;
+        // go around the buffer or add a new buffer
+        long lookAheadElementOffset = calcElementOffset(index + lookAheadStep, mask);
+        if (null == lvElement(buffer, lookAheadElementOffset)) {// LoadLoad
+            producerLookAhead = index + lookAheadStep - 1; // joy, there's plenty of room
+            writeToQueue(buffer, e, index, offset);
+        } else if (null == lvElement(buffer, calcElementOffset(index + 1, mask))) { // buffer is not full
             writeToQueue(buffer, e, index, offset);
         } else {
-            final int lookAheadStep = producerLookAheadStep;
-            // go around the buffer or add a new buffer
-            long lookAheadElementOffset = calcElementOffset(index + lookAheadStep, mask);
-            if (null == lvElement(buffer, lookAheadElementOffset)) {// LoadLoad
-                producerLookAhead = index + lookAheadStep - 1; // joy, there's plenty of room
-                writeToQueue(buffer, e, index, offset);
-            } else if (null == lvElement(buffer, calcElementOffset(index + 1, mask))) { // buffer is not full
-                writeToQueue(buffer, e, index, offset);
-            } else {
-                linkNewBuffer(buffer, index, offset, e, mask); // add a buffer and link old to new
-            }
+            linkNewBuffer(buffer, index, offset, e, mask); // add a buffer and link old to new
         }
         return true;
-    }
-
-    private void writeToQueue(final E[] buffer, final E e, final long index, final long offset) {
-        soProducerIndex(index + 1);// this ensures atomic write of long on 32bit platforms
-        soElement(buffer, offset, e);
     }
 
     @SuppressWarnings("unchecked")
@@ -91,79 +66,4 @@ public class SpscUnboundedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
         soElement(oldBuffer, offset, JUMP);
     }
 
-    private void soNext(E[] curr, E[] next) {
-        soElement(curr, REF_ARRAY_BASE + ((long) (curr.length - 1) << REF_ELEMENT_SHIFT), next);
-    }
-    @SuppressWarnings("unchecked")
-	private E[] lvNext(E[] curr) {
-        final long nextArrayOffset = REF_ARRAY_BASE + ((long) (curr.length - 1) << REF_ELEMENT_SHIFT);
-        final E[] nextBuffer = (E[]) lvElement(curr, nextArrayOffset);
-        soElement(curr, nextArrayOffset, null);
-        return nextBuffer;
-    }
-    /**
-     * {@inheritDoc}
-     * <p>
-     * This implementation is correct for single consumer thread use only.
-     */
-    @SuppressWarnings("unchecked")
-    @Override
-    public final E poll() {
-        // local load of field to avoid repeated loads after volatile reads
-        final E[] buffer = consumerBuffer;
-        final long index = consumerIndex;
-        final long mask = consumerMask;
-        final long offset = calcElementOffset(index, mask);
-        final Object e = lvElement(buffer, offset);// LoadLoad
-        boolean isNextBuffer = e == JUMP;
-        if (null != e && !isNextBuffer) {
-            soConsumerIndex(index + 1);// this ensures correctness on 32bit platforms
-            soElement(buffer, offset, null);
-            return (E) e;
-        } else if (isNextBuffer) {
-            return newBufferPoll(buffer, index, mask);
-        }
-
-        return null;
-    }
-
-    @SuppressWarnings("unchecked")
-    private E newBufferPoll(E[] buffer, final long index, final long mask) {
-        E[] nextBuffer = lvNext(buffer);
-        consumerBuffer = nextBuffer;
-        final long offsetInNew = calcElementOffset(index, mask);
-        final E n = lvElement(nextBuffer, offsetInNew);// LoadLoad
-        soConsumerIndex(index + 1);// this ensures correctness on 32bit platforms
-        soElement(nextBuffer, offsetInNew, null);
-        // prevent extended retention if the buffer is in old gen and the nextBuffer is in young gen
-        soNext(buffer, null);
-        return n;
-    }
-
-    /**
-     * {@inheritDoc}
-     * <p>
-     * This implementation is correct for single consumer thread use only.
-     */
-    @SuppressWarnings("unchecked")
-    @Override
-    public final E peek() {
-        final E[] buffer = consumerBuffer;
-        final long index = consumerIndex;
-        final long mask = consumerMask;
-        final long offset = calcElementOffset(index, mask);
-        final Object e = lvElement(buffer, offset);// LoadLoad
-        if (e == JUMP) {
-            return newBufferPeek(lvNext(buffer), index, mask);
-        }
-
-        return (E) e;
-    }
-
-    @SuppressWarnings("unchecked")
-    private E newBufferPeek(E[] nextBuffer, final long index, final long mask) {
-        consumerBuffer = nextBuffer;
-        final long offsetInNew = calcElementOffset(index, mask);
-        return lvElement(nextBuffer, offsetInNew);// LoadLoad
-    }
 }

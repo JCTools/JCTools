@@ -45,30 +45,8 @@ public class SpscGrowableArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
         soProducerIndex(0L);// serves as a StoreStore barrier to support correct publication
     }
 
-    /**
-     * {@inheritDoc}
-     * <p>
-     * This implementation is correct for single producer thread use only.
-     */
-    @Override
-    public final boolean offer(final E e) {
-        if (null == e) {
-            throw new NullPointerException();
-        }
-        // local load of field to avoid repeated loads after volatile reads
-        final E[] buffer = producerBuffer;
-        final long index = producerIndex;
-        final long mask = producerMask;
-        final long offset = calcElementOffset(index, mask);
-        // expected hot path
-        if (index < producerLookAhead) {
-            writeToQueue(buffer, e, index, offset);
-            return true;
-        }
-        return offerColdPath(e, buffer, index, mask, offset);
-    }
 
-    private boolean offerColdPath(final E e, final E[] buffer, final long index, final long mask,
+    protected boolean offerColdPath(final E[] buffer, final long mask, final E e, final long index,
             final long offset) {
         final int lookAheadStep = producerLookAheadStep;
         // normal case, go around the buffer or resize if full (unless we hit max capacity)
@@ -145,92 +123,8 @@ public class SpscGrowableArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
         }
     }
 
-    private void writeToQueue(final E[] buffer, final E e, final long index, final long offset) {
-        soProducerIndex(index + 1);// this ensures atomic write of long on 32bit platforms
-        soElement(buffer, offset, e);// StoreStore
-    }
-
-    /**
-     * {@inheritDoc}
-     * <p>
-     * This implementation is correct for single consumer thread use only.
-     */
-    @SuppressWarnings("unchecked")
-    @Override
-    public final E poll() {
-        // local load of field to avoid repeated loads after volatile reads
-        final E[] buffer = consumerBuffer;
-        final long index = consumerIndex;
-
-        final long mask = consumerMask;
-        final long offset = calcElementOffset(index, mask);
-        final Object e = lvElement(buffer, offset);// LoadLoad
-        if (null != e) {
-            if(e == JUMP) {
-                final E[] nextBuffer = getNextBuffer(buffer, mask);
-                return newBufferPoll(nextBuffer, index);
-            }
-            soConsumerIndex(index + 1);// this ensures size correctness on 32bit platforms
-            soElement(buffer, offset, null);// StoreStore
-        }
-        return (E) e;
-    }
-
-    @SuppressWarnings("unchecked")
-    private E[] getNextBuffer(final E[] buffer, final long mask) {
-        final long nextArrayOffset = nextArrayOffset(mask);
-        final E[] nextBuffer = (E[]) lvElement(buffer, nextArrayOffset);
-        soElement(buffer, nextArrayOffset, null);
-        return nextBuffer;
-    }
-
     private long nextArrayOffset(final long mask) {
-        return calcElementOffset(mask+1,mask<<1 + 1);
-    }
-
-    private E newBufferPoll(E[] nextBuffer, final long index) {
-        consumerBuffer = nextBuffer;
-        final long newMask = nextBuffer.length - 2;
-        consumerMask = newMask;
-        final long offsetInNew = calcElementOffset(index, newMask);
-        final E n = lvElement(nextBuffer, offsetInNew);// LoadLoad
-        if (null == n) {
-            throw new IllegalStateException("new buffer must have at least one element");
-        } else {
-            soConsumerIndex(index + 1);// this ensures correctness on 32bit platforms
-            soElement(nextBuffer, offsetInNew, null);// StoreStore
-            return n;
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     * <p>
-     * This implementation is correct for single consumer thread use only.
-     */
-    @SuppressWarnings("unchecked")
-    @Override
-    public final E peek() {
-        final E[] buffer = consumerBuffer;
-        final long index = consumerIndex;
-        final long mask = consumerMask;
-        final long offset = calcElementOffset(index, mask);
-        final Object e = lvElement(buffer, offset);// LoadLoad
-        if (null == e) {
-            return null;
-        }
-        if (e == JUMP) {
-            return newBufferPeek(getNextBuffer(buffer,mask), index);
-        }
-        return (E) e;
-    }
-
-    private E newBufferPeek(E[] nextBuffer, final long index) {
-        consumerBuffer = nextBuffer;
-        final long newMask = nextBuffer.length - 2;
-        consumerMask = newMask;
-        final long offsetInNew = calcElementOffset(index, newMask);
-        return lvElement(nextBuffer, offsetInNew);// LoadLoad
+        return calcElementOffset(mask + 1, (mask << 1) + 1);
     }
 
     private void adjustLookAheadStep(int capacity) {
