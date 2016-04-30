@@ -48,7 +48,7 @@ abstract class SpscArrayQueueProducerFields<E> extends SpscArrayQueueL1Pad<E> {
         }
     }
     protected long producerIndex;
-    protected long producerLookAhead;
+    protected long producerLimit;
 
     public SpscArrayQueueProducerFields(int capacity) {
         super(capacity);
@@ -119,7 +119,7 @@ public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E>  implement
         final long mask = this.mask;
         final long producerIndex = this.producerIndex;
 
-        if (producerIndex >= producerLookAhead &&
+        if (producerIndex >= producerLimit &&
                 !offerSlowPath(buffer, mask, producerIndex)) {
             return false;
         }
@@ -133,7 +133,7 @@ public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E>  implement
     private boolean offerSlowPath(final E[] buffer, final long mask, final long producerIndex) {
         final int lookAheadStep = this.lookAheadStep;
         if (null == lvElement(buffer, calcElementOffset(producerIndex + lookAheadStep, mask))) {// LoadLoad
-            producerLookAhead = producerIndex + lookAheadStep;
+            producerLimit = producerIndex + lookAheadStep;
         }
         else{
             final long offset = calcElementOffset(producerIndex, mask);
