@@ -1,0 +1,27 @@
+group 'org.jctools'
+version '1.0-SNAPSHOT'
+
+buildscript {
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath 'com.github.jengelman.gradle.plugins:shadow:1.2.3'
+    }
+}
+
+apply plugin: 'java'
+apply plugin: 'com.github.johnrengelman.shadow'
+
+shadowJar {
+    relocate 'org.jctools', 'my.project.jctools'
+    classifier = ''
+}
+
+repositories {
+    mavenLocal()
+}
+
+dependencies {
+    compile 'org.jctools:jctools-core:1.2-SNAPSHOT'
+}
