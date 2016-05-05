@@ -13,9 +13,11 @@ command from the parent folder to avoid missed changes from other packages.
 Running the benchmarks: General
 -------
 It is recommended that you consider some basic benchmarking practices before running benchmarks:
-1. Use a quiet machine with enough CPUs to run the number of threads you mean to run.
-2. Set the CPU freq to avoid variance due to turbo boost/heating.
-3. Use an OS tool such as taskset to pin the threads in the topology you mean to measure.
+
+ 1. Use a quiet machine with enough CPUs to run the number of threads you mean to run.
+ 2. Set the CPU freq to avoid variance due to turbo boost/heating.
+ 3. Use an OS tool such as taskset to pin the threads in the topology you mean to measure.
+
 The benchmarks included are both JMH benchmarks(under org.jctools.jmh) and some handrolled benchmarks (under
 org.jctools.handrolled). At the moment the queue type is set using a system property 'q.type' though in the near future
 we should switch to using JMH parameters where possible for JMH.
