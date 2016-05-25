@@ -106,23 +106,20 @@ public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueConsumerField
     }
 
     /**
-     * @param initialCapacity
-     *            the queue initial capacity. If chunk size is fixed this will be the chunk size. Must be 2 or
-     *            more.
-     * @param maxCapacity
-     *            the maximum capacity will be rounded up to the closest power of 2 and will be the upper
-     *            limit of number of elements in this queue. Must be 4 or more and round up to a larger power
-     *            of 2 than initialCapacity.
-     * @param fixedChunkSize
-     *            if true the queue will grow in fixed sized chunks the size of initial capacity, otherwise
-     *            chunk size will double on each resize until reaching the maxCapacity
+     * @param initialCapacity the queue initial capacity. If chunk size is fixed this will be the chunk size.
+     *        Must be 2 or more.
+     * @param maxCapacity the maximum capacity will be rounded up to the closest power of 2 and will be the
+     *        upper limit of number of elements in this queue. Must be 4 or more and round up to a larger
+     *        power of 2 than initialCapacity.
+     * @param fixedChunkSize if true the queue will grow in fixed sized chunks the size of initial capacity,
+     *        otherwise chunk size will double on each resize until reaching the maxCapacity
      */
     public MpscChunkedArrayQueue(final int initialCapacity, int maxCapacity, boolean fixedChunkSize) {
         if (initialCapacity < 2) {
             throw new IllegalArgumentException("Initial capacity must be 2 or more");
         }
         if (maxCapacity < 4) {
-            throw new IllegalArgumentException("Initial capacity must be 4 or more");
+            throw new IllegalArgumentException("Max capacity must be 4 or more");
         }
         if (Pow2.roundToPowerOfTwo(initialCapacity) >= Pow2.roundToPowerOfTwo(maxCapacity)) {
             throw new IllegalArgumentException(
@@ -138,7 +135,7 @@ public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueConsumerField
         producerMask = mask;
         consumerBuffer = buffer;
         consumerMask = mask;
-        maxQueueCapacity = Pow2.roundToPowerOfTwo(maxCapacity) << 1;
+        maxQueueCapacity = ((long)Pow2.roundToPowerOfTwo(maxCapacity)) << 1;
         isFixedChunkSize = fixedChunkSize;
         soProducerLimit(mask); // we know it's all empty to start with
     }

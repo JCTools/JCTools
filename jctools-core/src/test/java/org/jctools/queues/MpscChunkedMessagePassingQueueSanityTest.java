@@ -5,6 +5,7 @@ import java.util.Collection;
 
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
+import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -20,5 +21,13 @@ public class MpscChunkedMessagePassingQueueSanityTest extends MessagePassingQueu
 
     public MpscChunkedMessagePassingQueueSanityTest(ConcurrentQueueSpec spec, MessagePassingQueue<Integer> queue) {
         super(spec, queue);
+    }
+
+    @Test
+    public void testMaxSizeQueue() {
+        MpscChunkedArrayQueue queue = new MpscChunkedArrayQueue<Object>(1024, 1000*1024*1024, true);
+        for (int i = 0 ; i < 400001; i++) {
+            queue.offer(i);
+        }
     }
 }
