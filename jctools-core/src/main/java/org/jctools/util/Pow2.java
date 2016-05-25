@@ -17,23 +17,25 @@ package org.jctools.util;
  * Power of 2 utility functions.
  */
 public final class Pow2 {
+    public static final int MAX_POW2 = 1 << 30;
+
     private Pow2() {
     }
 
     /**
-     * Find the next larger positive power of two value up from the given value. If value is a power of two then this
-     * value will be returned.
-     *
      * @param value from which next positive power of two will be found.
-     * @return the next positive power of 2 or this value if it is a power of 2.
+     * @return the next positive power of 2, this value if it is a power of 2. Negative values are mapped to 1.
+     * @throws IllegalArgumentException is value is more than MAX_POW2
      */
     public static int roundToPowerOfTwo(final int value) {
-        return 1 << (32 - Integer.numberOfLeadingZeros(value - 1));
+        if (value > MAX_POW2) {
+            throw new IllegalArgumentException("There is no larger power of 2 int for value:"+value+" since it exceeds 2^31.");
+        }
+        final int nextPow2 = 1 << (32 - Integer.numberOfLeadingZeros(value - 1));
+        return nextPow2;
     }
 
     /**
-     * Is this value a power of two.
-     *
      * @param value to be tested to see if it is a power of two.
      * @return true if the value is a power of 2 otherwise false.
      */
@@ -42,9 +44,9 @@ public final class Pow2 {
     }
 
     /**
-     * Align a value to the next multiple up of alignment. If the value equals an alignment multiple then it is returned
-     * unchanged.
-     * 
+     * Align a value to the next multiple up of alignment. If the value equals an alignment multiple then it
+     * is returned unchanged.
+     *
      * @param value to be aligned up.
      * @param alignment to be used, must be a power of 2.
      * @return the value aligned to the next boundary.
