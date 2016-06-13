@@ -86,10 +86,11 @@ public class SpscGrowableArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
                     adjustLookAheadStep(newCapacity);
                 }
                 final long offsetInNew = calcElementOffset(index, producerMask);
-                soProducerIndex(index + 1);// this ensures correctness on 32bit platforms
                 soElement(newBuffer, offsetInNew, e);// StoreStore
                 soNext(buffer, newBuffer); // new buffer is visible after element is inserted
-                soElement(buffer, offset, JUMP); // new buffer is visible after element is inserted // double the buffer and link old to new
+                soElement(buffer, offset, JUMP); // new buffer is visible after element is inserted
+                // index is visible after elements (isEmpty/poll ordering)
+                soProducerIndex(index + 1);// this ensures correctness on 32bit platforms
             }
             return true;
         }

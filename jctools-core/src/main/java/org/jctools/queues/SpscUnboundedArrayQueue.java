@@ -60,10 +60,12 @@ public class SpscUnboundedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
         producerLimit = currIndex + mask - 1;
 
         // write to new buffer
-        writeToQueue(newBuffer, e, currIndex, offset);
+        soElement(newBuffer, offset, e);// StoreStore
         // link to next buffer and add next indicator as element of old buffer
         soNext(oldBuffer, newBuffer);
         soElement(oldBuffer, offset, JUMP);
+        // index is visible after elements (isEmpty/poll ordering)
+        soProducerIndex(currIndex + 1);// this ensures atomic write of long on 32bit platforms
     }
 
 }

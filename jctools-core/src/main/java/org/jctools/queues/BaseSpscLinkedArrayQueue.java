@@ -109,12 +109,12 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueConsu
     public long currentConsumerIndex() {
         return lvConsumerIndex();
     }
-    
+
 
     protected final void soNext(E[] curr, E[] next) {
         soElement(curr, nextArrayOffset(curr), next);
     }
-    
+
     @SuppressWarnings("unchecked")
     protected final E[] lvNext(E[] curr) {
         final long nextArrayOffset = nextArrayOffset(curr);
@@ -126,7 +126,7 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueConsu
     private long nextArrayOffset(E[] curr) {
         return REF_ARRAY_BASE + ((long) (curr.length - 1) << REF_ELEMENT_SHIFT);
     }
-    
+
     /**
      * {@inheritDoc}
      * <p>
@@ -149,13 +149,13 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueConsu
         }
         return offerColdPath(buffer, mask, e, index, offset);
     }
-    
+
 
     protected abstract boolean offerColdPath(E[] buffer, long mask, E e, long index, long offset);
 
     protected final void writeToQueue(final E[] buffer, final E e, final long index, final long offset) {
-        soProducerIndex(index + 1);// this ensures atomic write of long on 32bit platforms
         soElement(buffer, offset, e);// StoreStore
+        soProducerIndex(index + 1);// this ensures atomic write of long on 32bit platforms
     }
     /**
      * {@inheritDoc}
