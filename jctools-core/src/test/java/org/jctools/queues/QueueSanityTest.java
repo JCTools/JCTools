@@ -280,7 +280,41 @@ public class QueueSanityTest {
         assertEquals("Unexpected size observed", 0, fail.value);
 
     }
+    @Test
+    public void testPollAfterIsEmpty() throws Exception {
+        final AtomicBoolean stop = new AtomicBoolean();
+        final Queue<Integer> q = queue;
+        final Val fail = new Val();
+        Thread t1 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while (!stop.get()) {
+                    q.offer(1);
+                    // slow down the producer, this will make the queue mostly empty encouraging visibility issues.
+                    Thread.yield();
+                }
+            }
+        });
+        Thread t2 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while (!stop.get()) {
+                    if (!q.isEmpty() && q.poll() == null) {
+                        fail.value++;
+                    }
+                }
+            }
+        });
 
+        t1.start();
+        t2.start();
+        Thread.sleep(1000);
+        stop.set(true);
+        t1.join();
+        t2.join();
+        assertEquals("Observed no element in non-empty queue", 0, fail.value);
+
+    }
     public static Object[] makeQueue(int producers, int consumers, int capacity, Ordering ordering, Queue<Integer> q) {
         ConcurrentQueueSpec spec = new ConcurrentQueueSpec(producers, consumers, capacity, ordering,
                 Preference.NONE);
