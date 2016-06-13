@@ -88,8 +88,8 @@ public class SpscUnboundedAtomicArrayQueue<E> extends AbstractQueue<E> implement
     }
 
     private boolean writeToQueue(final AtomicReferenceArray<Object> buffer, final E e, final long index, final int offset) {
-        soProducerIndex(index + 1);// this ensures atomic write of long on 32bit platforms
         soElement(buffer, offset, e);// StoreStore
+        soProducerIndex(index + 1);// this ensures atomic write of long on 32bit platforms
         return true;
     }
 
@@ -99,11 +99,10 @@ public class SpscUnboundedAtomicArrayQueue<E> extends AbstractQueue<E> implement
         final AtomicReferenceArray<Object> newBuffer = new AtomicReferenceArray<Object>(capacity);
         producerBuffer = newBuffer;
         producerLookAhead = currIndex + mask - 1;
-        soProducerIndex(currIndex + 1);// this ensures correctness on 32bit platforms
         soElement(newBuffer, offset, e);// StoreStore
         soNext(oldBuffer, newBuffer);
-        soElement(oldBuffer, offset, HAS_NEXT); // new buffer is visible after element is
-                                                                 // inserted
+        soElement(oldBuffer, offset, HAS_NEXT); // new buffer is visible after element is inserted
+        soProducerIndex(currIndex + 1);// this ensures correctness on 32bit platforms
     }
 
     private void soNext(AtomicReferenceArray<Object> curr, AtomicReferenceArray<Object> next) {
