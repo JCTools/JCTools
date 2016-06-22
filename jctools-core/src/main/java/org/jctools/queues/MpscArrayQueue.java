@@ -156,38 +156,36 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E>implements 
     }
 
     /**
-     * Attempts {@link MpscArrayQueue#offer(E)}} if and only if the current availability is above the
-     * threshold.
+     * {@link MpscArrayQueue#offer(E)}} if {@link MpscArrayQueue#size()} is less than threshold.
      *
-     * @param e
-     *            the object to offer onto the queue.
-     * @param threshold
-     *            as absolute number to be compared to the current queue size.
-     * @return whether the offer is successful.
+     * @param e the object to offer onto the queue.
+     * @param threshold the minimum number of available slots.
+     * @return true if the offer is successful, false if queue size exceeds threshold.
      * @since 1.0.1
      */
-    public boolean offerIfBelowTheshold(final E e, int threshold) {
+    public boolean offerIfBelowThreshold(final E e, int threshold) {
         if (null == e) {
             throw new NullPointerException();
         }
-        // use a cached view on consumer index (potentially updated in loop)
         final long mask = this.mask;
+        final long capacity = mask + 1;
+
         long producerLimit = lvProducerLimit(); // LoadLoad
         long pIndex;
         do {
             pIndex = lvProducerIndex(); // LoadLoad
-
             long available = producerLimit - pIndex;
-            if (available >= threshold) {
+            long size = capacity - available;
+            if (size >= threshold) {
                 final long cIndex = lvConsumerIndex(); // LoadLoad
-                final long capacity = mask + 1;
-                final long wrapPoint = pIndex - threshold;
-                if (cIndex <= wrapPoint) {
-                    return false; // FULL :(
+                size = pIndex - cIndex;
+                if (size >= threshold) {
+                    return false; // the size exceeds threshold
                 }
                 else {
                     // update producer limit to the next index that we must recheck the consumer index
                     producerLimit = cIndex + capacity;
+
                     // this is racy, but the race is benign
                     soProducerLimit(producerLimit);
                 }
@@ -254,8 +252,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E>implements 
     /**
      * A wait free alternative to offer which fails on CAS failure.
      *
-     * @param e
-     *            new element, not null
+     * @param e new element, not null
      * @return 1 if next element cannot be filled, -1 if CAS failed, 0 if successful
      */
     public final int failFastOffer(final E e) {
