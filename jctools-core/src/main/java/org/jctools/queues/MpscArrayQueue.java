@@ -158,9 +158,9 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E>implements 
     /**
      * {@link MpscArrayQueue#offer(E)}} if {@link MpscArrayQueue#size()} is less than threshold.
      *
-     * @param e the object to offer onto the queue.
-     * @param threshold the minimum number of available slots.
-     * @return true if the offer is successful, false if queue size exceeds threshold.
+     * @param e the object to offer onto the queue, not null
+     * @param threshold the maximum allowable size
+     * @return true if the offer is successful, false if queue size exceeds threshold
      * @since 1.0.1
      */
     public boolean offerIfBelowThreshold(final E e, int threshold) {
