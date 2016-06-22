@@ -6,6 +6,7 @@ import java.util.Queue;
 
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
+import org.junit.Ignore;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -30,7 +31,14 @@ public class MpscOfferBelowThresholdQueueSanityTest extends QueueSanityTest {
     @Parameterized.Parameters
     public static Collection<Object[]> parameters() {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
-        list.add(makeQueue(0, 1, 8, Ordering.FIFO, new MpscArrayQueueOverride<Integer>(16)));
+        MpscArrayQueueOverride<Integer> q = new MpscArrayQueueOverride<Integer>(16);
+        list.add(makeQueue(0, 1, 8, Ordering.FIFO, q));
+        q = new MpscArrayQueueOverride<Integer>(16);
+        q.threshold = 12;
+        list.add(makeQueue(0, 1, 12, Ordering.FIFO, q));
+        q = new MpscArrayQueueOverride<Integer>(16);
+        q.threshold = 4;
+        list.add(makeQueue(0, 1, 4, Ordering.FIFO, q));
         return list;
     }
 
@@ -38,4 +46,7 @@ public class MpscOfferBelowThresholdQueueSanityTest extends QueueSanityTest {
         super(spec, queue);
     }
 
+    @Ignore
+    public void testPowerOf2Capacity() {
+    }
 }
