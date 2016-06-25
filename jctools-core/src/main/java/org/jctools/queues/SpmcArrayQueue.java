@@ -18,10 +18,6 @@ import static org.jctools.util.UnsafeRefArrayAccess.lpElement;
 import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
 import static org.jctools.util.UnsafeRefArrayAccess.soElement;
 
-import org.jctools.queues.MessagePassingQueue.Consumer;
-import org.jctools.queues.MessagePassingQueue.ExitCondition;
-import org.jctools.queues.MessagePassingQueue.Supplier;
-import org.jctools.queues.MessagePassingQueue.WaitStrategy;
 import org.jctools.util.UnsafeRefArrayAccess;
 
 abstract class SpmcArrayQueueL1Pad<E> extends ConcurrentCircularArrayQueue<E> {
@@ -350,9 +346,6 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
 
     @Override
     public void drain(final Consumer<E> c, final WaitStrategy w, final ExitCondition exit) {
-        final E[] buffer = this.buffer;
-        final long mask = this.mask;
-
         int idleCounter = 0;
         while (exit.keepRunning()) {
             if(drain(c, MpmcArrayQueue.RECOMENDED_POLL_BATCH) == 0) {
