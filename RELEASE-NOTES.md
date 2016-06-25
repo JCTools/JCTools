@@ -10,7 +10,7 @@
 
 1.2
 ==========
-- Added MpscChunkedArrayQueue an MPSC bounded queue aiming to replace current usage of MpscLinkedQueue in usecases where low footprint AND low GC churn are desirable. This is acheived through usage of smaller buffers which are then linked to either bigger buffers or same sized buffers as queue size demands.
+- Added MpscChunkedArrayQueue an MPSC bounded queue aiming to replace current usage of MpscLinkedQueue in usecases where low footprint AND low GC churn are desirable. This is achieved through usage of smaller buffers which are then linked to either bigger buffers or same sized buffers as queue size demands.
 - Fixed a GC nepotism issue in linked queues. This is not a bug but an observable generational GC side effect causing false promotion of linked nodes because of a reference from a promoted dead node. See discussion here: https://github.com/akka/akka/issues/19216
 - Fixed an inconsistently handled exception on offering null elements. This was a bug in MpmcArrayQueue.
 - Formatting and refactoring
