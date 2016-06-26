@@ -17,13 +17,17 @@ public class Pow2Test {
     public void testRound() {
         assertEquals(4, Pow2.roundToPowerOfTwo(4));
         assertEquals(4, Pow2.roundToPowerOfTwo(3));
-        assertEquals(1, Pow2.roundToPowerOfTwo(-1));
-        assertEquals(1, Pow2.roundToPowerOfTwo(-132340293));
+        assertEquals(1, Pow2.roundToPowerOfTwo(0));
         assertEquals(MAX_POSITIVE_POW2, Pow2.roundToPowerOfTwo(MAX_POSITIVE_POW2));
     }
     @Test(expected=IllegalArgumentException.class)
     public void testMaxRoundException() {
         Pow2.roundToPowerOfTwo(MAX_POSITIVE_POW2 + 1);
+        fail();
+    }
+    @Test(expected=IllegalArgumentException.class)
+    public void testNegativeRoundException() {
+        Pow2.roundToPowerOfTwo(-1);
         fail();
     }
 }
