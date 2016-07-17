@@ -51,6 +51,10 @@ public class HandrolledHarness extends Thread {
   }
 
   public static void main( String args[] ) {
+      if (args.length == 0) {
+          args = new String[]{"2","8","2","0"};
+      }
+
     // Parse args
     try {
       _thread_min   = check( args[0], "thread_min", 1, 100000 );
