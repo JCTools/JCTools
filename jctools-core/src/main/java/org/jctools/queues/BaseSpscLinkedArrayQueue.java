@@ -18,8 +18,8 @@ abstract class BaseSpscLinkedArrayQueuePrePad<E> extends AbstractQueue<E> {
 }
 abstract class BaseSpscLinkedArrayQueueProducerColdFields<E> extends BaseSpscLinkedArrayQueuePrePad<E> {
     protected int maxQueueCapacity; // ignored by the unbounded implementation
-    protected int producerLookAheadStep;
-    protected long producerLimit;
+    protected long producerQueueLimit;
+    protected long producerBufferLimit;
     protected long producerMask;
     protected E[] producerBuffer;
 }
@@ -143,7 +143,7 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueConsu
         final long mask = producerMask;
         final long offset = calcElementOffset(index, mask);
         // expected hot path
-        if (index < producerLimit) {
+        if (index < producerBufferLimit) {
             writeToQueue(buffer, e, index, offset);
             return true;
         }
