@@ -45,7 +45,7 @@ public class SetOps {
     int occupancy;
     @Param("2048")
     int keyBound;
-    @Param({ "java.util.HashSet", "org.jctools.sets.OpenHashSet" })
+    @Param({ "java.util.HashSet", "org.jctools.sets.OpenHashSet"})//, "koloboke" })
     String type;
     private Set<Key> set;
     private Key key;
@@ -53,7 +53,7 @@ public class SetOps {
     @Setup(Level.Trial)
     public void prepare() throws Exception {
         set = createSet(type, size);
-        Random r = new Random(System.currentTimeMillis());
+        Random r = new Random(666);
 
         for (int i = 0; i < occupancy - 1; i++) {
             set.add(new Key(r.nextInt(keyBound)));
@@ -71,12 +71,12 @@ public class SetOps {
     public boolean remove() {
         return set.remove(key);
     }
-    
+
     @Benchmark
     public boolean contains() {
         return set.contains(key);
     }
-    
+
     @Benchmark
     public int sum() {
         int sum = 0;
@@ -88,6 +88,10 @@ public class SetOps {
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
     public static Set<Key> createSet(String queueType, final int capacity) throws Exception {
+//        if(queueType.equals("koloboke")) {
+//            return HashObjSets.newMutableSet(capacity);
+//        }
+
         Class clazz = Class.forName(queueType);
         Constructor constructor;
         constructor = clazz.getConstructor(Integer.TYPE);
