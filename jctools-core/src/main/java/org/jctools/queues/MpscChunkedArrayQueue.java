@@ -195,6 +195,9 @@ public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueConsumerField
         return true;
     }
 
+    /**
+     * We do not inline resize into this method because we do not resize on fill.
+     */
     private int offerSlowPath(long mask, E[] buffer, long pIndex, long producerLimit) {
         int result;
         final long consumerIndex = lvConsumerIndex();
