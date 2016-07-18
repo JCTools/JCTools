@@ -101,7 +101,6 @@ public class OpenHashSet<E> extends AbstractSet<E> {
     public boolean remove(Object val) {
         final E[] buffer = this.buffer;
         final int mask = buffer.length - 1;
-        final int hashCode = val.hashCode();
         final int hash = rehash(val.hashCode());
         final int offset = hash & mask;
         final E e = buffer[offset];
@@ -118,11 +117,10 @@ public class OpenHashSet<E> extends AbstractSet<E> {
             }
             return true;
         }
-        return removeSlowPath(val, buffer, mask, hashCode, hash);
+        return removeSlowPath(val, buffer, mask, hash);
     }
 
-    private boolean removeSlowPath(Object val, final E[] buffer, final int mask, final int hashCode,
-            final int hash) {
+    private boolean removeSlowPath(Object val, final E[] buffer, final int mask, final int hash) {
         final int limit = hash + mask;
         for (int searchIndex = hash + 1; searchIndex <= limit; searchIndex++) {
             final int offset = searchIndex & mask;
@@ -151,30 +149,32 @@ public class OpenHashSet<E> extends AbstractSet<E> {
         // remove(9a): [9a,9b,10a,9c,10b,11a,null] -> [9b,9c,10a,10b,null,11a,null]
         removeHashIndex = removeHashIndex & mask;
         int j = removeHashIndex;
-        while(true) {
+        while (true) {
             int k;
+            E slotJ;
             // skip elements which belong where they are
             do {
                 // j := (j+1) modulo num_slots
                 j = (j + 1) & mask;
+                slotJ = buffer[j];
                 // if slot[j] is unoccupied exit
-                if (buffer[j] == null) {
+                if (slotJ == null) {
                     // delete last duplicate slot
                     buffer[removeHashIndex] = null;
                     return;
                 }
 
                 // k := hash(slot[j].key) modulo num_slots
-                k = rehash(buffer[j].hashCode()) & mask;
+                k = rehash(slotJ.hashCode()) & mask;
                 // determine if k lies cyclically in [i,j]
                 // |    i.k.j |
                 // |....j i.k.| or  |.k..j i...|
             }
-            while ( (removeHashIndex  <= j) ?
+            while ( (removeHashIndex <= j) ?
                     ((removeHashIndex < k) && (k <= j)) :
                     ((removeHashIndex < k) || (k <= j)) );
             // slot[removeHashIndex] := slot[j]
-            buffer[removeHashIndex] = buffer[j];
+            buffer[removeHashIndex] = slotJ;
             // removeHashIndex := j
             removeHashIndex = j;
         }

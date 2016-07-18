@@ -31,7 +31,7 @@ public class IdentityOpenHashSet<E> extends AbstractSet<E> {
         final E[] buffer = this.buffer;
         final int mask = buffer.length - 1;
 
-        final int hash = rehash(newVal.hashCode());
+        final int hash = System.identityHashCode(newVal);
         final int offset = hash & mask;
         final E currVal = buffer[offset];
 
@@ -51,7 +51,7 @@ public class IdentityOpenHashSet<E> extends AbstractSet<E> {
     }
 
     private void addForResize(final E[] buffer, final int mask, E newVal) {
-        final int hash = rehash(newVal.hashCode());
+        final int hash = System.identityHashCode(newVal);
         final int limit = hash + mask;
         for (int i = hash; i <= limit; i++) {
             final int offset = i & mask;
@@ -101,8 +101,7 @@ public class IdentityOpenHashSet<E> extends AbstractSet<E> {
     public boolean remove(Object val) {
         final E[] buffer = this.buffer;
         final int mask = buffer.length - 1;
-        final int hashCode = val.hashCode();
-        final int hash = rehash(val.hashCode());
+        final int hash = System.identityHashCode(val);
         final int offset = hash & mask;
         final E e = buffer[offset];
         if (e == null) {
@@ -118,11 +117,10 @@ public class IdentityOpenHashSet<E> extends AbstractSet<E> {
             }
             return true;
         }
-        return removeSlowPath(val, buffer, mask, hashCode, hash);
+        return removeSlowPath(val, buffer, mask, hash);
     }
 
-    private boolean removeSlowPath(Object val, final E[] buffer, final int mask, final int hashCode,
-            final int hash) {
+    private boolean removeSlowPath(Object val, final E[] buffer, final int mask, final int hash) {
         final int limit = hash + mask;
         for (int searchIndex = hash + 1; searchIndex <= limit; searchIndex++) {
             final int offset = searchIndex & mask;
@@ -165,7 +163,7 @@ public class IdentityOpenHashSet<E> extends AbstractSet<E> {
                 }
 
                 // k := hash(slot[j].key) modulo num_slots
-                k = rehash(buffer[j].hashCode()) & mask;
+                k = System.identityHashCode(buffer[j]) & mask;
                 // determine if k lies cyclically in [i,j]
                 // |    i.k.j |
                 // |....j i.k.| or  |.k..j i...|
@@ -180,16 +178,12 @@ public class IdentityOpenHashSet<E> extends AbstractSet<E> {
         }
     }
 
-    private int rehash(int h) {
-        return h ^ (h >>> 16);
-    }
-
     @Override
     public boolean contains(Object needle) {
         // contains takes a snapshot of the buffer.
         final E[] buffer = this.buffer;
         final int mask = buffer.length - 1;
-        final int hash = rehash(needle.hashCode());
+        final int hash = System.identityHashCode(needle);
         final E e = buffer[hash & mask];
         if (e == null) {
             return false;
@@ -218,7 +212,7 @@ public class IdentityOpenHashSet<E> extends AbstractSet<E> {
         return new Iter<E>(this);
     }
 
-    private final static class Iter<E> implements Iterator<E> {
+    private static class Iter<E> implements Iterator<E> {
         private final E[] buffer;
         private final IdentityOpenHashSet<E> set;
         private int nextValIndex;
