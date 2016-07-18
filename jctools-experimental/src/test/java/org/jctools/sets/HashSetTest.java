@@ -13,6 +13,11 @@ import static org.junit.Assert.*;
 public class HashSetTest {
 
     static class Key {
+        @Override
+        public String toString() {
+            return "Key [hash=" + hash + "]";
+        }
+
         final int hash;
 
         Key(int i) {
@@ -30,7 +35,8 @@ public class HashSetTest {
 
     @Parameterized.Parameters
     public static Collection sets() {
-        return Arrays.asList(a(new OpenHashSet<Key>(128)), a(new SingleWriterHashSet<Key>(128)),
+        return Arrays.asList(a(new OpenHashSet<Key>(128)),
+                a(new SingleWriterHashSet<Key>(128)),
                 a(new IdentityOpenHashSet<Key>(128)));
     }
 
@@ -47,8 +53,13 @@ public class HashSetTest {
 
     @After
     public void clear() {
-        set.clear();
-        assertEquals(0, set.size());
+        Iterator it = set.iterator();
+        int i = set.size();
+        while (it.hasNext() && i-- > 0) {
+            it.next();
+            it.remove();
+        }
+        assertEquals(set.toString(),0, set.size());
     }
     @Test
     public void testAddRemove() {
@@ -92,17 +103,12 @@ public class HashSetTest {
         }
 
         HashSet<Key> setRef = new HashSet<>();
-        for (int i = 0; i < keys.length; i++) {
-            final Key e = keys[r.nextInt(keys.length)];
+        long until = System.currentTimeMillis() + 1000;
+        while (System.currentTimeMillis() < until) {
+            Key e = keys[r.nextInt(keys.length)];
             assertEquals(setRef.add(e), set.add(e));
-        }
-        for (int i = 0; i < keys.length; i++) {
-            final Key e = keys[r.nextInt(keys.length)];
+            e = keys[r.nextInt(keys.length)];
             assertEquals(setRef.remove(e), set.remove(e));
-        }
-        for (int i = 0; i < keys.length; i++) {
-            final Key e = keys[r.nextInt(keys.length)];
-            assertEquals(setRef.add(e), set.add(e));
         }
         assertEquals(setRef.size(), set.size());
         assertTrue(setRef.containsAll(set));

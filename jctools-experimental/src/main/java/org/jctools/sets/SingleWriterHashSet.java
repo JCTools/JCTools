@@ -6,6 +6,7 @@ import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
 import static org.jctools.util.UnsafeRefArrayAccess.soElement;
 
 import java.util.AbstractSet;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
@@ -109,7 +110,6 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
     public boolean remove(Object val) {
         final E[] buffer = this.buffer;
         final long mask = buffer.length - 1;
-        final int hashCode = val.hashCode();
         final int hash = rehash(val.hashCode());
         final long offset = calcElementOffset(hash, mask);
         final E e = lpElement(buffer, offset);
@@ -126,10 +126,10 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
             }
             return true;
         }
-        return removeSlowPath(val, buffer, mask, hashCode, hash);
+        return removeSlowPath(val, buffer, mask, hash);
     }
 
-    private boolean removeSlowPath(Object val, E[] buffer, long mask, int hashCode, int hash) {
+    private boolean removeSlowPath(Object val, E[] buffer, long mask, int hash) {
         final int limit = (int) (hash + mask);
         for (int searchIndex = hash + 1; searchIndex <= limit; searchIndex++) {
             final long offset = calcElementOffset(searchIndex, mask);
@@ -139,7 +139,7 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
             }
             else if (val.equals(e)) {
                 size--;
-                if (lpElement(buffer, calcElementOffset(hash + 1, mask)) == null) {
+                if (lpElement(buffer, calcElementOffset(searchIndex + 1, mask)) == null) {
                     soElement(buffer, offset, null);
                 }
                 else {
@@ -156,6 +156,7 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
      */
     private void compactAndRemove(final E[] buffer, final long mask, int removeHashIndex) {
         // remove(9a): [9a,9b,10a,9c,10b,11a,null] -> [9b,9c,10a,10b,null,11a,null]
+        removeHashIndex = (int) (removeHashIndex & mask);
         int j = removeHashIndex;
         while (true) {
             int k;
@@ -177,13 +178,21 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
                 // determine if k lies cyclically in [i,j]
                 // |    i.k.j |
                 // |....j i.k.| or |.k..j i...|
-            } while ((removeHashIndex <= j) ? ((removeHashIndex < k) && (k <= j))
-                    : ((removeHashIndex < k) || (k <= j)));
+            }
+            while ( (removeHashIndex <= j) ?
+                    ((removeHashIndex < k) && (k <= j)) :
+                    ((removeHashIndex < k) || (k <= j)) );
             // slot[removeHashIndex] := slot[j]
             soElement(buffer, calcElementOffset(removeHashIndex, mask), slotJ);
             // removeHashIndex := j
             removeHashIndex = j;
         }
+    }
+
+    @Override
+    public String toString() {
+        return "SingleWriterHashSet [size=" + size + ", buffer=" + Arrays.toString(buffer)
+                + ", resizeThreshold=" + resizeThreshold + "]";
     }
 
     private int rehash(int h) {
