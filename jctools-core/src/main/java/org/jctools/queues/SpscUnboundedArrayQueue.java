@@ -13,10 +13,6 @@
  */
 package org.jctools.queues;
 
-import static org.jctools.queues.CircularArrayOffsetCalculator.calcElementOffset;
-import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
-import static org.jctools.util.UnsafeRefArrayAccess.soElement;
-
 import org.jctools.util.Pow2;
 
 public class SpscUnboundedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
@@ -28,7 +24,6 @@ public class SpscUnboundedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
         E[] buffer = (E[]) new Object[p2capacity + 1];
         producerBuffer = buffer;
         producerMask = mask;
-        producerQueueLimit = Math.min(p2capacity / 4, SpscArrayQueue.MAX_LOOK_AHEAD_STEP);
         consumerBuffer = buffer;
         consumerMask = mask;
         producerBufferLimit = mask - 1; // we know it's all empty to start with
@@ -36,37 +31,20 @@ public class SpscUnboundedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
     }
 
 
-    protected boolean offerColdPath(final E[] buffer, final long mask, final E e, final long index, final long offset) {
-        // use a fixed lookahead step based on buffer capacity
-        final long lookAheadStep = (mask + 1) >> 2;
-        // go around the buffer or add a new buffer
-        long lookAheadElementOffset = calcElementOffset(index + lookAheadStep, mask);
-        if (null == lvElement(buffer, lookAheadElementOffset)) {// LoadLoad
-            producerBufferLimit = index + lookAheadStep - 1; // joy, there's plenty of room
-            writeToQueue(buffer, e, index, offset);
-        } else if (null == lvElement(buffer, calcElementOffset(index + 1, mask))) { // buffer is not full
-            writeToQueue(buffer, e, index, offset);
-        } else {
-            linkNewBuffer(buffer, index, offset, e, mask); // add a buffer and link old to new
-        }
-        return true;
-    }
-
+    @Override
     @SuppressWarnings("unchecked")
-    private void linkNewBuffer(final E[] oldBuffer, final long currIndex, final long offset, final E e,
+    protected void linkNewBuffer(final E[] oldBuffer, final long currIndex, final long offset, final E e,
             final long mask) {
     	// allocate new buffer of same length
         final E[] newBuffer = (E[]) new Object[oldBuffer.length];
         producerBuffer = newBuffer;
         producerBufferLimit = currIndex + mask - 1;
 
-        // write to new buffer
-        soElement(newBuffer, offset, e);// StoreStore
-        // link to next buffer and add next indicator as element of old buffer
-        soNext(oldBuffer, newBuffer);
-        soElement(oldBuffer, offset, JUMP);
-        // index is visible after elements (isEmpty/poll ordering)
-        soProducerIndex(currIndex + 1);// this ensures atomic write of long on 32bit platforms
+        linkOldToNew(currIndex, oldBuffer, offset, newBuffer, offset, e);
     }
 
+    @Override
+    protected final boolean isBounded() {
+        return false;
+    }
 }
