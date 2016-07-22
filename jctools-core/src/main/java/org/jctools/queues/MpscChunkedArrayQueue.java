@@ -24,6 +24,7 @@ import java.lang.reflect.Field;
 import java.util.AbstractQueue;
 import java.util.Iterator;
 
+import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
 import org.jctools.util.Pow2;
 
 abstract class MpscChunkedArrayQueuePad1<E> extends AbstractQueue<E> {
@@ -68,7 +69,7 @@ abstract class MpscChunkedArrayQueueConsumerFields<E> extends MpscChunkedArrayQu
  * @param <E>
  */
 public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueConsumerFields<E>
-        implements MessagePassingQueue<E>, QueueProgressIndicators {
+        implements MessagePassingQueue<E>, QueueProgressIndicators, IndexedQueue {
     long p0, p1, p2, p3, p4, p5, p6, p7;
     long p10, p11, p12, p13, p14, p15, p16, p17;
     private final static long P_INDEX_OFFSET;
@@ -115,11 +116,11 @@ public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueConsumerField
      *        otherwise chunk size will double on each resize until reaching the maxCapacity
      */
     public MpscChunkedArrayQueue(final int initialCapacity, int maxCapacity, boolean fixedChunkSize) {
-        if (initialCapacity < 2) {
-            throw new IllegalArgumentException("Initial capacity must be 2 or more");
-        }
         if (maxCapacity < 4) {
             throw new IllegalArgumentException("Max capacity must be 4 or more");
+        }
+        if (initialCapacity < 2) {
+            throw new IllegalArgumentException("Initial capacity must be 2 or more");
         }
         if (Pow2.roundToPowerOfTwo(initialCapacity) >= Pow2.roundToPowerOfTwo(maxCapacity)) {
             throw new IllegalArgumentException(
@@ -332,30 +333,12 @@ public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueConsumerField
         return offsetInNew;
     }
 
-    @Override
-    public final int size() {
-        /*
-         * It is possible for a thread to be interrupted or reschedule between the read of the producer and
-         * consumer indices, therefore protection is required to ensure size is within valid range. In the
-         * event of concurrent polls/offers to this method the size is OVER estimated as we read consumer
-         * index BEFORE the producer index.
-         */
-        long after = lvConsumerIndex();
-        while (true) {
-            final long before = after;
-            final long currentProducerIndex = lvProducerIndex();
-            after = lvConsumerIndex();
-            if (before == after) {
-                return (int) (currentProducerIndex - after) >> 1;
-            }
-        }
-    }
 
-    private long lvProducerIndex() {
+    public final long lvProducerIndex() {
         return UNSAFE.getLongVolatile(this, P_INDEX_OFFSET);
     }
 
-    private long lvConsumerIndex() {
+    public final long lvConsumerIndex() {
         return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
     }
 
@@ -600,5 +583,15 @@ public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueConsumerField
             c.accept(m);
         }
         return i;
+    }
+
+    @Override
+    public final int size() {
+        return IndexedQueueSizeUtil.size(this);
+    }
+
+    @Override
+    public final boolean isEmpty() {
+        return IndexedQueueSizeUtil.isEmpty(this);
     }
 }

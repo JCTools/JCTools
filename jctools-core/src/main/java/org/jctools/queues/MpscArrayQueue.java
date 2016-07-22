@@ -46,7 +46,7 @@ abstract class MpscArrayQueueTailField<E> extends MpscArrayQueueL1Pad<E> {
         super(capacity);
     }
 
-    protected final long lvProducerIndex() {
+    public final long lvProducerIndex() {
         return producerIndex;
     }
 
@@ -125,7 +125,7 @@ abstract class MpscArrayQueueConsumerField<E> extends MpscArrayQueueL2Pad<E> {
         return consumerIndex;
     }
 
-    protected final long lvConsumerIndex() {
+    public final long lvConsumerIndex() {
         return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
     }
 
@@ -358,50 +358,6 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E>implements 
             }
         }
         return e;
-    }
-
-    /**
-     * {@inheritDoc}
-     * <p>
-     *
-     */
-    @Override
-    public int size() {
-        /*
-         * It is possible for a thread to be interrupted or reschedule between the read of the producer and
-         * consumer indices, therefore protection is required to ensure size is within valid range. In the
-         * event of concurrent polls/offers to this method the size is OVER estimated as we read consumer
-         * index BEFORE the producer index.
-         */
-        long afterCIndex = lvConsumerIndex();
-        while (true) {
-            final long beforeCIndex = afterCIndex;
-            final long currentProducerIndex = lvProducerIndex();
-            afterCIndex = lvConsumerIndex();
-            if (beforeCIndex == afterCIndex) {
-                return (int) (currentProducerIndex - afterCIndex);
-            }
-        }
-    }
-
-    @Override
-    public boolean isEmpty() {
-        // Order matters!
-        // Loading consumer before producer allows for producer increments after consumer index is read.
-        // This ensures the correctness of this method at least for the consumer thread. Other threads POV is
-        // not really
-        // something we can fix here.
-        return (lvConsumerIndex() == lvProducerIndex());
-    }
-
-    @Override
-    public long currentProducerIndex() {
-        return lvProducerIndex();
-    }
-
-    @Override
-    public long currentConsumerIndex() {
-        return lvConsumerIndex();
     }
 
     @Override

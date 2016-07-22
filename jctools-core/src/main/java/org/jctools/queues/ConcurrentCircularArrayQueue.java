@@ -16,9 +16,10 @@ package org.jctools.queues;
 import java.util.AbstractQueue;
 import java.util.Iterator;
 
+import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
 import org.jctools.util.Pow2;
 
-abstract class ConcurrentCircularArrayQueueL0Pad<E> extends AbstractQueue<E> implements MessagePassingQueue<E> {
+abstract class ConcurrentCircularArrayQueueL0Pad<E> extends AbstractQueue<E> implements MessagePassingQueue<E>, IndexedQueue, QueueProgressIndicators {
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 }
@@ -34,9 +35,9 @@ abstract class ConcurrentCircularArrayQueueL0Pad<E> extends AbstractQueue<E> imp
  * Load/Store methods using a <i>buffer</i> parameter are provided to allow the prevention of final field reload after a
  * LoadLoad barrier.
  * <p>
- * 
+ *
  * @author nitsanw
- * 
+ *
  * @param <E>
  */
 public abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircularArrayQueueL0Pad<E> {
@@ -57,10 +58,10 @@ public abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircular
     protected final long calcElementOffset(long index) {
         return calcElementOffset(index, mask);
     }
-    
+
     /**
      * @param index desirable element index
-     * @param mask 
+     * @param mask
      * @return the offset in bytes within the array for a given index.
      */
     protected static long calcElementOffset(long index, long mask) {
@@ -71,15 +72,36 @@ public abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircular
     public Iterator<E> iterator() {
         throw new UnsupportedOperationException();
     }
-    
+
     @Override
     public void clear() {
         while (poll() != null || !isEmpty())
             ;
     }
-    
+
     @Override
     public int capacity() {
         return (int) (mask + 1);
     }
+
+    @Override
+    public final int size() {
+        return IndexedQueueSizeUtil.size(this);
+    }
+
+    @Override
+    public final boolean isEmpty() {
+        return IndexedQueueSizeUtil.isEmpty(this);
+    }
+
+    @Override
+    public final long currentProducerIndex() {
+        return lvProducerIndex();
+    }
+
+    @Override
+    public final long currentConsumerIndex() {
+        return lvConsumerIndex();
+    }
+
 }

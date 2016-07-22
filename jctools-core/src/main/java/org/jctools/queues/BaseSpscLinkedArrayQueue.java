@@ -4,6 +4,8 @@ import java.lang.reflect.Field;
 import java.util.AbstractQueue;
 import java.util.Iterator;
 
+import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
+
 import static org.jctools.queues.CircularArrayOffsetCalculator.calcElementOffset;
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeRefArrayAccess.REF_ARRAY_BASE;
@@ -39,7 +41,7 @@ abstract class BaseSpscLinkedArrayQueueConsumerField<E> extends BaseSpscLinkedAr
 }
 
 abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueConsumerField<E>
-        implements QueueProgressIndicators {
+        implements QueueProgressIndicators, IndexedQueue {
 
     protected static final Object JUMP = new Object();
 
@@ -60,38 +62,19 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueConsu
         }
     }
 
-    @Override
-    public int size() {
-        /*
-         * It is possible for a thread to be interrupted or rescheduled between the read of the producer and
-         * consumer indices, therefore protection is required to ensure size is within valid range. In the
-         * event of concurrent polls/offers to this method the size is OVER estimated as we read consumer
-         * index BEFORE the producer index.
-         */
-        long after = lvConsumerIndex();
-        while (true) {
-            final long before = after;
-            final long currentProducerIndex = lvProducerIndex();
-            after = lvConsumerIndex();
-            if (before == after) {
-                return (int) (currentProducerIndex - after);
-            }
-        }
-    }
-
-    protected void soProducerIndex(long v) {
+    protected final void soProducerIndex(long v) {
         UNSAFE.putOrderedLong(this, P_INDEX_OFFSET, v);
     }
 
-    protected void soConsumerIndex(long v) {
+    protected final void soConsumerIndex(long v) {
         UNSAFE.putOrderedLong(this, C_INDEX_OFFSET, v);
     }
 
-    protected long lvProducerIndex() {
+    public final long lvProducerIndex() {
         return UNSAFE.getLongVolatile(this, P_INDEX_OFFSET);
     }
 
-    protected long lvConsumerIndex() {
+    public final long lvConsumerIndex() {
         return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
     }
 
@@ -281,5 +264,15 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueConsu
             soElement(nextBuffer, offsetInNew, null);// StoreStore
             return n;
         }
+    }
+
+    @Override
+    public final int size() {
+        return IndexedQueueSizeUtil.size(this);
+    }
+
+    @Override
+    public final boolean isEmpty() {
+        return IndexedQueueSizeUtil.isEmpty(this);
     }
 }

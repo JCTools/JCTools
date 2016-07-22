@@ -174,24 +174,6 @@ public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E>  implement
         return UnsafeRefArrayAccess.lvElement(buffer, calcElementOffset(consumerIndex));
     }
 
-    @Override
-    public int size() {
-        /*
-         * It is possible for a thread to be interrupted or reschedule between the read of the producer and consumer
-         * indices, therefore protection is required to ensure size is within valid range. In the event of concurrent
-         * polls/offers to this method the size is OVER estimated as we read consumer index BEFORE the producer index.
-         */
-        long after = lvConsumerIndex();
-        while (true) {
-            final long before = after;
-            final long currentProducerIndex = lvProducerIndex();
-            after = lvConsumerIndex();
-            if (before == after) {
-                return (int) (currentProducerIndex - after);
-            }
-        }
-    }
-
     private void soProducerIndex(long v) {
         UNSAFE.putOrderedLong(this, P_INDEX_OFFSET, v);
     }
@@ -200,22 +182,12 @@ public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E>  implement
         UNSAFE.putOrderedLong(this, C_INDEX_OFFSET, v);
     }
 
-    private long lvProducerIndex() {
+    public final long lvProducerIndex() {
         return UNSAFE.getLongVolatile(this, P_INDEX_OFFSET);
     }
 
-    private long lvConsumerIndex() {
+    public final long lvConsumerIndex() {
         return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
-    }
-
-    @Override
-    public long currentProducerIndex() {
-        return lvProducerIndex();
-    }
-
-    @Override
-    public long currentConsumerIndex() {
-        return lvConsumerIndex();
     }
 
 	@Override

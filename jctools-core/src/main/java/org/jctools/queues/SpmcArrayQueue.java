@@ -41,7 +41,7 @@ abstract class SpmcArrayQueueProducerField<E> extends SpmcArrayQueueL1Pad<E> {
     }
     protected long producerIndex;
 
-    protected final long lvProducerIndex() {
+    public final long lvProducerIndex() {
         return UNSAFE.getLongVolatile(this, P_INDEX_OFFSET);
     }
 
@@ -79,7 +79,7 @@ abstract class SpmcArrayQueueConsumerField<E> extends SpmcArrayQueueL2Pad<E> {
         super(capacity);
     }
 
-    protected final long lvConsumerIndex() {
+    public final long lvConsumerIndex() {
         return consumerIndex;
     }
 
@@ -206,42 +206,6 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
         return e;
     }
 
-    @Override
-    public int size() {
-        /*
-         * It is possible for a thread to be interrupted or reschedule between the read of the producer and consumer
-         * indices, therefore protection is required to ensure size is within valid range. In the event of concurrent
-         * polls/offers to this method the size is OVER estimated as we read consumer index BEFORE the producer index.
-         */
-        long after = lvConsumerIndex();
-        while (true) {
-            final long before = after;
-            final long currentProducerIndex = lvProducerIndex();
-            after = lvConsumerIndex();
-            if (before == after) {
-                return (int) (currentProducerIndex - after);
-            }
-        }
-    }
-
-    @Override
-    public boolean isEmpty() {
-        // Order matters!
-        // Loading consumer before producer allows for producer increments after consumer index is read.
-        // This ensures the correctness of this method at least for the consumer thread. Other threads POV is not really
-        // something we can fix here.
-        return (lvConsumerIndex() == lvProducerIndex());
-    }
-
-    @Override
-    public long currentProducerIndex() {
-        return lvProducerIndex();
-    }
-
-    @Override
-    public long currentConsumerIndex() {
-        return lvConsumerIndex();
-    }
 
 	@Override
 	public boolean relaxedOffer(E e) {
