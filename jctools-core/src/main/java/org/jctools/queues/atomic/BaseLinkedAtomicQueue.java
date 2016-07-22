@@ -53,28 +53,22 @@ abstract class BaseLinkedAtomicQueue<E> extends AbstractQueue<E> {
         throw new UnsupportedOperationException();
     }
 
-    /**
-     * {@inheritDoc} <br>
-     * <p>
-     * IMPLEMENTATION NOTES:<br>
-     * This is an O(n) operation as we run through all the nodes and count them.<br>
-     *
-     * @see java.util.Queue#size()
-     */
-    @Override
     public final int size() {
-        // Read consumer first, this is important because if the producer is node is 'older' than the consumer the
-        // consumer may overtake it (consume past it). This will lead to an infinite loop below.
+        // Read consumer first, this is important because if the producer is node is 'older' than the consumer
+        // the consumer may overtake it (consume past it). This will lead to an infinite loop below.
         LinkedQueueAtomicNode<E> chaserNode = lvConsumerNode();
-        final LinkedQueueAtomicNode<E> producerNode = lvProducerNode();
+        LinkedQueueAtomicNode<E> producerNode = lvProducerNode();
         int size = 0;
-        // must chase the nodes all the way to the producer node, but there's no need to chase a moving target.
-        while (chaserNode != producerNode && chaserNode != null && size < Integer.MAX_VALUE) {
+        // must chase the nodes all the way to the producer node, but there's no need to count beyond expected head.
+        while (chaserNode != producerNode && // don't go passed producer node
+               chaserNode != null && // stop at last node
+               size < Integer.MAX_VALUE) // stop at max int
+        {
             LinkedQueueAtomicNode<E> next;
             next = chaserNode.lvNext();
-            // check if this node has been consumed
+            // check if this node has been consumed, if so return what we have
             if (next == chaserNode) {
-                next = lvConsumerNode();
+                return size;
             }
             chaserNode = next;
             size++;
