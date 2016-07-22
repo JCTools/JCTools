@@ -108,7 +108,8 @@ abstract class BaseLinkedQueue<E> extends BaseLinkedQueueConsumerNodeRef<E> {
      * <p>
      * IMPLEMENTATION NOTES:<br>
      * This is an O(n) operation as we run through all the nodes and count them.<br>
-     * The accuracy of the value returned by this method is subject to races with producer/consumer threads.
+     * The accuracy of the value returned by this method is subject to races with producer/consumer threads. In
+     * particular when racing with the consumer thread this method may under estimate the size.<br>
      *
      * @see java.util.Queue#size()
      */
@@ -117,16 +118,15 @@ abstract class BaseLinkedQueue<E> extends BaseLinkedQueueConsumerNodeRef<E> {
         // Read consumer first, this is important because if the producer is node is 'older' than the consumer
         // the consumer may overtake it (consume past it). This will lead to an infinite loop below.
         LinkedQueueNode<E> chaserNode = lvConsumerNode();
-        final LinkedQueueNode<E> producerNode = lvProducerNode();
+        LinkedQueueNode<E> producerNode = lvProducerNode();
         int size = 0;
-        // must chase the nodes all the way to the producer node, but there's no need to chase a moving
-        // target.
+        // must chase the nodes all the way to the producer node, but there's no need to count beyond expected head.
         while (chaserNode != producerNode && chaserNode != null && size < Integer.MAX_VALUE) {
             LinkedQueueNode<E> next;
             next = chaserNode.lvNext();
-            // check if this node has been consumed
+            // check if this node has been consumed, if so return what we have
             if (next == chaserNode) {
-                next = lvConsumerNode();
+                return size;
             }
             chaserNode = next;
             size++;

@@ -246,7 +246,6 @@ public class QueueSanityTest {
 
     @Test
     public void testSize() throws Exception {
-        assumeThat(spec.isBounded(), is(true));
         final AtomicBoolean stop = new AtomicBoolean();
         final Queue<Integer> q = queue;
         final Val fail = new Val();
