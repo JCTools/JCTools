@@ -13,6 +13,8 @@
  */
 package org.jctools.queues;
 
+import org.jctools.util.UnsafeAccess;
+
 /**
  * This is a direct Java port of the MPSC algorithm as presented
  * <a href="http://www.1024cores.net/home/lock-free-algorithms/queues/non-intrusive-mpsc-node-based-queue"> on
@@ -28,7 +30,21 @@ package org.jctools.queues;
  * @param <E> the type of elements in this queue
  * @author nitsanw
  */
-abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E> {
+public abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E> {
+
+    /**
+     * Construct the implementation based on availability of getAndSet intrinsic.
+     *
+     * @return the right queue for you!
+     */
+    public static <E> MpscLinkedQueue<E> newMpscLinkedQueue() {
+        if (UnsafeAccess.SUPPORTS_GET_AND_SET) {
+            return new MpscLinkedQueue8<E>();
+        }
+        else {
+            return new MpscLinkedQueue7<E>();
+        }
+    }
     protected MpscLinkedQueue() {
         consumerNode = new LinkedQueueNode<E>();
         xchgProducerNode(consumerNode);// this ensures correct construction: StoreLoad

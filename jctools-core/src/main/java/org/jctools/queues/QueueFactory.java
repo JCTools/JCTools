@@ -24,9 +24,9 @@ import org.jctools.util.UnsafeAccess;
  * The queue factory produces {@link java.util.Queue} instances based on a best fit to the {@link ConcurrentQueueSpec}.
  * This allows minimal dependencies between user code and the queue implementations and gives users a way to express
  * their requirements on a higher level.
- * 
+ *
  * @author nitsanw
- * 
+ *
  */
 public class QueueFactory {
 
@@ -59,12 +59,7 @@ public class QueueFactory {
             }
             // MPSC
             else if (qs.isMpsc()) {
-                if (UnsafeAccess.SUPPORTS_GET_AND_SET) {
-                    return new MpscLinkedQueue8<E>();
-                }
-                else {
-                    return new MpscLinkedQueue7<E>();
-                }
+                return MpscLinkedQueue.newMpscLinkedQueue();
             }
         }
         return new ConcurrentLinkedQueue<E>();
