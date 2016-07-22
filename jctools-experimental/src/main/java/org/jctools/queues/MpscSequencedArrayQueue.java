@@ -46,7 +46,7 @@ abstract class MpscSequencedArrayQueueProducerField<E> extends MpscSequencedArra
         super(capacity);
     }
 
-    protected final long lvProducerIndex() {
+    public final long lvProducerIndex() {
         return producerIndex;
     }
 
@@ -80,7 +80,7 @@ abstract class MpscSequencedArrayQueueConsumerField<E> extends MpscSequencedArra
         super(capacity);
     }
 
-    protected final long lvConsumerIndex() {
+    public final long lvConsumerIndex() {
         return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
     }
     protected final long lpConsumerIndex() {
@@ -96,7 +96,7 @@ abstract class MpscSequencedArrayQueueConsumerField<E> extends MpscSequencedArra
  * A Multi-Producer-Single-Consumer queue based on same algorithm used for {@link MpmcArrayQueue} but with the
  * appropriate weakening of constraints on offer. The trade off does not seem worth while compared to the simpler
  * {@link MpscArrayQueue}.
- * 
+ *
  * @param <E> type of the element stored in the {@link java.util.Queue}
  */
 public class MpscSequencedArrayQueue<E> extends MpscSequencedArrayQueueConsumerField<E> {
@@ -181,22 +181,6 @@ public class MpscSequencedArrayQueue<E> extends MpscSequencedArrayQueueConsumerF
         return UnsafeRefArrayAccess.lpElement(buffer, calcElementOffset(lvConsumerIndex()));
     }
 
-    @Override
-    public int size() {
-        int size;
-        long capacity = mask + 1;
-        do {
-            /*
-             * It is possible for a thread to be interrupted or reschedule between the read of the producer
-             * and consumer indices, therefore protection is required to ensure size is within valid range.
-             */
-            final long currentConsumerIndex = lvConsumerIndex();
-            final long currentProducerIndex = lvProducerIndex();
-            size = (int)(currentProducerIndex - currentConsumerIndex);
-        } while (size > capacity);
-
-        return size;
-    }
 	@Override
 	public boolean relaxedOffer(E message) {
 		return offer(message);
@@ -267,7 +251,7 @@ public class MpscSequencedArrayQueue<E> extends MpscSequencedArrayQueueConsumerF
                 idleCounter = wait.idle(idleCounter);
                 continue;
             }
-            idleCounter = 0;    
+            idleCounter = 0;
         }
     }
 }

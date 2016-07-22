@@ -32,7 +32,7 @@ abstract class FFBufferL1Pad<E> extends ConcurrentCircularArrayQueue<E> {
 }
 
 abstract class FFBufferTailField<E> extends FFBufferL1Pad<E> {
-    protected long tail;
+    protected long consumerIndex;
 
     public FFBufferTailField(int capacity) {
         super(capacity);
@@ -49,7 +49,7 @@ abstract class FFBufferL2Pad<E> extends FFBufferTailField<E> {
 }
 
 abstract class FFBufferHeadField<E> extends FFBufferL2Pad<E> {
-    protected long head;
+    protected long producerIndex;
 
     public FFBufferHeadField(int capacity) {
         super(capacity);
@@ -66,14 +66,14 @@ abstract class FFBufferL3Pad<E> extends FFBufferHeadField<E> {
 }
 
 public final class FFBuffer<E> extends FFBufferL3Pad<E> implements Queue<E> {
-    private final static long TAIL_OFFSET;
-    private final static long HEAD_OFFSET;
+    private final static long P_INDEX_OFFSET;
+    private final static long C_INDEX_OFFSET;
     static {
         try {
-            TAIL_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(FFBufferTailField.class
-                    .getDeclaredField("tail"));
-            HEAD_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(FFBufferHeadField.class
-                    .getDeclaredField("head"));
+            P_INDEX_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(FFBufferTailField.class
+                    .getDeclaredField("producerIndex"));
+            C_INDEX_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(FFBufferHeadField.class
+                    .getDeclaredField("consumerIndex"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
@@ -83,12 +83,12 @@ public final class FFBuffer<E> extends FFBufferL3Pad<E> implements Queue<E> {
         super(capacity);
     }
 
-    private long getHead() {
-        return UnsafeAccess.UNSAFE.getLongVolatile(this, HEAD_OFFSET);
+    public final long lvConsumerIndex() {
+        return UnsafeAccess.UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
     }
 
-    private long getTail() {
-        return UnsafeAccess.UNSAFE.getLongVolatile(this, TAIL_OFFSET);
+    public final long lvProducerIndex() {
+        return UnsafeAccess.UNSAFE.getLongVolatile(this, P_INDEX_OFFSET);
     }
 
     public boolean offer(final E e) {
@@ -97,42 +97,32 @@ public final class FFBuffer<E> extends FFBufferL3Pad<E> implements Queue<E> {
         }
 
         final E[] lb = buffer;
-        final long t = tail;
+        final long t = consumerIndex;
         final long offset = calcElementOffset(t);
         if (null != UnsafeRefArrayAccess.lvElement(lb, offset)) { // read acquire
             return false;
         }
         UnsafeRefArrayAccess.soElement(lb, offset, e); // write release
-        tail = t + 1;
+        consumerIndex = t + 1;
         return true;
     }
 
     public E poll() {
-        final long offset = calcElementOffset(head);
+        final long offset = calcElementOffset(producerIndex);
         final E[] lb = buffer;
         final E e = UnsafeRefArrayAccess.lvElement(lb, offset); // write acquire
         if (null == e) {
             return null;
         }
         UnsafeRefArrayAccess.soElement(lb, offset, null); // read release
-        head++;
+        producerIndex++;
         return e;
     }
 
     @Override
     public E peek() {
-        long currentHead = getHead();
+        long currentHead = lvProducerIndex();
         return UnsafeRefArrayAccess.lvElement(buffer, calcElementOffset(currentHead));
-    }
-
-    @Override
-    public int size() {
-        return (int) (getTail() - getHead());
-    }
-
-    @Override
-    public boolean isEmpty() {
-        return getTail() == getHead();
     }
 
     @Override
