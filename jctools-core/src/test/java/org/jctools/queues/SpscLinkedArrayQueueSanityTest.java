@@ -10,17 +10,20 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 @RunWith(Parameterized.class)
-public class SpscLinkedQueueSanityTest extends QueueSanityTest {
+public class SpscLinkedArrayQueueSanityTest extends QueueSanityTest {
     @Parameterized.Parameters
     public static Collection<Object[]> parameters() {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
         list.add(makeQueue(1, 1, SIZE, Ordering.FIFO, new SpscChunkedArrayQueue<Integer>(64, SIZE)));
-        list.add(makeQueue(1, 1, SIZE, Ordering.FIFO, new SpscGrowableArrayQueue<Integer>(4, SIZE)));
+        list.add(makeQueue(1, 1, SIZE, Ordering.FIFO, new SpscGrowableArrayQueue<Integer>(64, SIZE)));
         list.add(makeQueue(1, 1, 0, Ordering.FIFO, new SpscUnboundedArrayQueue<Integer>(16)));
+        // minimal sizes
+        list.add(makeQueue(1, 1, 16, Ordering.FIFO, new SpscChunkedArrayQueue<Integer>(8, 16)));
+        list.add(makeQueue(1, 1, 16, Ordering.FIFO, new SpscGrowableArrayQueue<Integer>(8, 16)));
         return list;
     }
 
-    public SpscLinkedQueueSanityTest(ConcurrentQueueSpec spec, Queue<Integer> queue) {
+    public SpscLinkedArrayQueueSanityTest(ConcurrentQueueSpec spec, Queue<Integer> queue) {
         super(spec, queue);
     }
 
