@@ -189,7 +189,7 @@ public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueConsumerField
                 break;
             }
         }
-
+        // INDEX visible before ELEMENT, consistent with consumer expectation
         final long offset = modifiedCalcElementOffset(pIndex, mask);
         soElement(buffer, offset, e);
         return true;
@@ -511,21 +511,26 @@ public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueConsumerField
         final long offsetInOld = modifiedCalcElementOffset(pIndex, mask);
         final long offsetInNew = modifiedCalcElementOffset(pIndex, producerMask);
 
-        soElement(newBuffer, offsetInNew, e);
-        soElement(buffer, nextArrayOffset(mask), newBuffer);
-        final long available = maxQueueCapacity - (pIndex - consumerIndex);
 
+        soElement(newBuffer, offsetInNew, e);// element in new array
+        soElement(buffer, nextArrayOffset(mask), newBuffer);// buffer linked
+
+        // ASSERT code
+        final long available = maxQueueCapacity - (pIndex - consumerIndex);
         if (available <= 0) {
             throw new IllegalStateException();
         }
+
         // invalidate racing CASs
         soProducerLimit(pIndex + Math.min(mask, available));
 
-        // make resize visible to consumer
-        soElement(buffer, offsetInOld, JUMP);
-
         // make resize visible to the other producers
         soProducerIndex(pIndex + 2);
+
+        // INDEX visible before ELEMENT, consistent with consumer expectation
+
+        // make resize visible to consumer
+        soElement(buffer, offsetInOld, JUMP);
     }
 
     private int getNextBufferCapacity(E[] buffer, final long maxQueueCapacity) {
