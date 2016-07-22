@@ -334,6 +334,8 @@ public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueConsumerField
 
     @Override
     public final int size() {
+        // NOTE: because indices are on even numbers we cannot use the size util.
+
         /*
          * It is possible for a thread to be interrupted or reschedule between the read of the producer and
          * consumer indices, therefore protection is required to ensure size is within valid range. In the
@@ -346,11 +348,19 @@ public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueConsumerField
             final long currentProducerIndex = lvProducerIndex();
             after = lvConsumerIndex();
             if (before == after) {
-                return (int) (currentProducerIndex - after) >> 1;
+                return (int) ((currentProducerIndex - after) >> 1);
             }
         }
     }
 
+    @Override
+    public final boolean isEmpty() {
+        // Order matters!
+        // Loading consumer before producer allows for producer increments after consumer index is read.
+        // This ensures this method is conservative in it's estimate. Note that as this is an MPMC there is
+        // nothing we can do to make this an exact method.
+        return (this.lvConsumerIndex() == this.lvProducerIndex());
+    }
     private long lvProducerIndex() {
         return UNSAFE.getLongVolatile(this, P_INDEX_OFFSET);
     }
