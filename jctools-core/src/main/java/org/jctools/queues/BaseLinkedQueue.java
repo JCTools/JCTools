@@ -121,7 +121,10 @@ abstract class BaseLinkedQueue<E> extends BaseLinkedQueueConsumerNodeRef<E> {
         LinkedQueueNode<E> producerNode = lvProducerNode();
         int size = 0;
         // must chase the nodes all the way to the producer node, but there's no need to count beyond expected head.
-        while (chaserNode != producerNode && chaserNode != null && size < Integer.MAX_VALUE) {
+        while (chaserNode != producerNode && // don't go passed producer node
+               chaserNode != null && // stop at last node
+               size < Integer.MAX_VALUE) // stop at max int
+        {
             LinkedQueueNode<E> next;
             next = chaserNode.lvNext();
             // check if this node has been consumed, if so return what we have
