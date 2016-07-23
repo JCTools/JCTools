@@ -13,6 +13,9 @@
  */
 package org.jctools.queues;
 
+import static org.jctools.queues.CircularArrayOffsetCalculator.calcElementOffset;
+import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
+
 import org.jctools.util.Pow2;
 
 public class SpscUnboundedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
@@ -30,10 +33,29 @@ public class SpscUnboundedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
         soProducerIndex(0L);
     }
 
-
     @Override
+    protected boolean offerColdPath(E[] buffer, long mask, E e, long pIndex, long offset) {
+        // use a fixed lookahead step based on buffer capacity
+        final long lookAheadStep = (mask + 1) / 4;
+        long pBufferLimit = pIndex + lookAheadStep;
+
+        // go around the buffer or add a new buffer
+        if (null == lvElement(buffer, calcElementOffset(pBufferLimit, mask))) {
+            producerBufferLimit = pBufferLimit - 1; // joy, there's plenty of room
+            writeToQueue(buffer, e, pIndex, offset);
+        }
+        else if (null == lvElement(buffer, calcElementOffset(pIndex + 1, mask))) { // buffer is not full
+            writeToQueue(buffer, e, pIndex, offset);
+        }
+        else {
+            // we got one slot left to write into, and we are not full. Need to link new buffer.
+            linkNewBuffer(buffer, pIndex, offset, e, mask);
+        }
+        return true;
+    }
+
     @SuppressWarnings("unchecked")
-    protected void linkNewBuffer(final E[] oldBuffer, final long currIndex, final long offset, final E e,
+    private void linkNewBuffer(final E[] oldBuffer, final long currIndex, final long offset, final E e,
             final long mask) {
     	// allocate new buffer of same length
         final E[] newBuffer = (E[]) new Object[oldBuffer.length];
@@ -41,10 +63,5 @@ public class SpscUnboundedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
         producerBufferLimit = currIndex + mask - 1;
 
         linkOldToNew(currIndex, oldBuffer, offset, newBuffer, offset, e);
-    }
-
-    @Override
-    protected final boolean isBounded() {
-        return false;
     }
 }

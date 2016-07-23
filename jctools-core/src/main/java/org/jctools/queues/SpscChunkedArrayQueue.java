@@ -14,15 +14,19 @@
 package org.jctools.queues;
 
 import static org.jctools.queues.CircularArrayOffsetCalculator.allocate;
+import static org.jctools.queues.CircularArrayOffsetCalculator.calcElementOffset;
+import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
 
 import org.jctools.util.Pow2;
 
 public class SpscChunkedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
+    private int maxQueueCapacity; // ignored by the unbounded implementation
+    private long producerQueueLimit;// ignored by the unbounded implementation
 
     public SpscChunkedArrayQueue(final int capacity) {
         this(Math.max(8, Pow2.roundToPowerOfTwo(capacity / 8)), capacity);
     }
-    @SuppressWarnings("unchecked")
+
     public SpscChunkedArrayQueue(final int chunkSize, final int capacity) {
         if (capacity < 16) {
             throw new IllegalArgumentException("Max capacity must be 4 or more");
@@ -51,6 +55,45 @@ public class SpscChunkedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
         soProducerIndex(0L);// serves as a StoreStore barrier to support correct publication
     }
 
+    @Override
+    protected final boolean offerColdPath(E[] buffer, long mask, E e, long pIndex, long offset) {
+        // use a fixed lookahead step based on buffer capacity
+        final long lookAheadStep = (mask + 1) / 4;
+        long pBufferLimit = pIndex + lookAheadStep;
+
+        long pQueueLimit = producerQueueLimit;
+
+        if (pIndex >= pQueueLimit) {
+            // we tested against a potentially out of date queue limit, refresh it
+            long cIndex = lvConsumerIndex();
+            producerQueueLimit = pQueueLimit = cIndex + maxQueueCapacity;
+            // if we're full we're full
+            if (pIndex >= pQueueLimit) {
+                return false;
+            }
+        }
+        // if buffer limit is after queue limit we use queue limit. We need to handle overflow so
+        // cannot use Math.min
+        if (pBufferLimit - pQueueLimit > 0) {
+            pBufferLimit = pQueueLimit;
+        }
+
+        // go around the buffer or add a new buffer
+        if (pBufferLimit > pIndex + 1 && // there's sufficient room in buffer/queue to use pBufferLimit
+                null == lvElement(buffer, calcElementOffset(pBufferLimit, mask))) {
+            producerBufferLimit = pBufferLimit - 1; // joy, there's plenty of room
+            writeToQueue(buffer, e, pIndex, offset);
+        }
+        else if (null == lvElement(buffer, calcElementOffset(pIndex + 1, mask))) { // buffer is not full
+            writeToQueue(buffer, e, pIndex, offset);
+        }
+        else {
+            // we got one slot left to write into, and we are not full. Need to link new buffer.
+            linkNewBuffer(buffer, pIndex, offset, e, mask);
+        }
+        return true;
+    }
+
     protected void linkNewBuffer(final E[] oldBuffer, final long currIndex, final long offset, final E e,
             final long mask) {
         // allocate new buffer of same length
@@ -58,10 +101,5 @@ public class SpscChunkedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
         producerBuffer = newBuffer;
 
         linkOldToNew(currIndex, oldBuffer, offset, newBuffer, offset, e);
-    }
-
-    @Override
-    protected final boolean isBounded() {
-        return true;
     }
 }

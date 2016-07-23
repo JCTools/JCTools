@@ -18,29 +18,27 @@ abstract class BaseSpscLinkedArrayQueuePrePad<E> extends AbstractQueue<E> {
     long p10, p11, p12;
     // p13, p14, p15, p16, p17; drop 4 longs, the cold fields act as buffer
 }
-abstract class BaseSpscLinkedArrayQueueProducerColdFields<E> extends BaseSpscLinkedArrayQueuePrePad<E> {
-    protected int maxQueueCapacity; // ignored by the unbounded implementation
-    protected long producerQueueLimit;// ignored by the unbounded implementation
-    protected long producerBufferLimit;
-    protected long producerMask; // fixed for chunked and unbounded
-    protected E[] producerBuffer;
-}
-abstract class BaseSpscLinkedArrayQueueProducerFields<E> extends BaseSpscLinkedArrayQueueProducerColdFields<E> {
-    protected long producerIndex;
-}
-abstract class BaseSpscLinkedArrayQueueL2Pad<E> extends BaseSpscLinkedArrayQueueProducerFields<E> {
-    long p0, p1, p2, p3, p4, p5, p6, p7;
-    long p10, p11, p12, p13, p14, p15, p16, p17;
-}
-abstract class BaseSpscLinkedArrayQueueConsumerColdFields<E> extends BaseSpscLinkedArrayQueueL2Pad<E> {
+abstract class BaseSpscLinkedArrayQueueConsumerColdFields<E> extends BaseSpscLinkedArrayQueuePrePad<E> {
     protected long consumerMask;
     protected E[] consumerBuffer;
 }
 abstract class BaseSpscLinkedArrayQueueConsumerField<E> extends BaseSpscLinkedArrayQueueConsumerColdFields<E> {
     protected long consumerIndex;
 }
+abstract class BaseSpscLinkedArrayQueueL2Pad<E> extends BaseSpscLinkedArrayQueueConsumerField<E> {
+    long p0, p1, p2, p3, p4, p5, p6, p7;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
+}
+abstract class BaseSpscLinkedArrayQueueProducerFields<E> extends BaseSpscLinkedArrayQueueL2Pad<E> {
+    protected long producerIndex;
+}
+abstract class BaseSpscLinkedArrayQueueProducerColdFields<E> extends BaseSpscLinkedArrayQueueProducerFields<E> {
+    protected long producerBufferLimit;
+    protected long producerMask; // fixed for chunked and unbounded
+    protected E[] producerBuffer;
+}
 
-abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueConsumerField<E>
+abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProducerColdFields<E>
         implements QueueProgressIndicators, IndexedQueue {
 
     protected static final Object JUMP = new Object();
@@ -134,51 +132,7 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueConsu
     }
 
 
-    protected boolean offerColdPath(final E[] buffer, final long mask, final E e, final long pIndex,
-            final long offset) {
-        // use a fixed lookahead step based on buffer capacity
-        final long lookAheadStep = (mask + 1) / 4;
-        long pBufferLimit = pIndex + lookAheadStep;
-
-        // Sadly I see no good way to express the control flow below using inheritance.
-        if (isBounded()) {
-            long pQueueLimit = producerQueueLimit;
-
-            if (pIndex >= pQueueLimit) {
-                // we tested against a potentially out of date queue limit, refresh it
-                long cIndex = lvConsumerIndex();
-                producerQueueLimit = pQueueLimit = cIndex + maxQueueCapacity;
-                // if we're full we're full
-                if (pIndex >= pQueueLimit) {
-                    return false;
-                }
-            }
-            // if buffer limit is after queue limit we use queue limit. We need to handle overflow so
-            // cannot use Math.min
-            if (pBufferLimit - pQueueLimit > 0) {
-                pBufferLimit = pQueueLimit;
-            }
-        }
-
-        // go around the buffer or add a new buffer
-        if (pBufferLimit > pIndex + 1 && // there's sufficient room in buffer/queue to use pBufferLimit
-            null == lvElement(buffer, calcElementOffset(pBufferLimit, mask)))
-        {
-            producerBufferLimit = pBufferLimit - 1; // joy, there's plenty of room
-            writeToQueue(buffer, e, pIndex, offset);
-        } else if (null == lvElement(buffer, calcElementOffset(pIndex + 1, mask))) { // buffer is not full
-            writeToQueue(buffer, e, pIndex, offset);
-        }
-        else {
-            // we got one slot left to write into, and we are not full. Need to link new buffer.
-            linkNewBuffer(buffer, pIndex, offset, e, mask);
-        }
-        return true;
-    }
-
-    protected abstract boolean isBounded();
-
-    protected abstract void linkNewBuffer(E[] buffer, long pIndex, long offset, E e, long mask);
+    protected abstract boolean offerColdPath(E[] buffer, long mask, E e, long pIndex, long offset);
 
     protected final void linkOldToNew(final long currIndex, final E[] oldBuffer, final long offset,
             final E[] newBuffer, final long offsetInNew, final E e) {
