@@ -9,12 +9,16 @@ the JDK:
   * MPSC - Multi Producer Single Consumer (Lock less, bounded and unbounded)
   * SPMC - Single Producer Multi Consumer (Lock less, bounded)
   * MPMC - Multi Producer Multi Consumer (Lock less, bounded)
+  
+- SPSC/MPSC linked array queues offer a balance between performance, allocation and footprint
+
 - An expanded queue interface (MessagePassingQueue):
   * relaxedOffer/Peek/Poll: trade off conflated guarantee on full/empty queue state with improved performance.
   * drain/fill: batch read and write methods for increased throughput and reduced contention
   
-There's more to come and contributions/suggestions are most welcome.
-JCTools offers excellent performance at a reasonable price (FREE! under the Apache 2.0 License). It's stable and in use by such distiguished frameworks as Netty, RxJava and others. JCTools is also used by commercial products to great result.
+There's more to come and contributions/suggestions are most welcome. JCTools has enjoyed support from the community
+and contributions in the form of issues/tests/documentation/code have helped it grow.
+JCTools offers excellent performance at a reasonable price (FREE! under the Apache 2.0 License). It's stable and in use by such distinguished frameworks as Netty, RxJava and others. JCTools is also used by commercial products to great result.
 
 Get it NOW!
 ==========
@@ -23,7 +27,7 @@ Add the latest version as a dependency using Maven:
         <dependency>
             <groupId>org.jctools</groupId>
             <artifactId>jctools-core</artifactId>
-            <version>1.2</version>
+            <version>1.2.1</version>
         </dependency>
 ```
 
@@ -40,7 +44,7 @@ And setup the following dependency:
         <dependency>
             <groupId>com.github.JCTools.JCTools</groupId>
             <artifactId>jctools-core</artifactId>
-            <version>1.2</version>
+            <version>1.2.1</version>
         </dependency>
 ```
 
@@ -55,6 +59,13 @@ With 'MAVEN_HOME/bin' on the path and JDK8 set to your 'JAVA_HOME' you should be
 directory.
 
 
+But I have a zero-dependency/single-jar project
+==========
+While you are free to copy & extend JCTools, we would much prefer it if you have a versioned dependency on JCTools to
+enable better support, upgrade paths and discussion. The shade plugin for Maven/Gradle is the preferred way to get
+JCTools fused with your library. Examples are available in the ShadeJCToolsSamples project.
+
+
 Benchmarks
 ==========
 JCTools is benchmarked using both JMH benchmarks and handrolled harnesses. The benchmarks and related instructions can be
@@ -62,6 +73,10 @@ found in the jctools-benchmarks module README. Go wild and please let us know ho
 
 Come up to the lab...
 ==========
-Experimental work is available under the jctools-experimental module. Most of the stuff is developed with an eye to eventually
-porting it to the core where it will be stabilized and released, but some implementations are kept purely for reference and
-some may never graduate. Beware the Jabberwock my child.
+Experimental work is available under the jctools-experimental module. Most of the stuff is developed with an eye to
+eventually porting it to the core where it will be stabilized and released, but some implementations are kept purely for reference and some may never graduate. Beware the Jabberwock my child.
+
+Have Questions? Suggestions?
+==========
+The best way to discuss JCTools is on the GitHub issues system. Any question is good, and GitHub provides a better
+platform for knowledge sharing than twitter/mailing-list/gitter (or at least that's what we think).
