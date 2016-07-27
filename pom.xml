@@ -96,4 +96,16 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <!-- For use by eclipse users using the m2 plugin that gets the source 
+                and target versions mixed up. With this you can go to right click on the projects, 
+                select "Maven" and "Select Profiles" then check "eclipse-dev". -->
+            <id>eclipse-dev</id>
+            <properties>
+                <java.version>${java.test.version}</java.version>
+            </properties>
+        </profile>
+    </profiles>
 </project>
