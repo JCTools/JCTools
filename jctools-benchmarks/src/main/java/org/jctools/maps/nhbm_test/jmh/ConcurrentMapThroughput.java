@@ -31,6 +31,11 @@ import java.util.concurrent.TimeUnit;
 @State(Scope.Benchmark)
 public class ConcurrentMapThroughput {
 
+    /*
+     * Note that in NonBlockingHashMap, puts that update an entry to the same reference are
+     * short circuited and do not mutate the hash table. Such operations are equivalent to a get.
+     */
+
     @Param(value = {"NonBlockingHashMap", "ConcurrentHashMap"})
     private String implementation;
 
