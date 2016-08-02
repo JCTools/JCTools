@@ -3,7 +3,6 @@ package org.jctools.maps.nhbm_test;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.AtomicLong;
 
 import org.jctools.maps.NonBlockingHashMap;
 
@@ -478,29 +477,6 @@ public class perf_hash_test extends Thread {
         }
         // We stopped; report results into shared result structure
         return get_ops + put_ops + del_ops;
-    }
-
-    // Fairly fast random numbers
-    public static final class SimpleRandom {
-        private final static long multiplier = 0x5DEECE66DL;
-        private final static long addend = 0xBL;
-        private final static long mask = (1L << 48) - 1;
-        static final AtomicLong seq = new AtomicLong(-715159705);
-        private long seed;
-
-        SimpleRandom() {
-            seed = System.nanoTime() + seq.getAndAdd(129);
-        }
-
-        public int nextInt() {
-            return next();
-        }
-
-        public int next() {
-            long nextseed = (seed * multiplier + addend) & mask;
-            seed = nextseed;
-            return ((int) (nextseed >>> 17)) & 0x7FFFFFFF;
-        }
     }
 
 }
