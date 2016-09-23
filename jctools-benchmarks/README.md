@@ -26,22 +26,31 @@ Note that all SPSC benchmarks can be used to test MPMC/SPMC/MPSC queues as they 
 Running the JMH Benchmarks
 -----
 To run all JMH benchmarks:
+
     java -jar target/microbenchmarks.jar -f <number-of-forks> -wi <number-of-warmup-iterations> -i <number-of-iterations>
 To list available benchmarks:
+
     java -jar target/microbenchmarks.jar -l
 Some JMH help:
+
     java -jar target/microbenchmarks.jar -h
 Example:
+
 To run the throughput benchmark for queue type 7 (queue type numbers are set in the TypeQueueFactory class):
+
     java -Dq.type=7 -jar target/microbenchmarks.jar ".*.QueueThroughput.*"
+
 This particular benchmark allows the testing of multiple consumers/producer threads by using thread groups:
+
     java -Dq.type=7 -jar target/microbenchmarks.jar ".*.QueueThroughput.*" -tg 4,4
+
 The tg option will set 4 consumers and 4 producers to the benchmark. You can play with the other options as decribed
 in the JMH help.
 
 Running the handrolled benchmarks
 -----
 The handrolled benchmarks are currently only covering SPSC throughput. These can be run by directly invoking the class:
+
     java -Dq.type=7 -cp target/microbenchmarks.jar org.jctools.handrolled.throughput.spsc.QueuePerfTest
 
 
