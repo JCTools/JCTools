@@ -98,6 +98,8 @@ public class QueueSanityTest {
             }
             assertEquals(0, sum);
         }
+        assertNull(queue.poll());
+        assertThat(queue, emptyAndZeroSize());
     }
 
     @Test
