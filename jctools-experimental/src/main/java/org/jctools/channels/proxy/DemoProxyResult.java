@@ -48,7 +48,7 @@ public class DemoProxyResult extends SpscOffHeapFixedSizeRingBuffer implements P
             case 2: {
                 float x = UnsafeAccess.UNSAFE.getFloat(rOffset + 4);
                 double y = UnsafeAccess.UNSAFE.getDouble(rOffset + 8);
-                boolean z = UnsafeAccess.UNSAFE.getBoolean(null, rOffset + 12);
+                boolean z = UnsafeAccess.UNSAFE.getBoolean(null, rOffset + 16);
                 this.readRelease(rOffset);
                 impl.call2(x, y, z);
                 break;
