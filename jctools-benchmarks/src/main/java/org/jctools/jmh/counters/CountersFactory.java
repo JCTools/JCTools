@@ -8,8 +8,6 @@ import java.util.concurrent.atomic.LongAdder;
 
 import org.jctools.counters.FixedSizeStripedLongCounter;
 import org.jctools.maps.ConcurrentAutoTable;
-import org.openjdk.jmh.annotations.CompilerControl;
-import org.openjdk.jmh.annotations.CompilerControl.Mode;
 
 /**
  * @author Tolstopyatov Vsevolod
