@@ -79,7 +79,7 @@ public class QueueBurstCost {
 
     }
 
-    static final Go GO = new Go();
+    Go GO = new Go();
 
     @Param({ "SpscArrayQueue", "MpscArrayQueue", "SpmcArrayQueue", "MpmcArrayQueue" })
     String qType;
@@ -136,7 +136,7 @@ public class QueueBurstCost {
     }
 
     @TearDown
-    public void killConsumer() throws InterruptedException {
+    public void killConsumers() throws InterruptedException {
         consumer.isRunning = false;
         for (int i = 0; i < consumerCount; i++) {
             consumerThreads[i].join();
