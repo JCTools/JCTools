@@ -14,8 +14,8 @@ public class MpscChunkedMessagePassingQueueSanityTest extends MessagePassingQueu
     @Parameterized.Parameters
     public static Collection<Object[]> parameters() {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
-        list.add(makeMpq(0, 1, 4, Ordering.FIFO, new MpscChunkedArrayQueue<>(2,4,true)));// MPSC size 1
-        list.add(makeMpq(0, 1, SIZE, Ordering.FIFO, new MpscChunkedArrayQueue<>(8, SIZE, true)));// MPSC size SIZE
+        list.add(makeMpq(0, 1, 4, Ordering.FIFO, new MpscChunkedArrayQueue<>(2,4)));// MPSC size 1
+        list.add(makeMpq(0, 1, SIZE, Ordering.FIFO, new MpscChunkedArrayQueue<>(8, SIZE)));// MPSC size SIZE
         return list;
     }
 
@@ -25,7 +25,7 @@ public class MpscChunkedMessagePassingQueueSanityTest extends MessagePassingQueu
 
     @Test
     public void testMaxSizeQueue() {
-        MpscChunkedArrayQueue queue = new MpscChunkedArrayQueue<Object>(1024, 1000*1024*1024, true);
+        MpscChunkedArrayQueue queue = new MpscChunkedArrayQueue<Object>(1024, 1000*1024*1024);
         for (int i = 0 ; i < 400001; i++) {
             queue.offer(i);
         }

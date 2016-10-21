@@ -14,8 +14,8 @@ public class MpscGrowableMessagePassingQueueSanityTest extends MessagePassingQue
     @Parameterized.Parameters
     public static Collection<Object[]> parameters() {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
-        list.add(makeMpq(0, 1, 4, Ordering.FIFO, new MpscChunkedArrayQueue<>(2, 4, false)));// MPSC size 1
-        list.add(makeMpq(0, 1, SIZE, Ordering.FIFO, new MpscChunkedArrayQueue<>(8, SIZE, false)));// MPSC size SIZE
+        list.add(makeMpq(0, 1, 4, Ordering.FIFO, new MpscGrowableArrayQueue<>(2, 4)));// MPSC size 1
+        list.add(makeMpq(0, 1, SIZE, Ordering.FIFO, new MpscGrowableArrayQueue<>(8, SIZE)));// MPSC size SIZE
         return list;
     }
 
