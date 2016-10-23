@@ -540,11 +540,6 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
      * @return current buffer capacity for elements (excluding next pointer and jump entry) * 2
      */
     protected abstract long getCurrentBufferCapacity(long mask);
-//    {
-//        // consider replacing if with subclass
-//        return (!isFixedChunkSize && mask + 2 == maxQueueCapacity) ? maxQueueCapacity
-//                : mask;
-//    }
 
     @Override
     public int fill(Supplier<E> s) {
@@ -566,11 +561,11 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
             ExitCondition exit) {
 
         while (exit.keepRunning()) {
-            while (fill(s, MpmcArrayQueue.RECOMENDED_OFFER_BATCH) != 0) {
+            while (fill(s, MpmcArrayQueue.RECOMENDED_OFFER_BATCH) != 0 && exit.keepRunning()) {
                 continue;
             }
             int idleCounter = 0;
-            while (fill(s, MpmcArrayQueue.RECOMENDED_OFFER_BATCH) == 0 && exit.keepRunning()) {
+            while (exit.keepRunning() && fill(s, MpmcArrayQueue.RECOMENDED_OFFER_BATCH) == 0) {
                 idleCounter = w.idle(idleCounter);
             }
 
