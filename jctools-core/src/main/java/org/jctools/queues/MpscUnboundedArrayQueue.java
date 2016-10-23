@@ -13,6 +13,8 @@
  */
 package org.jctools.queues;
 
+import org.jctools.queues.MessagePassingQueue.Consumer;
+import org.jctools.queues.MessagePassingQueue.Supplier;
 import org.jctools.util.Pow2;
 
 /**
@@ -39,6 +41,25 @@ public class MpscUnboundedArrayQueue<E> extends BaseMpscLinkedArrayQueue<E> {
     @Override
     public int capacity() {
         return MessagePassingQueue.UNBOUNDED_CAPACITY;
+    }
+
+    @Override
+    public int drain(Consumer<E> c) {
+        return drain(c, 4096);
+    }
+
+    @Override
+    public int fill(Supplier<E> s) {
+        long result = 0;// result is a long because we want to have a safepoint check at regular intervals
+        final int capacity = 4096;
+        do {
+            final int filled = fill(s, MpmcArrayQueue.RECOMENDED_OFFER_BATCH);
+            if (filled == 0) {
+                return (int) result;
+            }
+            result += filled;
+        } while (result <= capacity);
+        return (int) result;
     }
 
     @Override
