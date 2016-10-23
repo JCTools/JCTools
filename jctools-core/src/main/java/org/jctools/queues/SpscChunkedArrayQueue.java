@@ -20,8 +20,8 @@ import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
 import org.jctools.util.Pow2;
 
 public class SpscChunkedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
-    private int maxQueueCapacity; // ignored by the unbounded implementation
-    private long producerQueueLimit;// ignored by the unbounded implementation
+    private int maxQueueCapacity;
+    private long producerQueueLimit;
 
     public SpscChunkedArrayQueue(final int capacity) {
         this(Math.max(8, Pow2.roundToPowerOfTwo(capacity / 8)), capacity);
@@ -45,7 +45,7 @@ public class SpscChunkedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
 
         long mask = chunkCapacity - 1;
         // need extra element to point at next array
-        E[] buffer = allocate(chunkCapacity+1);
+        E[] buffer = allocate(chunkCapacity + 1);
         producerBuffer = buffer;
         producerMask = mask;
         consumerBuffer = buffer;
@@ -89,17 +89,13 @@ public class SpscChunkedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
         }
         else {
             // we got one slot left to write into, and we are not full. Need to link new buffer.
-            linkNewBuffer(buffer, pIndex, offset, e, mask);
+            // allocate new buffer of same length
+            final E[] newBuffer = allocate((int)(mask + 2));
+            producerBuffer = newBuffer;
+
+            linkOldToNew(pIndex, buffer, offset, newBuffer, offset, e);
         }
         return true;
     }
 
-    protected void linkNewBuffer(final E[] oldBuffer, final long currIndex, final long offset, final E e,
-            final long mask) {
-        // allocate new buffer of same length
-        final E[] newBuffer = allocate((int)(mask + 2));
-        producerBuffer = newBuffer;
-
-        linkOldToNew(currIndex, oldBuffer, offset, newBuffer, offset, e);
-    }
 }

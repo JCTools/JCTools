@@ -13,6 +13,7 @@
  */
 package org.jctools.queues;
 
+import static org.jctools.queues.CircularArrayOffsetCalculator.allocate;
 import static org.jctools.queues.CircularArrayOffsetCalculator.calcElementOffset;
 import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
 
@@ -20,11 +21,10 @@ import org.jctools.util.Pow2;
 
 public class SpscUnboundedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
 
-    @SuppressWarnings("unchecked")
     public SpscUnboundedArrayQueue(final int chunkSize) {
-        int p2capacity = Math.max(Pow2.roundToPowerOfTwo(chunkSize), 16);
-        long mask = p2capacity - 1;
-        E[] buffer = (E[]) new Object[p2capacity + 1];
+        int chunkCapacity = Math.max(Pow2.roundToPowerOfTwo(chunkSize), 16);
+        long mask = chunkCapacity - 1;
+        E[] buffer = allocate(chunkCapacity + 1);
         producerBuffer = buffer;
         producerMask = mask;
         consumerBuffer = buffer;
@@ -49,19 +49,14 @@ public class SpscUnboundedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
         }
         else {
             // we got one slot left to write into, and we are not full. Need to link new buffer.
-            linkNewBuffer(buffer, pIndex, offset, e, mask);
+            // allocate new buffer of same length
+            final E[] newBuffer =  allocate((int)(mask + 2));
+            producerBuffer = newBuffer;
+            producerBufferLimit = pIndex + mask - 1;
+
+            linkOldToNew(pIndex, buffer, offset, newBuffer, offset, e);
         }
         return true;
     }
 
-    @SuppressWarnings("unchecked")
-    private void linkNewBuffer(final E[] oldBuffer, final long currIndex, final long offset, final E e,
-            final long mask) {
-    	// allocate new buffer of same length
-        final E[] newBuffer = (E[]) new Object[oldBuffer.length];
-        producerBuffer = newBuffer;
-        producerBufferLimit = currIndex + mask - 1;
-
-        linkOldToNew(currIndex, oldBuffer, offset, newBuffer, offset, e);
-    }
 }
