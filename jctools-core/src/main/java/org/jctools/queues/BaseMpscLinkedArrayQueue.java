@@ -152,7 +152,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
 
             // assumption behind this optimization is that queue is almost always empty or near empty
             if (producerLimit <= pIndex) {
-                int result = offerSlowPath(mask, buffer, pIndex, producerLimit);
+                int result = offerSlowPath(mask, pIndex, producerLimit);
                 switch (result) {
                 case 0:
                     break;
@@ -179,7 +179,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
     /**
      * We do not inline resize into this method because we do not resize on fill.
      */
-    private int offerSlowPath(long mask, E[] buffer, long pIndex, long producerLimit) {
+    private int offerSlowPath(long mask, long pIndex, long producerLimit) {
         int result;
         final long cIndex = lvConsumerIndex();
         long bufferCapacity = getCurrentBufferCapacity(mask);
@@ -207,9 +207,6 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
      * @return available elements in queue * 2
      */
     protected abstract long availableInQueue(long pIndex, final long cIndex);
-//    {
-//        return consumerIndex == (pIndex - maxQueueCapacity);
-//    }
 
     /**
      * This method assumes index is actually (index << 1) because lower bit is used for resize. This is
@@ -461,7 +458,9 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
             }
             // pIndex is even (lower bit is 0) -> actual index is (pIndex >> 1)
 
-            // mask/buffer may get changed by resizing -> only use for array access after successful CAS.
+            // NOTE: mask/buffer may get changed by resizing -> only use for array access after successful CAS.
+            // Only by virtue ofloading them between the lvProcducerIndex and a successful casProducerIndex are they
+            // safe to use.
             mask = this.producerMask;
             buffer = this.producerBuffer;
             // a successful CAS ties the ordering, lv(pIndex)->[mask/buffer]->cas(pIndex)
@@ -470,7 +469,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
             long batchIndex = Math.min(producerLimit, pIndex + 2 * batchSize);
 
             if (pIndex == producerLimit || producerLimit < batchIndex) {
-                int result = offerSlowPath(mask, buffer, pIndex, producerLimit);
+                int result = offerSlowPath(mask, pIndex, producerLimit);
                 switch (result) {
                 case 1:
                     continue;
