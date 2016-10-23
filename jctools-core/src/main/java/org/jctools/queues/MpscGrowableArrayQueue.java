@@ -44,17 +44,12 @@ public class MpscGrowableArrayQueue<E> extends MpscChunkedArrayQueue<E>
 
     @Override
     protected int getNextBufferSize(E[] buffer) {
-      final long maxSize = maxQueueCapacity/2;
-      if (buffer.length == maxSize) {
-          throw new IllegalStateException();
-      }
-      final int newSize = 2 * (buffer.length - 1);
-      if (newSize == maxSize + 2) {
-          return newSize;
-      }
-      else {
-          return newSize + 1;
-      }
+        final long maxSize = maxQueueCapacity / 2;
+        if (buffer.length > maxSize) {
+            throw new IllegalStateException();
+        }
+        final int newSize = 2 * (buffer.length - 1);
+        return newSize + 1;
     }
 
     @Override
