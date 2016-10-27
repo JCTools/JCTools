@@ -53,8 +53,12 @@ public abstract class OffHeapFixedMessageSizeRingBuffer {
     }
 
     public OffHeapFixedMessageSizeRingBuffer(final int capacity, final int messageSize) {
-        this(allocateAlignedByteBuffer(getRequiredBufferSize(capacity, messageSize), CACHE_LINE_SIZE), Pow2
-                .roundToPowerOfTwo(capacity), true, true, true, messageSize);
+        this(allocateAlignedByteBuffer(getRequiredBufferSize(capacity, messageSize), CACHE_LINE_SIZE), 
+                Pow2.roundToPowerOfTwo(capacity),
+                true,
+                true,
+                true,
+                messageSize);
     }
 
     /**

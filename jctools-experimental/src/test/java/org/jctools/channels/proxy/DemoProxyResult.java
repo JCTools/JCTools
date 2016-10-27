@@ -1,17 +1,18 @@
 package org.jctools.channels.proxy;
 
-import org.jctools.channels.spsc.SpscOffHeapFixedSizeRingBuffer;
+import org.jctools.channels.spsc.SpscOffHeapFixedSizeWithReferenceSupportRingBuffer;
 import org.jctools.util.UnsafeAccess;
+import org.jctools.util.UnsafeRefArrayAccess;
 
 /**
  * Generated code. This is a mockup for methods passing primitives only.
  *
  * @author yak
  */
-public class DemoProxyResult extends SpscOffHeapFixedSizeRingBuffer implements ProxyChannel<DemoIFace>, DemoIFace {
+public class DemoProxyResult extends SpscOffHeapFixedSizeWithReferenceSupportRingBuffer implements ProxyChannel<DemoIFace>, DemoIFace {
 
     public DemoProxyResult(int capacity) {
-        super(capacity, 13);
+        super(capacity, 13, 2);
     }
 
     @Override
@@ -30,6 +31,16 @@ public class DemoProxyResult extends SpscOffHeapFixedSizeRingBuffer implements P
 
             @Override
             public void call3() {
+                // TODO: What to do here?
+            }
+
+            @Override
+            public void call4(Object x, Object y) {
+                // TODO: What to do here?
+            }
+
+            @Override
+            public void call5(Object x, int y, Object z) {
                 // TODO: What to do here?
             }
         };
@@ -72,6 +83,26 @@ public class DemoProxyResult extends SpscOffHeapFixedSizeRingBuffer implements P
                     impl.call3();
                     break;
                 }
+                case 4: {
+                    long referenceArrayIndex = this.consumerReferenceArrayIndex();
+                    Object x = UnsafeRefArrayAccess.lpElement(references, UnsafeRefArrayAccess.calcElementOffset(referenceArrayIndex));
+                    Object y = UnsafeRefArrayAccess.lpElement(references, UnsafeRefArrayAccess.calcElementOffset(referenceArrayIndex+1));
+                    this.readRelease(rOffset);
+                    impl.call4(x, y);
+                    break;
+                }
+                case 5: {
+                    // Do primitives first
+                    int y = UnsafeAccess.UNSAFE.getInt(rOffset + 4);
+                    
+                    // References
+                    long referenceArrayIndex = this.consumerReferenceArrayIndex();
+                    Object x = UnsafeRefArrayAccess.lpElement(references, UnsafeRefArrayAccess.calcElementOffset(referenceArrayIndex));
+                    Object z = UnsafeRefArrayAccess.lpElement(references, UnsafeRefArrayAccess.calcElementOffset(referenceArrayIndex+1));
+                    this.readRelease(rOffset);
+                    impl.call5(x, y, z);
+                    break;
+                }
             }
         }
 
@@ -103,5 +134,26 @@ public class DemoProxyResult extends SpscOffHeapFixedSizeRingBuffer implements P
     public void call3() {
         long wOffset = this.writeAcquire();
         this.writeRelease(wOffset, 3);
+    }
+
+    @Override
+    public void call4(Object x, Object y) {
+        long wOffset = this.writeAcquire();
+        long arrayReferenceBaseIndex = this.producerReferenceArrayIndex();
+        // Is there a way to compute the element offset once and just arithmetic?
+        UnsafeRefArrayAccess.spElement(references,UnsafeRefArrayAccess.calcElementOffset( arrayReferenceBaseIndex+0), x);
+        UnsafeRefArrayAccess.spElement(references,UnsafeRefArrayAccess.calcElementOffset( arrayReferenceBaseIndex+1), y);
+        this.writeRelease(wOffset, 4);
+    }
+
+    @Override
+    public void call5(Object x, int y, Object z) {
+        long wOffset = this.writeAcquire();
+        UnsafeAccess.UNSAFE.putInt(wOffset + 4, y);
+        long arrayReferenceBaseIndex = this.producerReferenceArrayIndex();
+        // Is there a way to compute the element offset once and just arithmetic?
+        UnsafeRefArrayAccess.spElement(references,UnsafeRefArrayAccess.calcElementOffset( arrayReferenceBaseIndex+0), x);
+        UnsafeRefArrayAccess.spElement(references,UnsafeRefArrayAccess.calcElementOffset( arrayReferenceBaseIndex+1), z);
+        this.writeRelease(wOffset, 5);
     }
 }

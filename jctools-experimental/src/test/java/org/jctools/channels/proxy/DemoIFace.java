@@ -7,4 +7,8 @@ public interface DemoIFace {
     void call2(float x, double y, boolean z);
 
     void call3();
+
+    void call4(Object x, Object y);
+
+    void call5(Object x, int y, Object z);
 }
