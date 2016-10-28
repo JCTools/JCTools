@@ -195,7 +195,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
         }
         // grab index for resize -> set lower bit
         else if (casProducerIndex(pIndex, pIndex + 1)) {
-            result = 3;// -> return true
+            result = 3;// -> resize
         }
         else {
             result = 1;// failed resize attempt, retry from top
@@ -520,7 +520,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
 
         // Invalidate racing CASs
         // We never set the limit beyond the bounds of a buffer
-        soProducerLimit(pIndex + Math.min(oldMask, availableInQueue));
+        soProducerLimit(pIndex + Math.min(newMask, availableInQueue));
 
         // make resize visible to the other producers
         soProducerIndex(pIndex + 2);
