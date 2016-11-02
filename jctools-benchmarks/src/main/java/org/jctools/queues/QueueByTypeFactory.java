@@ -95,6 +95,22 @@ public class QueueByTypeFactory {
         }
         throw new IllegalArgumentException("Failed to construct queue:"+qClass.getName(), ex);
     }
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    public static <T> Queue<T> createQueue(String queueType, final int chunkSize, final int queueCapacity) {
+        Class qClass = queueClass(queueType);
+        if (!(BaseMpscLinkedArrayQueue.class.isAssignableFrom(qClass) || BaseSpscLinkedArrayQueue.class.isAssignableFrom(qClass)) )
+            throw new IllegalArgumentException("Failed to construct queue, does not expect chunkSize:"+qClass.getName());
+        Constructor constructor;
+        Exception ex;
+        try {
+            constructor = qClass.getConstructor(Integer.TYPE, Integer.TYPE);
+            return (Queue<T>) constructor.newInstance(chunkSize, queueCapacity);
+        } catch (Exception e) {
+            ex = e;
+        }
+
+        throw new IllegalArgumentException("Failed to construct queue:"+qClass.getName(), ex);
+    }
     @SuppressWarnings("rawtypes")
     private static Class queueClass(String queueType) {
         try {
@@ -115,5 +131,23 @@ public class QueueByTypeFactory {
         } catch (ClassNotFoundException e) {
         }
         throw new IllegalArgumentException("class not found:");
+    }
+
+    public static <T> Queue<T> buildQ(String qType, String qCapacity) {
+        try {
+            int capacity = Integer.valueOf(qCapacity);
+            return createQueue(qType, capacity);
+        }
+        catch (Exception e) {}
+
+        try {
+            String[] args = qCapacity.split("\\.");
+            int chunk = Integer.valueOf(args[0]);
+            int capacity = Integer.valueOf(args[1]);
+            return createQueue(qType, chunk, capacity);
+        }
+        catch (Exception e) {
+            throw new IllegalArgumentException("Failed to parse qCapacity",e);
+        }
     }
 }

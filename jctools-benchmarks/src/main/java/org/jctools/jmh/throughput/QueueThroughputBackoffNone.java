@@ -32,27 +32,32 @@ public class QueueThroughputBackoffNone {
     private Integer escape;
     @Param(value = { "SpscArrayQueue", "MpscArrayQueue", "SpmcArrayQueue", "MpmcArrayQueue" })
     String qType;
+
     @Param(value = { "132000" })
-    int qCapacity;
+    String qCapacity;
     Queue<Integer> q;
 
     @Setup()
     public void createQandPrimeCompilation() {
+        final String qType = this.qType;
+
         q = QueueByTypeFactory.createQueue(qType, 128);
-        
         // stretch the queue to the limit, working through resizing and full
         for (int i = 0; i < 128+100; i++) {
             q.offer(ONE);
         }
         for (int i = 0; i < 128+100; i++) {
             q.poll();
+
         }
         // make sure the important common case is exercised
         for (int i = 0; i < 20000; i++) {
             q.offer(ONE);
             q.poll();
         }
-        q = QueueByTypeFactory.createQueue(qType, qCapacity);
+        final String qCapacity = this.qCapacity;
+
+        this.q = QueueByTypeFactory.buildQ(qType, qCapacity);
     }
 
     @AuxCounters
