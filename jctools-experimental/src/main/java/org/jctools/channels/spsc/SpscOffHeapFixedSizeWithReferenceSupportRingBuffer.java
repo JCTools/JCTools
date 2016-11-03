@@ -21,6 +21,7 @@ import java.nio.ByteBuffer;
 
 import org.jctools.channels.OffHeapFixedMessageSizeWithReferenceSupportRingBuffer;
 import org.jctools.util.Pow2;
+import org.jctools.util.UnsafeRefArrayAccess;
 
 public class SpscOffHeapFixedSizeWithReferenceSupportRingBuffer extends OffHeapFixedMessageSizeWithReferenceSupportRingBuffer {
 
@@ -38,7 +39,7 @@ public class SpscOffHeapFixedSizeWithReferenceSupportRingBuffer extends OffHeapF
 
     public SpscOffHeapFixedSizeWithReferenceSupportRingBuffer(final int capacity,
             final int messageSize,
-            int arrayMessageSize) {
+            final int arrayMessageSize) {
         this(allocateAlignedByteBuffer(getRequiredBufferSize(capacity, messageSize), CACHE_LINE_SIZE),
                 Pow2.roundToPowerOfTwo(capacity),
                 true,
@@ -105,6 +106,18 @@ public class SpscOffHeapFixedSizeWithReferenceSupportRingBuffer extends OffHeapF
         return producerOffset;
     }
 
+    protected final void writeReference(long offset, Object reference) {
+        // Is there a way to compute the element offset once and just
+        // arithmetic?
+        UnsafeRefArrayAccess.spElement(references, UnsafeRefArrayAccess.calcElementOffset(offset), reference);
+    }
+
+    protected final Object readReference(long offset) {
+        // Is there a way to compute the element offset once and just
+        // arithmetic?
+        return UnsafeRefArrayAccess.lpElement(references, UnsafeRefArrayAccess.calcElementOffset(offset));
+    }
+    
     @Override
     protected final void writeRelease(long offset) {
         writeReleaseState(offset);

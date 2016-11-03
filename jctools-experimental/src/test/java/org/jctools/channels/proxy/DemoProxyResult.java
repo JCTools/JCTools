@@ -2,7 +2,6 @@ package org.jctools.channels.proxy;
 
 import org.jctools.channels.spsc.SpscOffHeapFixedSizeWithReferenceSupportRingBuffer;
 import org.jctools.util.UnsafeAccess;
-import org.jctools.util.UnsafeRefArrayAccess;
 
 /**
  * Generated code. This is a mockup for methods passing primitives only.
@@ -35,12 +34,17 @@ public class DemoProxyResult extends SpscOffHeapFixedSizeWithReferenceSupportRin
             }
 
             @Override
-            public void call4(Object x, Object y) {
+            public void call4(Object x, CustomType y) {
                 // TODO: What to do here?
             }
 
             @Override
-            public void call5(Object x, int y, Object z) {
+            public void call5(CustomType x, int y, CustomType z) {
+                // TODO: What to do here?
+            }
+
+            @Override
+            public void call6(int x, CustomType[] y, CustomType... z) {
                 // TODO: What to do here?
             }
         };
@@ -58,11 +62,10 @@ public class DemoProxyResult extends SpscOffHeapFixedSizeWithReferenceSupportRin
             long rOffset = this.readAcquire();
             if (rOffset == EOF)
                 break;
-            int type = UnsafeAccess.UNSAFE.getInt(rOffset);
             // Depending on the number of methods this could change for performance (needs testing)
             // Start off with a switch and see how we do. The compiler *should* be able to convert a large switch
             // to a lookup table and *should* be better equipped to make the call.
-            switch (type) {
+            switch (UnsafeAccess.UNSAFE.getInt(rOffset)) {
                 case 1: {
                     int x = UnsafeAccess.UNSAFE.getInt(rOffset + 4);
                     int y = UnsafeAccess.UNSAFE.getInt(rOffset + 8);
@@ -85,22 +88,28 @@ public class DemoProxyResult extends SpscOffHeapFixedSizeWithReferenceSupportRin
                 }
                 case 4: {
                     long referenceArrayIndex = this.consumerReferenceArrayIndex();
-                    Object x = UnsafeRefArrayAccess.lpElement(references, UnsafeRefArrayAccess.calcElementOffset(referenceArrayIndex));
-                    Object y = UnsafeRefArrayAccess.lpElement(references, UnsafeRefArrayAccess.calcElementOffset(referenceArrayIndex+1));
+                    Object x = this.readReference(referenceArrayIndex);
+                    Object y = this.readReference(referenceArrayIndex + 1);
                     this.readRelease(rOffset);
-                    impl.call4(x, y);
+                    impl.call4(x, (CustomType) y);
                     break;
                 }
                 case 5: {
-                    // Do primitives first
-                    int y = UnsafeAccess.UNSAFE.getInt(rOffset + 4);
-                    
-                    // References
                     long referenceArrayIndex = this.consumerReferenceArrayIndex();
-                    Object x = UnsafeRefArrayAccess.lpElement(references, UnsafeRefArrayAccess.calcElementOffset(referenceArrayIndex));
-                    Object z = UnsafeRefArrayAccess.lpElement(references, UnsafeRefArrayAccess.calcElementOffset(referenceArrayIndex+1));
+                    Object x = this.readReference(referenceArrayIndex);
+                    int y = UnsafeAccess.UNSAFE.getInt(rOffset + 4);
+                    Object z = this.readReference(referenceArrayIndex + 1);
                     this.readRelease(rOffset);
-                    impl.call5(x, y, z);
+                    impl.call5((CustomType) x, y, (CustomType) z);
+                    break;
+                }
+                case 6: {
+                    long referenceArrayIndex = this.consumerReferenceArrayIndex();
+                    int x = UnsafeAccess.UNSAFE.getInt(rOffset + 4);
+                    Object y = this.readReference(referenceArrayIndex);
+                    Object z = this.readReference(referenceArrayIndex + 1);
+                    this.readRelease(rOffset);
+                    impl.call6(x, (CustomType[]) y, (CustomType[]) z);
                     break;
                 }
             }
@@ -137,23 +146,31 @@ public class DemoProxyResult extends SpscOffHeapFixedSizeWithReferenceSupportRin
     }
 
     @Override
-    public void call4(Object x, Object y) {
+    public void call4(Object x, CustomType y) {
         long wOffset = this.writeAcquire();
         long arrayReferenceBaseIndex = this.producerReferenceArrayIndex();
-        // Is there a way to compute the element offset once and just arithmetic?
-        UnsafeRefArrayAccess.spElement(references,UnsafeRefArrayAccess.calcElementOffset( arrayReferenceBaseIndex+0), x);
-        UnsafeRefArrayAccess.spElement(references,UnsafeRefArrayAccess.calcElementOffset( arrayReferenceBaseIndex+1), y);
+        this.writeReference(arrayReferenceBaseIndex, x);
+        this.writeReference(arrayReferenceBaseIndex + 1, y);
         this.writeRelease(wOffset, 4);
     }
 
     @Override
-    public void call5(Object x, int y, Object z) {
+    public void call5(CustomType x, int y, CustomType z) {
         long wOffset = this.writeAcquire();
-        UnsafeAccess.UNSAFE.putInt(wOffset + 4, y);
         long arrayReferenceBaseIndex = this.producerReferenceArrayIndex();
-        // Is there a way to compute the element offset once and just arithmetic?
-        UnsafeRefArrayAccess.spElement(references,UnsafeRefArrayAccess.calcElementOffset( arrayReferenceBaseIndex+0), x);
-        UnsafeRefArrayAccess.spElement(references,UnsafeRefArrayAccess.calcElementOffset( arrayReferenceBaseIndex+1), z);
+        this.writeReference(arrayReferenceBaseIndex, x);
+        UnsafeAccess.UNSAFE.putInt(wOffset + 4, y);
+        this.writeReference(arrayReferenceBaseIndex + 1, z);
         this.writeRelease(wOffset, 5);
+    }
+
+    @Override
+    public void call6(int x, CustomType[] y, CustomType... z) {
+        long wOffset = this.writeAcquire();
+        long arrayReferenceBaseIndex = this.producerReferenceArrayIndex();
+        UnsafeAccess.UNSAFE.putInt(wOffset + 4, x);
+        this.writeReference(arrayReferenceBaseIndex, y);
+        this.writeReference(arrayReferenceBaseIndex + 1, z);
+        this.writeRelease(wOffset, 6);
     }
 }
