@@ -41,27 +41,15 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeThat;
 
-@RunWith(Parameterized.class)
 public class IntrusiveQueueSanityTest {
 
     static final int SIZE = 8192 * 2;
 
     TestNode[] nodes = new TestNode[SIZE];
 
-    @Parameterized.Parameters
-    public static Collection parameters() {
-        return Collections.singletonList(new Object[]{
-                new ConcurrentQueueSpec(0, 1, 0, Ordering.FIFO, Preference.NONE),
-                new MpscIntrusiveLinkedQueue()});
-    }
+    private final MpscIntrusiveLinkedQueue queue = new MpscIntrusiveLinkedQueue();
+    private final ConcurrentQueueSpec spec = new ConcurrentQueueSpec(0, 1, 0, Ordering.FIFO, Preference.NONE);
 
-    private final MpscIntrusiveLinkedQueue queue;
-    private final ConcurrentQueueSpec spec;
-
-    public IntrusiveQueueSanityTest(ConcurrentQueueSpec spec, MpscIntrusiveLinkedQueue queue) {
-        this.queue = queue;
-        this.spec = spec;
-    }
 
     @Before
     public void clear() {
@@ -141,31 +129,6 @@ public class IntrusiveQueueSanityTest {
 
         // Assert
         assertThat(i, is(size));
-    }
-
-    @Test
-    public void test_FIFO_PRODUCER_Ordering() throws Exception {
-        assumeThat(spec.ordering, is(not((Ordering.FIFO))));
-
-        // Arrange
-        for (int i = 0; i < SIZE; i++) {
-            nodes[i].value = i;
-            queue.offer(nodes[i]);
-        }
-        int size = queue.size();
-
-        // Act
-        // expect sum of elements is (size - 1) * size / 2 = 0 + 1 + .... + (size - 1)
-        int sum = (size - 1) * size / 2;
-        TestNode e;
-        while ((e = (TestNode) queue.poll()) != null) {
-            size--;
-            assertEquals(size, queue.size());
-            sum -= e.value;
-        }
-
-        // Assert
-        assertThat(sum, is(0));
     }
 
     @Test(expected=NullPointerException.class)
@@ -259,7 +222,6 @@ public class IntrusiveQueueSanityTest {
 
     @Test
     public void testSize() throws Exception {
-        assumeThat(spec.isBounded(), is(true));
         final AtomicBoolean stop = new AtomicBoolean();
         final MpscIntrusiveLinkedQueue q = queue;
         final Val fail = new Val();
@@ -278,7 +240,7 @@ public class IntrusiveQueueSanityTest {
                 while (!stop.get()) {
                     int size = q.size();
                     if(size != 0 && size != 1) {
-                        fail.value++;
+                        fail.value = size;
                     }
                 }
             }
@@ -291,7 +253,6 @@ public class IntrusiveQueueSanityTest {
         t1.join();
         t2.join();
         assertEquals("Unexpected size observed", 0, fail.value);
-        fail();
     }
 
     public static Object[] makeQueue(int producers, int consumers, int capacity, Ordering ordering, Queue<Integer> q) {

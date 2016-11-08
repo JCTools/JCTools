@@ -93,7 +93,7 @@ public class MpscIntrusiveLinkedQueue extends MpscIntrusiveLinkedQueueConsumerNo
             throw new NullPointerException();
         }
         node.setNext(null);
-        Node prev = xchgHead(node);
+        Node prev = xchgProducerNode(node);
         // bubble potential
         prev.setNext(node);
         return true;
@@ -117,6 +117,8 @@ public class MpscIntrusiveLinkedQueue extends MpscIntrusiveLinkedQueueConsumerNo
         // cNode is not stub AND next is not null
         if (next != null) {
             this.spConsumerNode(next);
+            // prevent GC nepotism, signal consumed to size
+            cNode.setNext(stub);
             return cNode;
         }
 
@@ -130,6 +132,8 @@ public class MpscIntrusiveLinkedQueue extends MpscIntrusiveLinkedQueueConsumerNo
         next = cNode.getNext();
         if (next != null) {
             this.spConsumerNode(next);
+            // prevent GC nepotism, signal consumed to size
+            cNode.setNext(stub);
             return cNode;
         }
 
@@ -152,14 +156,24 @@ public class MpscIntrusiveLinkedQueue extends MpscIntrusiveLinkedQueueConsumerNo
     }
 
     public int size() {
-        Node tail = this.lpConsumerNode();
-        if (tail == this.stub) {
-            tail = tail.getNext();
+        // Read consumer first, this is important because if the producer is node is 'older' than the consumer
+        // the consumer may overtake it (consume past it) invalidating the 'snapshot' notion of size.
+        final Node stub = this.stub;
+        Node chaserNode = lvConsumerNode();
+        if (chaserNode == stub) {
+            chaserNode = chaserNode.getNext();
         }
 
+        final Node producerNode = lvProducerNode();
         int size = 0;
-        while (tail != null) {
-            tail = tail.getNext();
+        // must chase the nodes all the way to the producer node, but there's no need to count beyond expected head.
+        while (chaserNode != null && chaserNode != stub &&
+               size < Integer.MAX_VALUE) // stop at max int
+        {
+            if (chaserNode == producerNode) {
+                return size + 1;
+            }
+            chaserNode = chaserNode.getNext();
             size++;
         }
         return size;
@@ -169,7 +183,7 @@ public class MpscIntrusiveLinkedQueue extends MpscIntrusiveLinkedQueueConsumerNo
         return peek() == null;
     }
 
-    private Node xchgHead(Node node) {
+    private Node xchgProducerNode(Node node) {
         // TODO: add support for JDK < 8 per org.jctools.queues.MpscLinkedQueue / MpscLinkedQueue8
         return (Node) UNSAFE.getAndSetObject(this, P_NODE_OFFSET, node);
     }
