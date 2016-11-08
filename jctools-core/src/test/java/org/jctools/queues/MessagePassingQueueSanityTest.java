@@ -124,18 +124,23 @@ public class MessagePassingQueueSanityTest {
             // expect FIFO
             p = queue.relaxedPeek();
             count = 0;
-            i = queue.drain(e -> {
-                // batch consumption can cause size to differ from following expectation
-                // this is because elements are 'claimed' in a batch and their consumption lags
-                if (spec.consumers == 1) {
-                    assertEquals(p, e); // peek will return the post claim peek
-                    assertEquals(size - (count + 1), queue.size()); // size will return the post claim size
-                }
-                assertEquals(count++, e.intValue());
-                p = queue.relaxedPeek();
-            });
+            int drainCount = 0;
+            i = 0;
+            do {
+                i += drainCount = queue.drain(e -> {
+                    // batch consumption can cause size to differ from following expectation
+                    // this is because elements are 'claimed' in a batch and their consumption lags
+                    if (spec.consumers == 1) {
+                        assertEquals(p, e); // peek will return the post claim peek
+                        assertEquals(size - (count + 1), queue.size()); // size will return the post claim size
+                    }
+                    assertEquals(count++, e.intValue());
+                    p = queue.relaxedPeek();
+                });
+            } while (drainCount != 0);
             p = null;
             assertEquals(size, i);
+
             assertTrue(queue.isEmpty());
             assertTrue(queue.size() == 0);
         }

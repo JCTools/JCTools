@@ -90,6 +90,9 @@ public class QueueBurstCost {
     @Param("1")
     int consumerCount;
 
+    @Param(value = { "132000" })
+    String qCapacity;
+
     Queue<AbstractEvent> q;
 
     private Thread[] consumerThreads;
@@ -111,7 +114,7 @@ public class QueueBurstCost {
             q.offer(GO);
             q.poll();
         }
-        q = QueueByTypeFactory.createQueue(qType, 128 * 1024);
+        q = QueueByTypeFactory.buildQ(qType, qCapacity);
         consumer = new Consumer(q);
         consumerThreads = new Thread[consumerCount];
         for (int i = 0; i < consumerCount; i++) {

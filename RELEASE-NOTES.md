@@ -1,3 +1,10 @@
+2.0
+==========
+PR #94 : The NonBlockingHashMap by @cliffclick is now released as part of JCTools core. Also thanks to @pcholakov for help is converting and sanity testing some of the benchmark code (PR #108).
+PR #129 : MPSC linked array queues code is tidied up and split into 3 implementations. The old Chunked is here, but constructor has changed. Growable is split from chunked and Unbounded is added.
+Bug #135 : Bug fix for the growable MPSC case.
+PR #127 : Releasing JCTools as an OSGi bundle, thanks @CodingFabian 
+
 1.2.1
 ==========
 - PERF: Fix GC nepotism issue in SpscUnboundedArrayQueue (Issue #95, PR #96, courtesy of @akarnokd)

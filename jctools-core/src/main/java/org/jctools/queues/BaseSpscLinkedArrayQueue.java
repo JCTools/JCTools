@@ -1,10 +1,17 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.jctools.queues;
-
-import java.lang.reflect.Field;
-import java.util.AbstractQueue;
-import java.util.Iterator;
-
-import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
 
 import static org.jctools.queues.CircularArrayOffsetCalculator.calcElementOffset;
 import static org.jctools.util.UnsafeAccess.UNSAFE;
@@ -13,10 +20,16 @@ import static org.jctools.util.UnsafeRefArrayAccess.REF_ELEMENT_SHIFT;
 import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
 import static org.jctools.util.UnsafeRefArrayAccess.soElement;
 
+import java.lang.reflect.Field;
+import java.util.AbstractQueue;
+import java.util.Iterator;
+
+import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
+
 abstract class BaseSpscLinkedArrayQueuePrePad<E> extends AbstractQueue<E> {
     long p0, p1, p2, p3, p4, p5, p6, p7;
-    long p10, p11, p12;
-    // p13, p14, p15, p16, p17; drop 4 longs, the cold fields act as buffer
+    long p10, p11, p12, p13, p14, p15;
+    //  p16, p17; drop 2 longs, the cold fields act as buffer
 }
 abstract class BaseSpscLinkedArrayQueueConsumerColdFields<E> extends BaseSpscLinkedArrayQueuePrePad<E> {
     protected long consumerMask;
@@ -97,9 +110,10 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
     }
 
     @SuppressWarnings("unchecked")
-    protected final E[] lvNext(E[] curr) {
+    protected final E[] lvNextArrayAndUnlink(E[] curr) {
         final long nextArrayOffset = nextArrayOffset(curr);
         final E[] nextBuffer = (E[]) lvElement(curr, nextArrayOffset);
+        // prevent GC nepotism
         soElement(curr, nextArrayOffset, null);
         return nextBuffer;
     }
@@ -115,6 +129,7 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
      */
     @Override
     public boolean offer(final E e) {
+        // Objects.requireNonNull(e);
         if (null == e) {
             throw new NullPointerException();
         }
@@ -130,7 +145,6 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
         }
         return offerColdPath(buffer, mask, e, index, offset);
     }
-
 
     protected abstract boolean offerColdPath(E[] buffer, long mask, E e, long pIndex, long offset);
 
@@ -148,6 +162,7 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
         soElement(buffer, offset, e);// StoreStore
         soProducerIndex(index + 1);// this ensures atomic write of long on 32bit platforms
     }
+
     /**
      * {@inheritDoc}
      * <p>
@@ -174,7 +189,6 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
         return null;
     }
 
-
     /**
      * {@inheritDoc}
      * <p>
@@ -196,7 +210,7 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
     }
 
     private E newBufferPeek(E[] buffer, final long index) {
-        E[] nextBuffer = lvNext(buffer);
+        E[] nextBuffer = lvNextArrayAndUnlink(buffer);
         consumerBuffer = nextBuffer;
         final long newMask = nextBuffer.length - 2;
         consumerMask = newMask;
@@ -205,7 +219,7 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
     }
 
     private E newBufferPoll(E[] buffer, final long index) {
-        E[] nextBuffer = lvNext(buffer);
+        E[] nextBuffer = lvNextArrayAndUnlink(buffer);
         consumerBuffer = nextBuffer;
         final long newMask = nextBuffer.length - 2;
         consumerMask = newMask;

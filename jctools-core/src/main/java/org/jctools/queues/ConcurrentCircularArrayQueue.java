@@ -48,7 +48,7 @@ public abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircular
     public ConcurrentCircularArrayQueue(int capacity) {
         int actualCapacity = Pow2.roundToPowerOfTwo(capacity);
         mask = actualCapacity - 1;
-        buffer = SparsePaddedCircularArrayOffsetCalculator.allocate(actualCapacity);
+        buffer = CircularArrayOffsetCalculator.allocate(actualCapacity);
     }
 
     /**
@@ -65,7 +65,7 @@ public abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircular
      * @return the offset in bytes within the array for a given index.
      */
     protected static long calcElementOffset(long index, long mask) {
-        return SparsePaddedCircularArrayOffsetCalculator.calcElementOffset(index, mask);
+        return CircularArrayOffsetCalculator.calcElementOffset(index, mask);
     }
 
     @Override

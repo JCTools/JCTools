@@ -44,7 +44,7 @@ public class SpscGrowableArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
 
         long mask = chunkCapacity - 1;
         // need extra element to point at next array
-        E[] buffer = allocate(chunkCapacity+1);
+        E[] buffer = allocate(chunkCapacity + 1);
         producerBuffer = buffer;
         producerMask = mask;
         consumerBuffer = buffer;
@@ -80,7 +80,14 @@ public class SpscGrowableArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
             if (null == lvElement(buffer, calcElementOffset(index + 1, mask))) { // buffer is not full
                 writeToQueue(buffer, e, index, offset);
             } else {
-                linkNewBuffer(buffer, index, offset, e, mask);
+                // allocate new buffer of same length
+                final E[] newBuffer = allocate((int) (2*(mask +1) + 1));
+
+                producerBuffer = newBuffer;
+                producerMask = newBuffer.length - 2;
+
+                final long offsetInNew = calcElementOffset(index, producerMask);
+                linkOldToNew(index, buffer, offset, newBuffer, offsetInNew, e);
                 int newCapacity = (int) (producerMask + 1);
                 if (newCapacity == maxCapacity) {
                     long currConsumerIndex = lvConsumerIndex();
@@ -127,17 +134,5 @@ public class SpscGrowableArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
 
     private void adjustLookAheadStep(int capacity) {
         lookAheadStep = Math.min(capacity / 4, SpscArrayQueue.MAX_LOOK_AHEAD_STEP);
-    }
-
-    private void linkNewBuffer(final E[] oldBuffer, final long currIndex, final long offset, final E e,
-            final long mask) {
-        // allocate new buffer of same length
-        final E[] newBuffer = allocate((int) (2*(mask+1) + 1));
-
-        producerBuffer = newBuffer;
-        producerMask = newBuffer.length - 2;
-
-        final long offsetInNew = calcElementOffset(currIndex, producerMask);
-        linkOldToNew(currIndex, oldBuffer, offset, newBuffer, offsetInNew, e);
     }
 }
