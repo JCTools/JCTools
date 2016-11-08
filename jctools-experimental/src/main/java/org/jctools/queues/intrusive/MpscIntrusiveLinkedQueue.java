@@ -27,8 +27,7 @@ abstract class MpscIntrusiveLinkedQueuePad0 {
 }
 
 abstract class MpscIntrusiveLinkedQueueProducerNodeRef extends MpscIntrusiveLinkedQueuePad0 {
-    protected final static long P_NODE_OFFSET;
-
+    private final static long P_NODE_OFFSET;
     static {
         try {
             P_NODE_OFFSET = UNSAFE
@@ -38,11 +37,14 @@ abstract class MpscIntrusiveLinkedQueueProducerNodeRef extends MpscIntrusiveLink
             throw new RuntimeException(e);
         }
     }
-
-    protected volatile Node producerNode;
+    private volatile Node producerNode;
 
     protected final Node lvProducerNode() {
         return producerNode;
+    }
+    protected final Node xchgProducerNode(Node node) {
+        // TODO: add support for JDK < 8 per org.jctools.queues.MpscLinkedQueue / MpscLinkedQueue8
+        return (Node) UNSAFE.getAndSetObject(this, P_NODE_OFFSET, node);
     }
 }
 
@@ -52,8 +54,7 @@ abstract class MpscIntrusiveLinkedQueuePad1 extends MpscIntrusiveLinkedQueueProd
 }
 
 abstract class MpscIntrusiveLinkedQueueConsumerNodeRef extends MpscIntrusiveLinkedQueuePad1 {
-    protected final static long C_NODE_OFFSET;
-
+    private final static long C_NODE_OFFSET;
     static {
         try {
             C_NODE_OFFSET = UNSAFE
@@ -63,9 +64,9 @@ abstract class MpscIntrusiveLinkedQueueConsumerNodeRef extends MpscIntrusiveLink
             throw new RuntimeException(e);
         }
     }
+    private Node consumerNode;
 
     protected final Node stub = new NodeImpl();
-    protected Node consumerNode;
 
     protected final void spConsumerNode(Node node) {
         consumerNode = node;
@@ -85,7 +86,8 @@ public class MpscIntrusiveLinkedQueue extends MpscIntrusiveLinkedQueueConsumerNo
 
     public MpscIntrusiveLinkedQueue() {
         super();
-        producerNode = consumerNode = stub;
+        spConsumerNode(stub);
+        xchgProducerNode(stub);
     }
 
     public boolean offer(Node node) {
@@ -155,6 +157,13 @@ public class MpscIntrusiveLinkedQueue extends MpscIntrusiveLinkedQueueConsumerNo
         while (poll() != null);
     }
 
+    /**
+     * This is an O(n) operation as we run through all the nodes and count them.<br>
+     * The accuracy of the value returned by this method is subject to races with producer/consumer threads. In
+     * particular when racing with the consumer thread this method may under estimate the size.<br>
+     * Note that passing nodes between queues, or concurrent requeuing of nodes can cause this method to return strange
+     * values.
+     */
     public int size() {
         // Read consumer first, this is important because if the producer is node is 'older' than the consumer
         // the consumer may overtake it (consume past it) invalidating the 'snapshot' notion of size.
@@ -183,8 +192,4 @@ public class MpscIntrusiveLinkedQueue extends MpscIntrusiveLinkedQueueConsumerNo
         return peek() == null;
     }
 
-    private Node xchgProducerNode(Node node) {
-        // TODO: add support for JDK < 8 per org.jctools.queues.MpscLinkedQueue / MpscLinkedQueue8
-        return (Node) UNSAFE.getAndSetObject(this, P_NODE_OFFSET, node);
-    }
 }
