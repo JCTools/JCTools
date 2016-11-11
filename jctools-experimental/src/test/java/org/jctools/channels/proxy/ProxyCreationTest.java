@@ -1,15 +1,45 @@
 package org.jctools.channels.proxy;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
+
 import org.jctools.channels.proxy.DemoIFace.CustomType;
+import org.jctools.channels.spsc.SpscOffHeapFixedSizeWithReferenceSupportRingBuffer.WaitStrategy;
 import org.junit.Assert;
 import org.junit.Test;
 
 public class ProxyCreationTest {
-    
+    private static final class ThrowExceptionOnFullQueue implements WaitStrategy {
+        private static final String MESSAGE = "queue is full";
+
+        @Override
+        public int idle(int idleCounter) {
+            throw new RuntimeException(MESSAGE);
+        }
+
+    }
+
+    @Test
+    public void testGeneratedHasFullQueue() throws Exception {
+        // capacity of 10 results in 16 slots in the queue
+        ProxyChannel<DemoIFace> proxyChannel = ProxyChannelFactory.createSpscProxy(10, DemoIFace.class, new ThrowExceptionOnFullQueue());
+
+        DemoIFace proxy = proxyChannel.proxy();
+        for (int i = 0; i < 16; i++) {
+            proxy.call3();
+        }
+        try {
+            proxy.call3();
+            fail("Exception expected");
+        } catch (RuntimeException e) {
+            assertEquals(ThrowExceptionOnFullQueue.MESSAGE, e.getMessage());
+        }
+    }
+
     @Test
     public void testGenerated() throws Exception {
 
-        ProxyChannel<DemoIFace> proxyChannel = ProxyChannelFactory.createSpscProxy(10, DemoIFace.class);
+        ProxyChannel<DemoIFace> proxyChannel = ProxyChannelFactory.createSpscProxy(10, DemoIFace.class, (idleCounter) -> 0);
 
         DemoIFace proxy = proxyChannel.proxy();
         CustomType obj1 = new CustomType();
@@ -76,9 +106,26 @@ public class ProxyCreationTest {
     }
 
     @Test
+    public void testDemoHasFullQueue() throws Exception {
+        // capacity of 10 results in 16 slots in the queue
+        ProxyChannel<DemoIFace> proxyChannel = new DemoProxyResult(10, new ThrowExceptionOnFullQueue());
+
+        DemoIFace proxy = proxyChannel.proxy();
+        for (int i = 0; i < 16; i++) {
+            proxy.call3();
+        }
+        try {
+            proxy.call3();
+            fail("Exception expected");
+        } catch (RuntimeException e) {
+            assertEquals(ThrowExceptionOnFullQueue.MESSAGE, e.getMessage());
+        }
+    }
+
+    @Test
     public void testDemo() throws Exception {
 
-        ProxyChannel<DemoIFace> proxyChannel = new DemoProxyResult(10);
+        ProxyChannel<DemoIFace> proxyChannel = new DemoProxyResult(10, (idleCounter) -> 0);
 
         DemoIFace proxy = proxyChannel.proxy();
         CustomType obj1 = new CustomType();

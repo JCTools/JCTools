@@ -10,8 +10,8 @@ import org.jctools.util.UnsafeAccess;
  */
 public class DemoProxyResult extends SpscOffHeapFixedSizeWithReferenceSupportRingBuffer implements ProxyChannel<DemoIFace>, DemoIFace {
 
-    public DemoProxyResult(int capacity) {
-        super(capacity, 13, 2);
+    public DemoProxyResult(int capacity, WaitStrategy waitStrategy) {
+        super(capacity, 13, 2, waitStrategy);
     }
 
     @Override
@@ -120,11 +120,7 @@ public class DemoProxyResult extends SpscOffHeapFixedSizeWithReferenceSupportRin
 
     @Override
     public void call1(int x, int y) {
-        // issue: with this interface we have no way of signaling the queue is full.
-        // solution: have all calls return a boolean? a bit annoying, would work
-        // solution: block? clean interface, but a bit hard to justify. Perhaps pass in a blocking strategy or somthing
-        // solution: throw exception? argh
-        long wOffset = this.writeAcquire();
+        long wOffset = this.writeAcquireWithWaitStrategy();
         UnsafeAccess.UNSAFE.putInt(wOffset + 4, x);
         UnsafeAccess.UNSAFE.putInt(wOffset + 8, y);
         this.writeRelease(wOffset, 1);
@@ -132,22 +128,23 @@ public class DemoProxyResult extends SpscOffHeapFixedSizeWithReferenceSupportRin
 
     @Override
     public void call2(float x, double y, boolean z) {
-        long wOffset = this.writeAcquire();
+        long wOffset = this.writeAcquireWithWaitStrategy();
         UnsafeAccess.UNSAFE.putFloat(wOffset + 4, x);
         UnsafeAccess.UNSAFE.putDouble(wOffset + 8, y);
         UnsafeAccess.UNSAFE.putBoolean(null, wOffset + 16, z);
         this.writeRelease(wOffset, 2);
     }
-
+    
+    
     @Override
     public void call3() {
-        long wOffset = this.writeAcquire();
+        long wOffset = this.writeAcquireWithWaitStrategy();
         this.writeRelease(wOffset, 3);
     }
 
     @Override
     public void call4(Object x, CustomType y) {
-        long wOffset = this.writeAcquire();
+        long wOffset = this.writeAcquireWithWaitStrategy();
         long arrayReferenceBaseIndex = this.producerReferenceArrayIndex();
         this.writeReference(arrayReferenceBaseIndex, x);
         this.writeReference(arrayReferenceBaseIndex + 1, y);
@@ -156,7 +153,7 @@ public class DemoProxyResult extends SpscOffHeapFixedSizeWithReferenceSupportRin
 
     @Override
     public void call5(CustomType x, int y, CustomType z) {
-        long wOffset = this.writeAcquire();
+        long wOffset = this.writeAcquireWithWaitStrategy();
         long arrayReferenceBaseIndex = this.producerReferenceArrayIndex();
         this.writeReference(arrayReferenceBaseIndex, x);
         UnsafeAccess.UNSAFE.putInt(wOffset + 4, y);
@@ -166,7 +163,7 @@ public class DemoProxyResult extends SpscOffHeapFixedSizeWithReferenceSupportRin
 
     @Override
     public void call6(int x, CustomType[] y, CustomType... z) {
-        long wOffset = this.writeAcquire();
+        long wOffset = this.writeAcquireWithWaitStrategy();
         long arrayReferenceBaseIndex = this.producerReferenceArrayIndex();
         UnsafeAccess.UNSAFE.putInt(wOffset + 4, x);
         this.writeReference(arrayReferenceBaseIndex, y);

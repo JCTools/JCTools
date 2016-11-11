@@ -32,14 +32,16 @@ public class SpscOffHeapFixedSizeWithReferenceSupportRingBuffer extends OffHeapF
 
     private final int lookAheadStep;
     private final long producerLookAheadCacheAddress;
-
+    private final WaitStrategy waitStrategy;
+    
     public static int getLookaheadStep(final int capacity) {
         return Math.min(capacity / 4, MAX_LOOK_AHEAD_STEP);
     }
 
     public SpscOffHeapFixedSizeWithReferenceSupportRingBuffer(final int capacity,
             final int messageSize,
-            final int arrayMessageSize) {
+            final int arrayMessageSize,
+            final WaitStrategy waitStrategy) {
         this(allocateAlignedByteBuffer(getRequiredBufferSize(capacity, messageSize), CACHE_LINE_SIZE),
                 Pow2.roundToPowerOfTwo(capacity),
                 true,
@@ -47,7 +49,8 @@ public class SpscOffHeapFixedSizeWithReferenceSupportRingBuffer extends OffHeapF
                 true,
                 messageSize,
                 createReferenceArray(capacity, arrayMessageSize),
-                arrayMessageSize);
+                arrayMessageSize,
+                waitStrategy);
     }
 
     /**
@@ -65,9 +68,11 @@ public class SpscOffHeapFixedSizeWithReferenceSupportRingBuffer extends OffHeapF
             final boolean isConsumer,
             final boolean initialize,
             final int messageSize,
-            Object[] references,
-            int arrayMessageSize) {
+            final Object[] references,
+            final int arrayMessageSize,
+            final WaitStrategy waitStrategy) {
         super(buff, capacity, isProducer, isConsumer, initialize, messageSize, references, arrayMessageSize);
+        this.waitStrategy = waitStrategy;
 
         this.lookAheadStep = getLookaheadStep(capacity);
         // Layout of the RingBuffer (assuming 64b cache line):
@@ -82,6 +87,40 @@ public class SpscOffHeapFixedSizeWithReferenceSupportRingBuffer extends OffHeapF
         if (isProducer && initialize) {
             spLookAheadCache(0);
         }
+    }
+    
+    public interface WaitStrategy {
+        /**
+         * This method can implement static or dynamic backoff. Dynamic backoff will rely on the counter for
+         * estimating how long the caller has been idling. The expected usage is:
+         * 
+         * <pre>
+         * <code>
+         * int ic = 0;
+         * while(true) {
+         *   if(!isGodotArrived()) {
+         *     ic = w.idle(ic);
+         *     continue;
+         *   }
+         *   ic = 0;
+         *   // party with Godot until he goes again
+         * }
+         * </code>
+         * </pre>
+         * 
+         * @param idleCounter idle calls counter, managed by the idle method until reset
+         * @return new counter value to be used on subsequent idle cycle
+         */
+        int idle(int idleCounter);
+    }
+
+    protected final long writeAcquireWithWaitStrategy() {
+        long wOffset;
+        int idleCounter = 0;
+        while ((wOffset = this.writeAcquire()) == SpscOffHeapFixedSizeWithReferenceSupportRingBuffer.EOF) {
+            idleCounter = waitStrategy.idle(idleCounter);
+        }
+        return wOffset;
     }
 
     @Override

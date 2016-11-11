@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.jctools.channels.spsc.SpscOffHeapFixedSizeWithReferenceSupportRingBuffer;
+import org.jctools.channels.spsc.SpscOffHeapFixedSizeWithReferenceSupportRingBuffer.WaitStrategy;
 import org.jctools.util.UnsafeAccess;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
@@ -30,7 +31,7 @@ public class ProxyChannelFactory {
         }
     }
     
-    static <E> ProxyChannel<E> createSpscProxy(int capacity, Class<E> iFace) {
+    public static <E> ProxyChannel<E> createSpscProxy(int capacity, Class<E> iFace, WaitStrategy waitStrategy) {
 
         if (!iFace.isInterface()) {
             throw new IllegalArgumentException("Not an interface: " + iFace);
@@ -57,7 +58,7 @@ public class ProxyChannelFactory {
 
         Class<?> preExisting = findExisting(generatedName, iFace);
         if (preExisting != null) {
-            return instantiate(preExisting, capacity, arrayMessageSize);
+            return instantiate(preExisting, capacity, arrayMessageSize, waitStrategy);
         }
 
         ClassWriter classWriter = new ClassWriter(ClassWriter.COMPUTE_MAXS);
@@ -95,27 +96,29 @@ public class ProxyChannelFactory {
         synchronized (ProxyChannelFactory.class) {
             preExisting = findExisting(generatedName, iFace);
             if (preExisting != null) {
-                return instantiate(preExisting, capacity, arrayMessageSize);
+                return instantiate(preExisting, capacity, arrayMessageSize, waitStrategy);
             }
             byte[] byteCode = classWriter.toByteArray();
             printClassBytes(byteCode);
             // Caveat: The interface and JCTools must be on the same class loader. Maybe class loader should be an argument? Overload?
-            return instantiate(UnsafeAccess.UNSAFE.defineClass(generatedName, byteCode, 0, byteCode.length, iFace.getClassLoader(), null), capacity, arrayMessageSize);
+            Class<?> definedClass = UnsafeAccess.UNSAFE.defineClass(generatedName, byteCode, 0, byteCode.length, iFace.getClassLoader(), null);
+            return instantiate(definedClass, capacity, arrayMessageSize, waitStrategy);
         }
     }
 
     private static Class<?> findExisting(String generatedName, Class<?> iFace) {
         try {
-            return Class.forName(generatedName, true, iFace.getClassLoader());
+            String className = generatedName.replace("/", ".");
+            return Class.forName(className, true, iFace.getClassLoader());
         } catch (ClassNotFoundException e) {
             return null;
         }
     }
 
     @SuppressWarnings("unchecked")
-    private static <E> ProxyChannel<E> instantiate(Class<?> proxy, int capacity, int arrayMessageSize) {
+    private static <E> ProxyChannel<E> instantiate(Class<?> proxy, int capacity, int arrayMessageSize, WaitStrategy waitStrategy) {
         try {
-            return (ProxyChannel<E>) proxy.getDeclaredConstructor(int.class, int.class).newInstance(capacity, arrayMessageSize);
+            return (ProxyChannel<E>) proxy.getDeclaredConstructor(int.class, int.class, WaitStrategy.class).newInstance(capacity, arrayMessageSize, waitStrategy);
         } catch (Exception e) {
             throw new IllegalStateException(e);
         }
@@ -273,18 +276,33 @@ public class ProxyChannelFactory {
     }
 
     private static void implementConstructor(ClassVisitor classVisitor) {
-        MethodVisitor methodVisitor = classVisitor.visitMethod(Opcodes.ACC_PUBLIC, "<init>", "(II)V", null, null);
+        String constructorMethodDescriptor = Type.getMethodDescriptor(Type.getType(void.class), 
+                Type.getType(int.class), 
+                Type.getType(int.class), 
+                Type.getType(WaitStrategy.class));
+        MethodVisitor methodVisitor = classVisitor.visitMethod(Opcodes.ACC_PUBLIC,
+                "<init>",
+                constructorMethodDescriptor,
+                null,
+                null);
         methodVisitor.visitCode();
 
         methodVisitor.visitVarInsn(Opcodes.ALOAD, 0);
         methodVisitor.visitVarInsn(Opcodes.ILOAD, 1); // capacity by caller
         methodVisitor.visitIntInsn(Opcodes.BIPUSH, 13); // messageSize hardcoded
         methodVisitor.visitVarInsn(Opcodes.ILOAD, 2); // arrayMessageSize by caller
+        methodVisitor.visitVarInsn(Opcodes.ALOAD, 3); // waitStrategy by caller
 
+
+        String superConstructorMethodDescriptor = Type.getMethodDescriptor(Type.getType(void.class), 
+                Type.getType(int.class), 
+                Type.getType(int.class), 
+                Type.getType(int.class), 
+                Type.getType(WaitStrategy.class));
         methodVisitor.visitMethodInsn(Opcodes.INVOKESPECIAL,
                 Type.getInternalName(SpscOffHeapFixedSizeWithReferenceSupportRingBuffer.class),
                 "<init>",
-                "(III)V",
+                superConstructorMethodDescriptor,
                 false);
 
         methodVisitor.visitInsn(Opcodes.RETURN);
@@ -388,8 +406,11 @@ public class ProxyChannelFactory {
             containsReferences |= !parameterType.isPrimitive();
         }
 
-        // long wOffset = this.writeAcquire();
-        writeAcquire(methodVisitor);
+        // long wOffset = this.writeAcquireWithWaitStrategy();
+        writeAcquireWithWaitStrategy(methodVisitor);
+//        Label loopStart = new Label(), loopEnd = new Label();
+//        methodVisitor.visitLabel(loopStart);
+        
         methodVisitor.visitVarInsn(Opcodes.LSTORE, wOffset);
         
         int localIndexOfArrayReferenceBaseIndex = wOffset + wOffsetType.getSize();
@@ -448,9 +469,13 @@ public class ProxyChannelFactory {
         methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL, Type.getInternalName(SpscOffHeapFixedSizeWithReferenceSupportRingBuffer.class), "consumerReferenceArrayIndex", "()J", false);
     }
 
-    private static void writeAcquire(MethodVisitor methodVisitor) {
+    private static void writeAcquireWithWaitStrategy(MethodVisitor methodVisitor) {
         methodVisitor.visitVarInsn(Opcodes.ALOAD, 0);
-        methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL, Type.getInternalName(SpscOffHeapFixedSizeWithReferenceSupportRingBuffer.class), "writeAcquire", "()J", false);
+        methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
+                Type.getInternalName(SpscOffHeapFixedSizeWithReferenceSupportRingBuffer.class),
+                "writeAcquireWithWaitStrategy",
+                "()J",
+                false);
     }
 
     private static void writeRelease(MethodVisitor methodVisitor, int wOffset, int type) {
