@@ -14,7 +14,6 @@
 package org.jctools.util;
 
 import sun.misc.Unsafe;
-
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.util.concurrent.atomic.AtomicReferenceArray;
@@ -48,7 +47,7 @@ public class UnsafeAccess {
             // case we can try and call the default constructor, which proves
             // sufficient for Android usage.
             try {
-                Constructor<Unsafe> c = sun.misc.Unsafe.class.getDeclaredConstructor();
+                Constructor<Unsafe> c = Unsafe.class.getDeclaredConstructor();
                 c.setAccessible(true);
                 instance = c.newInstance();
             } catch (Exception e) {
@@ -63,7 +62,7 @@ public class UnsafeAccess {
             getAndSetSupport = true;
         } catch (Exception ignored) {
         }
-        
+
         UNSAFE = instance;
         SUPPORTS_GET_AND_SET = getAndSetSupport;
     }
