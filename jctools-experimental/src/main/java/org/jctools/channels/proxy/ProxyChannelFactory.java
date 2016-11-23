@@ -258,32 +258,9 @@ public class ProxyChannelFactory {
         methodVisitor.visitMaxs(-1, -1);
         methodVisitor.visitEnd();
 
-        // Add generic bridge method for erasure public int process (Object impl, int limit)
-        methodVisitor = classVisitor.visitMethod(Opcodes.ACC_BRIDGE | Opcodes.ACC_SYNTHETIC | Opcodes.ACC_PUBLIC,
-                "process",
-                methodDescriptor(int.class, Object.class, int.class),
-                null,
-                null);
-        methodVisitor.visitCode();
-
-        methodVisitor.visitVarInsn(Opcodes.ALOAD, LOCALS_INDEX_THIS);
-        methodVisitor.visitVarInsn(Opcodes.ALOAD, 1);
-        methodVisitor.visitTypeInsn(Opcodes.CHECKCAST, Type.getInternalName(iFace));
-        methodVisitor.visitVarInsn(Opcodes.ILOAD, 2);
-
-        methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
-                generatedName,
-                "process",
-                methodDescriptor(int.class, iFace, int.class),
-                false);
-
-        methodVisitor.visitInsn(Opcodes.IRETURN);
-
-        methodVisitor.visitMaxs(-1, -1);
-        methodVisitor.visitEnd();
+        implementBridgeMethod(classVisitor, generatedName, "process", int.class, iFace, int.class);
     }
     
-
     private static void implementConstructor(ClassVisitor classVisitor) {
         MethodVisitor methodVisitor = classVisitor.visitMethod(Opcodes.ACC_PUBLIC,
                 "<init>",
@@ -335,32 +312,8 @@ public class ProxyChannelFactory {
 
         methodVisitor.visitMaxs(-1, -1);
         methodVisitor.visitEnd();
-
-        methodVisitor = classVisitor.visitMethod(Opcodes.ACC_BRIDGE | Opcodes.ACC_SYNTHETIC | Opcodes.ACC_PUBLIC,
-                "proxyInstance",
-                methodDescriptor(Object.class, Object.class),
-                null,
-                null);
-
-        methodVisitor.visitCode();
         
-
-        LocalsHelper locals = LocalsHelper.forInstanceMethod();
-        int localIndexOfImpl = locals.newLocal(iFace);
-
-        methodVisitor.visitVarInsn(Opcodes.ALOAD, LOCALS_INDEX_THIS);
-        methodVisitor.visitVarInsn(Opcodes.ALOAD, localIndexOfImpl);
-        methodVisitor.visitTypeInsn(Opcodes.CHECKCAST, Type.getInternalName(iFace));
-        methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
-                generatedName,
-                "proxyInstance",
-                methodDescriptor(iFace, iFace),
-                false);
-        methodVisitor.visitTypeInsn(Opcodes.CHECKCAST, Type.getInternalName(iFace));
-        methodVisitor.visitInsn(Opcodes.ARETURN);
-
-        methodVisitor.visitMaxs(-1, -1);
-        methodVisitor.visitEnd();
+        implementBridgeMethod(classVisitor, generatedName, "proxyInstance", iFace, iFace);
     }
 
     private static void implementProxy(ClassVisitor classVisitor, Class<?> iFace, String generatedName) {
@@ -377,20 +330,52 @@ public class ProxyChannelFactory {
 
         methodVisitor.visitMaxs(-1, -1);
         methodVisitor.visitEnd();
-
-        methodVisitor = classVisitor.visitMethod(Opcodes.ACC_BRIDGE | Opcodes.ACC_SYNTHETIC | Opcodes.ACC_PUBLIC,
-                "proxy",
-                methodDescriptor(Object.class),
+        
+        implementBridgeMethod(classVisitor, generatedName, "proxy", iFace);
+    }
+    
+    private static void implementBridgeMethod(ClassVisitor classVisitor, String generatedName, String methodName, Class<?> returnType, Class<?>... parameterTypes) {
+        Class<?> bridgeMethodReturnType = returnType.isPrimitive() ? returnType : Object.class;
+        Class<?>[] bridgeMethodParameterTypes = new Class<?>[parameterTypes.length];
+        int parameterIndex = 0;
+        // Bridge methods use only Object's, so replace all non-Object types.
+        for (Class<?> parameterType : parameterTypes) {
+            bridgeMethodParameterTypes[parameterIndex++] = parameterType.isPrimitive() ? parameterType : Object.class;
+        }
+        
+        MethodVisitor methodVisitor = classVisitor.visitMethod(Opcodes.ACC_BRIDGE | Opcodes.ACC_SYNTHETIC | Opcodes.ACC_PUBLIC,
+                methodName,
+                methodDescriptor(bridgeMethodReturnType, bridgeMethodParameterTypes),
                 null,
                 null);
 
         methodVisitor.visitCode();
 
-        methodVisitor.visitVarInsn(Opcodes.ALOAD, LOCALS_INDEX_THIS);
-        methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL, generatedName, "proxy", methodDescriptor(iFace), false);
-        methodVisitor.visitTypeInsn(Opcodes.CHECKCAST, Type.getInternalName(iFace));
-        methodVisitor.visitInsn(Opcodes.ARETURN);
+        LocalsHelper locals = LocalsHelper.forInstanceMethod();
 
+        methodVisitor.visitVarInsn(Opcodes.ALOAD, LOCALS_INDEX_THIS);
+        for (Class<?> parameterType : parameterTypes) {
+            int localIndexOfParameter = locals.newLocal(parameterType);
+            int loadOpCode = Type.getType(parameterType).getOpcode(Opcodes.ILOAD);
+            methodVisitor.visitVarInsn(loadOpCode, localIndexOfParameter);
+            
+            if (!parameterType.isPrimitive()) {
+                methodVisitor.visitTypeInsn(Opcodes.CHECKCAST, Type.getInternalName(parameterType));
+            }
+        }
+        
+        methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
+                generatedName,
+                methodName,
+                methodDescriptor(returnType, parameterTypes),
+                false);
+        
+        if (!returnType.isPrimitive()) {
+            methodVisitor.visitTypeInsn(Opcodes.CHECKCAST, Type.getInternalName(returnType));
+        }
+        int returnOpcode = Type.getType(returnType).getOpcode(Opcodes.IRETURN);
+        methodVisitor.visitInsn(returnOpcode);
+        
         methodVisitor.visitMaxs(-1, -1);
         methodVisitor.visitEnd();
     }

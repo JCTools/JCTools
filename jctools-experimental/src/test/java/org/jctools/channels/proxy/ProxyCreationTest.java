@@ -1,6 +1,8 @@
 package org.jctools.channels.proxy;
 
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import org.jctools.channels.proxy.DemoIFace.CustomType;
@@ -17,6 +19,17 @@ public class ProxyCreationTest {
             throw new RuntimeException(MESSAGE);
         }
 
+    }
+
+    @Test
+    public void testGeneratedProxyInstance() {
+        ProxyChannel<DemoIFace> proxyChannel =
+                ProxyChannelFactory.createSpscProxy(10, DemoIFace.class, (idleCounter) -> 0);
+        DemoIFace proxy = proxyChannel.proxy();
+        /*
+         * Not sure what the proper behaviour is here but I can see from the types it should at least be a DemoIFace
+         */
+        assertThat(proxyChannel.proxyInstance(proxy), instanceOf(DemoIFace.class));
     }
 
     @Test
