@@ -16,38 +16,8 @@ public class DemoProxyResult extends SpscOffHeapFixedSizeWithReferenceSupportRin
 
     @Override
     public DemoIFace proxyInstance(DemoIFace impl) {
-        return new DemoIFace() {
-
-            @Override
-            public void call1(int x, int y) {
-                // TODO: What to do here?
-            }
-
-            @Override
-            public void call2(float x, double y, boolean z) {
-                // TODO: What to do here?
-            }
-
-            @Override
-            public void call3() {
-                // TODO: What to do here?
-            }
-
-            @Override
-            public void call4(Object x, CustomType y) {
-                // TODO: What to do here?
-            }
-
-            @Override
-            public void call5(CustomType x, int y, CustomType z) {
-                // TODO: What to do here?
-            }
-
-            @Override
-            public void call6(int x, CustomType[] y, CustomType... z) {
-                // TODO: What to do here?
-            }
-        };
+        // What should we do here?
+        return this;
     }
 
     @Override
