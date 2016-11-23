@@ -21,6 +21,10 @@ import org.objectweb.asm.util.TraceClassVisitor;
 import sun.misc.Unsafe;
 
 public class ProxyChannelFactory {
+    /**
+     * The index of the 'this' object in instance methods
+     */
+    private static final int LOCALS_INDEX_THIS = 0;
 
     private static final boolean DEBUG = Boolean.getBoolean("jctools.debug");
     
@@ -135,17 +139,18 @@ public class ProxyChannelFactory {
         // public int process (E impl, int limit)
         MethodVisitor methodVisitor = classVisitor.visitMethod(Opcodes.ACC_PUBLIC,
                 "process",
-                "(" + Type.getDescriptor(iFace) + "I)I",
+                methodDescriptor(int.class, iFace, int.class),
                 null,
                 null);
         methodVisitor.visitCode();
-
-        int localIndexOfLimit = 2; // int
-        int localIndexOfLoopIndex = 3; // int
-        int localIndexOfROffset = 4; // long
-        Type rOffsetType = Type.getType(long.class);
         
-        //int i = 0; // offset 3
+        LocalsHelper locals = LocalsHelper.forInstanceMethod();
+        int localIndexOfImpl = locals.newLocal(iFace);
+        int localIndexOfLimit = locals.newLocal(int.class);
+        int localIndexOfLoopIndex = locals.newLocal(int.class);
+        int localIndexOfROffset = locals.newLocal(long.class);
+        
+        //int i = 0;
         methodVisitor.visitInsn(Opcodes.ICONST_0);
         methodVisitor.visitVarInsn(Opcodes.ISTORE, localIndexOfLoopIndex);
 
@@ -168,7 +173,7 @@ public class ProxyChannelFactory {
             cases[index] = new Label();
         }
 
-        // long rOffset = this.readAcquire(); // offset 4
+        // long rOffset = this.readAcquire();
         readAcquire(methodVisitor);
         methodVisitor.visitVarInsn(Opcodes.LSTORE, localIndexOfROffset);
 
@@ -191,31 +196,29 @@ public class ProxyChannelFactory {
             Method method = methods.get(index);
 
             // #PUSH: impl
-            methodVisitor.visitVarInsn(Opcodes.ALOAD, 1);
+            methodVisitor.visitVarInsn(Opcodes.ALOAD, localIndexOfImpl);
             
-            boolean containsReferences = false;
-            for (Class<?> parameterType : method.getParameterTypes()) {
-                containsReferences |= !parameterType.isPrimitive();
-            }
-            
-            // Only used if references are present so set to a dummy variable
             int localIndexOfArrayReferenceBaseIndex = Integer.MIN_VALUE;
-            if (containsReferences) {
-                localIndexOfArrayReferenceBaseIndex = localIndexOfROffset + rOffsetType.getSize();
-                consumerReferenceArrayIndex(methodVisitor);
-                methodVisitor.visitVarInsn(Opcodes.LSTORE, localIndexOfArrayReferenceBaseIndex);
+            for (Class<?> parameterType : method.getParameterTypes()) {
+                if (!parameterType.isPrimitive()) {
+                    // long referenceArrayIndex = this.consumerReferenceArrayIndex();
+                    consumerReferenceArrayIndex(methodVisitor);
+                    localIndexOfArrayReferenceBaseIndex = locals.newLocal(long.class);
+                    methodVisitor.visitVarInsn(Opcodes.LSTORE, localIndexOfArrayReferenceBaseIndex);
+                    break;
+                }
             }
 
-            // # W_OFFSET_DELTA = 4
+            // # R_OFFSET_DELTA = 4
             // #FOREACH param in method
-            int wOffsetDelta = 4;
+            int rOffsetDelta = 4;
             int arrayReferenceBaseIndexDelta = 0;
             for (Class<?> parameterType : method.getParameterTypes()) {
                 if (parameterType.isPrimitive()) {
-                    // #PUSH: UnsafeAccess.UNSAFE.get[param.type](rOffset + #W_OFFSET_DELTA);
-                    // #W_OFFSET_DELTA += if param.type in {long, double} 8 else 4;
-                    getUnsafe(methodVisitor, parameterType, localIndexOfROffset, wOffsetDelta);
-                    wOffsetDelta += memorySize(parameterType);
+                    // #PUSH: UnsafeAccess.UNSAFE.get[param.type](rOffset + #R_OFFSET_DELTA);
+                    // #R_OFFSET_DELTA += if param.type in {long, double} 8 else 4;
+                    getUnsafe(methodVisitor, parameterType, localIndexOfROffset, rOffsetDelta);
+                    rOffsetDelta += memorySize(parameterType);
                 } else {
                     getReference(methodVisitor, parameterType, localIndexOfArrayReferenceBaseIndex, arrayReferenceBaseIndexDelta);
                     arrayReferenceBaseIndexDelta++;
@@ -248,7 +251,7 @@ public class ProxyChannelFactory {
         methodVisitor.visitLabel(loopEnd);
 
         // return i;
-        methodVisitor.visitVarInsn(Opcodes.ILOAD, 3);
+        methodVisitor.visitVarInsn(Opcodes.ILOAD, localIndexOfLoopIndex);
         methodVisitor.visitInsn(Opcodes.IRETURN);
 
         // size requirement is computed by ASM; complete method.
@@ -258,12 +261,12 @@ public class ProxyChannelFactory {
         // Add generic bridge method for erasure public int process (Object impl, int limit)
         methodVisitor = classVisitor.visitMethod(Opcodes.ACC_BRIDGE | Opcodes.ACC_SYNTHETIC | Opcodes.ACC_PUBLIC,
                 "process",
-                "(" + Type.getDescriptor(Object.class) + "I)I",
+                methodDescriptor(int.class, Object.class, int.class),
                 null,
                 null);
         methodVisitor.visitCode();
 
-        methodVisitor.visitVarInsn(Opcodes.ALOAD, 0);
+        methodVisitor.visitVarInsn(Opcodes.ALOAD, LOCALS_INDEX_THIS);
         methodVisitor.visitVarInsn(Opcodes.ALOAD, 1);
         methodVisitor.visitTypeInsn(Opcodes.CHECKCAST, Type.getInternalName(iFace));
         methodVisitor.visitVarInsn(Opcodes.ILOAD, 2);
@@ -271,7 +274,7 @@ public class ProxyChannelFactory {
         methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
                 generatedName,
                 "process",
-                "(" + Type.getDescriptor(iFace) + "I)I",
+                methodDescriptor(int.class, iFace, int.class),
                 false);
 
         methodVisitor.visitInsn(Opcodes.IRETURN);
@@ -279,35 +282,38 @@ public class ProxyChannelFactory {
         methodVisitor.visitMaxs(-1, -1);
         methodVisitor.visitEnd();
     }
+    
 
     private static void implementConstructor(ClassVisitor classVisitor) {
-        String constructorMethodDescriptor = Type.getMethodDescriptor(Type.getType(void.class), 
-                Type.getType(int.class), 
-                Type.getType(int.class), 
-                Type.getType(WaitStrategy.class));
         MethodVisitor methodVisitor = classVisitor.visitMethod(Opcodes.ACC_PUBLIC,
                 "<init>",
-                constructorMethodDescriptor,
+                methodDescriptor(void.class,
+                        int.class,
+                        int.class,
+                        WaitStrategy.class),
                 null,
                 null);
         methodVisitor.visitCode();
+        
+        LocalsHelper locals = LocalsHelper.forInstanceMethod();
+        int localIndexOfCapacity = locals.newLocal(int.class);
+        int localIndexOfarrayMessageSize = locals.newLocal(int.class);
+        int localIndexOfWaitStrategy = locals.newLocal(WaitStrategy.class);
 
-        methodVisitor.visitVarInsn(Opcodes.ALOAD, 0);
-        methodVisitor.visitVarInsn(Opcodes.ILOAD, 1); // capacity by caller
+        methodVisitor.visitVarInsn(Opcodes.ALOAD, LOCALS_INDEX_THIS);
+        methodVisitor.visitVarInsn(Opcodes.ILOAD, localIndexOfCapacity);
         methodVisitor.visitIntInsn(Opcodes.BIPUSH, 13); // messageSize hardcoded
-        methodVisitor.visitVarInsn(Opcodes.ILOAD, 2); // arrayMessageSize by caller
-        methodVisitor.visitVarInsn(Opcodes.ALOAD, 3); // waitStrategy by caller
+        methodVisitor.visitVarInsn(Opcodes.ILOAD, localIndexOfarrayMessageSize);
+        methodVisitor.visitVarInsn(Opcodes.ALOAD, localIndexOfWaitStrategy);
 
-
-        String superConstructorMethodDescriptor = Type.getMethodDescriptor(Type.getType(void.class), 
-                Type.getType(int.class), 
-                Type.getType(int.class), 
-                Type.getType(int.class), 
-                Type.getType(WaitStrategy.class));
         methodVisitor.visitMethodInsn(Opcodes.INVOKESPECIAL,
                 Type.getInternalName(SpscOffHeapFixedSizeWithReferenceSupportRingBuffer.class),
                 "<init>",
-                superConstructorMethodDescriptor,
+                methodDescriptor(void.class,
+                        int.class,
+                        int.class,
+                        int.class,
+                        WaitStrategy.class),
                 false);
 
         methodVisitor.visitInsn(Opcodes.RETURN);
@@ -319,12 +325,12 @@ public class ProxyChannelFactory {
     private static void implementProxyInstance(ClassVisitor classVisitor, Class<?> iFace, String generatedName) {
         MethodVisitor methodVisitor = classVisitor.visitMethod(Opcodes.ACC_PUBLIC,
                 "proxyInstance",
-                "(" + Type.getDescriptor(iFace) + ")" + Type.getDescriptor(iFace),
+                methodDescriptor(iFace, iFace),
                 null,
                 null);
         methodVisitor.visitCode();
 
-        methodVisitor.visitVarInsn(Opcodes.ALOAD, 0);
+        methodVisitor.visitVarInsn(Opcodes.ALOAD, LOCALS_INDEX_THIS);
         methodVisitor.visitInsn(Opcodes.ARETURN);
 
         methodVisitor.visitMaxs(-1, -1);
@@ -332,16 +338,24 @@ public class ProxyChannelFactory {
 
         methodVisitor = classVisitor.visitMethod(Opcodes.ACC_BRIDGE | Opcodes.ACC_SYNTHETIC | Opcodes.ACC_PUBLIC,
                 "proxyInstance",
-                "(" + Type.getDescriptor(Object.class) + ")" + Type.getDescriptor(Object.class),
+                methodDescriptor(Object.class, Object.class),
                 null,
                 null);
 
         methodVisitor.visitCode();
+        
 
-        methodVisitor.visitVarInsn(Opcodes.ALOAD, 0);
-        methodVisitor.visitVarInsn(Opcodes.ALOAD, 1);
+        LocalsHelper locals = LocalsHelper.forInstanceMethod();
+        int localIndexOfImpl = locals.newLocal(iFace);
+
+        methodVisitor.visitVarInsn(Opcodes.ALOAD, LOCALS_INDEX_THIS);
+        methodVisitor.visitVarInsn(Opcodes.ALOAD, localIndexOfImpl);
         methodVisitor.visitTypeInsn(Opcodes.CHECKCAST, Type.getInternalName(iFace));
-        methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL, generatedName, "proxyInstance", "(" + Type.getDescriptor(iFace) + ")" + Type.getDescriptor(iFace), false);
+        methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
+                generatedName,
+                "proxyInstance",
+                methodDescriptor(iFace, iFace),
+                false);
         methodVisitor.visitTypeInsn(Opcodes.CHECKCAST, Type.getInternalName(iFace));
         methodVisitor.visitInsn(Opcodes.ARETURN);
 
@@ -352,13 +366,13 @@ public class ProxyChannelFactory {
     private static void implementProxy(ClassVisitor classVisitor, Class<?> iFace, String generatedName) {
         MethodVisitor methodVisitor = classVisitor.visitMethod(Opcodes.ACC_PUBLIC,
                 "proxy",
-                "()" + Type.getDescriptor(iFace),
+                methodDescriptor(iFace),
                 null,
                 null);
 
         methodVisitor.visitCode();
 
-        methodVisitor.visitVarInsn(Opcodes.ALOAD, 0);
+        methodVisitor.visitVarInsn(Opcodes.ALOAD, LOCALS_INDEX_THIS);
         methodVisitor.visitInsn(Opcodes.ARETURN);
 
         methodVisitor.visitMaxs(-1, -1);
@@ -366,14 +380,14 @@ public class ProxyChannelFactory {
 
         methodVisitor = classVisitor.visitMethod(Opcodes.ACC_BRIDGE | Opcodes.ACC_SYNTHETIC | Opcodes.ACC_PUBLIC,
                 "proxy",
-                "()" + Type.getDescriptor(Object.class),
+                methodDescriptor(Object.class),
                 null,
                 null);
 
         methodVisitor.visitCode();
 
-        methodVisitor.visitVarInsn(Opcodes.ALOAD, 0);
-        methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL, generatedName, "proxy", "()" + Type.getDescriptor(iFace), false);
+        methodVisitor.visitVarInsn(Opcodes.ALOAD, LOCALS_INDEX_THIS);
+        methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL, generatedName, "proxy", methodDescriptor(iFace), false);
         methodVisitor.visitTypeInsn(Opcodes.CHECKCAST, Type.getInternalName(iFace));
         methodVisitor.visitInsn(Opcodes.ARETURN);
 
@@ -401,26 +415,27 @@ public class ProxyChannelFactory {
                 exceptions.length == 0 ? null : exceptions);
 
         methodVisitor.visitCode();
-
-        Type wOffsetType = Type.getType(long.class);
-        // Compute space that is occupied by this and method arguments to find offset for wOffset variable
-        int wOffset = 1;
+        
+        LocalsHelper locals = LocalsHelper.forInstanceMethod();
+        
         boolean containsReferences = false;
         for (Class<?> parameterType : method.getParameterTypes()) {
-            wOffset += Type.getType(parameterType).getSize();
+            locals.newLocal(parameterType);
             containsReferences |= !parameterType.isPrimitive();
         }
+        
+        int localIndexOfWOffset = locals.newLocal(long.class);
 
         // long wOffset = this.writeAcquireWithWaitStrategy();
-        writeAcquireWithWaitStrategy(methodVisitor);
-//        Label loopStart = new Label(), loopEnd = new Label();
-//        methodVisitor.visitLabel(loopStart);
+        writeAcquireWithWaitStrategy(methodVisitor);        
+        methodVisitor.visitVarInsn(Opcodes.LSTORE, localIndexOfWOffset);
         
-        methodVisitor.visitVarInsn(Opcodes.LSTORE, wOffset);
-        
-        int localIndexOfArrayReferenceBaseIndex = wOffset + wOffsetType.getSize();
+
+        int localIndexOfArrayReferenceBaseIndex = Integer.MIN_VALUE;
         if (containsReferences) {
+            // long arrayReferenceBaseIndex = this.producerReferenceArrayIndex();
             producerReferenceArrayIndex(methodVisitor);
+            localIndexOfArrayReferenceBaseIndex = locals.newLocal(long.class);
             methodVisitor.visitVarInsn(Opcodes.LSTORE, localIndexOfArrayReferenceBaseIndex);
         }
 
@@ -443,7 +458,7 @@ public class ProxyChannelFactory {
              */
 
             if (parameterType.isPrimitive()) {
-                varOffset += putUnsafe(methodVisitor, parameterType, wOffset, wOffsetDelta, varOffset);
+                varOffset += putUnsafe(methodVisitor, parameterType, localIndexOfWOffset, wOffsetDelta, varOffset);
                 wOffsetDelta += memorySize(parameterType);
             } else {
                 putReference(methodVisitor, parameterType, localIndexOfArrayReferenceBaseIndex, arrayReferenceBaseIndexDelta, varOffset);
@@ -454,7 +469,7 @@ public class ProxyChannelFactory {
         // #END
 
         // this.writeRelease(wOffset, #TYPE);
-        writeRelease(methodVisitor, wOffset, type);
+        writeRelease(methodVisitor, localIndexOfWOffset, type);
 
         // return;
         methodVisitor.visitInsn(Opcodes.RETURN);
@@ -465,17 +480,17 @@ public class ProxyChannelFactory {
     }
 
     private static void producerReferenceArrayIndex(MethodVisitor methodVisitor) {
-        methodVisitor.visitVarInsn(Opcodes.ALOAD, 0);
+        methodVisitor.visitVarInsn(Opcodes.ALOAD, LOCALS_INDEX_THIS);
         methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL, Type.getInternalName(SpscOffHeapFixedSizeWithReferenceSupportRingBuffer.class), "producerReferenceArrayIndex", "()J", false);
     }
 
     private static void consumerReferenceArrayIndex(MethodVisitor methodVisitor) {
-        methodVisitor.visitVarInsn(Opcodes.ALOAD, 0);
+        methodVisitor.visitVarInsn(Opcodes.ALOAD, LOCALS_INDEX_THIS);
         methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL, Type.getInternalName(SpscOffHeapFixedSizeWithReferenceSupportRingBuffer.class), "consumerReferenceArrayIndex", "()J", false);
     }
 
     private static void writeAcquireWithWaitStrategy(MethodVisitor methodVisitor) {
-        methodVisitor.visitVarInsn(Opcodes.ALOAD, 0);
+        methodVisitor.visitVarInsn(Opcodes.ALOAD, LOCALS_INDEX_THIS);
         methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
                 Type.getInternalName(SpscOffHeapFixedSizeWithReferenceSupportRingBuffer.class),
                 "writeAcquireWithWaitStrategy",
@@ -484,26 +499,26 @@ public class ProxyChannelFactory {
     }
 
     private static void writeRelease(MethodVisitor methodVisitor, int wOffset, int type) {
-        methodVisitor.visitVarInsn(Opcodes.ALOAD, 0);
+        methodVisitor.visitVarInsn(Opcodes.ALOAD, LOCALS_INDEX_THIS);
         methodVisitor.visitVarInsn(Opcodes.LLOAD, wOffset);
         methodVisitor.visitLdcInsn(type);
         methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL, Type.getInternalName(SpscOffHeapFixedSizeWithReferenceSupportRingBuffer.class), "writeRelease", "(JI)V", false);
     }
 
     private static void readAcquire(MethodVisitor methodVisitor) {
-        methodVisitor.visitVarInsn(Opcodes.ALOAD, 0);
+        methodVisitor.visitVarInsn(Opcodes.ALOAD, LOCALS_INDEX_THIS);
         methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL, Type.getInternalName(SpscOffHeapFixedSizeWithReferenceSupportRingBuffer.class), "readAcquire", "()J", false);
     }
 
     private static void readRelease(MethodVisitor methodVisitor, int wOffset) {
-        methodVisitor.visitVarInsn(Opcodes.ALOAD, 0);
+        methodVisitor.visitVarInsn(Opcodes.ALOAD, LOCALS_INDEX_THIS);
         methodVisitor.visitVarInsn(Opcodes.LLOAD, wOffset);
         methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL, Type.getInternalName(SpscOffHeapFixedSizeWithReferenceSupportRingBuffer.class), "readRelease", "(J)V", false);
     }
 
-    private static int getUnsafe(MethodVisitor methodVisitor, Class<?> parameterType, int wOffset, int wOffsetDelta) {
+    private static int getUnsafe(MethodVisitor methodVisitor, Class<?> parameterType, int localIndexOfROffset, int rOffsetDelta) {
         loadUnsafe(methodVisitor);
-        loadWOffset(methodVisitor, parameterType, wOffset, wOffsetDelta);
+        loadWOffset(methodVisitor, parameterType, localIndexOfROffset, rOffsetDelta);
         return parameterTypeUnsafe(methodVisitor, parameterType, false);
     }
 
@@ -515,7 +530,7 @@ public class ProxyChannelFactory {
     }
 
     private static void getReference(MethodVisitor methodVisitor, Class<?> parameterType, int localIndexOfArrayReferenceBaseIndex, int arrayReferenceBaseIndexDelta) {
-        methodVisitor.visitVarInsn(Opcodes.ALOAD, 0); // Load this
+        methodVisitor.visitVarInsn(Opcodes.ALOAD, LOCALS_INDEX_THIS);
         loadLocalIndexAndApplyDelta(methodVisitor, localIndexOfArrayReferenceBaseIndex, arrayReferenceBaseIndexDelta);
         readReference(methodVisitor);
         if (parameterType != Object.class) {
@@ -524,7 +539,7 @@ public class ProxyChannelFactory {
     }
 
     private static void putReference(MethodVisitor methodVisitor, Class<?> parameterType, int localIndexOfArrayReferenceBaseIndex, int arrayReferenceBaseIndexDelta, int varOffset) {
-        methodVisitor.visitVarInsn(Opcodes.ALOAD, 0); // Load this
+        methodVisitor.visitVarInsn(Opcodes.ALOAD, LOCALS_INDEX_THIS);
         loadLocalIndexAndApplyDelta(methodVisitor, localIndexOfArrayReferenceBaseIndex, arrayReferenceBaseIndexDelta);
         methodVisitor.visitVarInsn(Type.getType(parameterType).getOpcode(Opcodes.ILOAD), varOffset);
         
@@ -583,5 +598,14 @@ public class ProxyChannelFactory {
             throw new IllegalArgumentException("Cannot handle non-primtive parameter type: " + type); // TODO: Add handling for reference parameters.
         }
         return type == long.class || type == double.class ? 8 : 4;
+    }
+    
+    private static String methodDescriptor(Class<?> returnType, Class<?>... parameterTypes) {
+        Type[] argumentTypes = new Type[parameterTypes.length];
+        int typeIndex = 0;
+        for (Class<?> parameterType : parameterTypes) {
+            argumentTypes[typeIndex++] = Type.getType(parameterType);
+        }
+        return Type.getMethodDescriptor(Type.getType(returnType), argumentTypes);
     }
 }
