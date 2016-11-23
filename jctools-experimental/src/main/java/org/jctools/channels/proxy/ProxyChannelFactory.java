@@ -38,24 +38,13 @@ public class ProxyChannelFactory {
         }
 
         String generatedName = Type.getInternalName(iFace) + "$JCTools$ProxyChannel";
-        
 
-        Method[] methods = iFace.getMethods();
-        int arrayMessageSize = 0; // max number of reference arguments to any method
-        for (Method method : methods) {
-            if (Modifier.isAbstract(method.getModifiers())) {
-                Class<?>[] parameterTypes = method.getParameterTypes();
-                int referenceParameterCount = 0;
-                for(Class<?> parameterType:parameterTypes) {
-                    if (!parameterType.isPrimitive()) {
-                        referenceParameterCount++;
-                    }
-                }
-                arrayMessageSize = Math.max(arrayMessageSize, referenceParameterCount);
-            }
+        List<Method> relevantMethods = findRelevantMethods(iFace);
+        if (relevantMethods.isEmpty()) {
+            throw new IllegalArgumentException("Does not declare any abstract methods: " + iFace);
         }
         
-
+        int arrayMessageSize = calculateMaxReferenceParameters(relevantMethods);
         Class<?> preExisting = findExisting(generatedName, iFace);
         if (preExisting != null) {
             return instantiate(preExisting, capacity, arrayMessageSize, waitStrategy);
@@ -71,24 +60,10 @@ public class ProxyChannelFactory {
                 new String[]{Type.getInternalName(ProxyChannel.class), Type.getInternalName(iFace)});
 
         implementConstructor(classWriter);
-
         implementProxyInstance(classWriter, iFace, generatedName);
         implementProxy(classWriter, iFace, generatedName);
 
-
-        int type = 1;
-        List<Method> relevantMethods = new ArrayList<Method>(methods.length);
-        for (Method method : methods) {
-            if (Modifier.isAbstract(method.getModifiers())) {
-                relevantMethods.add(method);
-                implementUserMethod(method, classWriter, type++);
-            }
-        }
-
-        if (relevantMethods.isEmpty()) {
-            throw new IllegalArgumentException("Does not declare any abstract methods: " + iFace);
-        }
-
+        implementUserMethods(classWriter, relevantMethods);
         implementProcess(classWriter, relevantMethods, iFace, generatedName);
 
         classWriter.visitEnd();
@@ -104,6 +79,38 @@ public class ProxyChannelFactory {
             Class<?> definedClass = UnsafeAccess.UNSAFE.defineClass(generatedName, byteCode, 0, byteCode.length, iFace.getClassLoader(), null);
             return instantiate(definedClass, capacity, arrayMessageSize, waitStrategy);
         }
+    }
+
+    private static void implementUserMethods(ClassWriter classWriter, List<Method> relevantMethods) {
+        int type = 1;
+        for (Method method : relevantMethods) {
+            implementUserMethod(method, classWriter, type++);
+        }
+    }
+
+    private static int calculateMaxReferenceParameters(List<Method> relevantMethods) {
+        int maxReferenceParams = 0; // max number of reference arguments to any method
+        for (Method method : relevantMethods) {
+            int referenceParameterCount = 0;
+            for (Class<?> parameterType : method.getParameterTypes()) {
+                if (!parameterType.isPrimitive()) {
+                    referenceParameterCount++;
+                }
+            }
+            maxReferenceParams = Math.max(maxReferenceParams, referenceParameterCount);
+        }
+        return maxReferenceParams;
+    }
+    
+    private static List<Method> findRelevantMethods(Class<?> iFace) {
+        Method[] methods = iFace.getMethods();
+        List<Method> relevantMethods = new ArrayList<Method>(methods.length);
+        for (Method method : methods) {
+            if (Modifier.isAbstract(method.getModifiers())) {
+                relevantMethods.add(method);
+            }
+        }
+        return relevantMethods;
     }
 
     private static Class<?> findExisting(String generatedName, Class<?> iFace) {
@@ -125,8 +132,6 @@ public class ProxyChannelFactory {
     }
 
     private static void implementProcess(ClassVisitor classVisitor, List<Method> methods, Class<?> iFace, String generatedName) {
-
-
         // public int process (E impl, int limit)
         MethodVisitor methodVisitor = classVisitor.visitMethod(Opcodes.ACC_PUBLIC,
                 "process",
