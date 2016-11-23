@@ -36,23 +36,42 @@ public class ProxyChannelFactory {
     }
     
     public static <E> ProxyChannel<E> createSpscProxy(int capacity, Class<E> iFace, WaitStrategy waitStrategy) {
-
         if (!iFace.isInterface()) {
             throw new IllegalArgumentException("Not an interface: " + iFace);
         }
 
         String generatedName = Type.getInternalName(iFace) + "$JCTools$ProxyChannel";
+        Class<?> preExisting = findExisting(generatedName, iFace);
+        if (preExisting != null) {
+            return instantiate(preExisting, capacity, waitStrategy);
+        }
 
         List<Method> relevantMethods = findRelevantMethods(iFace);
         if (relevantMethods.isEmpty()) {
             throw new IllegalArgumentException("Does not declare any abstract methods: " + iFace);
         }
+
+        // max number of reference arguments of any method
+        int referenceMessageSize = 0;
+        // max bytes required to store the primitive args of a call frame of any method
+        int primitiveMessageSize = 0;
         
-        int arrayMessageSize = calculateMaxReferenceParameters(relevantMethods);
-        Class<?> preExisting = findExisting(generatedName, iFace);
-        if (preExisting != null) {
-            return instantiate(preExisting, capacity, arrayMessageSize, waitStrategy);
+        for (Method method : relevantMethods) {
+            int primitiveMethodSize = 0;
+            int referenceCount = 0;
+            for (Class<?> parameterType : method.getParameterTypes()) {
+                if (parameterType.isPrimitive()) {
+                    primitiveMethodSize += memorySize(parameterType);
+                } else {
+                    referenceCount++;
+                }
+            }
+            primitiveMessageSize = Math.max(primitiveMessageSize, primitiveMethodSize);
+            referenceMessageSize = Math.max(referenceMessageSize, referenceCount);
         }
+        
+        // We need to add an int to this for the 'type' value on the message frame
+        primitiveMessageSize += memorySize(int.class);
 
         ClassWriter classWriter = new ClassWriter(ClassWriter.COMPUTE_MAXS);
 
@@ -63,7 +82,7 @@ public class ProxyChannelFactory {
                 Type.getInternalName(SpscOffHeapFixedSizeWithReferenceSupportRingBuffer.class),
                 new String[]{Type.getInternalName(ProxyChannel.class), Type.getInternalName(iFace)});
 
-        implementConstructor(classWriter);
+        implementConstructor(classWriter, primitiveMessageSize, referenceMessageSize);
         implementProxyInstance(classWriter, iFace, generatedName);
         implementProxy(classWriter, iFace, generatedName);
 
@@ -75,13 +94,13 @@ public class ProxyChannelFactory {
         synchronized (ProxyChannelFactory.class) {
             preExisting = findExisting(generatedName, iFace);
             if (preExisting != null) {
-                return instantiate(preExisting, capacity, arrayMessageSize, waitStrategy);
+                return instantiate(preExisting, capacity, waitStrategy);
             }
             byte[] byteCode = classWriter.toByteArray();
             printClassBytes(byteCode);
             // Caveat: The interface and JCTools must be on the same class loader. Maybe class loader should be an argument? Overload?
             Class<?> definedClass = UnsafeAccess.UNSAFE.defineClass(generatedName, byteCode, 0, byteCode.length, iFace.getClassLoader(), null);
-            return instantiate(definedClass, capacity, arrayMessageSize, waitStrategy);
+            return instantiate(definedClass, capacity, waitStrategy);
         }
     }
 
@@ -90,20 +109,6 @@ public class ProxyChannelFactory {
         for (Method method : relevantMethods) {
             implementUserMethod(method, classWriter, type++);
         }
-    }
-
-    private static int calculateMaxReferenceParameters(List<Method> relevantMethods) {
-        int maxReferenceParams = 0; // max number of reference arguments to any method
-        for (Method method : relevantMethods) {
-            int referenceParameterCount = 0;
-            for (Class<?> parameterType : method.getParameterTypes()) {
-                if (!parameterType.isPrimitive()) {
-                    referenceParameterCount++;
-                }
-            }
-            maxReferenceParams = Math.max(maxReferenceParams, referenceParameterCount);
-        }
-        return maxReferenceParams;
     }
     
     private static List<Method> findRelevantMethods(Class<?> iFace) {
@@ -127,9 +132,9 @@ public class ProxyChannelFactory {
     }
 
     @SuppressWarnings("unchecked")
-    private static <E> ProxyChannel<E> instantiate(Class<?> proxy, int capacity, int arrayMessageSize, WaitStrategy waitStrategy) {
+    private static <E> ProxyChannel<E> instantiate(Class<?> proxy, int capacity, WaitStrategy waitStrategy) {
         try {
-            return (ProxyChannel<E>) proxy.getDeclaredConstructor(int.class, int.class, WaitStrategy.class).newInstance(capacity, arrayMessageSize, waitStrategy);
+            return (ProxyChannel<E>) proxy.getDeclaredConstructor(int.class, WaitStrategy.class).newInstance(capacity, waitStrategy);
         } catch (Exception e) {
             throw new IllegalStateException(e);
         }
@@ -261,11 +266,12 @@ public class ProxyChannelFactory {
         implementBridgeMethod(classVisitor, generatedName, "process", int.class, iFace, int.class);
     }
     
-    private static void implementConstructor(ClassVisitor classVisitor) {
+    private static void implementConstructor(ClassVisitor classVisitor,
+            int primitiveMessageSize,
+            int referenceMessageSize) {
         MethodVisitor methodVisitor = classVisitor.visitMethod(Opcodes.ACC_PUBLIC,
                 "<init>",
                 methodDescriptor(void.class,
-                        int.class,
                         int.class,
                         WaitStrategy.class),
                 null,
@@ -274,13 +280,12 @@ public class ProxyChannelFactory {
         
         LocalsHelper locals = LocalsHelper.forInstanceMethod();
         int localIndexOfCapacity = locals.newLocal(int.class);
-        int localIndexOfarrayMessageSize = locals.newLocal(int.class);
         int localIndexOfWaitStrategy = locals.newLocal(WaitStrategy.class);
 
         methodVisitor.visitVarInsn(Opcodes.ALOAD, LOCALS_INDEX_THIS);
         methodVisitor.visitVarInsn(Opcodes.ILOAD, localIndexOfCapacity);
-        methodVisitor.visitIntInsn(Opcodes.BIPUSH, 13); // messageSize hardcoded
-        methodVisitor.visitVarInsn(Opcodes.ILOAD, localIndexOfarrayMessageSize);
+        methodVisitor.visitLdcInsn(primitiveMessageSize);
+        methodVisitor.visitLdcInsn(referenceMessageSize);
         methodVisitor.visitVarInsn(Opcodes.ALOAD, localIndexOfWaitStrategy);
 
         methodVisitor.visitMethodInsn(Opcodes.INVOKESPECIAL,
