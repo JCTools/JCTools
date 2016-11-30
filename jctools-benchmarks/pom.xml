@@ -36,7 +36,7 @@
             <artifactId>jmh-generator-annprocess</artifactId>
             <version>${jmh-core.version}</version>
             <scope>provided</scope>
-        </dependency>        
+        </dependency>
     </dependencies>
 
     <build>
