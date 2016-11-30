@@ -14,7 +14,7 @@
 package org.jctools.util;
 
 import sun.misc.Unsafe;
-
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
@@ -28,29 +28,42 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
  * <li>To construct flavors of {@link AtomicReferenceArray}.
  * <li>Other use cases exist but are not present in this library yet.
  * </ol>
- * 
+ *
  * @author nitsanw
- * 
+ *
  */
 public class UnsafeAccess {
     public static final boolean SUPPORTS_GET_AND_SET;
     public static final Unsafe UNSAFE;
     static {
+        Unsafe instance;
         try {
             final Field field = Unsafe.class.getDeclaredField("theUnsafe");
             field.setAccessible(true);
-            UNSAFE = (Unsafe) field.get(null);
-        } catch (Exception e) {
-            SUPPORTS_GET_AND_SET = false;
-            throw new RuntimeException(e);
+            instance = (Unsafe) field.get(null);
+        } catch (Exception ignored) {
+            // Some platforms, notably Android, might not have a sun.misc.Unsafe
+            // implementation with a private `theUnsafe` static instance. In this
+            // case we can try and call the default constructor, which proves
+            // sufficient for Android usage.
+            try {
+                Constructor<Unsafe> c = Unsafe.class.getDeclaredConstructor();
+                c.setAccessible(true);
+                instance = c.newInstance();
+            } catch (Exception e) {
+                SUPPORTS_GET_AND_SET = false;
+                throw new RuntimeException(e);
+            }
         }
+
         boolean getAndSetSupport = false;
         try {
             Unsafe.class.getMethod("getAndSetObject", Object.class, Long.TYPE,Object.class);
             getAndSetSupport = true;
-        } catch (Exception e) {
+        } catch (Exception ignored) {
         }
+
+        UNSAFE = instance;
         SUPPORTS_GET_AND_SET = getAndSetSupport;
     }
-
 }
