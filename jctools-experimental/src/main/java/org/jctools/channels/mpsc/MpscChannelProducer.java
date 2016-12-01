@@ -13,9 +13,9 @@
  */
 package org.jctools.channels.mpsc;
 
-import org.jctools.channels.ChannelProducer;
-
 import java.nio.ByteBuffer;
+
+import org.jctools.channels.ChannelProducer;
 
 /**
  * Package Scoped: not part of public API.
@@ -31,7 +31,7 @@ public abstract class MpscChannelProducer<E> extends MpscOffHeapFixedSizeRingBuf
         final int capacity,
         final int messageSize) {
 
-        super(buffer, capacity, true, false, true, messageSize);
+        super(buffer, capacity, true, false, true, messageSize, null, 0);
         pointer = EOF;
     }
 

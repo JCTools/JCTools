@@ -20,7 +20,8 @@ public class SpscOffHeapFixedSizeRingBufferTest extends AbstractOffHeapFixedSize
 
 	@Test
 	public void test() {
-		SpscOffHeapFixedSizeRingBuffer rb = new SpscOffHeapFixedSizeRingBuffer(1024, 31);
+        // TODO: Needs test for when referenceMessageSize > 0
+		SpscOffHeapFixedSizeRingBuffer rb = new SpscOffHeapFixedSizeRingBuffer(1024, 31, 0);
 		test(rb);
 	}
 

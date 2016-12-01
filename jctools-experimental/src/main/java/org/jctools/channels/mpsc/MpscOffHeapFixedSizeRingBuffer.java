@@ -30,10 +30,15 @@ import org.jctools.util.Pow2;
  */
 public class MpscOffHeapFixedSizeRingBuffer extends OffHeapFixedMessageSizeRingBuffer {
 
-
-    public MpscOffHeapFixedSizeRingBuffer(final int capacity, final int messageSize) {
-        this(allocateAlignedByteBuffer(getRequiredBufferSize(capacity, messageSize), JvmInfo.CACHE_LINE_SIZE), Pow2
-                .roundToPowerOfTwo(capacity), true, true, true, messageSize);
+    public MpscOffHeapFixedSizeRingBuffer(final int capacity, final int messageSize, int referenceMessageSize) {
+        this(allocateAlignedByteBuffer(getRequiredBufferSize(capacity, messageSize), JvmInfo.CACHE_LINE_SIZE),
+                Pow2.roundToPowerOfTwo(capacity),
+                true,
+                true,
+                true,
+                messageSize,
+                createReferenceArray(capacity, referenceMessageSize),
+                referenceMessageSize);
     }
 
     /**
@@ -42,10 +47,15 @@ public class MpscOffHeapFixedSizeRingBuffer extends OffHeapFixedMessageSizeRingB
      * @param buff
      * @param capacity
      */
-    protected MpscOffHeapFixedSizeRingBuffer(final ByteBuffer buff, final int capacity,
-            final boolean isProducer, final boolean isConsumer, final boolean initialize,
-            final int messageSize) {
-        super(buff,capacity,isProducer,isConsumer,initialize,messageSize);
+    protected MpscOffHeapFixedSizeRingBuffer(final ByteBuffer buff,
+            final int capacity,
+            final boolean isProducer,
+            final boolean isConsumer,
+            final boolean initialize,
+            final int messageSize,
+            final Object[] references,
+            final int referenceMessageSize) {
+        super(buff, capacity, isProducer, isConsumer, initialize, messageSize, references, referenceMessageSize);
     }
 
     @Override
@@ -74,6 +84,12 @@ public class MpscOffHeapFixedSizeRingBuffer extends OffHeapFixedMessageSizeRingB
     @Override
     protected final void writeRelease(long offset) {
         writeReleaseState(offset);
+    }
+
+    @Override
+    protected final void writeRelease(long offset, int callTypeId) {
+        assert callTypeId != 0;
+        UNSAFE.putOrderedInt(null, offset, callTypeId);
     }
 
     @Override

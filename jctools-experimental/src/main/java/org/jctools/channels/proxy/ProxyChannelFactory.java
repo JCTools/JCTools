@@ -6,8 +6,9 @@ import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.jctools.channels.spsc.SpscOffHeapFixedSizeWithReferenceSupportRingBuffer;
-import org.jctools.channels.spsc.SpscOffHeapFixedSizeWithReferenceSupportRingBuffer.WaitStrategy;
+import org.jctools.channels.WaitStrategy;
+import org.jctools.channels.mpsc.MpscOffHeapFixedSizeRingBuffer;
+import org.jctools.channels.spsc.SpscOffHeapFixedSizeRingBuffer;
 import org.jctools.util.UnsafeAccess;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
@@ -35,12 +36,87 @@ public class ProxyChannelFactory {
         }
     }
     
-    public static <E> ProxyChannel<E> createSpscProxy(int capacity, Class<E> iFace, WaitStrategy waitStrategy) {
+    public static long writeAcquireWithWaitStrategy(ProxyChannelRingBuffer channelBackend, WaitStrategy waitStrategy) {
+        long wOffset;
+        int idleCounter = 0;
+        while ((wOffset = channelBackend.writeAcquire()) == ProxyChannelRingBuffer.EOF) {
+            idleCounter = waitStrategy.idle(idleCounter);
+        }
+        return wOffset;
+    }
+    
+    /**
+     * Create a default single producer single consumer (SPSC) proxy channel.
+     * 
+     * @param capacity
+     *            The minimum capacity for unprocessed invocations the channel
+     *            should support
+     * @param iFace
+     *            Interface the proxy must implement
+     * @param waitStrategy
+     *            A wait strategy to be invoked when the backing data structure
+     *            is full
+     * @return A proxy channel instance
+     */
+    public static <E> ProxyChannel<E> createSpscProxy(int capacity, 
+            Class<E> iFace, 
+            WaitStrategy waitStrategy) {
+        return createProxy(capacity, 
+                iFace, 
+                waitStrategy, 
+                SpscOffHeapFixedSizeRingBuffer.class);
+    }
+
+    /**
+     * Create a default multi producer single consumer (MPSC) proxy channel.
+     * 
+     * @param capacity
+     *            The minimum capacity for unprocessed invocations the channel
+     *            should support
+     * @param iFace
+     *            Interface the proxy must implement
+     * @param waitStrategy
+     *            A wait strategy to be invoked when the backing data structure
+     *            is full
+     * @return A proxy channel instance
+     */
+    public static <E> ProxyChannel<E> createMpscProxy(int capacity,
+            Class<E> iFace,
+            WaitStrategy waitStrategy) {
+        return createProxy(capacity,
+                iFace,
+                waitStrategy,
+                MpscOffHeapFixedSizeRingBuffer.class);
+    }
+    
+    /**
+     * Create a proxy channel using a user supplied back end.
+     * 
+     * @param capacity
+     *            The minimum capacity for unprocessed invocations the channel
+     *            should support
+     * @param iFace
+     *            Interface the proxy must implement
+     * @param waitStrategy
+     *            A wait strategy to be invoked when the backing data structure
+     *            is full
+     * @param backendType
+     *            The back end type, the proxy will inherit from this channel
+     *            type. The back end type must define a constructor with signature:
+     *            <code>(int capacity, int primitiveMessageSize, int referenceMessageSize)</code>
+     * @return A proxy channel instance
+     */
+    public static <E> ProxyChannel<E> createProxy(int capacity, 
+            Class<E> iFace, 
+            WaitStrategy waitStrategy,
+            Class<? extends ProxyChannelRingBuffer> backendType) {
         if (!iFace.isInterface()) {
             throw new IllegalArgumentException("Not an interface: " + iFace);
         }
+        
+        
 
-        String generatedName = Type.getInternalName(iFace) + "$JCTools$ProxyChannel";
+        String generatedName = Type.getInternalName(iFace) + "$JCTools$ProxyChannel$" + backendType.getSimpleName();
         Class<?> preExisting = findExisting(generatedName, iFace);
         if (preExisting != null) {
             return instantiate(preExisting, capacity, waitStrategy);
@@ -61,7 +137,7 @@ public class ProxyChannelFactory {
             int referenceCount = 0;
             for (Class<?> parameterType : method.getParameterTypes()) {
                 if (parameterType.isPrimitive()) {
-                    primitiveMethodSize += memorySize(parameterType);
+                    primitiveMethodSize += primitiveMemorySize(parameterType);
                 } else {
                     referenceCount++;
                 }
@@ -71,23 +147,23 @@ public class ProxyChannelFactory {
         }
         
         // We need to add an int to this for the 'type' value on the message frame
-        primitiveMessageSize += memorySize(int.class);
-
+        primitiveMessageSize += primitiveMemorySize(int.class);
+        
         ClassWriter classWriter = new ClassWriter(ClassWriter.COMPUTE_MAXS);
 
         classWriter.visit(Opcodes.V1_4,
                 Opcodes.ACC_SYNTHETIC | Opcodes.ACC_PUBLIC | Opcodes.ACC_FINAL,
                 generatedName,
                 null,
-                Type.getInternalName(SpscOffHeapFixedSizeWithReferenceSupportRingBuffer.class),
+                Type.getInternalName(backendType),
                 new String[]{Type.getInternalName(ProxyChannel.class), Type.getInternalName(iFace)});
-
-        implementConstructor(classWriter, primitiveMessageSize, referenceMessageSize);
+        implementInstanceFields(classWriter);
+        implementConstructor(classWriter, backendType, generatedName, primitiveMessageSize, referenceMessageSize);
         implementProxyInstance(classWriter, iFace, generatedName);
         implementProxy(classWriter, iFace, generatedName);
 
-        implementUserMethods(classWriter, relevantMethods);
-        implementProcess(classWriter, relevantMethods, iFace, generatedName);
+        implementUserMethods(classWriter, relevantMethods, generatedName, backendType);
+        implementProcess(classWriter, backendType, relevantMethods, iFace, generatedName);
 
         classWriter.visitEnd();
 
@@ -104,10 +180,10 @@ public class ProxyChannelFactory {
         }
     }
 
-    private static void implementUserMethods(ClassWriter classWriter, List<Method> relevantMethods) {
+    private static void implementUserMethods(ClassWriter classWriter, List<Method> relevantMethods, String generatedName, Class<?extends ProxyChannelRingBuffer> backendType) {
         int type = 1;
         for (Method method : relevantMethods) {
-            implementUserMethod(method, classWriter, type++);
+            implementUserMethod(method, classWriter, type++, generatedName, backendType);
         }
     }
     
@@ -140,7 +216,11 @@ public class ProxyChannelFactory {
         }
     }
 
-    private static void implementProcess(ClassVisitor classVisitor, List<Method> methods, Class<?> iFace, String generatedName) {
+    private static void implementProcess(ClassVisitor classVisitor,
+            Class<? extends ProxyChannelRingBuffer> backendType, 
+            List<Method> methods, 
+            Class<?> iFace, 
+            String generatedName) {
         // public int process (E impl, int limit)
         MethodVisitor methodVisitor = classVisitor.visitMethod(Opcodes.ACC_PUBLIC,
                 "process",
@@ -179,13 +259,13 @@ public class ProxyChannelFactory {
         }
 
         // long rOffset = this.readAcquire();
-        readAcquire(methodVisitor);
+        readAcquire(methodVisitor, backendType);
         methodVisitor.visitVarInsn(Opcodes.LSTORE, localIndexOfROffset);
 
 
         // if (rOffset == EOF) goto <loopEnd>;
         methodVisitor.visitVarInsn(Opcodes.LLOAD, localIndexOfROffset);
-        methodVisitor.visitLdcInsn(SpscOffHeapFixedSizeWithReferenceSupportRingBuffer.EOF);
+        methodVisitor.visitLdcInsn(ProxyChannelRingBuffer.EOF);
         methodVisitor.visitInsn(Opcodes.LCMP);
         methodVisitor.visitJumpInsn(Opcodes.IFEQ, loopEnd);
 
@@ -207,7 +287,7 @@ public class ProxyChannelFactory {
             for (Class<?> parameterType : method.getParameterTypes()) {
                 if (!parameterType.isPrimitive()) {
                     // long referenceArrayIndex = this.consumerReferenceArrayIndex();
-                    consumerReferenceArrayIndex(methodVisitor);
+                    consumerReferenceArrayIndex(methodVisitor, backendType);
                     localIndexOfArrayReferenceBaseIndex = locals.newLocal(long.class);
                     methodVisitor.visitVarInsn(Opcodes.LSTORE, localIndexOfArrayReferenceBaseIndex);
                     break;
@@ -223,16 +303,20 @@ public class ProxyChannelFactory {
                     // #PUSH: UnsafeAccess.UNSAFE.get[param.type](rOffset + #R_OFFSET_DELTA);
                     // #R_OFFSET_DELTA += if param.type in {long, double} 8 else 4;
                     getUnsafe(methodVisitor, parameterType, localIndexOfROffset, rOffsetDelta);
-                    rOffsetDelta += memorySize(parameterType);
+                    rOffsetDelta += primitiveMemorySize(parameterType);
                 } else {
-                    getReference(methodVisitor, parameterType, localIndexOfArrayReferenceBaseIndex, arrayReferenceBaseIndexDelta);
+                    getReference(methodVisitor,
+                            parameterType,
+                            localIndexOfArrayReferenceBaseIndex,
+                            arrayReferenceBaseIndexDelta,
+                            backendType);
                     arrayReferenceBaseIndexDelta++;
                 }
             }
             // #END
 
             // this.readRelease(rOffset);
-            readRelease(methodVisitor, localIndexOfROffset);
+            readRelease(methodVisitor, localIndexOfROffset, backendType);
 
             // method.invoke(impl, <args>);
             methodVisitor.visitMethodInsn(Opcodes.INVOKEINTERFACE,
@@ -266,7 +350,17 @@ public class ProxyChannelFactory {
         implementBridgeMethod(classVisitor, generatedName, "process", int.class, iFace, int.class);
     }
     
+    private static void implementInstanceFields(ClassVisitor classVisitor) {
+        classVisitor.visitField(Opcodes.ACC_PRIVATE | Opcodes.ACC_FINAL,
+                "waitStrategy",
+                Type.getDescriptor(WaitStrategy.class),
+                null,
+                null);
+    }
+    
     private static void implementConstructor(ClassVisitor classVisitor,
+            Class<? extends ProxyChannelRingBuffer> parentType,
+            String generatedName,
             int primitiveMessageSize,
             int referenceMessageSize) {
         MethodVisitor methodVisitor = classVisitor.visitMethod(Opcodes.ACC_PUBLIC,
@@ -286,18 +380,20 @@ public class ProxyChannelFactory {
         methodVisitor.visitVarInsn(Opcodes.ILOAD, localIndexOfCapacity);
         methodVisitor.visitLdcInsn(primitiveMessageSize);
         methodVisitor.visitLdcInsn(referenceMessageSize);
-        methodVisitor.visitVarInsn(Opcodes.ALOAD, localIndexOfWaitStrategy);
-
+        
         methodVisitor.visitMethodInsn(Opcodes.INVOKESPECIAL,
-                Type.getInternalName(SpscOffHeapFixedSizeWithReferenceSupportRingBuffer.class),
+                Type.getInternalName(parentType),
                 "<init>",
                 methodDescriptor(void.class,
                         int.class,
                         int.class,
-                        int.class,
-                        WaitStrategy.class),
+                        int.class),
                 false);
-
+        
+        methodVisitor.visitVarInsn(Opcodes.ALOAD, LOCALS_INDEX_THIS);
+        methodVisitor.visitVarInsn(Opcodes.ALOAD, localIndexOfWaitStrategy);
+        methodVisitor.visitFieldInsn(Opcodes.PUTFIELD, generatedName, "waitStrategy", Type.getDescriptor(WaitStrategy.class));
+        
         methodVisitor.visitInsn(Opcodes.RETURN);
 
         methodVisitor.visitMaxs(-1, -1);
@@ -385,7 +481,11 @@ public class ProxyChannelFactory {
         methodVisitor.visitEnd();
     }
 
-    private static void implementUserMethod(Method method, ClassVisitor classVisitor, int type) {
+    private static void implementUserMethod(Method method, 
+            ClassVisitor classVisitor, 
+            int type, 
+            String generatedName,
+            Class<? extends ProxyChannelRingBuffer> backendType) {
 
         if (method.getReturnType() != void.class) {
             throw new IllegalArgumentException("Method does not return void: " + method);
@@ -417,14 +517,14 @@ public class ProxyChannelFactory {
         int localIndexOfWOffset = locals.newLocal(long.class);
 
         // long wOffset = this.writeAcquireWithWaitStrategy();
-        writeAcquireWithWaitStrategy(methodVisitor);        
+        writeAcquireWithWaitStrategy(methodVisitor, generatedName, backendType);
         methodVisitor.visitVarInsn(Opcodes.LSTORE, localIndexOfWOffset);
         
 
         int localIndexOfArrayReferenceBaseIndex = Integer.MIN_VALUE;
         if (containsReferences) {
-            // long arrayReferenceBaseIndex = this.producerReferenceArrayIndex();
-            producerReferenceArrayIndex(methodVisitor);
+            // long arrayReferenceBaseIndex = this.producerReferenceArrayIndex();x
+            producerReferenceArrayIndex(methodVisitor, backendType);
             localIndexOfArrayReferenceBaseIndex = locals.newLocal(long.class);
             methodVisitor.visitVarInsn(Opcodes.LSTORE, localIndexOfArrayReferenceBaseIndex);
         }
@@ -449,9 +549,14 @@ public class ProxyChannelFactory {
 
             if (parameterType.isPrimitive()) {
                 varOffset += putUnsafe(methodVisitor, parameterType, localIndexOfWOffset, wOffsetDelta, varOffset);
-                wOffsetDelta += memorySize(parameterType);
+                wOffsetDelta += primitiveMemorySize(parameterType);
             } else {
-                putReference(methodVisitor, parameterType, localIndexOfArrayReferenceBaseIndex, arrayReferenceBaseIndexDelta, varOffset);
+                putReference(methodVisitor,
+                        parameterType,
+                        localIndexOfArrayReferenceBaseIndex,
+                        arrayReferenceBaseIndexDelta,
+                        varOffset,
+                        backendType);
                 varOffset += Type.getType(parameterType).getSize();
                 arrayReferenceBaseIndexDelta++;
             }
@@ -459,7 +564,7 @@ public class ProxyChannelFactory {
         // #END
 
         // this.writeRelease(wOffset, #TYPE);
-        writeRelease(methodVisitor, localIndexOfWOffset, type);
+        writeRelease(methodVisitor, localIndexOfWOffset, type, backendType);
 
         // return;
         methodVisitor.visitInsn(Opcodes.RETURN);
@@ -469,41 +574,44 @@ public class ProxyChannelFactory {
         methodVisitor.visitEnd();
     }
 
-    private static void producerReferenceArrayIndex(MethodVisitor methodVisitor) {
+    private static void producerReferenceArrayIndex(MethodVisitor methodVisitor, Class<? extends ProxyChannelRingBuffer> backendType) {
         methodVisitor.visitVarInsn(Opcodes.ALOAD, LOCALS_INDEX_THIS);
-        methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL, Type.getInternalName(SpscOffHeapFixedSizeWithReferenceSupportRingBuffer.class), "producerReferenceArrayIndex", "()J", false);
+        methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL, Type.getInternalName(backendType), "producerReferenceArrayIndex", "()J", false);
     }
 
-    private static void consumerReferenceArrayIndex(MethodVisitor methodVisitor) {
+    private static void consumerReferenceArrayIndex(MethodVisitor methodVisitor, Class<? extends ProxyChannelRingBuffer> backendType) {
         methodVisitor.visitVarInsn(Opcodes.ALOAD, LOCALS_INDEX_THIS);
-        methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL, Type.getInternalName(SpscOffHeapFixedSizeWithReferenceSupportRingBuffer.class), "consumerReferenceArrayIndex", "()J", false);
+        methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL, Type.getInternalName(backendType), "consumerReferenceArrayIndex", "()J", false);
     }
 
-    private static void writeAcquireWithWaitStrategy(MethodVisitor methodVisitor) {
+    private static void writeAcquireWithWaitStrategy(MethodVisitor methodVisitor, String generatedName, Class<? extends ProxyChannelRingBuffer> backendType) {
+        // One of these is for the getfield bytecode, the other is as the first arg to the writeAcquireWithWaitStrategy
         methodVisitor.visitVarInsn(Opcodes.ALOAD, LOCALS_INDEX_THIS);
-        methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
-                Type.getInternalName(SpscOffHeapFixedSizeWithReferenceSupportRingBuffer.class),
+        methodVisitor.visitVarInsn(Opcodes.ALOAD, LOCALS_INDEX_THIS);
+        methodVisitor.visitFieldInsn(Opcodes.GETFIELD, generatedName, "waitStrategy", Type.getDescriptor(WaitStrategy.class));
+        methodVisitor.visitMethodInsn(Opcodes.INVOKESTATIC,
+                Type.getInternalName(ProxyChannelFactory.class),
                 "writeAcquireWithWaitStrategy",
-                "()J",
+                methodDescriptor(long.class, ProxyChannelRingBuffer.class, WaitStrategy.class),
                 false);
     }
 
-    private static void writeRelease(MethodVisitor methodVisitor, int wOffset, int type) {
+    private static void writeRelease(MethodVisitor methodVisitor, int wOffset, int type, Class<? extends ProxyChannelRingBuffer> backendType) {
         methodVisitor.visitVarInsn(Opcodes.ALOAD, LOCALS_INDEX_THIS);
         methodVisitor.visitVarInsn(Opcodes.LLOAD, wOffset);
         methodVisitor.visitLdcInsn(type);
-        methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL, Type.getInternalName(SpscOffHeapFixedSizeWithReferenceSupportRingBuffer.class), "writeRelease", "(JI)V", false);
+        methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL, Type.getInternalName(backendType), "writeRelease", "(JI)V", false);
     }
 
-    private static void readAcquire(MethodVisitor methodVisitor) {
+    private static void readAcquire(MethodVisitor methodVisitor, Class<? extends ProxyChannelRingBuffer> backendType) {
         methodVisitor.visitVarInsn(Opcodes.ALOAD, LOCALS_INDEX_THIS);
-        methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL, Type.getInternalName(SpscOffHeapFixedSizeWithReferenceSupportRingBuffer.class), "readAcquire", "()J", false);
+        methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL, Type.getInternalName(backendType), "readAcquire", "()J", false);
     }
 
-    private static void readRelease(MethodVisitor methodVisitor, int wOffset) {
+    private static void readRelease(MethodVisitor methodVisitor, int wOffset, Class<? extends ProxyChannelRingBuffer> backendType) {
         methodVisitor.visitVarInsn(Opcodes.ALOAD, LOCALS_INDEX_THIS);
         methodVisitor.visitVarInsn(Opcodes.LLOAD, wOffset);
-        methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL, Type.getInternalName(SpscOffHeapFixedSizeWithReferenceSupportRingBuffer.class), "readRelease", "(J)V", false);
+        methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL, Type.getInternalName(backendType), "readRelease", "(J)V", false);
     }
 
     private static int getUnsafe(MethodVisitor methodVisitor, Class<?> parameterType, int localIndexOfROffset, int rOffsetDelta) {
@@ -519,21 +627,30 @@ public class ProxyChannelFactory {
         return parameterTypeUnsafe(methodVisitor, parameterType, true);
     }
 
-    private static void getReference(MethodVisitor methodVisitor, Class<?> parameterType, int localIndexOfArrayReferenceBaseIndex, int arrayReferenceBaseIndexDelta) {
+    private static void getReference(MethodVisitor methodVisitor,
+            Class<?> parameterType,
+            int localIndexOfArrayReferenceBaseIndex,
+            int arrayReferenceBaseIndexDelta,
+            Class<? extends ProxyChannelRingBuffer> backendType) {
         methodVisitor.visitVarInsn(Opcodes.ALOAD, LOCALS_INDEX_THIS);
         loadLocalIndexAndApplyDelta(methodVisitor, localIndexOfArrayReferenceBaseIndex, arrayReferenceBaseIndexDelta);
-        readReference(methodVisitor);
+        readReference(methodVisitor, backendType);
         if (parameterType != Object.class) {
             methodVisitor.visitTypeInsn(Opcodes.CHECKCAST, Type.getInternalName(parameterType));
         }
     }
 
-    private static void putReference(MethodVisitor methodVisitor, Class<?> parameterType, int localIndexOfArrayReferenceBaseIndex, int arrayReferenceBaseIndexDelta, int varOffset) {
+    private static void putReference(MethodVisitor methodVisitor,
+            Class<?> parameterType,
+            int localIndexOfArrayReferenceBaseIndex,
+            int arrayReferenceBaseIndexDelta,
+            int varOffset,
+            Class<? extends ProxyChannelRingBuffer> backendType) {
         methodVisitor.visitVarInsn(Opcodes.ALOAD, LOCALS_INDEX_THIS);
         loadLocalIndexAndApplyDelta(methodVisitor, localIndexOfArrayReferenceBaseIndex, arrayReferenceBaseIndexDelta);
         methodVisitor.visitVarInsn(Type.getType(parameterType).getOpcode(Opcodes.ILOAD), varOffset);
         
-        writeReference(methodVisitor);
+        writeReference(methodVisitor, backendType);
     }
 
     private static void loadUnsafe(MethodVisitor methodVisitor) {
@@ -567,25 +684,25 @@ public class ProxyChannelFactory {
         return type.getSize();
     }
 
-    private static void writeReference(MethodVisitor methodVisitor) {
+    private static void writeReference(MethodVisitor methodVisitor, Class<? extends ProxyChannelRingBuffer> backendType) {
         methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
-                Type.getInternalName(SpscOffHeapFixedSizeWithReferenceSupportRingBuffer.class),
+                Type.getInternalName(backendType),
                 "writeReference",
                 ("(JLjava/lang/Object;)V"),
                 false);
     }
 
-    private static void readReference(MethodVisitor methodVisitor) {
+    private static void readReference(MethodVisitor methodVisitor, Class<? extends ProxyChannelRingBuffer> backend) {
         methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
-                Type.getInternalName(SpscOffHeapFixedSizeWithReferenceSupportRingBuffer.class),
+                Type.getInternalName(backend),
                 "readReference",
                 ("(J)Ljava/lang/Object;"),
                 false);
     }
 
-    private static int memorySize(Class<?> type) {
+    private static int primitiveMemorySize(Class<?> type) {
         if (!type.isPrimitive()) {
-            throw new IllegalArgumentException("Cannot handle non-primtive parameter type: " + type); // TODO: Add handling for reference parameters.
+            throw new IllegalArgumentException("Cannot handle non-primtive parameter type: " + type);
         }
         return type == long.class || type == double.class ? 8 : 4;
     }

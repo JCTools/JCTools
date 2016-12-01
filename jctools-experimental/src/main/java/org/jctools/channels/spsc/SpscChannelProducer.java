@@ -31,7 +31,7 @@ public abstract class SpscChannelProducer<E> extends SpscOffHeapFixedSizeRingBuf
         final int capacity,
         final int messageSize) {
 
-        super(buffer, capacity, true, false, true, messageSize);
+        super(buffer, capacity, true, false, true, messageSize, null, 0);
         pointer = EOF;
     }
 

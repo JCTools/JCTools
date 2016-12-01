@@ -1,14 +1,16 @@
 package org.jctools.channels.proxy;
 
 import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
 
+import org.jctools.channels.WaitStrategy;
+import org.jctools.channels.mpsc.MpscOffHeapFixedSizeRingBuffer;
 import org.jctools.channels.proxy.DemoIFace.CustomType;
-import org.jctools.channels.spsc.SpscOffHeapFixedSizeWithReferenceSupportRingBuffer.WaitStrategy;
+import org.jctools.channels.spsc.SpscOffHeapFixedSizeRingBuffer;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 public class ProxyCreationTest {
     private static final class ThrowExceptionOnFullQueue implements WaitStrategy {
@@ -21,38 +23,35 @@ public class ProxyCreationTest {
 
     }
 
+    @Rule
+    public ExpectedException expectedException = ExpectedException.none();
+
     @Test
     public void testGeneratedProxyInstance() {
         ProxyChannel<DemoIFace> proxyChannel =
                 ProxyChannelFactory.createSpscProxy(10, DemoIFace.class, (idleCounter) -> 0);
         DemoIFace proxy = proxyChannel.proxy();
         /*
-         * Not sure what the proper behaviour is here but I can see from the types it should at least be a DemoIFace
+         * Not sure what the proper behaviour is here but I can see from the
+         * types it should at least be a DemoIFace
          */
         assertThat(proxyChannel.proxyInstance(proxy), instanceOf(DemoIFace.class));
     }
 
     @Test
-    public void testGeneratedHasFullQueue() throws Exception {
-        // capacity of 10 results in 16 slots in the queue
-        ProxyChannel<DemoIFace> proxyChannel = ProxyChannelFactory.createSpscProxy(10, DemoIFace.class, new ThrowExceptionOnFullQueue());
-
-        DemoIFace proxy = proxyChannel.proxy();
-        for (int i = 0; i < 16; i++) {
-            proxy.call3();
-        }
-        try {
-            proxy.call3();
-            fail("Exception expected");
-        } catch (RuntimeException e) {
-            assertEquals(ThrowExceptionOnFullQueue.MESSAGE, e.getMessage());
-        }
+    public void givenGeneratedProxyUsingSpscReferenceChannel_whenCallMethods_expectAllCallsAreProxied() throws Exception {
+        util_givenGeneratedProxyUsingReferenceChannel_whenCallMethods_expectAllCallsAreProxied(SpscOffHeapFixedSizeRingBuffer.class);
     }
 
     @Test
-    public void testGenerated() throws Exception {
+    public void givenGeneratedProxyUsingMpscReferenceChannel_whenCallMethods_expectAllCallsAreProxied() throws Exception {
+        util_givenGeneratedProxyUsingReferenceChannel_whenCallMethods_expectAllCallsAreProxied(MpscOffHeapFixedSizeRingBuffer.class);
+    }
 
-        ProxyChannel<DemoIFace> proxyChannel = ProxyChannelFactory.createSpscProxy(10, DemoIFace.class, (idleCounter) -> 0);
+    private static void util_givenGeneratedProxyUsingReferenceChannel_whenCallMethods_expectAllCallsAreProxied(
+            Class<? extends ProxyChannelRingBuffer> backend) {
+        ProxyChannel<DemoIFace> proxyChannel =
+                ProxyChannelFactory.createProxy(10, DemoIFace.class, (idleCounter) -> 0, backend);
 
         DemoIFace proxy = proxyChannel.proxy();
         CustomType obj1 = new CustomType();
@@ -119,24 +118,38 @@ public class ProxyCreationTest {
     }
 
     @Test
-    public void testDemoHasFullQueue() throws Exception {
+    public void givenGeneratedProxy_andQueueIsFull_whenCallAgain_expectRuntimeException() throws Exception {
+        ProxyChannel<DemoIFace> proxyChannel =
+                ProxyChannelFactory.createSpscProxy(10, DemoIFace.class, new ThrowExceptionOnFullQueue());
         // capacity of 10 results in 16 slots in the queue
-        ProxyChannel<DemoIFace> proxyChannel = new DemoProxyResult(10, new ThrowExceptionOnFullQueue());
-
-        DemoIFace proxy = proxyChannel.proxy();
-        for (int i = 0; i < 16; i++) {
-            proxy.call3();
-        }
-        try {
-            proxy.call3();
-            fail("Exception expected");
-        } catch (RuntimeException e) {
-            assertEquals(ThrowExceptionOnFullQueue.MESSAGE, e.getMessage());
-        }
+        util_givenProxyChannel_andQueueIsFull_whenCallAgain_expectRuntimeException(16, proxyChannel);
     }
 
     @Test
-    public void testDemo() throws Exception {
+    public void givenDemoProxy_andQueueIsFull_whenCallAgain_expectRuntimeException() throws Exception {
+        ProxyChannel<DemoIFace> proxyChannel = new DemoProxyResult(10, new ThrowExceptionOnFullQueue());
+        // capacity of 10 results in 16 slots in the queue
+        util_givenProxyChannel_andQueueIsFull_whenCallAgain_expectRuntimeException(16, proxyChannel);
+    }
+
+    private void util_givenProxyChannel_andQueueIsFull_whenCallAgain_expectRuntimeException(
+            int capacity,
+            ProxyChannel<DemoIFace> proxyChannel) {
+        DemoIFace proxy = proxyChannel.proxy();
+        for (int i = 0; i < capacity; i++) {
+            proxy.call3();
+        }
+
+        // Then
+        expectedException.expect(RuntimeException.class);
+        expectedException.expectMessage(ThrowExceptionOnFullQueue.MESSAGE);
+
+        // When
+        proxy.call3();
+    }
+
+    @Test
+    public void givenDemoProxyUsingSpscReferenceChannel_whenCallMethods_expectAllCallsAreProxied() throws Exception {
 
         ProxyChannel<DemoIFace> proxyChannel = new DemoProxyResult(10, (idleCounter) -> 0);
 
