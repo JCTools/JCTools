@@ -205,9 +205,11 @@ public interface MessagePassingQueue<T> {
      * <pre>
      * <code>
      *   M m;
-     *   while((m = relaxedPoll()) != null){
+     *   int i = 0;
+     *   for(;i < limit && (m = relaxedPoll()) != null; i++){
      *     c.accept(m);
      *   }
+     *   return i;
      * </code>
      * </pre>
      *
@@ -223,7 +225,7 @@ public interface MessagePassingQueue<T> {
      *
      * <pre>
      * <code>
-     *   for(int i=0; i < limit && relaxedOffer(s.get(); i++);</br>
+     *   for(int i=0; i < limit && relaxedOffer(s.get()); i++);</br>
      * </code>
      * </pre>
      *
