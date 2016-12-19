@@ -422,7 +422,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E>implements 
             if (null == e) {
                 return i;
             }
-            soElement(buffer, offset, null);// StoreStore
+            spElement(buffer, offset, null);
             soConsumerIndex(index + 1); // ordered store -> atomic and ordered for size()
             c.accept(e);
         }
@@ -480,7 +480,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E>implements 
                 }
                 cIndex++;
                 counter = 0;
-                soElement(buffer, offset, null);// StoreStore
+                spElement(buffer, offset, null);
                 soConsumerIndex(cIndex); // ordered store -> atomic and ordered for size()
                 c.accept(e);
             }
