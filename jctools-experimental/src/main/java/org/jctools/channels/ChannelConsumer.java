@@ -26,4 +26,18 @@ public interface ChannelConsumer {
      */
     boolean read();
 
+    /**
+     * Read as much message are available from the channel until limit.
+     *
+     * @param limit the maximum number of messages allowed to be read
+     * @return the number of the messages read
+     */
+    default int read(int limit) {
+        for (int i = 0; i < limit; i++) {
+            if (!read()) {
+                return i;
+            }
+        }
+        return limit;
+    }
 }

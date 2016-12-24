@@ -21,6 +21,7 @@ import org.jctools.channels.ChannelConsumer;
 import org.jctools.channels.ChannelProducer;
 import org.jctools.channels.ChannelReceiver;
 import org.jctools.channels.mpsc.MpscChannel;
+import org.jctools.channels.multicast.SpMulticastChannel;
 import org.jctools.channels.spsc.SpscChannel;
 import org.jctools.util.JvmInfo;
 import org.jctools.util.Pow2;
@@ -55,9 +56,9 @@ public class ChannelThroughputBackoffNone {
     @Param(value = { "132000" })
     int capacity;
     public enum Type{
-        Spsc,Mpsc
+        Spsc,Mpsc,SpMulticast
     }
-    @Param(value = { "Spsc", "Mpsc" })
+   @Param(value = {"SpMulticast", "Spsc", "Mpsc"})
     Type type;
     private ByteBuffer buffer;
     private Channel<Ping> channel;
@@ -86,7 +87,10 @@ public class ChannelThroughputBackoffNone {
         case Mpsc:
             channel = new MpscChannel<Ping>(buffer, capacity, Ping.class);
             break;
-        default:
+        case SpMulticast:
+            channel = new SpMulticastChannel<Ping>(buffer, capacity, Ping.class);
+            break;
+         default:
             throw new IllegalArgumentException();
         }
         producer = channel.producer();
@@ -105,10 +109,10 @@ public class ChannelThroughputBackoffNone {
         public int pollsFailed;
         public int pollsMade;
 
-//        @Setup(Level.Iteration)
-//        public void clean() {
-//            pollsFailed = pollsMade = 0;
-//        }
+        @Setup(Level.Iteration)
+        public void clean() {
+            pollsFailed = pollsMade = 0;
+        }
     }
 
     @AuxCounters
@@ -117,10 +121,10 @@ public class ChannelThroughputBackoffNone {
         public int offersFailed;
         public int offersMade;
 
-//        @Setup(Level.Iteration)
-//        public void clean() {
-//            offersFailed = offersMade = 0;
-//        }
+        @Setup(Level.Iteration)
+        public void clean() {
+            offersFailed = offersMade = 0;
+        }
     }
 
     private static ThreadLocal<Object> marker = new ThreadLocal<Object>();

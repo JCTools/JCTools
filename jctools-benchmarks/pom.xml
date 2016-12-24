@@ -13,6 +13,7 @@
 
     <properties>
         <jmh-core.version>1.14</jmh-core.version>
+        <java.version>1.8</java.version>
     </properties>
 
     <dependencies>
