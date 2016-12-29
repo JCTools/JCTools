@@ -720,7 +720,8 @@ public class NonBlockingHashMapLong<TypeV>
       // for tables subject to a high key churn rate - but do not
       // forever grow the table.  If there is a high key churn rate
       // the table needs a steady state of rare same-size resize
-      // operations to clean out the dead keys.      long tm = System.currentTimeMillis();
+      // operations to clean out the dead keys.
+      long tm = System.currentTimeMillis();
       if( newsz <= oldlen && // New table would shrink or hold steady?
           tm <= _nbhml._last_resize_milli+10000)  // Recent resize (less than 10 sec ago)
         newsz = oldlen<<1;      // Double the existing size
