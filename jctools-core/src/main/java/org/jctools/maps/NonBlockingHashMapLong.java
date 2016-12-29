@@ -97,13 +97,17 @@ public class NonBlockingHashMapLong<TypeV>
   private static final int _Oscale = UNSAFE.arrayIndexScale(Object[].class);
   private static long rawIndex(final Object[] ary, final int idx) {
     assert idx >= 0 && idx < ary.length;
-    return _Obase + idx * _Oscale;
+    // Note the long-math requirement, to handle arrays of more than 2^31 bytes
+    // - or 2^28 - or about 268M - 8-byte pointer elements.
+    return _Obase + ((long)idx * _Oscale);
   }
   private static final int _Lbase  = UNSAFE.arrayBaseOffset(long[].class);
   private static final int _Lscale = UNSAFE.arrayIndexScale(long[].class);
   private static long rawIndex(final long[] ary, final int idx) {
     assert idx >= 0 && idx < ary.length;
-    return _Lbase + idx * _Lscale;
+    // Note the long-math requirement, to handle arrays of more than 2^31 bytes
+    // - or 2^28 - or about 268M - 8-byte pointer elements.
+    return _Lbase + ((long)idx * _Lscale);
   }
 
   // --- Bits to allow Unsafe CAS'ing of the CHM field
@@ -127,7 +131,7 @@ public class NonBlockingHashMapLong<TypeV>
   private static final class Prime {
     final Object _V;
     Prime( Object V ) { _V = V; }
-    static Object unbox( Object V ) { return V instanceof Prime ? ((Prime)V)._V : V;  }
+    static Object unbox( Object V ) { return V instanceof Prime ? ((Prime)V)._V : V; }
   }
 
   // --- The Hash Table --------------------
@@ -162,7 +166,7 @@ public class NonBlockingHashMapLong<TypeV>
   // table resize started.  The K/V pair has been marked so that no new
   // updates can happen to the old table (and since the K/V pair was deleted
   // nothing was copied to the new table).
-  private static final Prime  TOMBPRIME = new Prime(TOMBSTONE);
+  private static final Prime TOMBPRIME = new Prime(TOMBSTONE);
 
   // I exclude 1 long from the 2^64 possibilities, and test for it before
   // entering the main array.  The NO_KEY value must be zero, the initial
@@ -201,7 +205,7 @@ public class NonBlockingHashMapLong<TypeV>
   // can trigger a table resize.  Several places must have exact agreement on
   // what the reprobe_limit is, so we share it here.
   private static int reprobe_limit( int len ) {
-    return REPROBE_LIMIT + (len>>8);
+    return REPROBE_LIMIT + (len>>4);
   }
 
   // --- NonBlockingHashMapLong ----------------------------------------------
@@ -563,6 +567,7 @@ public class NonBlockingHashMapLong<TypeV>
           // Found an empty Key slot - which means this Key has never been in
           // this table.  No need to put a Tombstone - the Key is not here!
           if( putval == TOMBSTONE ) return putval; // Not-now & never-been in this table
+          if( expVal == MATCH_ANY ) return null;   // Will not match, even after K inserts
           // Claim the zero key-slot
           if( CAS_key(idx, NO_KEY, key) ) { // Claim slot for Key
             _slots.add(1);      // Raise key-slots-used count
@@ -620,10 +625,10 @@ public class NonBlockingHashMapLong<TypeV>
         resize();               // Force the new table copy to start
         return copy_slot_and_check(idx,expVal).putIfMatch(key,putval,expVal);
       }
-      //assert !(V instanceof Prime); // always true, so IDE warnings if uncommented
 
       // ---
       // We are finally prepared to update the existing table
+      //assert !(V instanceof Prime); // always true, so IDE warnings if uncommented
 
       // Must match old, and we do not?  Then bail out now.  Note that either V
       // or expVal might be TOMBSTONE.  Also V can be null, if we've never
@@ -631,11 +636,11 @@ public class NonBlockingHashMapLong<TypeV>
       // copy_slot.
 
       if( expVal != NO_MATCH_OLD && // Do we care about expected-Value at all?
-          V != expVal &&        // No instant match already?
+          V != expVal &&            // No instant match already?
           (expVal != MATCH_ANY || V == TOMBSTONE || V == null) &&
           !(V==null && expVal == TOMBSTONE) &&    // Match on null/TOMBSTONE combo
           (expVal == null || !expVal.equals(V)) ) // Expensive equals check at the last
-        return V;               // Do not update!
+        return V;                                 // Do not update!
 
       // Actually change the Value in the Key,Value pair
       if( CAS_val(idx, V, putval ) ) {
@@ -670,12 +675,13 @@ public class NonBlockingHashMapLong<TypeV>
     // current table, while a 'get' has decided the same key cannot be in this
     // table because of too many reprobes.  The invariant is:
     //   slots.estimate_sum >= max_reprobe_cnt >= reprobe_limit(len)
-    private boolean tableFull( int reprobe_cnt, int len ) {
+    private final boolean tableFull( int reprobe_cnt, int len ) {
       return
         // Do the cheap check first: we allow some number of reprobes always
         reprobe_cnt >= REPROBE_LIMIT &&
-        // More expensive check: see if the table is > 1/2 full.
-        _slots.estimate_get() >= reprobe_limit(len)*2;
+        (reprobe_cnt >= reprobe_limit(len) ||
+         // More expensive check: see if the table is > 1/2 full.
+         _slots.estimate_get() >= (len>>1));
     }
 
     // --- resize ------------------------------------------------------------
@@ -684,7 +690,7 @@ public class NonBlockingHashMapLong<TypeV>
     // Since this routine has a fast cutout for copy-already-started, callers
     // MUST 'help_copy' lest we have a path which forever runs through
     // 'resize' only to discover a copy-in-progress which never progresses.
-    private CHM resize() {
+    private final CHM resize() {
       // Check for resize already in progress, probably triggered by another thread
       CHM newchm = _newchm;     // VOLATILE READ
       if( newchm != null )      // See if resize is already in progress
@@ -709,22 +715,31 @@ public class NonBlockingHashMapLong<TypeV>
         }
       }
 
-      // Last (re)size operation was very recent?  Then double again; slows
-      // down resize operations for tables subject to a high key churn rate.
-      long tm = System.currentTimeMillis();
-      if( newsz <= oldlen &&    // New table would shrink or hold steady?
-          tm <= _nbhml._last_resize_milli+10000 // Recent resize (less than 1 sec ago)
-          //(q=_slots.estimate_sum()) >= (sz<<1) ) // 1/2 of keys are dead?
-          )
+      // Last (re)size operation was very recent?  Then double again
+      // despite having few live keys; slows down resize operations
+      // for tables subject to a high key churn rate - but do not
+      // forever grow the table.  If there is a high key churn rate
+      // the table needs a steady state of rare same-size resize
+      // operations to clean out the dead keys.      long tm = System.currentTimeMillis();
+      if( newsz <= oldlen && // New table would shrink or hold steady?
+          tm <= _nbhml._last_resize_milli+10000)  // Recent resize (less than 10 sec ago)
         newsz = oldlen<<1;      // Double the existing size
 
-      // Do not shrink, ever
+      // Do not shrink, ever.  If we hit this size once, assume we
+      // will again.
       if( newsz < oldlen ) newsz = oldlen;
-      //System.out.println("old="+oldlen+" new="+newsz+" size()="+sz+" est_slots()="+q+" millis="+(tm-_nbhml._last_resize_milli));
 
       // Convert to power-of-2
       int log2;
       for( log2=MIN_SIZE_LOG; (1<<log2) < newsz; log2++ ) ; // Compute log2 of size
+      long len = ((1L << log2) << 1) + 2;
+      // prevent integer overflow - limit of 2^31 elements in a Java array
+      // so here, 2^30 + 2 is the largest number of elements in the hash table
+      if ((int)len!=len) {
+        log2 = 30;
+        len = (1L << log2) + 2;
+        if (sz > ((len >> 2) + (len >> 1))) throw new RuntimeException("Table is full.");
+      }
 
       // Now limit the number of threads actually allocating memory to a
       // handful - lest we have 750 threads all trying to allocate a giant
@@ -733,9 +748,9 @@ public class NonBlockingHashMapLong<TypeV>
       while( !_resizerUpdater.compareAndSet(this,r,r+1) )
         r = _resizers;
       // Size calculation: 2 words (K+V) per table entry, plus a handful.  We
-      // guess at 32-bit pointers; 64-bit pointers screws up the size calc by
+      // guess at 64-bit pointers; 32-bit pointers screws up the size calc by
       // 2x but does not screw up the heuristic very much.
-      int megs = ((((1<<log2)<<1)+4)<<3/*word to bytes*/)>>20/*megs*/;
+      long megs = ((((1L<<log2)<<1)+8)<<3/*word to bytes*/)>>20/*megs*/;
       if( r >= 2 && megs > 0 ) { // Already 2 guys trying; wait and see
         newchm = _newchm;        // Between dorking around, another thread did it
         if( newchm != null )     // See if resize is already in progress
@@ -745,7 +760,7 @@ public class NonBlockingHashMapLong<TypeV>
         //synchronized( this ) { wait(8*megs); }         // Timeout - we always wakeup
         // For now, sleep a tad and see if the 2 guys already trying to make
         // the table actually get around to making it happen.
-        try { Thread.sleep(8*megs); } catch( Exception e ) { /*empty*/}
+        try { Thread.sleep(megs); } catch( Exception e ) { /*empty*/}
       }
       // Last check, since the 'new' below is expensive and there is a chance
       // that another thread slipped in a new thread while we ran the heuristic.
@@ -794,7 +809,7 @@ public class NonBlockingHashMapLong<TypeV>
     // Help along an existing resize operation.  We hope its the top-level
     // copy (it was when we started) but this CHM might have been promoted out
     // of the top position.
-    private void help_copy_impl( final boolean copy_all ) {
+    private final void help_copy_impl( final boolean copy_all ) {
       final CHM newchm = _newchm;
       assert newchm != null;    // Already checked by caller
       int oldlen = _keys.length; // Total amount to copy
@@ -816,8 +831,7 @@ public class NonBlockingHashMapLong<TypeV>
         // thread counts trying to copy the table often 'panic'.
         if( panic_start == -1 ) { // No panic?
           copyidx = (int)_copyIdx;
-          while( copyidx < (oldlen<<1) && // 'panic' check
-                 !_copyIdxUpdater.compareAndSet(this,copyidx,copyidx+MIN_COPY_WORK) )
+          while( !_copyIdxUpdater.compareAndSet(this,copyidx,copyidx+MIN_COPY_WORK) )
             copyidx = (int)_copyIdx;     // Re-read
           if( !(copyidx < (oldlen<<1)) ) // Panic!
             panic_start = copyidx;       // Record where we started to panic-copy
@@ -869,47 +883,39 @@ public class NonBlockingHashMapLong<TypeV>
     }
 
     // --- copy_check_and_promote --------------------------------------------
-    private void copy_check_and_promote( int workdone ) {
+     private final void copy_check_and_promote( int workdone ) {
       int oldlen = _keys.length;
       // We made a slot unusable and so did some of the needed copy work
       long copyDone = _copyDone;
-      long nowDone = copyDone+workdone;
-      assert nowDone <= oldlen;
+      assert (copyDone+workdone) <= oldlen;
       if( workdone > 0 ) {
-        while( !_copyDoneUpdater.compareAndSet(this,copyDone,nowDone) ) {
-          copyDone = _copyDone;   // Reload, retry
-          nowDone = copyDone+workdone;
-          assert nowDone <= oldlen;
+        while( !_copyDoneUpdater.compareAndSet(this,copyDone,copyDone+workdone) ) {
+          copyDone = _copyDone; // Reload, retry
+          assert (copyDone+workdone) <= oldlen; 
         }
-        //if( (10*copyDone/oldlen) != (10*nowDone/oldlen) )
-        //  System.out.print(" "+nowDone*100/oldlen+"%"+"_"+(_copyIdx*100/oldlen)+"%");
       }
 
       // Check for copy being ALL done, and promote.  Note that we might have
       // nested in-progress copies and manage to finish a nested copy before
       // finishing the top-level copy.  We only promote top-level copies.
-      if( nowDone == oldlen &&   // Ready to promote this table?
-          _nbhml._chm == this && // Looking at the top-level table?
+      if( copyDone+workdone == oldlen && // Ready to promote this table?
+          _nbhml._chm == this &&         // Looking at the top-level table?
           // Attempt to promote
           _nbhml.CAS(_chm_offset,this,_newchm) ) {
         _nbhml._last_resize_milli = System.currentTimeMillis();  // Record resize time for next check
-        //long nano = System.nanoTime();
-        //System.out.println(" "+nano+" Promote table "+oldlen+" to "+_newchm._keys.length);
-        //System.out.print("_"+oldlen+"]");
       }
     }
 
     // --- copy_slot ---------------------------------------------------------
     // Copy one K/V pair from oldkvs[i] to newkvs.  Returns true if we can
-    // confirm that the new table guaranteed has a value for this old-table
-    // slot.  We need an accurate confirmed-copy count so that we know when we
-    // can promote (if we promote the new table too soon, other threads may
-    // 'miss' on values not-yet-copied from the old table).  We don't allow
-    // any direct updates on the new table, unless they first happened to the
-    // old table - so that any transition in the new table from null to
-    // not-null must have been from a copy_slot (or other old-table overwrite)
-    // and not from a thread directly writing in the new table.  Thus we can
-    // count null-to-not-null transitions in the new table.
+    // confirm that we set an old-table slot to TOMBPRIME, and only returns after
+    // updating the new table.  We need an accurate confirmed-copy count so
+    // that we know when we can promote (if we promote the new table too soon,
+    // other threads may 'miss' on values not-yet-copied from the old table).
+    // We don't allow any direct updates on the new table, unless they first
+    // happened to the old table - so that any transition in the new table from
+    // null to not-null must have been from a copy_slot (or other old-table
+    // overwrite) and not from a thread directly writing in the new table.
     private boolean copy_slot( int idx ) {
       // Blindly set the key slot from NO_KEY to some key which hashes here,
       // to eagerly stop fresh put's from inserting new values in the old
@@ -947,27 +953,27 @@ public class NonBlockingHashMapLong<TypeV>
       // Copy the value into the new table, but only if we overwrite a null.
       // If another value is already in the new table, then somebody else
       // wrote something there and that write is happens-after any value that
-      // appears in the old table.  If putIfMatch does not find a null in the
-      // new table - somebody else should have recorded the null-not_null
-      // transition in this copy.
+      // appears in the old table.
       Object old_unboxed = ((Prime)oldval)._V;
       assert old_unboxed != TOMBSTONE;
-      boolean copied_into_new = (_newchm.putIfMatch(key, old_unboxed, null) == null);
+      _newchm.putIfMatch(key, old_unboxed, null);
 
       // ---
       // Finally, now that any old value is exposed in the new table, we can
       // forever hide the old-table value by slapping a TOMBPRIME down.  This
       // will stop other threads from uselessly attempting to copy this slot
       // (i.e., it's a speed optimization not a correctness issue).
-      while( !CAS_val(idx,oldval,TOMBPRIME) )
+      while( oldval != TOMBPRIME && !CAS_val(idx,oldval,TOMBPRIME) )
         oldval = _vals[idx];
 
-      return copied_into_new;
+      return oldval != TOMBPRIME; // True if we slammed the TOMBPRIME down
     } // end copy_slot
   } // End of CHM
 
 
   // --- Snapshot ------------------------------------------------------------
+  // The main class for iterating over the NBHM.  It "snapshots" a clean
+  // view of the K/V array.
   private class SnapshotV implements Iterator<TypeV>, Enumeration<TypeV> {
     final CHM _sschm;
     public SnapshotV() {

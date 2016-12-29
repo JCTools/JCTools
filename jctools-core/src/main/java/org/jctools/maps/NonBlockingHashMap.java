@@ -17,18 +17,7 @@ import static org.jctools.util.UnsafeAccess.UNSAFE;
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.Field;
-import java.util.AbstractCollection;
-import java.util.AbstractMap;
-import java.util.AbstractSet;
-import java.util.Collection;
-import java.util.ConcurrentModificationException;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.Hashtable;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
@@ -65,7 +54,7 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
  * <em>not</em> throw {@link ConcurrentModificationException}.  However,
  * iterators are designed to be used by only one thread at a time.
  *
- * <p> Very full tables, or tables with high reprobe rates may trigger an
+ * <p> Very full tables, or tables with high re-probe rates may trigger an
  * internal resize operation to move into a larger table.  Resizing is not
  * terribly expensive, but it is not free either; during resize operations
  * table throughput may drop somewhat.  All threads that visit the table
@@ -127,11 +116,14 @@ public class NonBlockingHashMap<TypeK, TypeV>
   }
 
   // --- hash ----------------------------------------------------------------
-  // Helper function to spread lousy hashCodes
+  // Helper function to spread lousy hashCodes.  Throws NPE for null Key, on
+  // purpose - as the first place to conveniently toss the required NPE for a
+  // null Key.
   private static final int hash(final Object key) {
     int h = key.hashCode();     // The real hashCode call
     h ^= (h>>>20) ^ (h>>>12);
     h ^= (h>>> 7) ^ (h>>> 4);
+	h += h<<7; // smear low bits up high, for hashcodes that only differ by 1
     return h;
   }
 
@@ -256,7 +248,7 @@ public class NonBlockingHashMap<TypeK, TypeV>
   // the reprobe limit on a 'get' call acts as a 'miss'; on a 'put' call it
   // can trigger a table resize.  Several places must have exact agreement on
   // what the reprobe_limit is, so we share it here.
-  private static final int reprobe_limit( int len ) {
+  private static int reprobe_limit( int len ) {
     return REPROBE_LIMIT + (len>>4);
   }
 
@@ -361,9 +353,9 @@ public class NonBlockingHashMap<TypeK, TypeV>
 
 
   // Atomically replace newVal for oldVal, returning the value that existed
-  // there before.  If oldVal is the returned value, then newVal was inserted,
-  // otherwise not.  A null oldVal means the key does not exist (only insert if
-  // missing); a null newVal means to remove the key.
+  // there before.  If the oldVal matches the returned value, then newVal was
+  // inserted, otherwise not.  A null oldVal means the key does not exist (only
+  // insert if missing); a null newVal means to remove the key.
   public final TypeV putIfMatchAllowNull( Object key, Object newVal, Object oldVal ) {
     if( oldVal == null ) oldVal = TOMBSTONE;
     if( newVal == null ) newVal = TOMBSTONE;
@@ -373,7 +365,14 @@ public class NonBlockingHashMap<TypeK, TypeV>
     return res == TOMBSTONE ? null : res;
   }
 
-  private final TypeV putIfMatch( Object key, Object newVal, Object oldVal ) {
+  /** Atomically replace newVal for oldVal, returning the value that existed
+   *  there before.  If the oldVal matches the returned value, then newVal was
+   *  inserted, otherwise not.
+   *  @return the previous value associated with the specified key,
+   *         or <tt>null</tt> if there was no mapping for the key
+   *  @throws NullPointerException if the key or either value is null
+   */
+  public final TypeV putIfMatch( Object key, Object newVal, Object oldVal ) {
     if (oldVal == null || newVal == null) throw new NullPointerException();
     final Object res = putIfMatch( this, _kvs, key, newVal, oldVal );
     assert !(res instanceof Prime);
@@ -501,7 +500,7 @@ public class NonBlockingHashMap<TypeK, TypeV>
        // Do the match the hard way - with the users' key being the loop-
        // invariant "this" pointer.  I could have flipped the order of
        // operands (since equals is commutative), but I'm making mega-morphic
-       // v-calls in a reprobing loop and nailing down the 'this' argument
+       // v-calls in a re-probing loop and nailing down the 'this' argument
        // gives both the JIT and the hardware a chance to prefetch the call target.
        key.equals(K));          // Finally do the hard match
   }
@@ -903,16 +902,19 @@ public class NonBlockingHashMap<TypeK, TypeV>
       //if( sz >= (oldlen>>1) ) // If we are >50% full of keys then...
       //  newsz = oldlen<<1;    // Double size
 
-      // Last (re)size operation was very recent?  Then double again; slows
-      // down resize operations for tables subject to a high key churn rate.
+      // Last (re)size operation was very recent?  Then double again
+      // despite having few live keys; slows down resize operations
+      // for tables subject to a high key churn rate - but do not
+      // forever grow the table.  If there is a high key churn rate
+      // the table needs a steady state of rare same-size resize
+      // operations to clean out the dead keys.
       long tm = System.currentTimeMillis();
-      long q=0;
       if( newsz <= oldlen && // New table would shrink or hold steady?
-          (tm <= topmap._last_resize_milli+10000 || // Recent resize (less than 10 sec ago)
-           (q=_slots.estimate_get()) >= (sz<<1)) )  // 1/2 of keys are dead?
+          tm <= topmap._last_resize_milli+10000)  // Recent resize (less than 10 sec ago)
         newsz = oldlen<<1;      // Double the existing size
 
-      // Do not shrink, ever
+      // Do not shrink, ever.  If we hit this size once, assume we
+      // will again.
       if( newsz < oldlen ) newsz = oldlen;
 
       // Convert to power-of-2
@@ -1085,8 +1087,6 @@ public class NonBlockingHashMap<TypeK, TypeV>
           copyDone = _copyDone; // Reload, retry
           assert (copyDone+workdone) <= oldlen;
         }
-        //if( (10*copyDone/oldlen) != (10*(copyDone+workdone)/oldlen) )
-        //System.out.print(" "+(copyDone+workdone)*100/oldlen+"%"+"_"+(_copyIdx*100/oldlen)+"%");
       }
 
       // Check for copy being ALL done, and promote.  Note that we might have
@@ -1097,23 +1097,19 @@ public class NonBlockingHashMap<TypeK, TypeV>
           // Attempt to promote
           topmap.CAS_kvs(oldkvs,_newkvs) ) {
         topmap._last_resize_milli = System.currentTimeMillis(); // Record resize time for next check
-        //long nano = System.nanoTime();
-        //System.out.println(" "+nano+" Promote table to "+len(_newkvs));
-        //if( System.out != null ) System.out.print("]");
       }
     }
 
     // --- copy_slot ---------------------------------------------------------
     // Copy one K/V pair from oldkvs[i] to newkvs.  Returns true if we can
-    // confirm that the new table guaranteed has a value for this old-table
-    // slot.  We need an accurate confirmed-copy count so that we know when we
-    // can promote (if we promote the new table too soon, other threads may
-    // 'miss' on values not-yet-copied from the old table).  We don't allow
-    // any direct updates on the new table, unless they first happened to the
-    // old table - so that any transition in the new table from null to
-    // not-null must have been from a copy_slot (or other old-table overwrite)
-    // and not from a thread directly writing in the new table.  Thus we can
-    // count null-to-not-null transitions in the new table.
+    // confirm that we set an old-table slot to TOMBPRIME, and only returns after
+    // updating the new table.  We need an accurate confirmed-copy count so
+    // that we know when we can promote (if we promote the new table too soon,
+    // other threads may 'miss' on values not-yet-copied from the old table).
+    // We don't allow any direct updates on the new table, unless they first
+    // happened to the old table - so that any transition in the new table from
+    // null to not-null must have been from a copy_slot (or other old-table
+    // overwrite) and not from a thread directly writing in the new table.
     private boolean copy_slot( NonBlockingHashMap topmap, int idx, Object[] oldkvs, Object[] newkvs ) {
       // Blindly set the key slot from null to TOMBSTONE, to eagerly stop
       // fresh put's from inserting new values in the old table when the old
@@ -1152,12 +1148,10 @@ public class NonBlockingHashMap<TypeK, TypeV>
       // Copy the value into the new table, but only if we overwrite a null.
       // If another value is already in the new table, then somebody else
       // wrote something there and that write is happens-after any value that
-      // appears in the old table.  If putIfMatch does not find a null in the
-      // new table - somebody else should have recorded the null-not_null
-      // transition in this copy.
+      // appears in the old table.
       Object old_unboxed = ((Prime)oldval)._V;
       assert old_unboxed != TOMBSTONE;
-      boolean copied_into_new = (putIfMatch(topmap, newkvs, key, old_unboxed, null) == null);
+      putIfMatch(topmap, newkvs, key, old_unboxed, null);
 
       // ---
       // Finally, now that any old value is exposed in the new table, we can
@@ -1167,7 +1161,7 @@ public class NonBlockingHashMap<TypeK, TypeV>
       while( oldval != TOMBPRIME && !CAS_val(oldkvs,idx,oldval,TOMBPRIME) )
         oldval = val(oldkvs,idx);
 
-      return copied_into_new;
+      return oldval != TOMBPRIME; // True if we slammed the TOMBPRIME down
     } // end copy_slot
   } // End of CHM
 
@@ -1299,6 +1293,35 @@ public class NonBlockingHashMap<TypeK, TypeV>
       @Override public boolean contains( Object k ) { return NonBlockingHashMap.this.containsKey(k); }
       @Override public boolean remove  ( Object k ) { return NonBlockingHashMap.this.remove  (k) != null; }
       @Override public Iterator<TypeK> iterator()   { return new SnapshotK(); }
+      // This is an efficient implementation of toArray instead of the standard
+      // one.  In particular it uses a smart iteration over the NBHM.
+      @Override public <T> T[] toArray(T[] a) {
+        Object[] kvs = raw_array();
+        // Estimate size of array; be prepared to see more or fewer elements
+        int sz = size();
+        T[] r = a.length >= sz ? a :
+          (T[])java.lang.reflect.Array.newInstance(a.getClass().getComponentType(), sz);
+        // Fast efficient element walk.
+        int j=0;
+        for( int i=0; i<len(kvs); i++ ) {
+          Object K = key(kvs,i);
+          Object V = Prime.unbox(val(kvs,i));
+          if( K != null && K != TOMBSTONE && V != null && V != TOMBSTONE ) {
+            if( j >= r.length ) {
+              int sz2 = (int)Math.min(Integer.MAX_VALUE-8,((long)j)<<1);
+              if( sz2<=r.length ) throw new OutOfMemoryError("Required array size too large");
+              r = Arrays.copyOf(r,sz2);
+            }
+            r[j++] = (T)K;
+          }
+        }
+        if( j <= a.length ) {   // Fit in the original array?
+          if( a!=r ) System.arraycopy(r,0,a,0,j);
+          if( j<a.length ) r[j++]=null; // One final null not in the spec but in the default impl
+          return a;             // Return the original
+        }
+        return Arrays.copyOf(r,j);
+      }
     };
   }
 
