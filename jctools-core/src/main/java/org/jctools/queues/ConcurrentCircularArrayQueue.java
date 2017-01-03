@@ -74,6 +74,11 @@ public abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircular
     }
 
     @Override
+    public String toString() {
+        return this.getClass().getName();
+    }
+
+    @Override
     public void clear() {
         while (poll() != null || !isEmpty())
             ;

@@ -53,6 +53,12 @@ abstract class BaseLinkedAtomicQueue<E> extends AbstractQueue<E> {
         throw new UnsupportedOperationException();
     }
 
+
+    @Override
+    public String toString() {
+        return this.getClass().getName();
+    }
+
     public final int size() {
         // Read consumer first, this is important because if the producer is node is 'older' than the consumer
         // the consumer may overtake it (consume past it). This will lead to an infinite loop below.

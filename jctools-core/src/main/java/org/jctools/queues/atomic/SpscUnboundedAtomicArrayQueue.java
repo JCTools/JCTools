@@ -54,6 +54,12 @@ public class SpscUnboundedAtomicArrayQueue<E> extends AbstractQueue<E> implement
         throw new UnsupportedOperationException();
     }
 
+
+    @Override
+    public String toString() {
+        return this.getClass().getName();
+    }
+
     /**
      * {@inheritDoc}
      * <p>

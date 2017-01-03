@@ -148,6 +148,11 @@ public class MpscCompoundQueue<E> extends MpscCompoundQueueConsumerQueueIndex<E>
         throw new UnsupportedOperationException();
     }
 
+    @Override
+    public String toString() {
+        return this.getClass().getName();
+    }
+
 	@Override
 	public boolean relaxedOffer(E e) {
 	    if (null == e) {

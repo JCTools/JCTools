@@ -27,10 +27,17 @@ abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> {
         this.mask = actualCapacity - 1;
         this.buffer = new AtomicReferenceArray<E>(actualCapacity);
     }
+
     @Override
     public Iterator<E> iterator() {
         throw new UnsupportedOperationException();
     }
+
+    @Override
+    public String toString() {
+        return this.getClass().getName();
+    }
+
     @Override
     public void clear() {
         // we have to test isEmpty because of the weaker poll() guarantee

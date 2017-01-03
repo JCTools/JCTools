@@ -127,6 +127,11 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
     }
 
     @Override
+    public String toString() {
+        return this.getClass().getName();
+    }
+
+    @Override
     public boolean offer(final E e) {
         if (null == e) {
             throw new NullPointerException();
