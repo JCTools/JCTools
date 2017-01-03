@@ -65,6 +65,10 @@ public class QueueSanityTest {
     }
 
     @Test
+    public void toStringWorks() {
+        assertNotNull(queue.toString());
+    }
+        @Test
     public void sanity() {
         for (int i = 0; i < SIZE; i++) {
             assertNull(queue.poll());
