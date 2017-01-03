@@ -1,3 +1,8 @@
+2.0.1
+==========
+BUG: #143 - toString() didn't work for many of the queues because the default implemetation relied on iterators.
+BUG: #151 fixed by @cliffclick and helped by @vyazelenko (PR #152) - bringing in some fixes and improvements to NHBM
+
 2.0
 ==========
 PR #94 : The NonBlockingHashMap by @cliffclick is now released as part of JCTools core. Also thanks to @pcholakov for help is converting and sanity testing some of the benchmark code (PR #108).
