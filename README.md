@@ -44,7 +44,7 @@ And setup the following dependency:
         <dependency>
             <groupId>com.github.JCTools.JCTools</groupId>
             <artifactId>jctools-core</artifactId>
-            <version>2.0</version>
+            <version>v2.0</version>
         </dependency>
 ```
 
