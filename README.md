@@ -1,5 +1,7 @@
 [![Build Status](https://travis-ci.org/JCTools/JCTools.svg?branch=master)](https://travis-ci.org/JCTools/JCTools)
 
+[![Gitter](https://badges.gitter.im/JCTools/JCTools.svg)](https://gitter.im/JCTools/JCTools?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+
 JCTools
 ==========
 Java Concurrency Tools for the JVM. This project aims to offer some concurrent data structures currently missing from
