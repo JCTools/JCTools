@@ -11,9 +11,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jctools.channels.spsc;
+package org.jctools.channels.mpsc;
 
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 
 import org.jctools.channels.proxy.ProxyChannel;
@@ -43,10 +42,10 @@ import org.openjdk.jmh.runner.options.OptionsBuilder;
 @OutputTimeUnit(TimeUnit.SECONDS)
 @Warmup(iterations = 10, time = 1, timeUnit = TimeUnit.SECONDS)
 @Measurement(iterations = 10, time = 1, timeUnit = TimeUnit.SECONDS)
-public class SpscProxyChannelBenchmark {
+public class MpscProxyChannelBenchmark {
 
     private static final int CAPACITY = 10000;
-    private static final int PRODUCER_THREADS = 1;
+    private static final int PRODUCER_THREADS = 10;
     private static final int CONSUMER_THREADS = 1;
 
     public interface BenchIFace {
@@ -255,7 +254,7 @@ public class SpscProxyChannelBenchmark {
 
     }
 
-    private ProxyChannel<BenchIFace> spscChannel;
+    private ProxyChannel<BenchIFace> mpscChannel;
     private BenchIFace proxy;
     private BenchIFace impl;
     private MyWaitStrategy waitStrategy;
@@ -283,8 +282,8 @@ public class SpscProxyChannelBenchmark {
     @Setup(Level.Iteration)
     public void setupTrial() {
         this.waitStrategy = new MyWaitStrategy();
-        this.spscChannel = ProxyChannelFactory.createSpscProxy(CAPACITY, BenchIFace.class, this.waitStrategy);
-        this.proxy = this.spscChannel.proxy();
+        this.mpscChannel = ProxyChannelFactory.createMpscProxy(CAPACITY, BenchIFace.class, this.waitStrategy);
+        this.proxy = this.mpscChannel.proxy();
         this.impl = new BenchImpl(0);
 
         this.intArg = 7;
@@ -329,7 +328,7 @@ public class SpscProxyChannelBenchmark {
     @Group("oneObjectArg")
     @GroupThreads(CONSUMER_THREADS)
     public int oneObjectArgProcessor(final ProcessorCounters counters) {
-        return doProcess(spscChannel, counters);
+        return doProcess(mpscChannel, counters);
     }
 
     @Benchmark
@@ -356,7 +355,7 @@ public class SpscProxyChannelBenchmark {
     @Group("oneReferenceArg")
     @GroupThreads(CONSUMER_THREADS)
     public int oneReferenceArgProcessor(final ProcessorCounters counters) {
-        return doProcess(spscChannel, counters);
+        return doProcess(mpscChannel, counters);
     }
 
     @Benchmark
@@ -383,7 +382,7 @@ public class SpscProxyChannelBenchmark {
     @Group("twoMixedLengthPrimitiveArgs")
     @GroupThreads(CONSUMER_THREADS)
     public int twoMixedLengthPrimitiveArgsProcessor(final ProcessorCounters counters) {
-        return doProcess(spscChannel, counters);
+        return doProcess(mpscChannel, counters);
     }
 
     @Benchmark
@@ -410,7 +409,7 @@ public class SpscProxyChannelBenchmark {
     @Group("onePrimitiveArg")
     @GroupThreads(CONSUMER_THREADS)
     public int onePrimitiveArgProcessor(final ProcessorCounters counters) {
-        return doProcess(spscChannel, counters);
+        return doProcess(mpscChannel, counters);
     }
 
     @Benchmark
@@ -437,7 +436,7 @@ public class SpscProxyChannelBenchmark {
     @Group("noArgs")
     @GroupThreads(CONSUMER_THREADS)
     public int noArgsProcessor(final ProcessorCounters counters) {
-        return doProcess(spscChannel, counters);
+        return doProcess(mpscChannel, counters);
     }
 
     @Benchmark
@@ -482,7 +481,7 @@ public class SpscProxyChannelBenchmark {
     @Group("tenMixedArgs")
     @GroupThreads(CONSUMER_THREADS)
     public int tenMixedArgsProcessor(final ProcessorCounters counters) {
-        return doProcess(spscChannel, counters);
+        return doProcess(mpscChannel, counters);
     }
 
     @Benchmark
@@ -541,7 +540,7 @@ public class SpscProxyChannelBenchmark {
     @Group("alignedPrimitiveArgs")
     @GroupThreads(CONSUMER_THREADS)
     public int alignedPrimitiveArgsProcessor(final ProcessorCounters counters) {
-        return doProcess(spscChannel, counters);
+        return doProcess(mpscChannel, counters);
     }
 
     @Benchmark
@@ -602,7 +601,7 @@ public class SpscProxyChannelBenchmark {
     @Group("unalignedPrimitiveArgs")
     @GroupThreads(CONSUMER_THREADS)
     public int unalignedPrimitiveArgsProcessor(final ProcessorCounters counters) {
-        return doProcess(spscChannel, counters);
+        return doProcess(mpscChannel, counters);
     }
 
     private int doProcess(ProxyChannel<BenchIFace> proxyChannel, final ProcessorCounters counters) {
@@ -618,7 +617,7 @@ public class SpscProxyChannelBenchmark {
     public static void main(final String[] args) throws Exception {
 //        final String logFile = SpscProxyChannelBenchmark.class.getSimpleName() + ".log";
         final Options opt = new OptionsBuilder()
-                .include(SpscProxyChannelBenchmark.class.getSimpleName() + ".*tenMixedArgs.*")
+                .include(MpscProxyChannelBenchmark.class.getSimpleName() + ".*tenMixedArgs.*")
                 // .jvmArgsAppend("-XX:+UnlockDiagnosticVMOptions",
                 // "-XX:+TraceClassLoading",
                 // "-XX:+LogCompilation",

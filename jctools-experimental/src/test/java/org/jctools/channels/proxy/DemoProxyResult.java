@@ -1,6 +1,7 @@
 package org.jctools.channels.proxy;
 
-import org.jctools.channels.spsc.SpscOffHeapFixedSizeWithReferenceSupportRingBuffer;
+import org.jctools.channels.WaitStrategy;
+import org.jctools.channels.spsc.SpscOffHeapFixedSizeRingBuffer;
 import org.jctools.util.UnsafeAccess;
 
 /**
@@ -8,10 +9,12 @@ import org.jctools.util.UnsafeAccess;
  *
  * @author yak
  */
-public class DemoProxyResult extends SpscOffHeapFixedSizeWithReferenceSupportRingBuffer implements ProxyChannel<DemoIFace>, DemoIFace {
-
+public class DemoProxyResult extends SpscOffHeapFixedSizeRingBuffer implements ProxyChannel<DemoIFace>, DemoIFace {
+    private final WaitStrategy waitStrategy;
+    
     public DemoProxyResult(int capacity, WaitStrategy waitStrategy) {
-        super(capacity, 13, 2, waitStrategy);
+        super(capacity, 13, 2);
+        this.waitStrategy = waitStrategy;
     }
 
     @Override
@@ -90,7 +93,7 @@ public class DemoProxyResult extends SpscOffHeapFixedSizeWithReferenceSupportRin
 
     @Override
     public void call1(int x, int y) {
-        long wOffset = this.writeAcquireWithWaitStrategy();
+        long wOffset = ProxyChannelFactory.writeAcquireWithWaitStrategy(this, waitStrategy);
         UnsafeAccess.UNSAFE.putInt(wOffset + 4, x);
         UnsafeAccess.UNSAFE.putInt(wOffset + 8, y);
         this.writeRelease(wOffset, 1);
@@ -98,7 +101,7 @@ public class DemoProxyResult extends SpscOffHeapFixedSizeWithReferenceSupportRin
 
     @Override
     public void call2(float x, double y, boolean z) {
-        long wOffset = this.writeAcquireWithWaitStrategy();
+        long wOffset = ProxyChannelFactory.writeAcquireWithWaitStrategy(this, waitStrategy);
         UnsafeAccess.UNSAFE.putFloat(wOffset + 4, x);
         UnsafeAccess.UNSAFE.putDouble(wOffset + 8, y);
         UnsafeAccess.UNSAFE.putBoolean(null, wOffset + 16, z);
@@ -108,13 +111,13 @@ public class DemoProxyResult extends SpscOffHeapFixedSizeWithReferenceSupportRin
     
     @Override
     public void call3() {
-        long wOffset = this.writeAcquireWithWaitStrategy();
+        long wOffset = ProxyChannelFactory.writeAcquireWithWaitStrategy(this, waitStrategy);
         this.writeRelease(wOffset, 3);
     }
 
     @Override
     public void call4(Object x, CustomType y) {
-        long wOffset = this.writeAcquireWithWaitStrategy();
+        long wOffset = ProxyChannelFactory.writeAcquireWithWaitStrategy(this, waitStrategy);
         long arrayReferenceBaseIndex = this.producerReferenceArrayIndex();
         this.writeReference(arrayReferenceBaseIndex, x);
         this.writeReference(arrayReferenceBaseIndex + 1, y);
@@ -123,7 +126,7 @@ public class DemoProxyResult extends SpscOffHeapFixedSizeWithReferenceSupportRin
 
     @Override
     public void call5(CustomType x, int y, CustomType z) {
-        long wOffset = this.writeAcquireWithWaitStrategy();
+        long wOffset = ProxyChannelFactory.writeAcquireWithWaitStrategy(this, waitStrategy);
         long arrayReferenceBaseIndex = this.producerReferenceArrayIndex();
         this.writeReference(arrayReferenceBaseIndex, x);
         UnsafeAccess.UNSAFE.putInt(wOffset + 4, y);
@@ -133,7 +136,7 @@ public class DemoProxyResult extends SpscOffHeapFixedSizeWithReferenceSupportRin
 
     @Override
     public void call6(int x, CustomType[] y, CustomType... z) {
-        long wOffset = this.writeAcquireWithWaitStrategy();
+        long wOffset = ProxyChannelFactory.writeAcquireWithWaitStrategy(this, waitStrategy);
         long arrayReferenceBaseIndex = this.producerReferenceArrayIndex();
         UnsafeAccess.UNSAFE.putInt(wOffset + 4, x);
         this.writeReference(arrayReferenceBaseIndex, y);

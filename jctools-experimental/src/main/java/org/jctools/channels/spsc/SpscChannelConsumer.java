@@ -33,7 +33,7 @@ public abstract class SpscChannelConsumer<E> extends SpscOffHeapFixedSizeRingBuf
             final int messageSize,
             final ChannelReceiver<E> receiver) {
 
-        super(buffer, capacity, false, true, false, messageSize);
+        super(buffer, capacity, false, true, false, messageSize, null, 0);
 
         this.receiver = receiver;
         this.pointer = EOF;
