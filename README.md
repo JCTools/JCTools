@@ -73,6 +73,12 @@ Benchmarks
 JCTools is benchmarked using both JMH benchmarks and handrolled harnesses. The benchmarks and related instructions can be
 found in the jctools-benchmarks module README. Go wild and please let us know how it did on your hardware.
 
+Concurrency Testing
+===========
+mvn package
+cd jctools-concurrency-test
+java -jar target/concurrency-test.jar -v
+
 Come up to the lab...
 ==========
 Experimental work is available under the jctools-experimental module. Most of the stuff is developed with an eye to
