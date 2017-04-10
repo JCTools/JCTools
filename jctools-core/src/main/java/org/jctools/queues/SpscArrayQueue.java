@@ -191,7 +191,7 @@ public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E>  implement
     }
 
     @Override
-    public boolean relaxedOffer(E message) {
+    public boolean relaxedOffer(final E message) {
         return offer(message);
     }
 
