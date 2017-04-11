@@ -190,20 +190,20 @@ public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E>  implement
         return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
     }
 
-	@Override
-	public boolean relaxedOffer(E message) {
-		return offer(message);
-	}
+    @Override
+    public boolean relaxedOffer(final E message) {
+        return offer(message);
+    }
 
-	@Override
-	public E relaxedPoll() {
-		return poll();
-	}
+    @Override
+    public E relaxedPoll() {
+        return poll();
+    }
 
-	@Override
-	public E relaxedPeek() {
-		return peek();
-	}
+    @Override
+    public E relaxedPeek() {
+        return peek();
+    }
 
     @Override
     public int drain(final Consumer<E> c) {
