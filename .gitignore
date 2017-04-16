@@ -20,3 +20,4 @@ jctools-parent.iml
 target/MANIFEST.MF
 /settings.xml
 /target/
+/classes/
