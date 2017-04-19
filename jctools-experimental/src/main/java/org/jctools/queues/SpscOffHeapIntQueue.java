@@ -160,8 +160,7 @@ public final class SpscOffHeapIntQueue extends AbstractQueue<Integer> {
     public int peekInt() {
         final long currentHead = getHeadPlain();
         if (currentHead >= getTailCache()) {
-            setTailCache(getTail());
-            if (currentHead >= getTailCache()) {
+            if (currentHead >= getTail()) {
                 return Integer.MIN_VALUE;
             }
         }
