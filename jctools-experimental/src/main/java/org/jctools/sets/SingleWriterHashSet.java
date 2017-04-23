@@ -282,13 +282,14 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
 
         @Override
         public void remove() {
-            E e;
-            if ((e = lastVal) != null) {
-                lastVal = null;
-                set.remove(e);
-                nextValIndex = lastValIndex - 1;
-                findNextVal();
+            if (lastVal == null) {
+                throw new IllegalStateException();
             }
+
+            set.remove(lastVal);
+            lastVal = null;
+            nextValIndex = lastValIndex - 1;
+            findNextVal();
         }
     }
 
