@@ -268,9 +268,8 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
         private void findNextVal() {
             E[] array = buffer;
             int i = nextValIndex;
-            E e = null;
             for (; i < array.length; i++) {
-                e = array[i];
+                E e = lvElement(array, calcElementOffset(i, array.length - 1));
                 if (e != null) {
                     nextVal = e;
                     nextValIndex = i + 1;
