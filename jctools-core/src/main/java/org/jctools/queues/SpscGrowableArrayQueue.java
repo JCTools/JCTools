@@ -28,11 +28,11 @@ public class SpscGrowableArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
 
     public SpscGrowableArrayQueue(final int chunkSize, final int capacity) {
         if (capacity < 16) {
-            throw new IllegalArgumentException("Max capacity must be 4 or more");
+            throw new IllegalArgumentException("Max capacity must be 16 or more");
         }
         // minimal chunk size of eight makes sure minimal lookahead step is 2
         if (chunkSize < 8) {
-            throw new IllegalArgumentException("Chunk size must be 2 or more");
+            throw new IllegalArgumentException("Chunk size must be 8 or more");
         }
 
         maxQueueCapacity = Pow2.roundToPowerOfTwo(capacity);

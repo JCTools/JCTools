@@ -31,7 +31,7 @@ public class MpmcAtomicArrayQueue<E> extends SequencedAtomicReferenceArrayQueue<
 
     private static int validateCapacity(int capacity) {
         if(capacity < 2)
-            throw new IllegalArgumentException("Minimum size is 2");
+            throw new IllegalArgumentException("Minimum size must be 2 or more");
         return capacity;
     }
 
