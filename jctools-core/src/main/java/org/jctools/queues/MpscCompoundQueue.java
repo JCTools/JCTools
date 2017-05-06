@@ -13,12 +13,13 @@
  */
 package org.jctools.queues;
 
-import java.util.AbstractQueue;
-import java.util.Iterator;
-
 import static org.jctools.util.JvmInfo.CPUs;
 import static org.jctools.util.Pow2.isPowerOfTwo;
 import static org.jctools.util.Pow2.roundToPowerOfTwo;
+
+import java.util.AbstractQueue;
+import java.util.Iterator;
+import org.jctools.util.RangeUtil;
 
 /**
  * Use a set number of parallel MPSC queues to diffuse the contention on tail.
@@ -41,9 +42,7 @@ abstract class MpscCompoundQueueColdFields<E> extends MpscCompoundQueueL0Pad<E> 
         parallelQueuesMask = parallelQueues - 1;
         queues = new MpscArrayQueue[parallelQueues];
         int fullCapacity = roundToPowerOfTwo(capacity);
-        if(fullCapacity < parallelQueues) {
-            throw new IllegalArgumentException("Queue capacity must exceed parallelism");
-        }
+        RangeUtil.checkGreaterThanOrEqual(fullCapacity, parallelQueues, "fullCapacity");
         for (int i = 0; i < parallelQueues; i++) {
             queues[i] = new MpscArrayQueue<E>(fullCapacity / parallelQueues);
         }
