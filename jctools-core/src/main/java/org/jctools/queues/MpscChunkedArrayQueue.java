@@ -18,18 +18,15 @@ import static java.lang.Math.min;
 import static org.jctools.util.Pow2.roundToPowerOfTwo;
 
 import org.jctools.util.Pow2;
+import org.jctools.util.RangeUtil;
 
 abstract class MpscChunkedArrayQueueColdProducerFields<E> extends BaseMpscLinkedArrayQueue<E> {
     protected final long maxQueueCapacity;
     public MpscChunkedArrayQueueColdProducerFields(int initialCapacity, int maxCapacity) {
         super(initialCapacity);
-        if (maxCapacity < 4) {
-            throw new IllegalArgumentException("Max capacity must be 4 or more");
-        }
-        if (Pow2.roundToPowerOfTwo(initialCapacity) >= Pow2.roundToPowerOfTwo(maxCapacity)) {
-            throw new IllegalArgumentException(
-                    "Initial capacity cannot exceed maximum capacity(both rounded up to a power of 2)");
-        }
+        RangeUtil.checkGreaterThanOrEqual(maxCapacity, 4, "maxCapacity");
+        RangeUtil.checkLessThan(roundToPowerOfTwo(initialCapacity), roundToPowerOfTwo(maxCapacity),
+          "initialCapacity");
         maxQueueCapacity = ((long)Pow2.roundToPowerOfTwo(maxCapacity)) << 1;
     }
 }

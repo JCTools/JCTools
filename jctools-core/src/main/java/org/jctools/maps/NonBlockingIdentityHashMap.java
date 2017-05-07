@@ -31,7 +31,8 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater; 
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import org.jctools.util.RangeUtil;
 
 /**
  * A lock-free alternate implementation of {@link java.util.concurrent.ConcurrentHashMap}
@@ -275,7 +276,7 @@ public class NonBlockingIdentityHashMap<TypeK, TypeV>
    *  initial size will be rounded up internally to the next larger power of 2. */
   public NonBlockingIdentityHashMap( final int initial_sz ) { initialize(initial_sz); }
   private final void initialize( int initial_sz ) {
-    if( initial_sz < 0 ) throw new IllegalArgumentException();
+    RangeUtil.checkPositiveOrZero(initial_sz, "initial_sz");
     int i;                      // Convert to next largest power-of-2
     if( initial_sz > 1024*1024 ) initial_sz = 1024*1024;
     for( i=MIN_SIZE_LOG; (1<<i) < (initial_sz<<2); i++ ) ;
