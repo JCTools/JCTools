@@ -10,7 +10,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 @RunWith(Parameterized.class)
-public class MpscUnboundedQueueSanityTest extends QueueSanityTest {
+public class MpscUnboundedArrayQueueSanityTest extends QueueSanityTest {
     @Parameterized.Parameters
     public static Collection<Object[]> parameters() {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
@@ -19,7 +19,7 @@ public class MpscUnboundedQueueSanityTest extends QueueSanityTest {
         return list;
     }
 
-    public MpscUnboundedQueueSanityTest(ConcurrentQueueSpec spec, Queue<Integer> queue) {
+    public MpscUnboundedArrayQueueSanityTest(ConcurrentQueueSpec spec, Queue<Integer> queue) {
         super(spec, queue);
     }
 
