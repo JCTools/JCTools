@@ -19,14 +19,14 @@ import org.jctools.util.RangeUtil;
 
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
-public class AtomicSpscGrowableArrayQueue<E> extends AtomicBaseSpscLinkedArrayQueue<E> {
+public class SpscGrowableAtomicArrayQueue<E> extends AtomicBaseSpscLinkedArrayQueue<E> {
     private int maxQueueCapacity; // ignored by the unbounded implementation
     private long lookAheadStep;// ignored by the unbounded implementation
-    public AtomicSpscGrowableArrayQueue(final int capacity) {
+    public SpscGrowableAtomicArrayQueue(final int capacity) {
         this(Math.max(8, Pow2.roundToPowerOfTwo(capacity / 8)), capacity);
     }
 
-    public AtomicSpscGrowableArrayQueue(final int chunkSize, final int capacity) {
+    public SpscGrowableAtomicArrayQueue(final int chunkSize, final int capacity) {
         RangeUtil.checkGreaterThanOrEqual(capacity, 16, "capacity");
         // minimal chunk size of eight makes sure minimal lookahead step is 2
         RangeUtil.checkGreaterThanOrEqual(chunkSize, 8, "chunkSize");
