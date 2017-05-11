@@ -13,13 +13,13 @@
  */
 package org.jctools.queues;
 
-final class IndexedQueueSizeUtil {
+public final class IndexedQueueSizeUtil {
     private IndexedQueueSizeUtil(){}
-    protected interface IndexedQueue {
+    public interface IndexedQueue {
         long lvConsumerIndex();
         long lvProducerIndex();
     }
-    static int size(IndexedQueue iq) {
+    public static int size(IndexedQueue iq) {
         /*
          * It is possible for a thread to be interrupted or reschedule between the read of the producer and
          * consumer indices, therefore protection is required to ensure size is within valid range. In the
@@ -47,7 +47,7 @@ final class IndexedQueueSizeUtil {
         }
     }
 
-    static boolean isEmpty(IndexedQueue iq) {
+    public static boolean isEmpty(IndexedQueue iq) {
         // Order matters!
         // Loading consumer before producer allows for producer increments after consumer index is read.
         // This ensures this method is conservative in it's estimate. Note that as this is an MPMC there is
