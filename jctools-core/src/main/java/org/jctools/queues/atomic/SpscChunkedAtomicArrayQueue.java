@@ -18,7 +18,7 @@ import org.jctools.util.RangeUtil;
 
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
-public class SpscChunkedAtomicArrayQueue<E> extends AtomicBaseSpscLinkedArrayQueue<E> {
+public class SpscChunkedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArrayQueue<E> {
     private int maxQueueCapacity;
     private long producerQueueLimit;
 

@@ -22,43 +22,43 @@ import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
-abstract class AtomicBaseSpscLinkedArrayQueuePrePad<E> extends AbstractQueue<E> {
+abstract class BaseSpscLinkedAtomicArrayQueuePrePad<E> extends AbstractQueue<E> {
     long p0, p1, p2, p3, p4, p5, p6, p7;
     long p10, p11, p12, p13, p14, p15;
     //  p16, p17; drop 2 longs, the cold fields act as buffer
 }
 
-abstract class AtomicBaseSpscLinkedArrayQueueConsumerColdFields<E> extends AtomicBaseSpscLinkedArrayQueuePrePad<E> {
+abstract class BaseSpscLinkedAtomicArrayQueueConsumerColdFields<E> extends BaseSpscLinkedAtomicArrayQueuePrePad<E> {
     protected long consumerMask;
     protected AtomicReferenceArray<E> consumerBuffer;
 }
 
-abstract class AtomicBaseSpscLinkedArrayQueueConsumerField<E> extends AtomicBaseSpscLinkedArrayQueueConsumerColdFields<E> {
-    static final AtomicLongFieldUpdater<AtomicBaseSpscLinkedArrayQueueConsumerField> C_INDEX_UPDATER =
-            AtomicLongFieldUpdater.newUpdater(AtomicBaseSpscLinkedArrayQueueConsumerField.class, "consumerIndex");
+abstract class BaseSpscLinkedAtomicArrayQueueConsumerField<E> extends BaseSpscLinkedAtomicArrayQueueConsumerColdFields<E> {
+    static final AtomicLongFieldUpdater<BaseSpscLinkedAtomicArrayQueueConsumerField> C_INDEX_UPDATER =
+            AtomicLongFieldUpdater.newUpdater(BaseSpscLinkedAtomicArrayQueueConsumerField.class, "consumerIndex");
     protected volatile long consumerIndex;
 }
 
-abstract class AtomicBaseSpscLinkedArrayQueueL2Pad<E> extends AtomicBaseSpscLinkedArrayQueueConsumerField<E> {
+abstract class BaseSpscLinkedAtomicArrayQueueL2Pad<E> extends BaseSpscLinkedAtomicArrayQueueConsumerField<E> {
     long p0, p1, p2, p3, p4, p5, p6, p7;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 }
 
-abstract class AtomicBaseSpscLinkedArrayQueueProducerFields<E> extends AtomicBaseSpscLinkedArrayQueueL2Pad<E> {
-    static final AtomicLongFieldUpdater<AtomicBaseSpscLinkedArrayQueueProducerFields> P_INDEX_UPDATER =
-            AtomicLongFieldUpdater.newUpdater(AtomicBaseSpscLinkedArrayQueueProducerFields.class, "producerIndex");
+abstract class BaseSpscLinkedAtomicArrayQueueProducerFields<E> extends BaseSpscLinkedAtomicArrayQueueL2Pad<E> {
+    static final AtomicLongFieldUpdater<BaseSpscLinkedAtomicArrayQueueProducerFields> P_INDEX_UPDATER =
+            AtomicLongFieldUpdater.newUpdater(BaseSpscLinkedAtomicArrayQueueProducerFields.class, "producerIndex");
     protected volatile long producerIndex;
 
 }
 
-abstract class AtomicBaseSpscLinkedArrayQueueProducerColdFields<E> extends AtomicBaseSpscLinkedArrayQueueProducerFields<E> {
+abstract class BaseSpscLinkedAtomicArrayQueueProducerColdFields<E> extends BaseSpscLinkedAtomicArrayQueueProducerFields<E> {
     protected long producerBufferLimit;
     protected long producerMask; // fixed for chunked and unbounded
 
     protected AtomicReferenceArray<E> producerBuffer;
 }
 
-abstract class AtomicBaseSpscLinkedArrayQueue<E> extends AtomicBaseSpscLinkedArrayQueueProducerColdFields<E>
+abstract class BaseSpscLinkedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArrayQueueProducerColdFields<E>
         implements QueueProgressIndicators, IndexedQueue {
 
     protected static final Object JUMP = new Object();
