@@ -115,7 +115,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> implements
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
     final static int RECOMENDED_POLL_BATCH = CPUs * 4;
-    final static int RECOMENDED_OFFER_BATCH = CPUs * 4;
+    public final static int RECOMENDED_OFFER_BATCH = CPUs * 4;
     public MpmcArrayQueue(final int capacity) {
         super(RangeUtil.checkGreaterThanOrEqual(capacity, 2, "capacity"));
     }
