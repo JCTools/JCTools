@@ -1,7 +1,6 @@
 package org.jctools.queues;
 
 import org.jctools.queues.atomic.AtomicQueueFactory;
-import org.jctools.queues.atomic.SpscUnboundedAtomicArrayQueue;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
 import org.jctools.queues.spec.Preference;

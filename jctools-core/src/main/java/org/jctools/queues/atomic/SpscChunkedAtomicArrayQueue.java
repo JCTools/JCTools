@@ -18,15 +18,15 @@ import org.jctools.util.RangeUtil;
 
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
-public class AtomicSpscChunkedArrayQueue<E> extends AtomicBaseSpscLinkedArrayQueue<E> {
+public class SpscChunkedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArrayQueue<E> {
     private int maxQueueCapacity;
     private long producerQueueLimit;
 
-    public AtomicSpscChunkedArrayQueue(final int capacity) {
+    public SpscChunkedAtomicArrayQueue(final int capacity) {
         this(Math.max(8, Pow2.roundToPowerOfTwo(capacity / 8)), capacity);
     }
 
-    public AtomicSpscChunkedArrayQueue(final int chunkSize, final int capacity) {
+    public SpscChunkedAtomicArrayQueue(final int chunkSize, final int capacity) {
         RangeUtil.checkGreaterThanOrEqual(capacity, 16, "capacity");
         // minimal chunk size of eight makes sure minimal lookahead step is 2
         RangeUtil.checkGreaterThanOrEqual(chunkSize, 8, "chunkSize");
