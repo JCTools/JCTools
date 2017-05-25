@@ -70,9 +70,9 @@ public final class FFBuffer<E> extends FFBufferL3Pad<E> implements Queue<E> {
     private final static long C_INDEX_OFFSET;
     static {
         try {
-            P_INDEX_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(FFBufferTailField.class
+            P_INDEX_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(FFBufferHeadField.class
                     .getDeclaredField("producerIndex"));
-            C_INDEX_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(FFBufferHeadField.class
+            C_INDEX_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(FFBufferTailField.class
                     .getDeclaredField("consumerIndex"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);

@@ -17,20 +17,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.jctools.channels.proxy.ProxyChannel;
 import org.jctools.channels.proxy.ProxyChannelFactory;
-import org.openjdk.jmh.annotations.AuxCounters;
-import org.openjdk.jmh.annotations.Benchmark;
-import org.openjdk.jmh.annotations.BenchmarkMode;
-import org.openjdk.jmh.annotations.Group;
-import org.openjdk.jmh.annotations.GroupThreads;
-import org.openjdk.jmh.annotations.Level;
-import org.openjdk.jmh.annotations.Measurement;
-import org.openjdk.jmh.annotations.Mode;
-import org.openjdk.jmh.annotations.OutputTimeUnit;
-import org.openjdk.jmh.annotations.Param;
-import org.openjdk.jmh.annotations.Scope;
-import org.openjdk.jmh.annotations.Setup;
-import org.openjdk.jmh.annotations.State;
-import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 import org.openjdk.jmh.infra.Control;
 import org.openjdk.jmh.runner.Runner;
@@ -44,7 +31,7 @@ import org.openjdk.jmh.runner.options.OptionsBuilder;
 @Measurement(iterations = 10, time = 1, timeUnit = TimeUnit.SECONDS)
 public class SpscProxyChannelBenchmark {
 
-    private static final int CAPACITY = 10000;
+    private static final int CAPACITY = 128000;
 
     public interface BenchIFace {
 
@@ -124,31 +111,37 @@ public class SpscProxyChannelBenchmark {
         }
 
         @Override
+        @CompilerControl(CompilerControl.Mode.DONT_INLINE)
         public void noArgs() {
             Blackhole.consumeCPU(this.tokens);
         }
 
         @Override
+        @CompilerControl(CompilerControl.Mode.DONT_INLINE)
         public void onePrimitiveArg(final int x) {
             Blackhole.consumeCPU(this.tokens);
         }
 
         @Override
+        @CompilerControl(CompilerControl.Mode.DONT_INLINE)
         public void twoMixedLengthPrimitiveArgs(final int x, final long y) {
             Blackhole.consumeCPU(this.tokens);
         }
 
         @Override
+        @CompilerControl(CompilerControl.Mode.DONT_INLINE)
         public void oneObjectArg(final Object x) {
             Blackhole.consumeCPU(this.tokens);
         }
 
         @Override
+        @CompilerControl(CompilerControl.Mode.DONT_INLINE)
         public void oneReferenceArg(final CustomType x) {
             Blackhole.consumeCPU(this.tokens);
         }
 
         @Override
+        @CompilerControl(CompilerControl.Mode.DONT_INLINE)
         public void tenMixedArgs(final int i,
                 final Object o,
                 final long l,
@@ -163,6 +156,7 @@ public class SpscProxyChannelBenchmark {
         }
 
         @Override
+        @CompilerControl(CompilerControl.Mode.DONT_INLINE)
         public void unalignedPrimitiveArgs(
                 long l1,
                 double d1,
@@ -185,6 +179,7 @@ public class SpscProxyChannelBenchmark {
         }
 
         @Override
+        @CompilerControl(CompilerControl.Mode.DONT_INLINE)
         public void alignedPrimitiveArgs(int i,
                 long l1,
                 double d1,

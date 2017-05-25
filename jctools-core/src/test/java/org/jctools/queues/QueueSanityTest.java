@@ -68,7 +68,8 @@ public class QueueSanityTest {
     public void toStringWorks() {
         assertNotNull(queue.toString());
     }
-        @Test
+
+    @Test
     public void sanity() {
         for (int i = 0; i < SIZE; i++) {
             assertNull(queue.poll());
@@ -285,6 +286,7 @@ public class QueueSanityTest {
         assertEquals("Unexpected size observed", 0, fail.value);
 
     }
+
     @Test
     public void testPollAfterIsEmpty() throws Exception {
         final AtomicBoolean stop = new AtomicBoolean();
@@ -320,6 +322,7 @@ public class QueueSanityTest {
         assertEquals("Observed no element in non-empty queue", 0, fail.value);
 
     }
+
     public static Object[] makeQueue(int producers, int consumers, int capacity, Ordering ordering, Queue<Integer> q) {
         ConcurrentQueueSpec spec = new ConcurrentQueueSpec(producers, consumers, capacity, ordering,
                 Preference.NONE);
@@ -328,6 +331,7 @@ public class QueueSanityTest {
         }
         return new Object[] { spec, q };
     }
+
     public static Object[] makeAtomic(int producers, int consumers, int capacity, Ordering ordering, Queue<Integer> q) {
         ConcurrentQueueSpec spec = new ConcurrentQueueSpec(producers, consumers, capacity, ordering,
                 Preference.NONE);
