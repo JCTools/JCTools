@@ -18,6 +18,7 @@ import static org.jctools.queues.CircularArrayOffsetCalculator.calcElementOffset
 import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
 
 import org.jctools.util.Pow2;
+import org.jctools.util.RangeUtil;
 
 public class SpscGrowableArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
     private int maxQueueCapacity; // ignored by the unbounded implementation
@@ -27,20 +28,13 @@ public class SpscGrowableArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
     }
 
     public SpscGrowableArrayQueue(final int chunkSize, final int capacity) {
-        if (capacity < 16) {
-            throw new IllegalArgumentException("Max capacity must be 4 or more");
-        }
+        RangeUtil.checkGreaterThanOrEqual(capacity, 16, "capacity");
         // minimal chunk size of eight makes sure minimal lookahead step is 2
-        if (chunkSize < 8) {
-            throw new IllegalArgumentException("Chunk size must be 2 or more");
-        }
+        RangeUtil.checkGreaterThanOrEqual(chunkSize, 8, "chunkSize");
 
         maxQueueCapacity = Pow2.roundToPowerOfTwo(capacity);
         int chunkCapacity = Pow2.roundToPowerOfTwo(chunkSize);
-        if (chunkCapacity >= maxQueueCapacity) {
-            throw new IllegalArgumentException(
-                    "Initial capacity cannot exceed maximum capacity(both rounded up to a power of 2)");
-        }
+        RangeUtil.checkLessThan(chunkCapacity, maxQueueCapacity, "chunkCapacity");
 
         long mask = chunkCapacity - 1;
         // need extra element to point at next array

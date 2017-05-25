@@ -21,6 +21,7 @@ import java.nio.ByteBuffer;
 
 import org.jctools.channels.OffHeapFixedMessageSizeRingBuffer;
 import org.jctools.util.Pow2;
+import org.jctools.util.UnsafeRefArrayAccess;
 
 /**
  * Channel protocol:
@@ -42,9 +43,15 @@ public class SpscOffHeapFixedSizeRingBuffer extends OffHeapFixedMessageSizeRingB
         return Math.min(capacity / 4, MAX_LOOK_AHEAD_STEP);
     }
 
-    public SpscOffHeapFixedSizeRingBuffer(final int capacity, final int messageSize) {
-        this(allocateAlignedByteBuffer(getRequiredBufferSize(capacity, messageSize), CACHE_LINE_SIZE), Pow2
-                .roundToPowerOfTwo(capacity), true, true, true, messageSize);
+    public SpscOffHeapFixedSizeRingBuffer(final int capacity, final int messageSize, final int referenceMessageSize) {
+        this(allocateAlignedByteBuffer(getRequiredBufferSize(capacity, messageSize), CACHE_LINE_SIZE),
+                Pow2.roundToPowerOfTwo(capacity),
+                true,
+                true,
+                true,
+                messageSize,
+                createReferenceArray(capacity, referenceMessageSize),
+                referenceMessageSize);
     }
 
     /**
@@ -54,10 +61,22 @@ public class SpscOffHeapFixedSizeRingBuffer extends OffHeapFixedMessageSizeRingB
      * @param capacity in messages, actual capacity will be
      * @param messageSize
      */
-    protected SpscOffHeapFixedSizeRingBuffer(final ByteBuffer buff, final int capacity,
-            final boolean isProducer, final boolean isConsumer, final boolean initialize,
-            final int messageSize) {
-        super(buff,capacity,isProducer,isConsumer,initialize,messageSize);
+    protected SpscOffHeapFixedSizeRingBuffer(final ByteBuffer buff,
+            final int capacity,
+            final boolean isProducer,
+            final boolean isConsumer,
+            final boolean initialize,
+            final int messageSize,
+            final Object[] references,
+            final int referenceMessageSize) {
+        super(buff,
+                capacity,
+                isProducer,
+                isConsumer,
+                initialize,
+                messageSize,
+                references,
+                referenceMessageSize);
 
         this.lookAheadStep = getLookaheadStep(capacity);
         // Layout of the RingBuffer (assuming 64b cache line):
@@ -101,6 +120,7 @@ public class SpscOffHeapFixedSizeRingBuffer extends OffHeapFixedMessageSizeRingB
         writeReleaseState(offset);
     }
 
+    @Override
     protected final void writeRelease(long offset, int type) {
         assert type != 0;
         UNSAFE.putOrderedInt(null, offset, type);

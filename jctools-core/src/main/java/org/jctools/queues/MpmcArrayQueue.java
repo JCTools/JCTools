@@ -18,7 +18,7 @@ import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeRefArrayAccess.lpElement;
 import static org.jctools.util.UnsafeRefArrayAccess.soElement;
 
-import java.util.Objects;
+import org.jctools.util.RangeUtil;
 
 abstract class MpmcArrayQueueL1Pad<E> extends ConcurrentSequencedCircularArrayQueue<E> {
     long p00, p01, p02, p03, p04, p05, p06, p07;
@@ -115,15 +115,9 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> implements
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
     final static int RECOMENDED_POLL_BATCH = CPUs * 4;
-    final static int RECOMENDED_OFFER_BATCH = CPUs * 4;
+    public final static int RECOMENDED_OFFER_BATCH = CPUs * 4;
     public MpmcArrayQueue(final int capacity) {
-        super(validateCapacity(capacity));
-    }
-
-    private static int validateCapacity(int capacity) {
-        if(capacity < 2)
-            throw new IllegalArgumentException("Minimum size is 2");
-        return capacity;
+        super(RangeUtil.checkGreaterThanOrEqual(capacity, 2, "capacity"));
     }
 
     @Override

@@ -1,5 +1,7 @@
 [![Build Status](https://travis-ci.org/JCTools/JCTools.svg?branch=master)](https://travis-ci.org/JCTools/JCTools)
 
+[![Gitter](https://badges.gitter.im/JCTools/JCTools.svg)](https://gitter.im/JCTools/JCTools?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+
 JCTools
 ==========
 Java Concurrency Tools for the JVM. This project aims to offer some concurrent data structures currently missing from
@@ -70,6 +72,12 @@ Benchmarks
 ==========
 JCTools is benchmarked using both JMH benchmarks and handrolled harnesses. The benchmarks and related instructions can be
 found in the jctools-benchmarks module README. Go wild and please let us know how it did on your hardware.
+
+Concurrency Testing
+===========
+mvn package
+cd jctools-concurrency-test
+java -jar target/concurrency-test.jar -v
 
 Come up to the lab...
 ==========

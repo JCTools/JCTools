@@ -20,13 +20,15 @@ public class MpscOffHeapFixedSizeRingBufferTest extends AbstractOffHeapFixedSize
 
     @Test
     public void test() {
-        MpscOffHeapFixedSizeRingBuffer rb = new MpscOffHeapFixedSizeRingBuffer(1024, 31);
+        // TODO: Needs test for when referenceMessageSize > 0
+        MpscOffHeapFixedSizeRingBuffer rb = new MpscOffHeapFixedSizeRingBuffer(1024, 31, 0);
         test(rb);
     }
 
     @Test
     public void testFFLamport() {
-        MpscFFLamportOffHeapFixedSizeRingBuffer rb = new MpscFFLamportOffHeapFixedSizeRingBuffer(1024, 31);
+        // TODO: Needs test for when referenceMessageSize > 0
+        MpscFFLamportOffHeapFixedSizeRingBuffer rb = new MpscFFLamportOffHeapFixedSizeRingBuffer(1024, 31, 0);
         test(rb);
     }
 

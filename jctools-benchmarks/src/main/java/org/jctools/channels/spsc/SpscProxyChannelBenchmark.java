@@ -13,6 +13,7 @@
  */
 package org.jctools.channels.spsc;
 
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 
 import org.jctools.channels.proxy.ProxyChannel;
@@ -32,6 +33,8 @@ import org.openjdk.jmh.runner.options.OptionsBuilder;
 public class SpscProxyChannelBenchmark {
 
     private static final int CAPACITY = 128000;
+    private static final int PRODUCER_THREADS = 1;
+    private static final int CONSUMER_THREADS = 1;
 
     public interface BenchIFace {
 
@@ -232,7 +235,7 @@ public class SpscProxyChannelBenchmark {
     private static final StoppedException STOPPED = new StoppedException();
 
     private static final class MyWaitStrategy
-            implements org.jctools.channels.spsc.SpscOffHeapFixedSizeWithReferenceSupportRingBuffer.WaitStrategy {
+            implements org.jctools.channels.WaitStrategy {
         public Control control;
         private int retries;
 
@@ -247,7 +250,7 @@ public class SpscProxyChannelBenchmark {
 
     }
 
-    private ProxyChannel<BenchIFace> channel;
+    private ProxyChannel<BenchIFace> spscChannel;
     private BenchIFace proxy;
     private BenchIFace impl;
     private MyWaitStrategy waitStrategy;
@@ -275,8 +278,8 @@ public class SpscProxyChannelBenchmark {
     @Setup(Level.Iteration)
     public void setupTrial() {
         this.waitStrategy = new MyWaitStrategy();
-        this.channel = ProxyChannelFactory.createSpscProxy(CAPACITY, BenchIFace.class, this.waitStrategy);
-        this.proxy = this.channel.proxy();
+        this.spscChannel = ProxyChannelFactory.createSpscProxy(CAPACITY, BenchIFace.class, this.waitStrategy);
+        this.proxy = this.spscChannel.proxy();
         this.impl = new BenchImpl(0);
 
         this.intArg = 7;
@@ -305,7 +308,7 @@ public class SpscProxyChannelBenchmark {
 
     @Benchmark
     @Group("oneObjectArg")
-    @GroupThreads(1)
+    @GroupThreads(PRODUCER_THREADS)
     public boolean oneObjectArgCaller(final Control control, final CallerCounters counters) {
         this.waitStrategy.control = control;
         try {
@@ -319,9 +322,9 @@ public class SpscProxyChannelBenchmark {
 
     @Benchmark
     @Group("oneObjectArg")
-    @GroupThreads(1)
+    @GroupThreads(CONSUMER_THREADS)
     public int oneObjectArgProcessor(final ProcessorCounters counters) {
-        return doProcess(counters);
+        return doProcess(spscChannel, counters);
     }
 
     @Benchmark
@@ -332,7 +335,7 @@ public class SpscProxyChannelBenchmark {
 
     @Benchmark
     @Group("oneReferenceArg")
-    @GroupThreads(1)
+    @GroupThreads(PRODUCER_THREADS)
     public boolean oneReferenceArgCaller(final Control control, final CallerCounters counters) {
         this.waitStrategy.control = control;
         try {
@@ -346,9 +349,9 @@ public class SpscProxyChannelBenchmark {
 
     @Benchmark
     @Group("oneReferenceArg")
-    @GroupThreads(1)
+    @GroupThreads(CONSUMER_THREADS)
     public int oneReferenceArgProcessor(final ProcessorCounters counters) {
-        return doProcess(counters);
+        return doProcess(spscChannel, counters);
     }
 
     @Benchmark
@@ -359,7 +362,7 @@ public class SpscProxyChannelBenchmark {
 
     @Benchmark
     @Group("twoMixedLengthPrimitiveArgs")
-    @GroupThreads(1)
+    @GroupThreads(PRODUCER_THREADS)
     public boolean twoMixedLengthPrimitiveArgsCaller(final Control control, final CallerCounters counters) {
         this.waitStrategy.control = control;
         try {
@@ -373,9 +376,9 @@ public class SpscProxyChannelBenchmark {
 
     @Benchmark
     @Group("twoMixedLengthPrimitiveArgs")
-    @GroupThreads(1)
+    @GroupThreads(CONSUMER_THREADS)
     public int twoMixedLengthPrimitiveArgsProcessor(final ProcessorCounters counters) {
-        return doProcess(counters);
+        return doProcess(spscChannel, counters);
     }
 
     @Benchmark
@@ -386,7 +389,7 @@ public class SpscProxyChannelBenchmark {
 
     @Benchmark
     @Group("onePrimitiveArg")
-    @GroupThreads(1)
+    @GroupThreads(PRODUCER_THREADS)
     public boolean onePrimitiveArgCaller(final Control control, final CallerCounters counters) {
         this.waitStrategy.control = control;
         try {
@@ -400,9 +403,9 @@ public class SpscProxyChannelBenchmark {
 
     @Benchmark
     @Group("onePrimitiveArg")
-    @GroupThreads(1)
+    @GroupThreads(CONSUMER_THREADS)
     public int onePrimitiveArgProcessor(final ProcessorCounters counters) {
-        return doProcess(counters);
+        return doProcess(spscChannel, counters);
     }
 
     @Benchmark
@@ -413,7 +416,7 @@ public class SpscProxyChannelBenchmark {
 
     @Benchmark
     @Group("noArgs")
-    @GroupThreads(1)
+    @GroupThreads(PRODUCER_THREADS)
     public boolean noArgsCaller(final Control control, final CallerCounters counters) {
         this.waitStrategy.control = control;
         try {
@@ -427,9 +430,9 @@ public class SpscProxyChannelBenchmark {
 
     @Benchmark
     @Group("noArgs")
-    @GroupThreads(1)
+    @GroupThreads(CONSUMER_THREADS)
     public int noArgsProcessor(final ProcessorCounters counters) {
-        return doProcess(counters);
+        return doProcess(spscChannel, counters);
     }
 
     @Benchmark
@@ -449,7 +452,7 @@ public class SpscProxyChannelBenchmark {
 
     @Benchmark
     @Group("tenMixedArgs")
-    @GroupThreads(1)
+    @GroupThreads(PRODUCER_THREADS)
     public boolean tenMixedArgsCaller(final Control control, final CallerCounters counters) {
         this.waitStrategy.control = control;
         try {
@@ -472,9 +475,9 @@ public class SpscProxyChannelBenchmark {
 
     @Benchmark
     @Group("tenMixedArgs")
-    @GroupThreads(1)
+    @GroupThreads(CONSUMER_THREADS)
     public int tenMixedArgsProcessor(final ProcessorCounters counters) {
-        return doProcess(counters);
+        return doProcess(spscChannel, counters);
     }
 
     @Benchmark
@@ -501,7 +504,7 @@ public class SpscProxyChannelBenchmark {
 
     @Benchmark
     @Group("alignedPrimitiveArgs")
-    @GroupThreads(1)
+    @GroupThreads(PRODUCER_THREADS)
     public boolean alignedPrimitiveArgsCaller(final Control control, final CallerCounters counters) {
         this.waitStrategy.control = control;
         try {
@@ -531,9 +534,9 @@ public class SpscProxyChannelBenchmark {
 
     @Benchmark
     @Group("alignedPrimitiveArgs")
-    @GroupThreads(1)
+    @GroupThreads(CONSUMER_THREADS)
     public int alignedPrimitiveArgsProcessor(final ProcessorCounters counters) {
-        return doProcess(counters);
+        return doProcess(spscChannel, counters);
     }
 
     @Benchmark
@@ -561,7 +564,7 @@ public class SpscProxyChannelBenchmark {
 
     @Benchmark
     @Group("unalignedPrimitiveArgs")
-    @GroupThreads(1)
+    @GroupThreads(PRODUCER_THREADS)
     public boolean unalignedPrimitiveArgsCaller(final Control control, final CallerCounters counters) {
         this.waitStrategy.control = control;
         try {
@@ -592,13 +595,13 @@ public class SpscProxyChannelBenchmark {
 
     @Benchmark
     @Group("unalignedPrimitiveArgs")
-    @GroupThreads(1)
+    @GroupThreads(CONSUMER_THREADS)
     public int unalignedPrimitiveArgsProcessor(final ProcessorCounters counters) {
-        return doProcess(counters);
+        return doProcess(spscChannel, counters);
     }
 
-    private int doProcess(final ProcessorCounters counters) {
-        final int processed = this.channel.process(this.impl, this.limit);
+    private int doProcess(ProxyChannel<BenchIFace> proxyChannel, final ProcessorCounters counters) {
+        final int processed = proxyChannel.process(this.impl, this.limit);
         if (processed == 0) {
             counters.processFailed++;
         } else {
@@ -610,7 +613,7 @@ public class SpscProxyChannelBenchmark {
     public static void main(final String[] args) throws Exception {
 //        final String logFile = SpscProxyChannelBenchmark.class.getSimpleName() + ".log";
         final Options opt = new OptionsBuilder()
-                .include(SpscProxyChannelBenchmark.class.getSimpleName() + ".*align.*")
+                .include(SpscProxyChannelBenchmark.class.getSimpleName() + ".*tenMixedArgs.*")
                 // .jvmArgsAppend("-XX:+UnlockDiagnosticVMOptions",
                 // "-XX:+TraceClassLoading",
                 // "-XX:+LogCompilation",
@@ -619,7 +622,7 @@ public class SpscProxyChannelBenchmark {
                 .warmupIterations(5)
                 .measurementIterations(5)
                 .param("limit", "1")
-                .forks(0)
+                .forks(2)
                 .build();
         new Runner(opt).run();
     }

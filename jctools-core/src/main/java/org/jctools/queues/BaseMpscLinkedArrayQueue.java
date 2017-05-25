@@ -25,6 +25,7 @@ import java.util.AbstractQueue;
 import java.util.Iterator;
 
 import org.jctools.util.Pow2;
+import org.jctools.util.RangeUtil;
 
 abstract class BaseMpscLinkedArrayQueuePad1<E> extends AbstractQueue<E> {
     long p01, p02, p03, p04, p05, p06, p07;
@@ -105,9 +106,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
      *        Must be 2 or more.
      */
     public BaseMpscLinkedArrayQueue(final int initialCapacity) {
-        if (initialCapacity < 2) {
-            throw new IllegalArgumentException("Initial capacity must be 2 or more");
-        }
+        RangeUtil.checkGreaterThanOrEqual(initialCapacity, 2, "initialCapacity");
 
         int p2capacity = Pow2.roundToPowerOfTwo(initialCapacity);
         // leave lower bit of mask clear
@@ -519,9 +518,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
         // ASSERT code
         final long cIndex = lvConsumerIndex();
         final long availableInQueue = availableInQueue(pIndex, cIndex);
-        if (availableInQueue <= 0) {
-            throw new IllegalStateException();
-        }
+        RangeUtil.checkPositive(availableInQueue, "availableInQueue");
 
         // Invalidate racing CASs
         // We never set the limit beyond the bounds of a buffer

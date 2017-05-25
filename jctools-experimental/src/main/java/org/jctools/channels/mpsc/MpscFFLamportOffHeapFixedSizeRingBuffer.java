@@ -34,8 +34,8 @@ import static org.jctools.util.UnsafeDirectByteBuffer.allocateAlignedByteBuffer;
  **/
 public final class MpscFFLamportOffHeapFixedSizeRingBuffer extends OffHeapFixedMessageSizeRingBuffer {
 
-   public MpscFFLamportOffHeapFixedSizeRingBuffer(final int capacity, final int messageSize) {
-      this(allocateAlignedByteBuffer(getRequiredBufferSize(capacity, messageSize), JvmInfo.CACHE_LINE_SIZE), Pow2.roundToPowerOfTwo(capacity), true, true, true, messageSize);
+   public MpscFFLamportOffHeapFixedSizeRingBuffer(final int capacity, final int primitiveMessageSize, final int referenceMessageSize) {
+      this(allocateAlignedByteBuffer(getRequiredBufferSize(capacity, primitiveMessageSize), JvmInfo.CACHE_LINE_SIZE), Pow2.roundToPowerOfTwo(capacity), true, true, true, primitiveMessageSize, createReferenceArray(capacity, referenceMessageSize), referenceMessageSize);
    }
 
    private final long consumerIndexCacheAddress;
@@ -51,8 +51,10 @@ public final class MpscFFLamportOffHeapFixedSizeRingBuffer extends OffHeapFixedM
                                                      final boolean isProducer,
                                                      final boolean isConsumer,
                                                      final boolean initialize,
-                                                     final int messageSize) {
-      super(buff, capacity, isProducer, isConsumer, initialize, messageSize);
+                                                     final int primitiveMessageSize,
+                                                     final Object[] references,
+                                                     final int referenceMessageSize) {
+      super(buff, capacity, isProducer, isConsumer, initialize, primitiveMessageSize, references, referenceMessageSize);
       // Layout of the RingBuffer (assuming 64b cache line):
       // consumerIndex(8b), pad(56b) |
       // pad(64b) |
@@ -105,6 +107,11 @@ public final class MpscFFLamportOffHeapFixedSizeRingBuffer extends OffHeapFixedM
    protected final void writeRelease(long offset) {
       //Store-Store: ensure publishing for the consumer - only one single writer per offset
       writeReleaseState(offset);
+   }
+
+   @Override
+   protected final void writeRelease(long offset, int callTypeId) {
+       UNSAFE.putOrderedInt(null, offset, callTypeId);
    }
 
    @Override

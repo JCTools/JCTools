@@ -13,10 +13,10 @@
  */
 package org.jctools.channels.mpsc;
 
+import java.nio.ByteBuffer;
+
 import org.jctools.channels.ChannelConsumer;
 import org.jctools.channels.ChannelReceiver;
-
-import java.nio.ByteBuffer;
 
 /**
  * Package Scoped: not part of public API.
@@ -33,7 +33,7 @@ public abstract class MpscChannelConsumer<E> extends MpscOffHeapFixedSizeRingBuf
             final int messageSize,
             final ChannelReceiver<E> receiver) {
 
-        super(buffer, capacity, false, true, false, messageSize);
+        super(buffer, capacity, false, true, false, messageSize, null, 0);
 
         this.receiver = receiver;
         this.pointer = EOF;

@@ -1,16 +1,16 @@
 package org.jctools.queues.atomic;
 
-import static org.jctools.util.JvmInfo.CPUs;
-
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Queue;
-
 import org.jctools.queues.QueueSanityTest;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Queue;
+
+import static org.jctools.util.JvmInfo.CPUs;
 
 @RunWith(Parameterized.class)
 

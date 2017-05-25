@@ -17,6 +17,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongArray;
 
 import org.jctools.queues.QueueProgressIndicators;
+import org.jctools.util.RangeUtil;
 
 public class MpmcAtomicArrayQueue<E> extends SequencedAtomicReferenceArrayQueue<E>
         implements QueueProgressIndicators {
@@ -24,15 +25,9 @@ public class MpmcAtomicArrayQueue<E> extends SequencedAtomicReferenceArrayQueue<
     private final AtomicLong consumerIndex;
 
     public MpmcAtomicArrayQueue(int capacity) {
-        super(validateCapacity(capacity));
+        super(RangeUtil.checkGreaterThanOrEqual(capacity, 2, "capacity"));
         this.producerIndex = new AtomicLong();
         this.consumerIndex = new AtomicLong();
-    }
-
-    private static int validateCapacity(int capacity) {
-        if(capacity < 2)
-            throw new IllegalArgumentException("Minimum size is 2");
-        return capacity;
     }
 
     @Override
