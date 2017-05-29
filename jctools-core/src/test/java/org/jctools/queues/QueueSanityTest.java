@@ -36,6 +36,7 @@ public class QueueSanityTest {
         list.add(makeQueue(1, 0, SIZE, Ordering.FIFO, null));
         list.add(makeQueue(0, 1, 0, Ordering.FIFO, null));
 
+        list.add(makeQueue(0, 1, 1, Ordering.FIFO, null));
         list.add(makeQueue(0, 1, 1, Ordering.PRODUCER_FIFO, null));
         list.add(makeQueue(0, 1, SIZE, Ordering.PRODUCER_FIFO, null));
 

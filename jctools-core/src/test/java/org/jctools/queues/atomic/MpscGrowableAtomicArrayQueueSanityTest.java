@@ -1,5 +1,6 @@
 package org.jctools.queues.atomic;
 
+import org.jctools.queues.MpscArrayQueueSanityTest;
 import org.jctools.queues.MpscGrowableArrayQueue;
 import org.jctools.queues.QueueSanityTest;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
@@ -12,7 +13,7 @@ import java.util.Collection;
 import java.util.Queue;
 
 @RunWith(Parameterized.class)
-public class MpscGrowableAtomicArrayQueueSanityTest extends QueueSanityTest {
+public class MpscGrowableAtomicArrayQueueSanityTest extends MpscArrayQueueSanityTest {
     @Parameterized.Parameters
     public static Collection<Object[]> parameters() {
         ArrayList<Object[]> list = new ArrayList<Object[]>();

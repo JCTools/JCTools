@@ -21,13 +21,15 @@ public class AtomicQueueSanityTest extends QueueSanityTest {
         list.add(makeAtomic(1, 1, 1, Ordering.FIFO, null));
         list.add(makeAtomic(1, 1, 0, Ordering.FIFO, null));
         list.add(makeAtomic(1, 1, SIZE, Ordering.FIFO, null));
-//        list.add(test(1, 1, 16, Ordering.FIFO, new SpscGrowableArrayQueue<Integer>(4, 16)));
+
         list.add(makeAtomic(1, 1, 0, Ordering.FIFO, new SpscUnboundedAtomicArrayQueue<Integer>(16)));
         list.add(makeAtomic(1, 0, 1, Ordering.FIFO, null));
         list.add(makeAtomic(1, 0, SIZE, Ordering.FIFO, null));
+
         list.add(makeAtomic(0, 1, 0, Ordering.FIFO, null));
+
         list.add(makeAtomic(0, 1, 1, Ordering.FIFO, null));
-        list.add(makeAtomic(0, 1, SIZE, Ordering.FIFO, null));
+
         list.add(makeAtomic(0, 1, 1, Ordering.PRODUCER_FIFO, null));
         list.add(makeAtomic(0, 1, SIZE, Ordering.PRODUCER_FIFO, null));
         // Compound queue minimal size is the core count
