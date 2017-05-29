@@ -33,9 +33,6 @@ public class AtomicQueueSanityTest extends QueueSanityTest {
         // Compound queue minimal size is the core count
         list.add(makeAtomic(0, 1, CPUs, Ordering.NONE, null));
         list.add(makeAtomic(0, 1, SIZE, Ordering.NONE, null));
-        // Mpmc minimal size is 2
-        list.add(makeAtomic(0, 0, 2, Ordering.FIFO, null));
-        list.add(makeAtomic(0, 0, SIZE, Ordering.FIFO, null));
         return list;
     }
 
