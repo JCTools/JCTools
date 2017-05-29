@@ -44,14 +44,12 @@ public class QueueSanityTest {
         // Compound queue minimal size is the core count
         list.add(makeQueue(0, 1, CPUs, Ordering.NONE, null));
         list.add(makeQueue(0, 1, SIZE, Ordering.NONE, null));
-        // Mpmc minimal size is 2
-        list.add(makeQueue(0, 0, 2, Ordering.FIFO, null));
-        list.add(makeQueue(0, 0, SIZE, Ordering.FIFO, null));
+
         return list;
     }
 
-    private final Queue<Integer> queue;
-    private final ConcurrentQueueSpec spec;
+    protected final Queue<Integer> queue;
+    protected final ConcurrentQueueSpec spec;
 
     public QueueSanityTest(ConcurrentQueueSpec spec, Queue<Integer> queue) {
         this.queue = queue;
