@@ -15,8 +15,9 @@ public class MpscAtomicArrayQueueSanityTest extends MpscArrayQueueSanityTest {
     @Parameterized.Parameters
     public static Collection<Object[]> parameters() {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
-        list.add(makeQueue(0, 1, 2, Ordering.FIFO, new MpscAtomicArrayQueue<>(2)));// MPSC size 1
-        list.add(makeQueue(0, 1, SIZE, Ordering.FIFO, new MpscAtomicArrayQueue<>(SIZE)));// MPSC size SIZE
+        // need at least size 2 for this test
+        list.add(makeQueue(0, 1, 2, Ordering.FIFO, new MpscAtomicArrayQueue<>(2)));
+        list.add(makeQueue(0, 1, SIZE, Ordering.FIFO, new MpscAtomicArrayQueue<>(SIZE)));
         return list;
     }
 

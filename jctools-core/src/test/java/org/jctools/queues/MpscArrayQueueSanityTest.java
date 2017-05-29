@@ -18,6 +18,7 @@ public class MpscArrayQueueSanityTest extends QueueSanityTest {
     @Parameterized.Parameters
     public static Collection<Object[]> parameters() {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
+        // need at least size 2 for this test
         list.add(makeQueue(0, 1, 2, Ordering.FIFO, null));
         list.add(makeQueue(0, 1, SIZE, Ordering.FIFO, null));
 
