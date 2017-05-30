@@ -1,3 +1,13 @@
+2.0.2
+==========
+- PR #168 from @maseev - unifying the approach to queue size range checks and exceptions
+- PR #173 #174 #176 from @neomatrix369 - porting the SPSC linked array queues to non-unsafe versions
+- PR #172 #175 from @chbatey - porting the MPSC linked array queues to non-unsafe versions
+- Fix #179 - bug in MpmcArrayQueue and MpmcAtomicArrayQueue leading to false reporting of queue full on offer which races with a poll, reported by Sharath Gururaj (I think that is @flipsha)
+- JCStress testing support added by @victorparmar 
+- Code tidy up by @avalanche123 
+- Experimental support for MPSC proxy channels by @kay 
+
 2.0.1
 ==========
 BUG: #143 - toString() didn't work for many of the queues because the default implemetation relied on iterators.
