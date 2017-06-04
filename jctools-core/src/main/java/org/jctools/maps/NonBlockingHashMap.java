@@ -12,7 +12,6 @@
  * limitations under the License.
  */
 package org.jctools.maps;
-import static org.jctools.util.UnsafeAccess.UNSAFE;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -21,6 +20,8 @@ import java.util.*;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+
+import static org.jctools.util.UnsafeAccess.UNSAFE;
 
 /**
  * A lock-free alternate implementation of {@link java.util.concurrent.ConcurrentHashMap}
@@ -1380,7 +1381,7 @@ public class NonBlockingHashMap<TypeK, TypeV>
         if( !(o instanceof Map.Entry)) return false;
         final Map.Entry<?,?> e = (Map.Entry<?,?>)o;
         TypeV v = get(e.getKey());
-        return v.equals(e.getValue());
+        return v != null && v.equals(e.getValue());
       }
       @Override public Iterator<Map.Entry<TypeK,TypeV>> iterator() { return new SnapshotE(); }
     };

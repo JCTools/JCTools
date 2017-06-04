@@ -12,6 +12,7 @@
  * limitations under the License.
  */
 package org.jctools.maps;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.Field;
@@ -19,7 +20,8 @@ import java.util.*;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-import static org.jctools.util.UnsafeAccess.UNSAFE; 
+
+import static org.jctools.util.UnsafeAccess.UNSAFE;
 
 
 /**
@@ -1178,7 +1180,7 @@ public class NonBlockingHashMapLong<TypeV>
         if (!(o instanceof Map.Entry)) return false;
         final Map.Entry<?,?> e = (Map.Entry<?,?>)o;
         TypeV v = get(e.getKey());
-        return v.equals(e.getValue());
+        return v != null && v.equals(e.getValue());
       }
       public Iterator<Map.Entry<Long,TypeV>> iterator() { return new SnapshotE(); }
     };
