@@ -11,23 +11,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jctools.queues;
+package org.jctools.queues.atomic;
 
-import static org.jctools.queues.CircularArrayOffsetCalculator.allocate;
-import static org.jctools.queues.CircularArrayOffsetCalculator.calcElementOffset;
-import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
-
+import org.jctools.queues.SpscArrayQueue;
 import org.jctools.util.Pow2;
 import org.jctools.util.RangeUtil;
 
-public class SpscGrowableArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
+import java.util.concurrent.atomic.AtomicReferenceArray;
+
+public class SpscGrowableAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArrayQueue<E> {
     private int maxQueueCapacity; // ignored by the unbounded implementation
     private long lookAheadStep;// ignored by the unbounded implementation
-    public SpscGrowableArrayQueue(final int capacity) {
+    public SpscGrowableAtomicArrayQueue(final int capacity) {
         this(Math.max(8, Pow2.roundToPowerOfTwo(capacity / 8)), capacity);
     }
 
-    public SpscGrowableArrayQueue(final int chunkSize, final int capacity) {
+    public SpscGrowableAtomicArrayQueue(final int chunkSize, final int capacity) {
         RangeUtil.checkGreaterThanOrEqual(capacity, 16, "capacity");
         // minimal chunk size of eight makes sure minimal lookahead step is 2
         RangeUtil.checkGreaterThanOrEqual(chunkSize, 8, "chunkSize");
@@ -38,7 +37,7 @@ public class SpscGrowableArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
 
         long mask = chunkCapacity - 1;
         // need extra element to point at next array
-        E[] buffer = allocate(chunkCapacity + 1);
+        AtomicReferenceArray<E> buffer = allocate(chunkCapacity + 1);
         producerBuffer = buffer;
         producerMask = mask;
         consumerBuffer = buffer;
@@ -48,12 +47,12 @@ public class SpscGrowableArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
         soProducerIndex(0L);// serves as a StoreStore barrier to support correct publication
     }
 
-    protected final boolean offerColdPath(final E[] buffer, final long mask, final E e, final long index,
-            final long offset) {
+    protected final boolean offerColdPath(final AtomicReferenceArray<E> buffer, final long mask, final E e, final long index,
+                                          final int offset) {
         final long lookAheadStep = this.lookAheadStep;
         // normal case, go around the buffer or resize if full (unless we hit max capacity)
         if (lookAheadStep > 0) {
-            long lookAheadElementOffset = calcElementOffset(index + lookAheadStep, mask);
+            int lookAheadElementOffset = calcElementOffset(index + lookAheadStep, mask);
             // Try and look ahead a number of elements so we don't have to do this all the time
             if (null == lvElement(buffer, lookAheadElementOffset)) {
                 producerBufferLimit = index + lookAheadStep - 1; // joy, there's plenty of room
@@ -75,12 +74,12 @@ public class SpscGrowableArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
                 writeToQueue(buffer, e, index, offset);
             } else {
                 // allocate new buffer of same length
-                final E[] newBuffer = allocate((int) (2*(mask +1) + 1));
+                final AtomicReferenceArray<E> newBuffer = allocate((int) (2*(mask +1) + 1));
 
                 producerBuffer = newBuffer;
-                producerMask = newBuffer.length - 2;
+                producerMask = newBuffer.length() - 2;
 
-                final long offsetInNew = calcElementOffset(index, producerMask);
+                final int offsetInNew = calcElementOffset(index, producerMask);
                 linkOldToNew(index, buffer, offset, newBuffer, offsetInNew, e);
                 int newCapacity = (int) (producerMask + 1);
                 if (newCapacity == maxCapacity) {

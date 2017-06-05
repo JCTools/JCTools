@@ -5,24 +5,13 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-/**
- * Tests those methods that belong to {@link MpscArrayQueue} only and are therefore
- * not part of the standard {@link java.util.Queue} API.
- *
- * @author Ivan Valeriani
- */
-public class MpscArrayQueueTest {
+public class MpscArrayQueueOfferWithThresholdTest {
 
     private MpscArrayQueue<Integer> queue;
 
     @Before
     public void setUp() throws Exception {
         this.queue = new MpscArrayQueue<Integer>(16);
-    }
-
-    @After
-    public void tearDown() throws Exception
-    {
     }
 
     @Test

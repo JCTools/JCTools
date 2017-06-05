@@ -11,7 +11,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jctools.queues;
+package org.jctools.queues.atomic;
+
+import org.jctools.queues.MessagePassingQueue;
+import org.jctools.queues.MpmcArrayQueue;
+
+import java.util.concurrent.atomic.AtomicReferenceArray;
 
 /**
  * An MPSC array queue which starts at <i>initialCapacity</i> and grows to <i>maxCapacity</i> in linked chunks
@@ -20,11 +25,11 @@ package org.jctools.queues;
  *
  * @param <E>
  */
-public class MpscUnboundedArrayQueue<E> extends BaseMpscLinkedArrayQueue<E> {
+public class MpscUnboundedAtomicArrayQueue<E> extends BaseMpscLinkedAtomicArrayQueue<E> {
     long p0, p1, p2, p3, p4, p5, p6, p7;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
-    public MpscUnboundedArrayQueue(int chunkSize) {
+    public MpscUnboundedAtomicArrayQueue(int chunkSize) {
         super(chunkSize);
     }
 
@@ -38,6 +43,7 @@ public class MpscUnboundedArrayQueue<E> extends BaseMpscLinkedArrayQueue<E> {
     public int capacity() {
         return MessagePassingQueue.UNBOUNDED_CAPACITY;
     }
+
 
     @Override
     public int drain(Consumer<E> c) {
@@ -59,8 +65,8 @@ public class MpscUnboundedArrayQueue<E> extends BaseMpscLinkedArrayQueue<E> {
     }
 
     @Override
-    protected int getNextBufferSize(E[] buffer) {
-        return buffer.length;
+    protected int getNextBufferSize(AtomicReferenceArray<E> buffer) {
+        return buffer.length();
     }
 
     @Override

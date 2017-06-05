@@ -11,25 +11,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jctools.queues;
+package org.jctools.queues.atomic;
 
-import static java.lang.Math.max;
-import static java.lang.Math.min;
-import static org.jctools.util.Pow2.roundToPowerOfTwo;
-
+import org.jctools.queues.MessagePassingQueue;
+import org.jctools.queues.QueueProgressIndicators;
 import org.jctools.util.Pow2;
 import org.jctools.util.RangeUtil;
 
-abstract class MpscChunkedArrayQueueColdProducerFields<E> extends BaseMpscLinkedArrayQueue<E> {
-    protected final long maxQueueCapacity;
-    public MpscChunkedArrayQueueColdProducerFields(int initialCapacity, int maxCapacity) {
-        super(initialCapacity);
-        RangeUtil.checkGreaterThanOrEqual(maxCapacity, 4, "maxCapacity");
-        RangeUtil.checkLessThan(roundToPowerOfTwo(initialCapacity), roundToPowerOfTwo(maxCapacity),
-          "initialCapacity");
-        maxQueueCapacity = ((long)Pow2.roundToPowerOfTwo(maxCapacity)) << 1;
-    }
-}
+import java.util.concurrent.atomic.AtomicReferenceArray;
+
+
 /**
  * An MPSC array queue which starts at <i>initialCapacity</i> and grows to <i>maxCapacity</i> in linked chunks
  * of the initial size. The queue grows only when the current buffer is full and elements are not copied on
@@ -37,12 +28,11 @@ abstract class MpscChunkedArrayQueueColdProducerFields<E> extends BaseMpscLinked
  *
  * @param <E>
  */
-public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueColdProducerFields<E> {
-    long p0, p1, p2, p3, p4, p5, p6, p7;
-    long p10, p11, p12, p13, p14, p15, p16, p17;
+public class MpscGrowableAtomicArrayQueue<E> extends MpscChunkedAtomicArrayQueue<E>
+        implements MessagePassingQueue<E>, QueueProgressIndicators {
 
-    public MpscChunkedArrayQueue(int maxCapacity) {
-        super(max(2, min(1024, roundToPowerOfTwo(maxCapacity / 8))), maxCapacity);
+    public MpscGrowableAtomicArrayQueue(int maxCapacity) {
+        super(Math.max(2, Pow2.roundToPowerOfTwo(maxCapacity / 8)), maxCapacity);
     }
 
     /**
@@ -52,27 +42,21 @@ public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueColdProducerF
      *        upper limit of number of elements in this queue. Must be 4 or more and round up to a larger
      *        power of 2 than initialCapacity.
      */
-    public MpscChunkedArrayQueue(int initialCapacity, int maxCapacity) {
+    public MpscGrowableAtomicArrayQueue(int initialCapacity, int maxCapacity) {
         super(initialCapacity, maxCapacity);
     }
 
-    @Override
-    protected long availableInQueue(long pIndex, long cIndex) {
-        return maxQueueCapacity - (pIndex - cIndex);
-    }
 
     @Override
-    public int capacity() {
-        return (int) (maxQueueCapacity/2);
-    }
-
-    @Override
-    protected int getNextBufferSize(E[] buffer) {
-        return buffer.length;
+    protected int getNextBufferSize(AtomicReferenceArray<E> buffer) {
+        final long maxSize = maxQueueCapacity / 2;
+        RangeUtil.checkLessThanOrEqual(buffer.length(), maxSize, "buffer.length");
+        final int newSize = 2 * (buffer.length() - 1);
+        return newSize + 1;
     }
 
     @Override
     protected long getCurrentBufferCapacity(long mask) {
-        return mask;
+      return (mask + 2 == maxQueueCapacity) ? maxQueueCapacity : mask;
     }
 }

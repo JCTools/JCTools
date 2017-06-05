@@ -17,6 +17,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongArray;
 
 import org.jctools.queues.QueueProgressIndicators;
+import org.jctools.util.RangeUtil;
 
 public class MpmcAtomicArrayQueue<E> extends SequencedAtomicReferenceArrayQueue<E>
         implements QueueProgressIndicators {
@@ -24,15 +25,9 @@ public class MpmcAtomicArrayQueue<E> extends SequencedAtomicReferenceArrayQueue<
     private final AtomicLong consumerIndex;
 
     public MpmcAtomicArrayQueue(int capacity) {
-        super(validateCapacity(capacity));
+        super(RangeUtil.checkGreaterThanOrEqual(capacity, 2, "capacity"));
         this.producerIndex = new AtomicLong();
         this.consumerIndex = new AtomicLong();
-    }
-
-    private static int validateCapacity(int capacity) {
-        if(capacity < 2)
-            throw new IllegalArgumentException("Minimum size is 2");
-        return capacity;
     }
 
     @Override
@@ -47,7 +42,7 @@ public class MpmcAtomicArrayQueue<E> extends SequencedAtomicReferenceArrayQueue<
         final AtomicLongArray sBuffer = sequenceBuffer;
         long currentProducerIndex;
         int seqOffset;
-        long cIndex = Long.MAX_VALUE;// start with bogus value, hope we don't need it
+        long cIndex = Long.MIN_VALUE;// start with bogus value, hope we don't need it
         while (true) {
             currentProducerIndex = lvProducerIndex(); // LoadLoad
             seqOffset = calcSequenceOffset(currentProducerIndex, mask);
@@ -62,8 +57,8 @@ public class MpmcAtomicArrayQueue<E> extends SequencedAtomicReferenceArrayQueue<
                 }
                 // failed cas, retry 1
             } else if (delta < 0 && // poll has not moved this value forward
-                    currentProducerIndex - capacity <= cIndex && // test against cached cIndex
-                    currentProducerIndex - capacity <= (cIndex = lvConsumerIndex())) { // test against latest cIndex
+                    currentProducerIndex - capacity >= cIndex && // test against cached cIndex
+                    currentProducerIndex - capacity >= (cIndex = lvConsumerIndex())) { // test against latest cIndex
                 // Extra check required to ensure [Queue.offer == false iff queue is full]
                 return false;
             }

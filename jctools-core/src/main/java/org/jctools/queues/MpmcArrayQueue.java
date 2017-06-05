@@ -18,7 +18,7 @@ import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeRefArrayAccess.lpElement;
 import static org.jctools.util.UnsafeRefArrayAccess.soElement;
 
-import java.util.Objects;
+import org.jctools.util.RangeUtil;
 
 abstract class MpmcArrayQueueL1Pad<E> extends ConcurrentSequencedCircularArrayQueue<E> {
     long p00, p01, p02, p03, p04, p05, p06, p07;
@@ -115,15 +115,9 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> implements
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
     final static int RECOMENDED_POLL_BATCH = CPUs * 4;
-    final static int RECOMENDED_OFFER_BATCH = CPUs * 4;
+    public final static int RECOMENDED_OFFER_BATCH = CPUs * 4;
     public MpmcArrayQueue(final int capacity) {
-        super(validateCapacity(capacity));
-    }
-
-    private static int validateCapacity(int capacity) {
-        if(capacity < 2)
-            throw new IllegalArgumentException("Minimum size is 2");
-        return capacity;
+        super(RangeUtil.checkGreaterThanOrEqual(capacity, 2, "capacity"));
     }
 
     @Override
@@ -138,28 +132,26 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> implements
         long pIndex;
         long seqOffset;
         long seq;
-        long cIndex = Long.MAX_VALUE;// start with bogus value, hope we don't need it
+        long cIndex = Long.MIN_VALUE;// start with bogus value, hope we don't need it
         do {
             pIndex = lvProducerIndex();
             seqOffset = calcSequenceOffset(pIndex, mask);
             seq = lvSequence(sBuffer, seqOffset);
-            if (seq < pIndex) { // consumer has not moved this value forward
-                if (pIndex - capacity <= cIndex && // test against cached cIndex
-                        pIndex - capacity <= (cIndex = lvConsumerIndex())) { // test against latest cIndex
-                    // Extra check required to ensure [Queue.offer == false iff queue is full]
+            if (seq < pIndex) { // consumer has not moved this seq forward, it's as last producer left
+                // Extra check required to ensure [Queue.offer == false iff queue is full]
+                if (pIndex - capacity >= cIndex && // test against cached cIndex
+                    pIndex - capacity >= (cIndex = lvConsumerIndex())) { // test against latest cIndex
                     return false;
                 } else {
-                    seq = pIndex + 1; // hack to make it go around again
+                    seq = pIndex + 1; // (+) hack to make it go around again without CAS
                 }
             }
-        } while (seq > pIndex || // another producer has moved the sequence
+        } while (seq > pIndex || // another producer has moved the sequence(or +)
                 !casProducerIndex(pIndex, pIndex + 1)); // failed to increment
 
-        assert null == lpElement(buffer, calcElementOffset(pIndex, mask));
         soElement(buffer, calcElementOffset(pIndex, mask), e);
         soSequence(sBuffer, seqOffset, pIndex + 1); // seq++;
         return true;
-
     }
 
     /**
@@ -198,7 +190,6 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> implements
 
         final long offset = calcElementOffset(cIndex, mask);
         final E e = lpElement(buffer, offset);
-        assert e != null;
         soElement(buffer, offset, null);
         soSequence(sBuffer, seqOffset, cIndex + mask + 1);// i.e. seq += capacity
         return e;

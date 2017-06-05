@@ -11,24 +11,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jctools.queues;
-
-import static org.jctools.queues.CircularArrayOffsetCalculator.allocate;
-import static org.jctools.queues.CircularArrayOffsetCalculator.calcElementOffset;
-import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
+package org.jctools.queues.atomic;
 
 import org.jctools.util.Pow2;
 import org.jctools.util.RangeUtil;
 
-public class SpscChunkedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
+import java.util.concurrent.atomic.AtomicReferenceArray;
+
+public class SpscChunkedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArrayQueue<E> {
     private int maxQueueCapacity;
     private long producerQueueLimit;
 
-    public SpscChunkedArrayQueue(final int capacity) {
+    public SpscChunkedAtomicArrayQueue(final int capacity) {
         this(Math.max(8, Pow2.roundToPowerOfTwo(capacity / 8)), capacity);
     }
 
-    public SpscChunkedArrayQueue(final int chunkSize, final int capacity) {
+    public SpscChunkedAtomicArrayQueue(final int chunkSize, final int capacity) {
         RangeUtil.checkGreaterThanOrEqual(capacity, 16, "capacity");
         // minimal chunk size of eight makes sure minimal lookahead step is 2
         RangeUtil.checkGreaterThanOrEqual(chunkSize, 8, "chunkSize");
@@ -39,7 +37,7 @@ public class SpscChunkedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
 
         long mask = chunkCapacity - 1;
         // need extra element to point at next array
-        E[] buffer = allocate(chunkCapacity + 1);
+        AtomicReferenceArray<E> buffer = allocate(chunkCapacity + 1);
         producerBuffer = buffer;
         producerMask = mask;
         consumerBuffer = buffer;
@@ -50,7 +48,7 @@ public class SpscChunkedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
     }
 
     @Override
-    protected final boolean offerColdPath(E[] buffer, long mask, E e, long pIndex, long offset) {
+    protected final boolean offerColdPath(AtomicReferenceArray<E> buffer, long mask, E e, long pIndex, int offset) {
         // use a fixed lookahead step based on buffer capacity
         final long lookAheadStep = (mask + 1) / 4;
         long pBufferLimit = pIndex + lookAheadStep;
@@ -84,7 +82,7 @@ public class SpscChunkedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
         else {
             // we got one slot left to write into, and we are not full. Need to link new buffer.
             // allocate new buffer of same length
-            final E[] newBuffer = allocate((int)(mask + 2));
+            final AtomicReferenceArray<E> newBuffer = allocate((int)(mask + 2));
             producerBuffer = newBuffer;
 
             linkOldToNew(pIndex, buffer, offset, newBuffer, offset, e);

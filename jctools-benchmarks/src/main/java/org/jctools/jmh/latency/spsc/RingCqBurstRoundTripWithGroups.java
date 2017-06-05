@@ -158,7 +158,7 @@ public class RingCqBurstRoundTripWithGroups {
     public void prepareChain() {
         // can't have group threads set to zero on a method, so can't handle the length of 1 case
         if (CHAIN_LENGTH < 2) {
-            throw new IllegalArgumentException("Chain length must be 1 or more");
+            throw new IllegalArgumentException("Chain length must be 2 or more");
         }
         // This is an estimate, but for bounded queues if the burst size is more than actual ring capacity
         // the benchmark will hang/

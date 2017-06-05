@@ -105,10 +105,10 @@ public class ChannelThroughputBackoffNone {
         public int pollsFailed;
         public int pollsMade;
 
-        @Setup(Level.Iteration)
-        public void clean() {
-            pollsFailed = pollsMade = 0;
-        }
+//        @Setup(Level.Iteration)
+//        public void clean() {
+//            pollsFailed = pollsMade = 0;
+//        }
     }
 
     @AuxCounters
@@ -117,10 +117,10 @@ public class ChannelThroughputBackoffNone {
         public int offersFailed;
         public int offersMade;
 
-        @Setup(Level.Iteration)
-        public void clean() {
-            offersFailed = offersMade = 0;
-        }
+//        @Setup(Level.Iteration)
+//        public void clean() {
+//            offersFailed = offersMade = 0;
+//        }
     }
 
     private static ThreadLocal<Object> marker = new ThreadLocal<Object>();
