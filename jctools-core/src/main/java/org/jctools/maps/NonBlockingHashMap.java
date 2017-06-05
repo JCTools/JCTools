@@ -12,7 +12,6 @@
  * limitations under the License.
  */
 package org.jctools.maps;
-import static org.jctools.util.UnsafeAccess.UNSAFE;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -22,6 +21,8 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.jctools.util.RangeUtil;
+
+import static org.jctools.util.UnsafeAccess.UNSAFE;
 
 /**
  * A lock-free alternate implementation of {@link java.util.concurrent.ConcurrentHashMap}
@@ -325,6 +326,7 @@ public class NonBlockingHashMap<TypeK, TypeV>
    *  @return the previous value associated with the specified key,
    *         or <tt>null</tt> if there was no mapping for the key
    *  @throws NullPointerException if the specified key or value is null  */
+  @Override
   public TypeV   putIfAbsent( TypeK  key, TypeV val ) { return putIfMatch( key,      val, TOMBSTONE   ); }
 
   /** Removes the key (and its corresponding value) from this map.
@@ -343,11 +345,13 @@ public class NonBlockingHashMap<TypeK, TypeV>
   /** Atomically do a <code>put(key,val)</code> if-and-only-if the key is
    *  mapped to some value already.
    *  @throws NullPointerException if the specified key or value is null */
+  @Override
   public TypeV   replace    ( TypeK  key, TypeV val ) { return putIfMatch( key,      val,MATCH_ANY   ); }
 
   /** Atomically do a <code>put(key,newValue)</code> if-and-only-if the key is
    *  mapped a value which is <code>equals</code> to <code>oldValue</code>.
    *  @throws NullPointerException if the specified key or value is null */
+  @Override
   public boolean replace    ( TypeK  key, TypeV  oldValue, TypeV newValue ) {
     return putIfMatch( key, newValue, oldValue ) == oldValue;
   }
@@ -819,7 +823,7 @@ public class NonBlockingHashMap<TypeK, TypeV>
     // to get the required memory orderings.  It monotonically transits from
     // null to set (once).
     volatile Object[] _newkvs;
-    private final AtomicReferenceFieldUpdater<CHM,Object[]> _newkvsUpdater =
+    private static final AtomicReferenceFieldUpdater<CHM,Object[]> _newkvsUpdater =
       AtomicReferenceFieldUpdater.newUpdater(CHM.class,Object[].class, "_newkvs");
     // Set the _next field if we can.
     boolean CAS_newkvs( Object[] newkvs ) {
@@ -1381,7 +1385,7 @@ public class NonBlockingHashMap<TypeK, TypeV>
         if( !(o instanceof Map.Entry)) return false;
         final Map.Entry<?,?> e = (Map.Entry<?,?>)o;
         TypeV v = get(e.getKey());
-        return v.equals(e.getValue());
+        return v != null && v.equals(e.getValue());
       }
       @Override public Iterator<Map.Entry<TypeK,TypeV>> iterator() { return new SnapshotE(); }
     };
