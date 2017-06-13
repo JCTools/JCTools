@@ -15,10 +15,11 @@ package org.jctools.queues;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 
+import java.lang.reflect.Field;
 import java.util.AbstractQueue;
 import java.util.Iterator;
 
-abstract class BaseLinkedQueuePad0<E> extends AbstractQueue<E>implements MessagePassingQueue<E> {
+abstract class BaseLinkedQueuePad0<E> extends AbstractQueue<E> implements MessagePassingQueue<E> {
     long p00, p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16;
 }
@@ -28,8 +29,8 @@ abstract class BaseLinkedQueueProducerNodeRef<E> extends BaseLinkedQueuePad0<E> 
 
     static {
         try {
-            P_NODE_OFFSET = UNSAFE
-                    .objectFieldOffset(BaseLinkedQueueProducerNodeRef.class.getDeclaredField("producerNode"));
+            final Field pNodeField = BaseLinkedQueueProducerNodeRef.class.getDeclaredField("producerNode");
+            P_NODE_OFFSET = UNSAFE.objectFieldOffset(pNodeField);
         }
         catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
@@ -62,8 +63,8 @@ abstract class BaseLinkedQueueConsumerNodeRef<E> extends BaseLinkedQueuePad1<E> 
 
     static {
         try {
-            C_NODE_OFFSET = UNSAFE
-                    .objectFieldOffset(BaseLinkedQueueConsumerNodeRef.class.getDeclaredField("consumerNode"));
+            final Field cNodeField = BaseLinkedQueueConsumerNodeRef.class.getDeclaredField("consumerNode");
+            C_NODE_OFFSET = UNSAFE.objectFieldOffset(cNodeField);
         }
         catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
@@ -165,7 +166,7 @@ abstract class BaseLinkedQueue<E> extends BaseLinkedQueueConsumerNodeRef<E> {
         // we have to null out the value because we are going to hang on to the node
         final E nextValue = nextNode.getAndNullValue();
 
-        // Fix up the next ref of currConsumerNode to prevent promoted nodes from keep new ones alive.
+        // Fix up the next ref of currConsumerNode to prevent promoted nodes from keeping new ones alive.
         // We use a reference to self instead of null because null is already a meaningful value (the next of
         // producer node is null).
         currConsumerNode.soNext(currConsumerNode);
