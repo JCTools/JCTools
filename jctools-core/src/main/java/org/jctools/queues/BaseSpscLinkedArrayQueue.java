@@ -13,18 +13,18 @@
  */
 package org.jctools.queues;
 
+import java.lang.reflect.Field;
+import java.util.AbstractQueue;
+import java.util.Iterator;
+
+import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
+
 import static org.jctools.queues.CircularArrayOffsetCalculator.calcElementOffset;
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeRefArrayAccess.REF_ARRAY_BASE;
 import static org.jctools.util.UnsafeRefArrayAccess.REF_ELEMENT_SHIFT;
 import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
 import static org.jctools.util.UnsafeRefArrayAccess.soElement;
-
-import java.lang.reflect.Field;
-import java.util.AbstractQueue;
-import java.util.Iterator;
-
-import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
 
 abstract class BaseSpscLinkedArrayQueuePrePad<E> extends AbstractQueue<E> {
     long p0, p1, p2, p3, p4, p5, p6, p7;
@@ -52,7 +52,7 @@ abstract class BaseSpscLinkedArrayQueueProducerColdFields<E> extends BaseSpscLin
 }
 
 abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProducerColdFields<E>
-        implements QueueProgressIndicators, IndexedQueue {
+        implements MessagePassingQueue<E>, QueueProgressIndicators, IndexedQueue {
 
     protected static final Object JUMP = new Object();
 
@@ -127,6 +127,59 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
         return REF_ARRAY_BASE + ((long) (curr.length - 1) << REF_ELEMENT_SHIFT);
     }
 
+    @Override
+    public boolean relaxedOffer(E e) {
+        return offer(e);
+    }
+
+    @Override
+    public int fill(Supplier<E> s, int limit) {
+        for (int i = 0; i < limit; i++) {
+            // local load of field to avoid repeated loads after volatile reads
+            final E[] buffer = producerBuffer;
+            final long index = producerIndex;
+            final long mask = producerMask;
+            final long offset = calcElementOffset(index, mask);
+            // expected hot path
+            if (index < producerBufferLimit) {
+                writeToQueue(buffer, s.get(), index, offset);
+            } else {
+                if (!offerColdPath(buffer, mask, s, index, offset)) {
+                    return i;
+                }
+            }
+        }
+        return limit;
+    }
+
+    @Override
+    public int fill(Supplier<E> s) {
+        long result = 0;// result is a long because we want to have a safepoint check at regular intervals
+        final int capacity = capacity();
+        do {
+            final int filled = fill(s, MpmcArrayQueue.RECOMENDED_OFFER_BATCH);
+            if (filled == 0) {
+                return (int) result;
+            }
+            result += filled;
+        } while (result <= capacity);
+        return (int) result;
+    }
+
+    @Override
+    public void fill(Supplier<E> s, WaitStrategy wait, ExitCondition exit) {
+        while (exit.keepRunning()) {
+            while (fill(s, MpmcArrayQueue.RECOMENDED_OFFER_BATCH) != 0 && exit.keepRunning()) {
+                continue;
+            }
+            int idleCounter = 0;
+            while (exit.keepRunning() && fill(s, MpmcArrayQueue.RECOMENDED_OFFER_BATCH) == 0) {
+                idleCounter = wait.idle(idleCounter);
+            }
+
+        }
+    }
+
     /**
      * {@inheritDoc}
      * <p>
@@ -151,6 +204,8 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
         return offerColdPath(buffer, mask, e, index, offset);
     }
 
+    protected abstract boolean offerColdPath(E[] buffer, long mask, Supplier<? extends E> e, long pIndex, long offset);
+
     protected abstract boolean offerColdPath(E[] buffer, long mask, E e, long pIndex, long offset);
 
     protected final void linkOldToNew(final long currIndex, final E[] oldBuffer, final long offset,
@@ -166,6 +221,26 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
     protected final void writeToQueue(final E[] buffer, final E e, final long index, final long offset) {
         soElement(buffer, offset, e);// StoreStore
         soProducerIndex(index + 1);// this ensures atomic write of long on 32bit platforms
+    }
+
+    @Override
+    public E relaxedPoll() {
+        return poll();
+    }
+
+    @Override
+    public int drain(Consumer<E> c, int limit) {
+        return MessagePassingQueueUtil.drain(this, c, limit);
+    }
+
+    @Override
+    public int drain(Consumer<E> c) {
+        return MessagePassingQueueUtil.drain(this, c);
+    }
+
+    @Override
+    public void drain(Consumer<E> c, WaitStrategy wait, ExitCondition exit) {
+        MessagePassingQueueUtil.drain(this, c, wait, exit);
     }
 
     /**
@@ -192,6 +267,11 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
         }
 
         return null;
+    }
+
+    @Override
+    public E relaxedPeek() {
+        return peek();
     }
 
     /**

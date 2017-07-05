@@ -1,20 +1,10 @@
 package org.jctools.queues;
 
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assume.assumeThat;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.jctools.queues.QueueSanityTest.Val;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
 import org.jctools.queues.spec.Preference;
@@ -23,6 +13,15 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeThat;
 
 @RunWith(Parameterized.class)
 public class MessagePassingQueueSanityTest {
@@ -162,6 +161,23 @@ public class MessagePassingQueueSanityTest {
         else {
             assertEquals(SIZE, currentSize);
         }
+    }
+
+    @Test
+    public void supplyMessageUntilFull() {
+        assumeThat(spec.isBounded(), is(Boolean.TRUE));
+        final Val instances = new Val();
+        instances.value = 0;
+        final MessagePassingQueue.Supplier<Integer> messageFactory = () -> instances.value++;
+        final int capacity = queue.capacity();
+        int filled = 0;
+        while (filled < capacity) {
+            filled += queue.fill(messageFactory, capacity - filled);
+        }
+        assertEquals(instances.value, capacity);
+        final int noItems = queue.fill(messageFactory, 1);
+        assertEquals(noItems, 0);
+        assertEquals(instances.value, capacity);
     }
 
     @Test
