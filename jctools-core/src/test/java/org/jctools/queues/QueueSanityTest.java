@@ -7,93 +7,102 @@ import org.jctools.queues.spec.Preference;
 import org.jctools.util.Pow2;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.hamcrest.Matchers.*;
 import static org.jctools.queues.matchers.Matchers.emptyAndZeroSize;
-import static org.jctools.util.JvmInfo.CPUs;
 import static org.junit.Assert.*;
 import static org.junit.Assume.assumeThat;
 
-@RunWith(Parameterized.class)
-public class QueueSanityTest {
+public abstract class QueueSanityTest
+{
 
     public static final int SIZE = 8192 * 2;
-    @Parameterized.Parameters
-    public static Collection parameters() {
-        ArrayList<Object[]> list = new ArrayList<Object[]>();
-        list.add(makeQueue(1, 1, 4, Ordering.FIFO, null));
-        list.add(makeQueue(1, 1, 0, Ordering.FIFO, null));
-        list.add(makeQueue(1, 1, SIZE, Ordering.FIFO, null));
-
-        list.add(makeQueue(1, 0, 1, Ordering.FIFO, null));
-        list.add(makeQueue(1, 0, SIZE, Ordering.FIFO, null));
-        list.add(makeQueue(0, 1, 0, Ordering.FIFO, null));
-
-        list.add(makeQueue(0, 1, 1, Ordering.FIFO, null));
-        list.add(makeQueue(0, 1, 1, Ordering.PRODUCER_FIFO, null));
-        list.add(makeQueue(0, 1, SIZE, Ordering.PRODUCER_FIFO, null));
-
-        // Compound queue minimal size is the core count
-        list.add(makeQueue(0, 1, CPUs, Ordering.NONE, null));
-        list.add(makeQueue(0, 1, SIZE, Ordering.NONE, null));
-
-        return list;
-    }
+    public static final int CONCURRENT_TEST_DURATION = 250;
 
     protected final Queue<Integer> queue;
     protected final ConcurrentQueueSpec spec;
 
-    public QueueSanityTest(ConcurrentQueueSpec spec, Queue<Integer> queue) {
+    public QueueSanityTest(ConcurrentQueueSpec spec, Queue<Integer> queue)
+    {
         this.queue = queue;
         this.spec = spec;
     }
 
+    public static Object[] makeQueue(int producers, int consumers, int capacity, Ordering ordering, Queue<Integer> q)
+    {
+        ConcurrentQueueSpec spec = new ConcurrentQueueSpec(producers, consumers, capacity, ordering,
+            Preference.NONE);
+        if (q == null)
+        {
+            q = QueueFactory.newQueue(spec);
+        }
+        return new Object[] {spec, q};
+    }
+
+    public static Object[] makeAtomic(int producers, int consumers, int capacity, Ordering ordering, Queue<Integer> q)
+    {
+        ConcurrentQueueSpec spec = new ConcurrentQueueSpec(producers, consumers, capacity, ordering,
+            Preference.NONE);
+        if (q == null)
+        {
+            q = AtomicQueueFactory.newQueue(spec);
+        }
+        return new Object[] {spec, q};
+    }
+
     @Before
-    public void clear() {
+    public void clear()
+    {
         queue.clear();
     }
 
     @Test
-    public void toStringWorks() {
+    public void toStringWorks()
+    {
         assertNotNull(queue.toString());
     }
 
     @Test
-    public void sanity() {
-        for (int i = 0; i < SIZE; i++) {
+    public void sanity()
+    {
+        for (int i = 0; i < SIZE; i++)
+        {
             assertNull(queue.poll());
             assertThat(queue, emptyAndZeroSize());
         }
         int i = 0;
         while (i < SIZE && queue.offer(i))
+        {
             i++;
+        }
         int size = i;
         assertEquals(size, queue.size());
-        if (spec.ordering == Ordering.FIFO) {
+        if (spec.ordering == Ordering.FIFO)
+        {
             // expect FIFO
             i = 0;
             Integer p;
             Integer e;
-            while ((p = queue.peek()) != null) {
+            while ((p = queue.peek()) != null)
+            {
                 e = queue.poll();
                 assertEquals(p, e);
                 assertEquals(size - (i + 1), queue.size());
                 assertEquals(i++, e.intValue());
             }
             assertEquals(size, i);
-        } else {
+        }
+        else
+        {
             // expect sum of elements is (size - 1) * size / 2 = 0 + 1 + .... + (size - 1)
             int sum = (size - 1) * size / 2;
             i = 0;
             Integer e;
-            while ((e = queue.poll()) != null) {
+            while ((e = queue.poll()) != null)
+            {
                 assertEquals(--size, queue.size());
                 sum -= e;
             }
@@ -104,21 +113,25 @@ public class QueueSanityTest {
     }
 
     @Test
-    public void testSizeIsTheNumberOfOffers() {
+    public void testSizeIsTheNumberOfOffers()
+    {
         int currentSize = 0;
-        while (currentSize < SIZE && queue.offer(currentSize)) {
+        while (currentSize < SIZE && queue.offer(currentSize))
+        {
             currentSize++;
             assertThat(queue, hasSize(currentSize));
         }
     }
 
     @Test
-    public void whenFirstInThenFirstOut() {
+    public void whenFirstInThenFirstOut()
+    {
         assumeThat(spec.ordering, is(Ordering.FIFO));
 
         // Arrange
         int i = 0;
-        while (i < SIZE && queue.offer(i)) {
+        while (i < SIZE && queue.offer(i))
+        {
             i++;
         }
         final int size = queue.size();
@@ -126,7 +139,8 @@ public class QueueSanityTest {
         // Act
         i = 0;
         Integer prev;
-        while ((prev = queue.peek()) != null) {
+        while ((prev = queue.peek()) != null)
+        {
             final Integer item = queue.poll();
 
             assertThat(item, is(prev));
@@ -140,12 +154,14 @@ public class QueueSanityTest {
     }
 
     @Test
-    public void test_FIFO_PRODUCER_Ordering() throws Exception {
+    public void test_FIFO_PRODUCER_Ordering() throws Exception
+    {
         assumeThat(spec.ordering, is(not((Ordering.FIFO))));
 
         // Arrange
         int i = 0;
-        while (i < SIZE && queue.offer(i)) {
+        while (i < SIZE && queue.offer(i))
+        {
             i++;
         }
         int size = queue.size();
@@ -154,7 +170,8 @@ public class QueueSanityTest {
         // expect sum of elements is (size - 1) * size / 2 = 0 + 1 + .... + (size - 1)
         int sum = (size - 1) * size / 2;
         Integer e;
-        while ((e = queue.poll()) != null) {
+        while ((e = queue.poll()) != null)
+        {
             size--;
             assertThat(queue, hasSize(size));
             sum -= e;
@@ -164,13 +181,15 @@ public class QueueSanityTest {
         assertThat(sum, is(0));
     }
 
-    @Test(expected=NullPointerException.class)
-    public void offerNullResultsInNPE(){
+    @Test(expected = NullPointerException.class)
+    public void offerNullResultsInNPE()
+    {
         queue.offer(null);
     }
 
     @Test
-    public void whenOfferItemAndPollItemThenSameInstanceReturnedAndQueueIsEmpty() {
+    public void whenOfferItemAndPollItemThenSameInstanceReturnedAndQueueIsEmpty()
+    {
         assertThat(queue, emptyAndZeroSize());
 
         // Act
@@ -188,30 +207,33 @@ public class QueueSanityTest {
     }
 
     @Test
-    public void testPowerOf2Capacity() {
+    public void testPowerOf2Capacity()
+    {
         assumeThat(spec.isBounded(), is(true));
         int n = Pow2.roundToPowerOfTwo(spec.capacity);
 
-        for (int i = 0; i < n; i++) {
-            assertTrue("Failed to insert:"+i,queue.offer(i));
+        for (int i = 0; i < n; i++)
+        {
+            assertTrue("Failed to insert:" + i, queue.offer(i));
         }
         assertFalse(queue.offer(n));
     }
 
-    static final class Val {
-        public int value;
-    }
-
     @Test
-    public void testHappensBefore() throws Exception {
+    public void testHappensBefore() throws Exception
+    {
         final AtomicBoolean stop = new AtomicBoolean();
         final Queue q = queue;
         final Val fail = new Val();
-        Thread t1 = new Thread(new Runnable() {
+        Thread t1 = new Thread(new Runnable()
+        {
             @Override
-            public void run() {
-                while (!stop.get()) {
-                    for (int i = 1; i <= 10; i++) {
+            public void run()
+            {
+                while (!stop.get())
+                {
+                    for (int i = 1; i <= 10; i++)
+                    {
                         Val v = new Val();
                         v.value = i;
                         q.offer(v);
@@ -221,13 +243,18 @@ public class QueueSanityTest {
                 }
             }
         });
-        Thread t2 = new Thread(new Runnable() {
+        Thread t2 = new Thread(new Runnable()
+        {
             @Override
-            public void run() {
-                while (!stop.get()) {
-                    for (int i = 0; i < 10; i++) {
+            public void run()
+            {
+                while (!stop.get())
+                {
+                    for (int i = 0; i < 10; i++)
+                    {
                         Val v = (Val) q.peek();
-                        if (v != null && v.value == 0) {
+                        if (v != null && v.value == 0)
+                        {
                             fail.value = 1;
                             stop.set(true);
                         }
@@ -239,7 +266,7 @@ public class QueueSanityTest {
 
         t1.start();
         t2.start();
-        Thread.sleep(1000);
+        Thread.sleep(CONCURRENT_TEST_DURATION);
         stop.set(true);
         t1.join();
         t2.join();
@@ -248,25 +275,33 @@ public class QueueSanityTest {
     }
 
     @Test
-    public void testSize() throws Exception {
+    public void testSize() throws Exception
+    {
         final AtomicBoolean stop = new AtomicBoolean();
         final Queue<Integer> q = queue;
         final Val fail = new Val();
-        Thread t1 = new Thread(new Runnable() {
+        Thread t1 = new Thread(new Runnable()
+        {
             @Override
-            public void run() {
-                while (!stop.get()) {
+            public void run()
+            {
+                while (!stop.get())
+                {
                     q.offer(1);
                     q.poll();
                 }
             }
         });
-        Thread t2 = new Thread(new Runnable() {
+        Thread t2 = new Thread(new Runnable()
+        {
             @Override
-            public void run() {
-                while (!stop.get()) {
+            public void run()
+            {
+                while (!stop.get())
+                {
                     int size = q.size();
-                    if(size != 0 && size != 1) {
+                    if (size != 0 && size != 1)
+                    {
                         fail.value++;
                     }
                 }
@@ -275,7 +310,7 @@ public class QueueSanityTest {
 
         t1.start();
         t2.start();
-        Thread.sleep(1000);
+        Thread.sleep(CONCURRENT_TEST_DURATION);
         stop.set(true);
         t1.join();
         t2.join();
@@ -284,25 +319,33 @@ public class QueueSanityTest {
     }
 
     @Test
-    public void testPollAfterIsEmpty() throws Exception {
+    public void testPollAfterIsEmpty() throws Exception
+    {
         final AtomicBoolean stop = new AtomicBoolean();
         final Queue<Integer> q = queue;
         final Val fail = new Val();
-        Thread t1 = new Thread(new Runnable() {
+        Thread t1 = new Thread(new Runnable()
+        {
             @Override
-            public void run() {
-                while (!stop.get()) {
+            public void run()
+            {
+                while (!stop.get())
+                {
                     q.offer(1);
                     // slow down the producer, this will make the queue mostly empty encouraging visibility issues.
                     Thread.yield();
                 }
             }
         });
-        Thread t2 = new Thread(new Runnable() {
+        Thread t2 = new Thread(new Runnable()
+        {
             @Override
-            public void run() {
-                while (!stop.get()) {
-                    if (!q.isEmpty() && q.poll() == null) {
+            public void run()
+            {
+                while (!stop.get())
+                {
+                    if (!q.isEmpty() && q.poll() == null)
+                    {
                         fail.value++;
                     }
                 }
@@ -311,7 +354,7 @@ public class QueueSanityTest {
 
         t1.start();
         t2.start();
-        Thread.sleep(1000);
+        Thread.sleep(CONCURRENT_TEST_DURATION);
         stop.set(true);
         t1.join();
         t2.join();
@@ -319,22 +362,9 @@ public class QueueSanityTest {
 
     }
 
-    public static Object[] makeQueue(int producers, int consumers, int capacity, Ordering ordering, Queue<Integer> q) {
-        ConcurrentQueueSpec spec = new ConcurrentQueueSpec(producers, consumers, capacity, ordering,
-                Preference.NONE);
-        if(q == null) {
-            q = QueueFactory.newQueue(spec);
-        }
-        return new Object[] { spec, q };
-    }
-
-    public static Object[] makeAtomic(int producers, int consumers, int capacity, Ordering ordering, Queue<Integer> q) {
-        ConcurrentQueueSpec spec = new ConcurrentQueueSpec(producers, consumers, capacity, ordering,
-                Preference.NONE);
-        if(q == null) {
-            q = AtomicQueueFactory.newQueue(spec);
-        }
-        return new Object[] { spec, q };
+    static final class Val
+    {
+        public int value;
     }
 
 }

@@ -14,43 +14,59 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static org.junit.Assert.assertEquals;
 
 @RunWith(Parameterized.class)
-public class MpscArrayQueueSanityTest extends QueueSanityTest {
+public class QueueSanityTestMpscArray extends QueueSanityTest
+{
     @Parameterized.Parameters
-    public static Collection<Object[]> parameters() {
+    public static Collection<Object[]> parameters()
+    {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
-        // need at least size 2 for this test
-        list.add(makeQueue(0, 1, 2, Ordering.FIFO, null));
+        list.add(makeQueue(0, 1, 1, Ordering.FIFO, null));
         list.add(makeQueue(0, 1, SIZE, Ordering.FIFO, null));
 
         return list;
     }
 
-    public MpscArrayQueueSanityTest(ConcurrentQueueSpec spec, Queue<Integer> queue) {
+    public QueueSanityTestMpscArray(ConcurrentQueueSpec spec, Queue<Integer> queue)
+    {
         super(spec, queue);
     }
 
     @Test
-    public void testOfferPollSemantics() throws Exception {
+    public void testOfferPollSemantics() throws Exception
+    {
         final AtomicBoolean stop = new AtomicBoolean();
         final AtomicBoolean consumerLock = new AtomicBoolean(true);
-        final Queue<Integer> q = queue;
+        final Queue<Integer> q = new MpscArrayQueue<Integer>(2);
         // fill up the queue
-        while (q.offer(1));
+        while (q.offer(1))
+        {
+            ;
+        }
         // queue has 2 empty slots
         q.poll();
         q.poll();
 
         final Val fail = new Val();
-        final Runnable runnable = new Runnable() {
+        final Runnable runnable = new Runnable()
+        {
             @Override
-            public void run() {
-                while (!stop.get()) {
+            public void run()
+            {
+                while (!stop.get())
+                {
                     if (!q.offer(1))
+                    {
                         fail.value++;
+                    }
 
-                    while (!consumerLock.compareAndSet(true, false)) ;
+                    while (!consumerLock.compareAndSet(true, false))
+                    {
+                        ;
+                    }
                     if (q.poll() == null)
+                    {
                         fail.value++;
+                    }
                     consumerLock.lazySet(true);
                 }
             }

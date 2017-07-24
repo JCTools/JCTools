@@ -15,16 +15,16 @@ package org.jctools.queues.atomic;
 
 import org.junit.Test;
 
-import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.not;
-import static org.hamcrest.Matchers.sameInstance;
+import static org.hamcrest.Matchers.*;
 import static org.jctools.queues.matchers.Matchers.emptyAndZeroSize;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-public class AtomicSpscArrayQueueTest {
+public class AtomicSpscArrayQueueTest
+{
     @Test
-    public void shouldWorkAfterWrap(){
+    public void shouldWorkAfterWrap()
+    {
         // Arrange
         final SpscAtomicArrayQueue<Object> q = new SpscAtomicArrayQueue<Object>(1024);
         // starting point for empty queue at max long, next offer will wrap the producerIndex
@@ -41,12 +41,12 @@ public class AtomicSpscArrayQueueTest {
         // size is computed correctly after wrap
         assertThat(q, not(emptyAndZeroSize()));
         assertThat(q, hasSize(1));
-        
+
         // now consumer index wraps
         final Object poll = q.poll();
         assertThat(poll, sameInstance(e));
         assertThat(q, emptyAndZeroSize());
-        
+
         // let's go again
         assertTrue(q.offer(e));
         assertThat(q, not(emptyAndZeroSize()));

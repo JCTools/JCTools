@@ -1,6 +1,5 @@
-package org.jctools.queues.atomic;
+package org.jctools.queues;
 
-import org.jctools.queues.QueueSanityTestMpmcArray;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
 import org.junit.runner.RunWith;
@@ -8,26 +7,22 @@ import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Queue;
 
 @RunWith(Parameterized.class)
-
-public class AtomicMpmcArrayQueueSanityTest extends QueueSanityTestMpmcArray
+public class MpqSanityTestSpscUnbounded extends MpqSanityTest
 {
+
     @Parameterized.Parameters
     public static Collection<Object[]> parameters()
     {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
-
-        // Mpmc minimal size is 2
-        list.add(makeAtomic(0, 0, 2, Ordering.FIFO, null));
-        list.add(makeAtomic(0, 0, SIZE, Ordering.FIFO, null));
+        list.add(makeMpq(0, 1, 0, Ordering.FIFO, new SpscUnboundedArrayQueue<>(2)));
+        list.add(makeMpq(0, 1, 0, Ordering.FIFO, new SpscUnboundedArrayQueue<>(64)));
         return list;
     }
 
-    public AtomicMpmcArrayQueueSanityTest(ConcurrentQueueSpec spec, Queue<Integer> queue)
+    public MpqSanityTestSpscUnbounded(ConcurrentQueueSpec spec, MessagePassingQueue<Integer> queue)
     {
         super(spec, queue);
     }
-
 }

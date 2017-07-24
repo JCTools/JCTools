@@ -11,9 +11,11 @@ import java.util.Collection;
 import java.util.Queue;
 
 @RunWith(Parameterized.class)
-public class AtomicSpscLinkedArrayQueueSanityTest extends QueueSanityTest {
+public class AtomicSpscLinkedArrayQueueSanityTest extends QueueSanityTest
+{
     @Parameterized.Parameters
-    public static Collection<Object[]> parameters() {
+    public static Collection<Object[]> parameters()
+    {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
         list.add(makeQueue(1, 1, SIZE, Ordering.FIFO, new SpscChunkedAtomicArrayQueue<Integer>(64, SIZE)));
         list.add(makeQueue(1, 1, SIZE, Ordering.FIFO, new SpscGrowableAtomicArrayQueue<Integer>(64, SIZE)));
@@ -24,7 +26,8 @@ public class AtomicSpscLinkedArrayQueueSanityTest extends QueueSanityTest {
         return list;
     }
 
-    public AtomicSpscLinkedArrayQueueSanityTest(ConcurrentQueueSpec spec, Queue<Integer> queue) {
+    public AtomicSpscLinkedArrayQueueSanityTest(ConcurrentQueueSpec spec, Queue<Integer> queue)
+    {
         super(spec, queue);
     }
 

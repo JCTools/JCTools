@@ -1,23 +1,26 @@
 package org.jctools.queues;
 
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-public class MpscArrayQueueOfferWithThresholdTest {
+public class MpscArrayQueueOfferWithThresholdTest
+{
 
     private MpscArrayQueue<Integer> queue;
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() throws Exception
+    {
         this.queue = new MpscArrayQueue<Integer>(16);
     }
 
     @Test
-    public void testOfferWithThreshold() {
+    public void testOfferWithThreshold()
+    {
         int i;
-        for (i = 0; i < 8; ++i) {
+        for (i = 0; i < 8; ++i)
+        {
             //Offers succeed because current size is below the HWM.
             Assert.assertTrue(this.queue.offerIfBelowThreshold(i, 8));
         }

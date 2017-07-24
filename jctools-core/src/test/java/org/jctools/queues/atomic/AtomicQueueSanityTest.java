@@ -14,9 +14,11 @@ import static org.jctools.util.JvmInfo.CPUs;
 
 @RunWith(Parameterized.class)
 
-public class AtomicQueueSanityTest extends QueueSanityTest {
+public class AtomicQueueSanityTest extends QueueSanityTest
+{
     @Parameterized.Parameters
-    public static Collection<Object[]> parameters() {
+    public static Collection<Object[]> parameters()
+    {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
         list.add(makeAtomic(1, 1, 1, Ordering.FIFO, null));
         list.add(makeAtomic(1, 1, 0, Ordering.FIFO, null));
@@ -30,15 +32,14 @@ public class AtomicQueueSanityTest extends QueueSanityTest {
 
         list.add(makeAtomic(0, 1, 1, Ordering.FIFO, null));
 
-        list.add(makeAtomic(0, 1, 1, Ordering.PRODUCER_FIFO, null));
-        list.add(makeAtomic(0, 1, SIZE, Ordering.PRODUCER_FIFO, null));
         // Compound queue minimal size is the core count
         list.add(makeAtomic(0, 1, CPUs, Ordering.NONE, null));
         list.add(makeAtomic(0, 1, SIZE, Ordering.NONE, null));
         return list;
     }
 
-    public AtomicQueueSanityTest(ConcurrentQueueSpec spec, Queue<Integer> queue) {
+    public AtomicQueueSanityTest(ConcurrentQueueSpec spec, Queue<Integer> queue)
+    {
         super(spec, queue);
     }
 

@@ -1,10 +1,5 @@
 package org.jctools.queues;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Queue;
-import java.util.concurrent.atomic.AtomicBoolean;
-
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
 import org.jctools.queues.spec.Preference;
@@ -14,22 +9,26 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Queue;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import static org.junit.Assume.assumeThat;
 
 @RunWith(Parameterized.class)
-public class MessagePassingQueueSanityTest {
+public class MpqSanityTest
+{
 
     static final int SIZE = 8192 * 2;
+    public static final int CONCURRENT_TEST_DURATION = 250;
 
     @Parameterized.Parameters
-    public static Collection<Object[]> parameters() {
+    public static Collection<Object[]> parameters()
+    {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
         list.add(makeMpq(1, 1, 0, Ordering.FIFO, null));// unbounded SPSC
         list.add(makeMpq(0, 1, 0, Ordering.FIFO, null));// unbounded MPSC
@@ -51,39 +50,48 @@ public class MessagePassingQueueSanityTest {
     private final MessagePassingQueue<Integer> queue;
     private final ConcurrentQueueSpec spec;
 
-    public MessagePassingQueueSanityTest(ConcurrentQueueSpec spec, MessagePassingQueue<Integer> queue) {
+    public MpqSanityTest(ConcurrentQueueSpec spec, MessagePassingQueue<Integer> queue)
+    {
         this.queue = queue;
         this.spec = spec;
     }
 
     @Before
-    public void clear() {
+    public void clear()
+    {
         queue.clear();
     }
 
     @Test(expected = NullPointerException.class)
-    public void relaxedOfferNullResultsInNPE() {
+    public void relaxedOfferNullResultsInNPE()
+    {
         queue.relaxedOffer(null);
     }
 
     @Test
-    public void sanity() {
-        for (int i = 0; i < SIZE; i++) {
+    public void sanity()
+    {
+        for (int i = 0; i < SIZE; i++)
+        {
             assertNull(queue.relaxedPoll());
             assertTrue(queue.isEmpty());
             assertTrue(queue.size() == 0);
         }
         int i = 0;
         while (i < SIZE && queue.relaxedOffer(i))
+        {
             i++;
+        }
         int size = i;
         assertEquals(size, queue.size());
-        if (spec.ordering == Ordering.FIFO) {
+        if (spec.ordering == Ordering.FIFO)
+        {
             // expect FIFO
             i = 0;
             Integer p;
             Integer e;
-            while ((p = queue.relaxedPeek()) != null) {
+            while ((p = queue.relaxedPeek()) != null)
+            {
                 e = queue.relaxedPoll();
                 assertEquals(p, e);
                 assertEquals(size - (i + 1), queue.size());
@@ -91,12 +99,14 @@ public class MessagePassingQueueSanityTest {
             }
             assertEquals(size, i);
         }
-        else {
+        else
+        {
             // expect sum of elements is (size - 1) * size / 2 = 0 + 1 + .... + (size - 1)
             int sum = (size - 1) * size / 2;
             i = 0;
             Integer e;
-            while ((e = queue.relaxedPoll()) != null) {
+            while ((e = queue.relaxedPoll()) != null)
+            {
                 assertEquals(--size, queue.size());
                 sum -= e;
             }
@@ -108,70 +118,85 @@ public class MessagePassingQueueSanityTest {
     Integer p;
 
     @Test
-    public void sanityDrainBatch() {
-        assertEquals(0, queue.drain(e -> {
-        } , SIZE));
+    public void sanityDrainBatch()
+    {
+        assertEquals(0, queue.drain(e ->
+        {
+        }, SIZE));
         assertTrue(queue.isEmpty());
         assertTrue(queue.size() == 0);
         count = 0;
-        int i = queue.fill(() -> {
+        int i = queue.fill(() ->
+        {
             return count++;
-        } , SIZE);
+        }, SIZE);
         final int size = i;
         assertEquals(size, queue.size());
-        if (spec.ordering == Ordering.FIFO) {
+        if (spec.ordering == Ordering.FIFO)
+        {
             // expect FIFO
             p = queue.relaxedPeek();
             count = 0;
             int drainCount = 0;
             i = 0;
-            do {
-                i += drainCount = queue.drain(e -> {
+            do
+            {
+                i += drainCount = queue.drain(e ->
+                {
                     // batch consumption can cause size to differ from following expectation
                     // this is because elements are 'claimed' in a batch and their consumption lags
-                    if (spec.consumers == 1) {
+                    if (spec.consumers == 1)
+                    {
                         assertEquals(p, e); // peek will return the post claim peek
                         assertEquals(size - (count + 1), queue.size()); // size will return the post claim size
                     }
                     assertEquals(count++, e.intValue());
                     p = queue.relaxedPeek();
                 });
-            } while (drainCount != 0);
+            }
+            while (drainCount != 0);
             p = null;
             assertEquals(size, i);
 
             assertTrue(queue.isEmpty());
             assertTrue(queue.size() == 0);
         }
-        else {
+        else
+        {
         }
     }
 
     @Test
-    public void testSizeIsTheNumberOfOffers() {
+    public void testSizeIsTheNumberOfOffers()
+    {
         int currentSize = 0;
-        while (currentSize < SIZE && queue.relaxedOffer(currentSize)) {
+        while (currentSize < SIZE && queue.relaxedOffer(currentSize))
+        {
             currentSize++;
             assertFalse(queue.isEmpty());
             assertTrue(queue.size() == currentSize);
         }
-        if (spec.isBounded()) {
+        if (spec.isBounded())
+        {
             assertEquals(spec.capacity, currentSize);
         }
-        else {
+        else
+        {
             assertEquals(SIZE, currentSize);
         }
     }
 
     @Test
-    public void supplyMessageUntilFull() {
+    public void supplyMessageUntilFull()
+    {
         assumeThat(spec.isBounded(), is(Boolean.TRUE));
         final Val instances = new Val();
         instances.value = 0;
         final MessagePassingQueue.Supplier<Integer> messageFactory = () -> instances.value++;
         final int capacity = queue.capacity();
         int filled = 0;
-        while (filled < capacity) {
+        while (filled < capacity)
+        {
             filled += queue.fill(messageFactory, capacity - filled);
         }
         assertEquals(instances.value, capacity);
@@ -181,12 +206,14 @@ public class MessagePassingQueueSanityTest {
     }
 
     @Test
-    public void whenFirstInThenFirstOut() {
+    public void whenFirstInThenFirstOut()
+    {
         assumeThat(spec.ordering, is(Ordering.FIFO));
 
         // Arrange
         int i = 0;
-        while (i < SIZE && queue.relaxedOffer(i)) {
+        while (i < SIZE && queue.relaxedOffer(i))
+        {
             i++;
         }
         final int size = queue.size();
@@ -194,7 +221,8 @@ public class MessagePassingQueueSanityTest {
         // Act
         i = 0;
         Integer prev;
-        while ((prev = queue.relaxedPeek()) != null) {
+        while ((prev = queue.relaxedPeek()) != null)
+        {
             final Integer item = queue.relaxedPoll();
 
             assertThat(item, is(prev));
@@ -208,12 +236,14 @@ public class MessagePassingQueueSanityTest {
     }
 
     @Test
-    public void test_FIFO_PRODUCER_Ordering() throws Exception {
+    public void test_FIFO_PRODUCER_Ordering() throws Exception
+    {
         assumeThat(spec.ordering, is(not((Ordering.FIFO))));
 
         // Arrange
         int i = 0;
-        while (i < SIZE && queue.relaxedOffer(i)) {
+        while (i < SIZE && queue.relaxedOffer(i))
+        {
             i++;
         }
         int size = queue.size();
@@ -222,7 +252,8 @@ public class MessagePassingQueueSanityTest {
         // expect sum of elements is (size - 1) * size / 2 = 0 + 1 + .... + (size - 1)
         int sum = (size - 1) * size / 2;
         Integer e;
-        while ((e = queue.relaxedPoll()) != null) {
+        while ((e = queue.relaxedPoll()) != null)
+        {
             size--;
             assertEquals(size, queue.size());
             sum -= e;
@@ -233,7 +264,8 @@ public class MessagePassingQueueSanityTest {
     }
 
     @Test
-    public void whenOfferItemAndPollItemThenSameInstanceReturnedAndQueueIsEmpty() {
+    public void whenOfferItemAndPollItemThenSameInstanceReturnedAndQueueIsEmpty()
+    {
         assertTrue(queue.isEmpty());
         assertTrue(queue.size() == 0);
 
@@ -252,30 +284,38 @@ public class MessagePassingQueueSanityTest {
     }
 
     @Test
-    public void testPowerOf2Capacity() {
+    public void testPowerOf2Capacity()
+    {
         assumeThat(spec.isBounded(), is(true));
         int n = Pow2.roundToPowerOfTwo(spec.capacity);
 
-        for (int i = 0; i < n; i++) {
+        for (int i = 0; i < n; i++)
+        {
             assertTrue("Failed to insert:" + i, queue.relaxedOffer(i));
         }
         assertFalse(queue.relaxedOffer(n));
     }
 
-    static final class Val {
+    static final class Val
+    {
         public int value;
     }
 
     @Test
-    public void testHappensBefore() throws Exception {
+    public void testHappensBefore() throws Exception
+    {
         final AtomicBoolean stop = new AtomicBoolean();
         final MessagePassingQueue q = queue;
         final Val fail = new Val();
-        Thread t1 = new Thread(new Runnable() {
+        Thread t1 = new Thread(new Runnable()
+        {
             @Override
-            public void run() {
-                while (!stop.get()) {
-                    for (int i = 1; i <= 10; i++) {
+            public void run()
+            {
+                while (!stop.get())
+                {
+                    for (int i = 1; i <= 10; i++)
+                    {
                         Val v = new Val();
                         v.value = i;
                         q.relaxedOffer(v);
@@ -286,13 +326,18 @@ public class MessagePassingQueueSanityTest {
                 }
             }
         });
-        Thread t2 = new Thread(new Runnable() {
+        Thread t2 = new Thread(new Runnable()
+        {
             @Override
-            public void run() {
-                while (!stop.get()) {
-                    for (int i = 0; i < 10; i++) {
+            public void run()
+            {
+                while (!stop.get())
+                {
+                    for (int i = 0; i < 10; i++)
+                    {
                         Val v = (Val) q.relaxedPeek();
-                        if (v != null && v.value == 0) {
+                        if (v != null && v.value == 0)
+                        {
                             fail.value = 1;
                             stop.set(true);
                         }
@@ -304,7 +349,7 @@ public class MessagePassingQueueSanityTest {
 
         t1.start();
         t2.start();
-        Thread.sleep(1000);
+        Thread.sleep(CONCURRENT_TEST_DURATION);
         stop.set(true);
         t1.join();
         t2.join();
@@ -313,17 +358,22 @@ public class MessagePassingQueueSanityTest {
     }
 
     @Test
-    public void testHappensBeforePrepetualDrain() throws Exception {
+    public void testHappensBeforePrepetualDrain() throws Exception
+    {
         final AtomicBoolean stop = new AtomicBoolean();
         final MessagePassingQueue q = queue;
         final Val fail = new Val();
-        Thread t1 = new Thread(new Runnable() {
+        Thread t1 = new Thread(new Runnable()
+        {
             int counter;
 
             @Override
-            public void run() {
-                while (!stop.get()) {
-                    for (int i = 1; i <= 10; i++) {
+            public void run()
+            {
+                while (!stop.get())
+                {
+                    for (int i = 1; i <= 10; i++)
+                    {
                         Val v = new Val();
                         v.value = i;
                         q.relaxedOffer(v);
@@ -334,19 +384,26 @@ public class MessagePassingQueueSanityTest {
                 }
             }
         });
-        Thread t2 = new Thread(new Runnable() {
+        Thread t2 = new Thread(new Runnable()
+        {
             @Override
-            public void run() {
-                while (!stop.get()) {
-                    q.drain(e -> {
+            public void run()
+            {
+                while (!stop.get())
+                {
+                    q.drain(e ->
+                    {
                         Val v = (Val) e;
-                        if (v != null && v.value == 0) {
+                        if (v != null && v.value == 0)
+                        {
                             fail.value = 1;
                             stop.set(true);
                         }
-                    } , e -> {
+                    }, e ->
+                    {
                         return e;
-                    } , () -> {
+                    }, () ->
+                    {
                         return !stop.get();
                     });
                 }
@@ -355,7 +412,7 @@ public class MessagePassingQueueSanityTest {
 
         t1.start();
         t2.start();
-        Thread.sleep(1000);
+        Thread.sleep(CONCURRENT_TEST_DURATION);
         stop.set(true);
         t1.join();
         t2.join();
@@ -364,23 +421,29 @@ public class MessagePassingQueueSanityTest {
     }
 
     @Test
-    public void testHappensBeforePrepetualFill() throws Exception {
+    public void testHappensBeforePrepetualFill() throws Exception
+    {
         final AtomicBoolean stop = new AtomicBoolean();
         final MessagePassingQueue q = queue;
         final Val fail = new Val();
-        Thread t1 = new Thread(new Runnable() {
+        Thread t1 = new Thread(new Runnable()
+        {
             int counter;
 
             @Override
-            public void run() {
+            public void run()
+            {
                 counter = 1;
-                q.fill(() -> {
+                q.fill(() ->
+                {
                     Val v = new Val();
                     v.value = 1 + (counter++ % 10);
                     return v;
-                } , e -> {
+                }, e ->
+                {
                     return e;
-                } , () -> {
+                }, () ->
+                {
                     // slow down the producer, this will make the queue mostly empty encouraging visibility
                     // issues.
                     Thread.yield();
@@ -388,14 +451,19 @@ public class MessagePassingQueueSanityTest {
                 });
             }
         });
-        Thread t2 = new Thread(new Runnable() {
+        Thread t2 = new Thread(new Runnable()
+        {
             @Override
-            public void run() {
-                while (!stop.get()) {
-                    for (int i = 0; i < 10; i++) {
+            public void run()
+            {
+                while (!stop.get())
+                {
+                    for (int i = 0; i < 10; i++)
+                    {
                         Val v = (Val) q.relaxedPeek();
                         int r;
-                        if (v != null && (r = v.value) == 0) {
+                        if (v != null && (r = v.value) == 0)
+                        {
                             fail.value = 1;
                             stop.set(true);
                         }
@@ -407,7 +475,7 @@ public class MessagePassingQueueSanityTest {
 
         t1.start();
         t2.start();
-        Thread.sleep(1000);
+        Thread.sleep(CONCURRENT_TEST_DURATION);
         stop.set(true);
         t1.join();
         t2.join();
@@ -416,42 +484,55 @@ public class MessagePassingQueueSanityTest {
     }
 
     @Test
-    public void testHappensBeforePrepetualFillDrain() throws Exception {
+    public void testHappensBeforePrepetualFillDrain() throws Exception
+    {
         final AtomicBoolean stop = new AtomicBoolean();
         final MessagePassingQueue q = queue;
         final Val fail = new Val();
-        Thread t1 = new Thread(new Runnable() {
+        Thread t1 = new Thread(new Runnable()
+        {
             int counter;
 
             @Override
-            public void run() {
+            public void run()
+            {
                 counter = 1;
-                q.fill(() -> {
+                q.fill(() ->
+                {
                     Val v = new Val();
                     v.value = 1 + (counter++ % 10);
                     return v;
-                } , e -> {
+                }, e ->
+                {
                     return e;
-                } , () -> { // slow down the producer, this will make the queue mostly empty encouraging
-                            // visibility issues.
+                }, () ->
+                { // slow down the producer, this will make the queue mostly empty encouraging
+                    // visibility issues.
                     Thread.yield();
                     return !stop.get();
                 });
             }
         });
-        Thread t2 = new Thread(new Runnable() {
+        Thread t2 = new Thread(new Runnable()
+        {
             @Override
-            public void run() {
-                while (!stop.get()) {
-                    q.drain(e -> {
+            public void run()
+            {
+                while (!stop.get())
+                {
+                    q.drain(e ->
+                    {
                         Val v = (Val) e;
-                        if (v != null && v.value == 0) {
+                        if (v != null && v.value == 0)
+                        {
                             fail.value = 1;
                             stop.set(true);
                         }
-                    } , e -> {
+                    }, e ->
+                    {
                         return e;
-                    } , () -> {
+                    }, () ->
+                    {
                         return !stop.get();
                     });
                 }
@@ -460,7 +541,7 @@ public class MessagePassingQueueSanityTest {
 
         t1.start();
         t2.start();
-        Thread.sleep(1000);
+        Thread.sleep(CONCURRENT_TEST_DURATION);
         stop.set(true);
         t1.join();
         t2.join();
@@ -469,26 +550,34 @@ public class MessagePassingQueueSanityTest {
     }
 
     @Test
-    public void testSize() throws Exception {
+    public void testSize() throws Exception
+    {
         assumeThat(spec.isBounded(), is(true));
         final AtomicBoolean stop = new AtomicBoolean();
         final MessagePassingQueue<Integer> q = queue;
         final Val fail = new Val();
-        Thread t1 = new Thread(new Runnable() {
+        Thread t1 = new Thread(new Runnable()
+        {
             @Override
-            public void run() {
-                while (!stop.get()) {
+            public void run()
+            {
+                while (!stop.get())
+                {
                     q.relaxedOffer(1);
                     q.relaxedPoll();
                 }
             }
         });
-        Thread t2 = new Thread(new Runnable() {
+        Thread t2 = new Thread(new Runnable()
+        {
             @Override
-            public void run() {
-                while (!stop.get()) {
+            public void run()
+            {
+                while (!stop.get())
+                {
                     int size = q.size();
-                    if(size != 0 && size != 1) {
+                    if (size != 0 && size != 1)
+                    {
                         fail.value++;
                     }
                 }
@@ -497,7 +586,7 @@ public class MessagePassingQueueSanityTest {
 
         t1.start();
         t2.start();
-        Thread.sleep(1000);
+        Thread.sleep(CONCURRENT_TEST_DURATION);
         stop.set(true);
         t1.join();
         t2.join();
@@ -505,13 +594,15 @@ public class MessagePassingQueueSanityTest {
 
     }
 
-    static Object[] makeMpq(int producers, int consumers, int capacity, Ordering ordering, Queue<Integer> q) {
+    static Object[] makeMpq(int producers, int consumers, int capacity, Ordering ordering, Queue<Integer> q)
+    {
         ConcurrentQueueSpec spec = new ConcurrentQueueSpec(producers, consumers, capacity, ordering,
-                Preference.NONE);
-        if (q == null) {
+            Preference.NONE);
+        if (q == null)
+        {
             q = QueueFactory.newQueue(spec);
         }
-        return new Object[] { spec, q };
+        return new Object[] {spec, q};
     }
 
 }
