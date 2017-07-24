@@ -14,7 +14,6 @@
 package org.jctools.queues;
 
 public final class IndexedQueueSizeUtil {
-    private IndexedQueueSizeUtil(){}
     public interface IndexedQueue {
         long lvConsumerIndex();
         long lvProducerIndex();

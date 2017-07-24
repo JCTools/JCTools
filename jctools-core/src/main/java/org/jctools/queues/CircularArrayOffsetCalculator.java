@@ -3,9 +3,6 @@ package org.jctools.queues;
 import static org.jctools.util.UnsafeRefArrayAccess.*;
 
 public final class CircularArrayOffsetCalculator {
-
-    private CircularArrayOffsetCalculator() {
-    }
     @SuppressWarnings("unchecked")
     public static <E> E[] allocate(int capacity) {
         return (E[]) new Object[capacity];
