@@ -98,7 +98,7 @@ public class SpscGrowableArrayQueue<E> extends BaseSpscLinkedArrayQueue<E>
                 producerMask = newBuffer.length - 2;
 
                 final long offsetInNew = calcElementOffset(index, producerMask);
-                linkOldToNew(index, buffer, offset, newBuffer, offsetInNew, s.get());
+                linkOldToNew(index, buffer, offset, newBuffer, offsetInNew, v == null ? s.get() : v);
                 int newCapacity = (int) (producerMask + 1);
                 if (newCapacity == maxCapacity)
                 {
