@@ -13,39 +13,33 @@
  */
 package org.jctools.queues;
 
-import java.util.AbstractQueue;
-import java.util.Iterator;
-
 import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
 import org.jctools.util.Pow2;
 
-abstract class ConcurrentCircularArrayQueueL0Pad<E> extends AbstractQueue<E> implements MessagePassingQueue<E>, IndexedQueue, QueueProgressIndicators {
+import java.util.AbstractQueue;
+import java.util.Iterator;
+
+abstract class ConcurrentCircularArrayQueueL0Pad<E> extends AbstractQueue<E>
+    implements MessagePassingQueue<E>, IndexedQueue, QueueProgressIndicators
+{
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 }
 
 /**
- * A concurrent access enabling class used by circular array based queues this class exposes an offset computation
- * method along with differently memory fenced load/store methods into the underlying array. The class is pre-padded and
- * the array is padded on either side to help with False sharing prvention. It is expected theat subclasses handle post
- * padding.
- * <p>
- * Offset calculation is separate from access to enable the reuse of a give compute offset.
- * <p>
- * Load/Store methods using a <i>buffer</i> parameter are provided to allow the prevention of final field reload after a
- * LoadLoad barrier.
- * <p>
- *
- * @author nitsanw
+ * Common functionality for array backed queues. The class is pre-padded and the array is padded on either side to help
+ * with False Sharing prevention. It is expected that subclasses handle post padding.
  *
  * @param <E>
+ * @author nitsanw
  */
-public abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircularArrayQueueL0Pad<E> {
+public abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircularArrayQueueL0Pad<E>
+{
     protected final long mask;
-    // @Stable :(
     protected final E[] buffer;
 
-    public ConcurrentCircularArrayQueue(int capacity) {
+    public ConcurrentCircularArrayQueue(int capacity)
+    {
         int actualCapacity = Pow2.roundToPowerOfTwo(capacity);
         mask = actualCapacity - 1;
         buffer = CircularArrayOffsetCalculator.allocate(actualCapacity);
@@ -53,59 +47,71 @@ public abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircular
 
     /**
      * @param index desirable element index
+     * @param mask
      * @return the offset in bytes within the array for a given index.
      */
-    protected final long calcElementOffset(long index) {
-        return calcElementOffset(index, mask);
+    protected static long calcElementOffset(long index, long mask)
+    {
+        return CircularArrayOffsetCalculator.calcElementOffset(index, mask);
     }
 
     /**
      * @param index desirable element index
-     * @param mask
      * @return the offset in bytes within the array for a given index.
      */
-    protected static long calcElementOffset(long index, long mask) {
-        return CircularArrayOffsetCalculator.calcElementOffset(index, mask);
+    protected final long calcElementOffset(long index)
+    {
+        return calcElementOffset(index, mask);
     }
 
     @Override
-    public Iterator<E> iterator() {
+    public Iterator<E> iterator()
+    {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public String toString() {
-        return this.getClass().getName();
-    }
-
-    @Override
-    public void clear() {
-        while (poll() != null || !isEmpty())
-            ;
-    }
-
-    @Override
-    public int capacity() {
-        return (int) (mask + 1);
-    }
-
-    @Override
-    public final int size() {
+    public final int size()
+    {
         return IndexedQueueSizeUtil.size(this);
     }
 
     @Override
-    public final boolean isEmpty() {
+    public final boolean isEmpty()
+    {
         return IndexedQueueSizeUtil.isEmpty(this);
     }
 
     @Override
-    public final long currentProducerIndex() {
+    public String toString()
+    {
+        return this.getClass().getName();
+    }
+
+    @Override
+    public void clear()
+    {
+        while (poll() != null || !isEmpty())
+        {
+            // if you stare into the void
+        }
+    }
+
+    @Override
+    public int capacity()
+    {
+        return (int) (mask + 1);
+    }
+
+    @Override
+    public final long currentProducerIndex()
+    {
         return lvProducerIndex();
     }
 
     @Override
-    public final long currentConsumerIndex() {
+    public final long currentConsumerIndex()
+    {
         return lvConsumerIndex();
     }
 
