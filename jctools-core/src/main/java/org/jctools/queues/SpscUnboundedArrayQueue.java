@@ -59,4 +59,34 @@ public class SpscUnboundedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
         return true;
     }
 
+    @Override
+    protected final boolean offerColdPath(E[] buffer, long mask, Supplier<? extends E> s, long pIndex, long offset) {
+        // use a fixed lookahead step based on buffer capacity
+        final long lookAheadStep = (mask + 1) / 4;
+        long pBufferLimit = pIndex + lookAheadStep;
+
+        // go around the buffer or add a new buffer
+        if (null == lvElement(buffer, calcElementOffset(pBufferLimit, mask))) {
+            producerBufferLimit = pBufferLimit - 1; // joy, there's plenty of room
+            writeToQueue(buffer, s.get(), pIndex, offset);
+        }
+        else if (null == lvElement(buffer, calcElementOffset(pIndex + 1, mask))) { // buffer is not full
+            writeToQueue(buffer, s.get(), pIndex, offset);
+        }
+        else {
+            // we got one slot left to write into, and we are not full. Need to link new buffer.
+            // allocate new buffer of same length
+            final E[] newBuffer =  allocate((int)(mask + 2));
+            producerBuffer = newBuffer;
+            producerBufferLimit = pIndex + mask - 1;
+
+            linkOldToNew(pIndex, buffer, offset, newBuffer, offset, s.get());
+        }
+        return true;
+    }
+
+    @Override
+    public int capacity() {
+        return UNBOUNDED_CAPACITY;
+    }
 }
