@@ -13,11 +13,11 @@
  */
 package org.jctools.queues.atomic;
 
+import org.jctools.queues.MessagePassingQueue;
+
 import java.util.AbstractQueue;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicReference;
-
-import org.jctools.queues.MessagePassingQueue;
 
 abstract class BaseLinkedAtomicQueue<E> extends AbstractQueue<E> {
     private final AtomicReference<LinkedQueueAtomicNode<E>> producerNode;
@@ -53,6 +53,55 @@ abstract class BaseLinkedAtomicQueue<E> extends AbstractQueue<E> {
         throw new UnsupportedOperationException();
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * This method is only safe to call from the consumer thread!
+     */
+    @Override
+    public final boolean remove(Object o) {
+        if (null == o) {
+            return false; // Null elements are not permitted, so null will never be removed.
+        }
+
+        final LinkedQueueAtomicNode<E> originalConsumerNode = lpConsumerNode();
+        for (LinkedQueueAtomicNode<E> prevConsumerNode = originalConsumerNode, currConsumerNode = getNextConsumerNode(originalConsumerNode);
+             currConsumerNode != null;
+             prevConsumerNode = currConsumerNode, currConsumerNode = getNextConsumerNode(currConsumerNode)) {
+            if (o.equals(currConsumerNode.lpValue())) {
+                LinkedQueueAtomicNode<E> nextNode = getNextConsumerNode(currConsumerNode);
+                if (nextNode != null && prevConsumerNode != originalConsumerNode) {
+                    // We are removing an interior node.
+                    prevConsumerNode.soNext(nextNode);
+
+                    // Avoid GC nepotism because we are discarding the current node.
+                    currConsumerNode.soNext(null);
+                } else if (prevConsumerNode == originalConsumerNode) {
+                    // We are removing the consumer node.
+                    prevConsumerNode.soNext(null);
+                    spConsumerNode(currConsumerNode);
+                } else {
+                    // We are removing the producer node.
+                    prevConsumerNode.soNext(null);
+
+                    // If the producer node is pointing to the node we are removing then we should try to atomically
+                    // update the reference to move it to the previous node.
+                    if (!producerNode.compareAndSet(currConsumerNode, prevConsumerNode)) {
+                        // If the producer(s) have offered more items we need to remove the currConsumerNode link.
+                        while ((nextNode = currConsumerNode.lvNext()) == null);
+                        prevConsumerNode.soNext(nextNode);
+                    }
+
+                    // Avoid GC nepotism because we are discarding the current node.
+                    currConsumerNode.soNext(null);
+                }
+                currConsumerNode.spValue(null);
+
+                return true;
+            }
+        }
+        return false;
+    }
 
     @Override
     public String toString() {
@@ -95,6 +144,8 @@ abstract class BaseLinkedAtomicQueue<E> extends AbstractQueue<E> {
     public final boolean isEmpty() {
         return lvConsumerNode() == lvProducerNode();
     }
+
+    abstract LinkedQueueAtomicNode<E> getNextConsumerNode(LinkedQueueAtomicNode<E> currConsumerNode);
 
     protected E getSingleConsumerNodeValue(LinkedQueueAtomicNode<E> currConsumerNode, LinkedQueueAtomicNode<E> nextNode) {
         // we have to null out the value because we are going to hang on to the node
