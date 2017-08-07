@@ -17,6 +17,7 @@ import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeRefArrayAccess.lpElement;
 import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
 import static org.jctools.util.UnsafeRefArrayAccess.soElement;
+import static org.jctools.util.UnsafeRefArrayAccess.spElement;
 
 import org.jctools.util.UnsafeRefArrayAccess;
 
@@ -138,7 +139,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
         final long mask = this.mask;
         final long currProducerIndex = lvProducerIndex();
         final long offset = calcElementOffset(currProducerIndex, mask);
-        if (null != UnsafeRefArrayAccess.lvElement(buffer, offset)) {
+        if (null != lvElement(buffer, offset)) {
             long size = currProducerIndex - lvConsumerIndex();
 
             if(size > mask) {
@@ -146,10 +147,10 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
             }
             else {
                 // spin wait for slot to clear, buggers wait freedom
-                while(null != UnsafeRefArrayAccess.lvElement(buffer, offset));
+                while(null != lvElement(buffer, offset));
             }
         }
-        UnsafeRefArrayAccess.spElement(buffer, offset, e);
+        spElement(buffer, offset, e);
         // single producer, so store ordered is valid. It is also required to correctly publish the element
         // and for the consumers to pick up the tail value.
         soProducerIndex(currProducerIndex + 1);

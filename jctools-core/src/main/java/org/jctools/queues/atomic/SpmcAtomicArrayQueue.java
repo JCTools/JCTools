@@ -16,6 +16,8 @@ package org.jctools.queues.atomic;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
+import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
+import org.jctools.queues.IndexedQueueSizeUtil;
 import org.jctools.queues.QueueProgressIndicators;
 
 /**
@@ -23,7 +25,7 @@ import org.jctools.queues.QueueProgressIndicators;
  * @author akarnokd
  * @param <E>
  */
-public final class SpmcAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E> implements QueueProgressIndicators{
+public final class SpmcAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E> implements IndexedQueue, QueueProgressIndicators{
     private final AtomicLong consumerIndex;
     private final AtomicLong producerIndex;
     private final AtomicLong producerIndexCache;
@@ -56,14 +58,14 @@ public final class SpmcAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E> 
         spElement(buffer, offset, e);
         // single producer, so store ordered is valid. It is also required to correctly publish the element
         // and for the consumers to pick up the tail value.
-        soTail(currProducerIndex + 1);
+        soProducerIndex(currProducerIndex + 1);
         return true;
     }
 
     @Override
     public E poll() {
         long currentConsumerIndex;
-        final long currProducerIndexCache = lvProducerIndexCache();
+        long currProducerIndexCache = lvProducerIndexCache();
         do {
             currentConsumerIndex = lvConsumerIndex();
             if (currentConsumerIndex >= currProducerIndexCache) {
@@ -71,18 +73,22 @@ public final class SpmcAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E> 
                 if (currentConsumerIndex >= currProducerIndex) {
                     return null;
                 } else {
+                    currProducerIndexCache = currProducerIndex;
                     svProducerIndexCache(currProducerIndex);
                 }
             }
         } while (!casHead(currentConsumerIndex, currentConsumerIndex + 1));
         // consumers are gated on latest visible tail, and so can't see a null value in the queue or overtake
         // and wrap to hit same location.
-        final int offset = calcElementOffset(currentConsumerIndex);
-        final AtomicReferenceArray<E> lb = buffer;
+        return removeElement(buffer, currentConsumerIndex, mask);
+    }
+
+    private E removeElement(final AtomicReferenceArray<E> buffer, long index, final int mask) {
+        final int offset = calcElementOffset(index, mask);
         // load plain, element happens before it's index becomes visible
-        final E e = lpElement(lb, offset);
+        final E e = lpElement(buffer, offset);
         // store ordered, make sure nulling out is visible. Producer is waiting for this value.
-        soElement(lb, offset, null);
+        soElement(buffer, offset, null);
         return e;
     }
 
@@ -102,35 +108,44 @@ public final class SpmcAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E> 
                     svProducerIndexCache(currProducerIndex);
                 }
             }
-        } while (null == (e = lvElement(calcElementOffset(currentConsumerIndex, mask))));
+        } while (null == (e = lvElement(buffer, calcElementOffset(currentConsumerIndex, mask))));
         return e;
+    }
+    
+    protected final long lvProducerIndexCache() {
+        return producerIndexCache.get();
+    }
+
+    protected final void svProducerIndexCache(long v) {
+        producerIndexCache.set(v);
+    }
+    
+    @Override
+    public final long lvConsumerIndex() {
+        return consumerIndex.get();
+    }
+
+    protected final boolean casHead(long expect, long newValue) {
+        return consumerIndex.compareAndSet(expect, newValue);
+    }
+
+    @Override
+    public final long lvProducerIndex() {
+        return producerIndex.get();
+    }
+
+    protected final void soProducerIndex(long v) {
+        producerIndex.lazySet(v);
     }
 
     @Override
     public int size() {
-        /*
-         * It is possible for a thread to be interrupted or reschedule between the read of the producer and consumer
-         * indices, therefore protection is required to ensure size is within valid range. In the event of concurrent
-         * polls/offers to this method the size is OVER estimated as we read consumer index BEFORE the producer index.
-         */
-        long after = lvConsumerIndex();
-        while (true) {
-            final long before = after;
-            final long currentProducerIndex = lvProducerIndex();
-            after = lvConsumerIndex();
-            if (before == after) {
-                return (int) (currentProducerIndex - after);
-            }
-        }
+        return IndexedQueueSizeUtil.size(this);
     }
 
     @Override
     public boolean isEmpty() {
-        // Order matters!
-        // Loading consumer before producer allows for producer increments after consumer index is read.
-        // This ensures the correctness of this method at least for the consumer thread. Other threads POV is not really
-        // something we can fix here.
-        return (lvConsumerIndex() == lvProducerIndex());
+        return IndexedQueueSizeUtil.isEmpty(this);
     }
 
     @Override
@@ -141,27 +156,5 @@ public final class SpmcAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E> 
     @Override
     public long currentConsumerIndex() {
         return lvConsumerIndex();
-    }
-    protected final long lvProducerIndexCache() {
-        return producerIndexCache.get();
-    }
-
-    protected final void svProducerIndexCache(long v) {
-        producerIndexCache.set(v);
-    }
-    protected final long lvConsumerIndex() {
-        return consumerIndex.get();
-    }
-
-    protected final boolean casHead(long expect, long newValue) {
-        return consumerIndex.compareAndSet(expect, newValue);
-    }
-
-    protected final long lvProducerIndex() {
-        return producerIndex.get();
-    }
-
-    protected final void soTail(long v) {
-        producerIndex.lazySet(v);
     }
 }
