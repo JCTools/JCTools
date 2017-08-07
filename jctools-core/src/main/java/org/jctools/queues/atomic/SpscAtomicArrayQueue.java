@@ -20,6 +20,53 @@ import org.jctools.queues.IndexedQueueSizeUtil;
 import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
 import org.jctools.queues.QueueProgressIndicators;
 
+abstract class SpscAtomicArrayQueueColdField<E> extends AtomicReferenceArrayQueue<E> {
+    public static final int MAX_LOOK_AHEAD_STEP = Integer.getInteger("jctools.spsc.max.lookahead.step", 4096);
+    protected final int lookAheadStep;
+    public SpscAtomicArrayQueueColdField(int capacity) {
+        super(capacity);
+        lookAheadStep = Math.min(capacity() / 4, MAX_LOOK_AHEAD_STEP);
+    }
+}
+abstract class SpscAtomicArrayQueueL1Pad<E> extends SpscAtomicArrayQueueColdField<E> {
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
+
+    public SpscAtomicArrayQueueL1Pad(int capacity) {
+        super(capacity);
+    }
+}
+
+abstract class SpscAtomicArrayQueueProducerFields<E> extends SpscAtomicArrayQueueL1Pad<E> {
+    protected static final AtomicLongFieldUpdater<SpscAtomicArrayQueueProducerFields> P_INDEX_UPDATER = AtomicLongFieldUpdater
+            .newUpdater(SpscAtomicArrayQueueProducerFields.class, "producerIndex");
+    protected volatile long producerIndex;
+    protected long producerLimit;
+
+    public SpscAtomicArrayQueueProducerFields(int capacity) {
+        super(capacity);
+    }
+}
+
+abstract class SpscAtomicArrayQueueL2Pad<E> extends SpscAtomicArrayQueueProducerFields<E> {
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
+
+    public SpscAtomicArrayQueueL2Pad(int capacity) {
+        super(capacity);
+    }
+}
+
+abstract class SpscAtomicArrayQueueConsumerField<E> extends SpscAtomicArrayQueueL2Pad<E> {
+    protected static final AtomicLongFieldUpdater<SpscAtomicArrayQueueConsumerField> C_INDEX_UPDATER = AtomicLongFieldUpdater
+            .newUpdater(SpscAtomicArrayQueueConsumerField.class, "consumerIndex");
+    protected volatile long consumerIndex;
+    
+    public SpscAtomicArrayQueueConsumerField(int capacity) {
+        super(capacity);
+    }
+}
+
 /**
  * A Single-Producer-Single-Consumer queue backed by a pre-allocated buffer.
  * <p>
@@ -36,24 +83,19 @@ import org.jctools.queues.QueueProgressIndicators;
  *
  * @param <E>
  */
-public final class SpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E> implements IndexedQueue, QueueProgressIndicators {
-    private static final AtomicLongFieldUpdater<SpscAtomicArrayQueue> P_INDEX_UPDATER = AtomicLongFieldUpdater
-            .newUpdater(SpscAtomicArrayQueue.class, "producerIndex");
-    private static final AtomicLongFieldUpdater<SpscAtomicArrayQueue> C_INDEX_UPDATER = AtomicLongFieldUpdater
-            .newUpdater(SpscAtomicArrayQueue.class, "consumerIndex");
-    
-    private static final Integer MAX_LOOK_AHEAD_STEP = Integer.getInteger("jctools.spsc.max.lookahead.step", 4096);
-    volatile long producerIndex;
-    protected long producerLimit;
-    volatile long consumerIndex;
-    final int lookAheadStep;
-    
+public final class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueConsumerField<E> implements IndexedQueue, QueueProgressIndicators {
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
     
     public SpscAtomicArrayQueue(int capacity) {
         super(Math.max(capacity, 4));
-        lookAheadStep = Math.min(capacity() / 4, MAX_LOOK_AHEAD_STEP);
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * This implementation is correct for single producer thread use only.
+     */
     @Override
     public boolean offer(final E e) {
         if (null == e) {
@@ -89,6 +131,11 @@ public final class SpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E> 
         return true;
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * This implementation is correct for single consumer thread use only.
+     */
     @Override
     public E poll() {
         final long consumerIndex = this.consumerIndex;
@@ -104,6 +151,11 @@ public final class SpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E> 
         return e;
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * This implementation is correct for single consumer thread use only.
+     */
     @Override
     public E peek() {
         return lvElement(buffer, calcElementOffset(consumerIndex));
@@ -116,7 +168,7 @@ public final class SpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E> 
     private void soConsumerIndex(long newIndex) {
         C_INDEX_UPDATER.lazySet(this, newIndex);
     }
-    
+
     @Override
     public long lvProducerIndex() {
         return producerIndex;
