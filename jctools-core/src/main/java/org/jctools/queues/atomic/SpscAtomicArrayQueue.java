@@ -13,6 +13,9 @@
  */
 package org.jctools.queues.atomic;
 
+import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
+import static org.jctools.util.UnsafeRefArrayAccess.soElement;
+
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
@@ -37,7 +40,7 @@ import org.jctools.queues.QueueProgressIndicators;
 public final class SpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E> implements QueueProgressIndicators {
     private static final Integer MAX_LOOK_AHEAD_STEP = Integer.getInteger("jctools.spsc.max.lookahead.step", 4096);
     final AtomicLong producerIndex;
-    protected long producerLookAhead;
+    protected long producerLimit;
     final AtomicLong consumerIndex;
     final int lookAheadStep;
     public SpscAtomicArrayQueue(int capacity) {
@@ -48,41 +51,52 @@ public final class SpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E> 
     }
 
     @Override
-    public boolean offer(E e) {
+    public boolean offer(final E e) {
         if (null == e) {
             throw new NullPointerException();
         }
         // local load of field to avoid repeated loads after volatile reads
         final AtomicReferenceArray<E> buffer = this.buffer;
         final int mask = this.mask;
-        final long index = producerIndex.get();
-        final int offset = calcElementOffset(index, mask);
-        if (index >= producerLookAhead) {
-            int step = lookAheadStep;
-            if (null == lvElement(buffer, calcElementOffset(index + step, mask))) {// LoadLoad
-                producerLookAhead = index + step;
-            }
-            else if (null != lvElement(buffer, offset)){
+        final long producerIndex = this.producerIndex.get();
+
+        if (producerIndex >= producerLimit &&
+                !offerSlowPath(buffer, mask, producerIndex)) {
+            return false;
+        }
+        final int offset = calcElementOffset(producerIndex, mask);
+
+        soElement(buffer, offset, e); // StoreStore
+        soProducerIndex(producerIndex + 1); // ordered store -> atomic and ordered for size()
+        return true;
+    }
+
+    private boolean offerSlowPath(final AtomicReferenceArray<E> buffer, final int mask, final long producerIndex) {
+        final int lookAheadStep = this.lookAheadStep;
+        if (null == lvElement(buffer, calcElementOffset(producerIndex + lookAheadStep, mask))) {// LoadLoad
+            producerLimit = producerIndex + lookAheadStep;
+        }
+        else {
+            final int offset = calcElementOffset(producerIndex, mask);
+            if (null != lvElement(buffer, offset)){
                 return false;
             }
         }
-        soElement(buffer, offset, e); // StoreStore
-        soProducerIndex(index + 1); // ordered store -> atomic and ordered for size()
         return true;
     }
 
     @Override
     public E poll() {
-        final long index = consumerIndex.get();
-        final int offset = calcElementOffset(index);
+        final long consumerIndex = this.consumerIndex.get();
+        final int offset = calcElementOffset(consumerIndex);
         // local load of field to avoid repeated loads after volatile reads
-        final AtomicReferenceArray<E> lElementBuffer = buffer;
-        final E e = lvElement(lElementBuffer, offset);// LoadLoad
+        final AtomicReferenceArray<E> buffer = this.buffer;
+        final E e = lvElement(buffer, offset);// LoadLoad
         if (null == e) {
             return null;
         }
-        soConsumerIndex(index + 1); // ordered store -> atomic and ordered for size()
-        soElement(lElementBuffer, offset, null);// StoreStore
+        soElement(buffer, offset, null);// StoreStore
+        soConsumerIndex(consumerIndex + 1); // ordered store -> atomic and ordered for size()
         return e;
     }
 

@@ -135,7 +135,7 @@ public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E>  implement
         if (null == lvElement(buffer, calcElementOffset(producerIndex + lookAheadStep, mask))) {// LoadLoad
             producerLimit = producerIndex + lookAheadStep;
         }
-        else{
+        else {
             final long offset = calcElementOffset(producerIndex, mask);
             if (null != lvElement(buffer, offset)){
                 return false;

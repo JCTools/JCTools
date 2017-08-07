@@ -30,7 +30,7 @@ public class SpscAtomicArrayQueueTest
         // starting point for empty queue at max long, next offer will wrap the producerIndex
         q.consumerIndex.set(Long.MAX_VALUE);
         q.producerIndex.set(Long.MAX_VALUE);
-        q.producerLookAhead = Long.MAX_VALUE;
+        q.producerLimit = Long.MAX_VALUE;
         // valid starting point
         assertThat(q, emptyAndZeroSize());
 
