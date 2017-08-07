@@ -13,11 +13,11 @@
  */
 package org.jctools.queues.atomic;
 
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
-import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
 import org.jctools.queues.IndexedQueueSizeUtil;
+import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
 import org.jctools.queues.QueueProgressIndicators;
 
 /**
@@ -37,15 +37,20 @@ import org.jctools.queues.QueueProgressIndicators;
  * @param <E>
  */
 public final class SpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E> implements IndexedQueue, QueueProgressIndicators {
+    private static final AtomicLongFieldUpdater<SpscAtomicArrayQueue> P_INDEX_UPDATER = AtomicLongFieldUpdater
+            .newUpdater(SpscAtomicArrayQueue.class, "producerIndex");
+    private static final AtomicLongFieldUpdater<SpscAtomicArrayQueue> C_INDEX_UPDATER = AtomicLongFieldUpdater
+            .newUpdater(SpscAtomicArrayQueue.class, "consumerIndex");
+    
     private static final Integer MAX_LOOK_AHEAD_STEP = Integer.getInteger("jctools.spsc.max.lookahead.step", 4096);
-    final AtomicLong producerIndex;
+    volatile long producerIndex;
     protected long producerLimit;
-    final AtomicLong consumerIndex;
+    volatile long consumerIndex;
     final int lookAheadStep;
+    
+    
     public SpscAtomicArrayQueue(int capacity) {
         super(Math.max(capacity, 4));
-        this.producerIndex = new AtomicLong();
-        this.consumerIndex = new AtomicLong();
         lookAheadStep = Math.min(capacity() / 4, MAX_LOOK_AHEAD_STEP);
     }
 
@@ -57,7 +62,7 @@ public final class SpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E> 
         // local load of field to avoid repeated loads after volatile reads
         final AtomicReferenceArray<E> buffer = this.buffer;
         final int mask = this.mask;
-        final long producerIndex = this.producerIndex.get();
+        final long producerIndex = this.producerIndex;
 
         if (producerIndex >= producerLimit &&
                 !offerSlowPath(buffer, mask, producerIndex)) {
@@ -86,7 +91,7 @@ public final class SpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E> 
 
     @Override
     public E poll() {
-        final long consumerIndex = this.consumerIndex.get();
+        final long consumerIndex = this.consumerIndex;
         final int offset = calcElementOffset(consumerIndex);
         // local load of field to avoid repeated loads after volatile reads
         final AtomicReferenceArray<E> buffer = this.buffer;
@@ -101,25 +106,25 @@ public final class SpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E> 
 
     @Override
     public E peek() {
-        return lvElement(buffer, calcElementOffset(consumerIndex.get()));
+        return lvElement(buffer, calcElementOffset(consumerIndex));
     }
 
     private void soProducerIndex(long newIndex) {
-        producerIndex.lazySet(newIndex);
+        P_INDEX_UPDATER.lazySet(this, newIndex);
     }
 
     private void soConsumerIndex(long newIndex) {
-        consumerIndex.lazySet(newIndex);
+        C_INDEX_UPDATER.lazySet(this, newIndex);
     }
     
     @Override
     public long lvProducerIndex() {
-        return producerIndex.get();
+        return producerIndex;
     }
 
     @Override
     public long lvConsumerIndex() {
-        return consumerIndex.get();
+        return consumerIndex;
     }
 
     @Override
