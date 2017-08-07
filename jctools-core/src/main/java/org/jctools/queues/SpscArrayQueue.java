@@ -13,7 +13,6 @@
  */
 package org.jctools.queues;
 
-import org.jctools.util.Pow2;
 import org.jctools.util.UnsafeRefArrayAccess;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
@@ -25,7 +24,7 @@ abstract class SpscArrayQueueColdField<E> extends ConcurrentCircularArrayQueue<E
     protected final int lookAheadStep;
     public SpscArrayQueueColdField(int capacity) {
         super(capacity);
-        lookAheadStep = Math.min(capacity/4, MAX_LOOK_AHEAD_STEP);
+        lookAheadStep = Math.min(capacity() / 4, MAX_LOOK_AHEAD_STEP);
     }
 }
 abstract class SpscArrayQueueL1Pad<E> extends SpscArrayQueueColdField<E> {
@@ -101,7 +100,7 @@ public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E>  implement
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
     public SpscArrayQueue(final int capacity) {
-        super(Math.max(Pow2.roundToPowerOfTwo(capacity), 4));
+        super(Math.max(capacity, 4));
     }
 
     /**

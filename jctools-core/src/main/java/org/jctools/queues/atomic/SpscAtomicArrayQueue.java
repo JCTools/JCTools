@@ -43,10 +43,10 @@ public final class SpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E> 
     final AtomicLong consumerIndex;
     final int lookAheadStep;
     public SpscAtomicArrayQueue(int capacity) {
-        super(capacity);
+        super(Math.max(capacity, 4));
         this.producerIndex = new AtomicLong();
         this.consumerIndex = new AtomicLong();
-        lookAheadStep = Math.min(capacity / 4, MAX_LOOK_AHEAD_STEP);
+        lookAheadStep = Math.min(capacity() / 4, MAX_LOOK_AHEAD_STEP);
     }
 
     @Override

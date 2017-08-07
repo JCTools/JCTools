@@ -77,4 +77,8 @@ abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> {
     protected final E lvElement(int offset) {
         return lvElement(buffer, offset);
     }
+
+    protected final int capacity() {
+        return (int) (mask + 1);
+    }
 }
