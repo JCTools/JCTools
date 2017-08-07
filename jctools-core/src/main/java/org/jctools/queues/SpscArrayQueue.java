@@ -174,12 +174,12 @@ public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E>  implement
         return UnsafeRefArrayAccess.lvElement(buffer, calcElementOffset(consumerIndex));
     }
 
-    private void soProducerIndex(long v) {
-        UNSAFE.putOrderedLong(this, P_INDEX_OFFSET, v);
+    private void soProducerIndex(long newIndex) {
+        UNSAFE.putOrderedLong(this, P_INDEX_OFFSET, newIndex);
     }
 
-    private void soConsumerIndex(long v) {
-        UNSAFE.putOrderedLong(this, C_INDEX_OFFSET, v);
+    private void soConsumerIndex(long newIndex) {
+        UNSAFE.putOrderedLong(this, C_INDEX_OFFSET, newIndex);
     }
 
     @Override
