@@ -46,6 +46,7 @@ import java.util.concurrent.Future;
 import org.jctools.maps.NonBlockingIdentityHashMap;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 // Test NonBlockingHashMap via JUnit
@@ -177,6 +178,7 @@ public class NBHMID_Tester2 {
   }
 
   @Test
+  @Ignore
   public void testSerial() {
     assertTrue ( _nbhm.isEmpty() );
     assertThat ( _nbhm.put("k1","v1"), nullValue() );
