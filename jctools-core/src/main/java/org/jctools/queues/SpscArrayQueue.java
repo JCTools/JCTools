@@ -182,10 +182,12 @@ public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E>  implement
         UNSAFE.putOrderedLong(this, C_INDEX_OFFSET, v);
     }
 
+    @Override
     public final long lvProducerIndex() {
         return UNSAFE.getLongVolatile(this, P_INDEX_OFFSET);
     }
 
+    @Override
     public final long lvConsumerIndex() {
         return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
     }

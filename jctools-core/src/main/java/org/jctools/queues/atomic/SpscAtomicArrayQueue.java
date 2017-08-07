@@ -13,12 +13,11 @@
  */
 package org.jctools.queues.atomic;
 
-import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
-import static org.jctools.util.UnsafeRefArrayAccess.soElement;
-
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
+import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
+import org.jctools.queues.IndexedQueueSizeUtil;
 import org.jctools.queues.QueueProgressIndicators;
 
 /**
@@ -37,7 +36,7 @@ import org.jctools.queues.QueueProgressIndicators;
  *
  * @param <E>
  */
-public final class SpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E> implements QueueProgressIndicators {
+public final class SpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E> implements IndexedQueue, QueueProgressIndicators {
     private static final Integer MAX_LOOK_AHEAD_STEP = Integer.getInteger("jctools.spsc.max.lookahead.step", 4096);
     final AtomicLong producerIndex;
     protected long producerLimit;
@@ -105,23 +104,29 @@ public final class SpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E> 
         return lvElement(buffer, calcElementOffset(consumerIndex.get()));
     }
 
+    private void soProducerIndex(long newIndex) {
+        producerIndex.lazySet(newIndex);
+    }
+
+    private void soConsumerIndex(long newIndex) {
+        consumerIndex.lazySet(newIndex);
+    }
+    
+    @Override
+    public long lvProducerIndex() {
+        return producerIndex.get();
+    }
+
+    @Override
+    public long lvConsumerIndex() {
+        return consumerIndex.get();
+    }
+
     @Override
     public int size() {
-        /*
-         * It is possible for a thread to be interrupted or reschedule between the read of the producer and consumer
-         * indices, therefore protection is required to ensure size is within valid range. In the event of concurrent
-         * polls/offers to this method the size is OVER estimated as we read consumer index BEFORE the producer index.
-         */
-        long after = lvConsumerIndex();
-        while (true) {
-            final long before = after;
-            final long currentProducerIndex = lvProducerIndex();
-            after = lvConsumerIndex();
-            if (before == after) {
-                return (int) (currentProducerIndex - after);
-            }
-        }
+        return IndexedQueueSizeUtil.size(this);
     }
+    
     @Override
     public long currentProducerIndex() {
         return lvProducerIndex();
@@ -130,20 +135,5 @@ public final class SpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E> 
     @Override
     public long currentConsumerIndex() {
         return lvConsumerIndex();
-    }
-
-    private void soProducerIndex(long newIndex) {
-        producerIndex.lazySet(newIndex);
-    }
-
-    private void soConsumerIndex(long newIndex) {
-        consumerIndex.lazySet(newIndex);
-    }
-
-    private long lvConsumerIndex() {
-        return consumerIndex.get();
-    }
-    private long lvProducerIndex() {
-        return producerIndex.get();
     }
 }
