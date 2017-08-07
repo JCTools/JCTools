@@ -102,7 +102,7 @@ public final class SpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E> 
 
     @Override
     public E peek() {
-        return lvElement(calcElementOffset(consumerIndex.get()));
+        return lvElement(buffer, calcElementOffset(consumerIndex.get()));
     }
 
     @Override
