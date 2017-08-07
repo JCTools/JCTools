@@ -38,8 +38,7 @@ abstract class SpscAtomicArrayQueueL1Pad<E> extends SpscAtomicArrayQueueColdFiel
 }
 
 abstract class SpscAtomicArrayQueueProducerFields<E> extends SpscAtomicArrayQueueL1Pad<E> {
-    protected static final AtomicLongFieldUpdater<SpscAtomicArrayQueueProducerFields> P_INDEX_UPDATER = AtomicLongFieldUpdater
-            .newUpdater(SpscAtomicArrayQueueProducerFields.class, "producerIndex");
+    protected static final AtomicLongFieldUpdater<SpscAtomicArrayQueueProducerFields> P_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(SpscAtomicArrayQueueProducerFields.class, "producerIndex");
     protected volatile long producerIndex;
     protected long producerLimit;
 
@@ -58,8 +57,7 @@ abstract class SpscAtomicArrayQueueL2Pad<E> extends SpscAtomicArrayQueueProducer
 }
 
 abstract class SpscAtomicArrayQueueConsumerField<E> extends SpscAtomicArrayQueueL2Pad<E> {
-    protected static final AtomicLongFieldUpdater<SpscAtomicArrayQueueConsumerField> C_INDEX_UPDATER = AtomicLongFieldUpdater
-            .newUpdater(SpscAtomicArrayQueueConsumerField.class, "consumerIndex");
+    protected static final AtomicLongFieldUpdater<SpscAtomicArrayQueueConsumerField> C_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(SpscAtomicArrayQueueConsumerField.class, "consumerIndex");
     protected volatile long consumerIndex;
     
     public SpscAtomicArrayQueueConsumerField(int capacity) {
@@ -87,7 +85,7 @@ public final class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueConsumerF
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
     
-    public SpscAtomicArrayQueue(int capacity) {
+    public SpscAtomicArrayQueue(final int capacity) {
         super(Math.max(capacity, 4));
     }
 
@@ -161,11 +159,11 @@ public final class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueConsumerF
         return lvElement(buffer, calcElementOffset(consumerIndex));
     }
 
-    private void soProducerIndex(long newIndex) {
+    private void soProducerIndex(final long newIndex) {
         P_INDEX_UPDATER.lazySet(this, newIndex);
     }
 
-    private void soConsumerIndex(long newIndex) {
+    private void soConsumerIndex(final long newIndex) {
         C_INDEX_UPDATER.lazySet(this, newIndex);
     }
 

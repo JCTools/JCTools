@@ -13,8 +13,6 @@
  */
 package org.jctools.queues;
 
-import org.jctools.util.UnsafeRefArrayAccess;
-
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
 import static org.jctools.util.UnsafeRefArrayAccess.soElement;
@@ -96,9 +94,10 @@ abstract class SpscArrayQueueConsumerField<E> extends SpscArrayQueueL2Pad<E> {
  *
  * @param <E>
  */
-public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E>  implements QueueProgressIndicators {
+public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E> implements QueueProgressIndicators {
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
+    
     public SpscArrayQueue(final int capacity) {
         super(Math.max(capacity, 4));
     }
@@ -170,14 +169,14 @@ public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E>  implement
      */
     @Override
     public E peek() {
-        return UnsafeRefArrayAccess.lvElement(buffer, calcElementOffset(consumerIndex));
+        return lvElement(buffer, calcElementOffset(consumerIndex));
     }
 
-    private void soProducerIndex(long newIndex) {
+    private void soProducerIndex(final long newIndex) {
         UNSAFE.putOrderedLong(this, P_INDEX_OFFSET, newIndex);
     }
 
-    private void soConsumerIndex(long newIndex) {
+    private void soConsumerIndex(final long newIndex) {
         UNSAFE.putOrderedLong(this, C_INDEX_OFFSET, newIndex);
     }
 
