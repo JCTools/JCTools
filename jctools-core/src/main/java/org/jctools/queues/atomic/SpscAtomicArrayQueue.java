@@ -126,6 +126,11 @@ public final class SpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E> 
     public int size() {
         return IndexedQueueSizeUtil.size(this);
     }
+
+    @Override
+    public boolean isEmpty() {
+        return IndexedQueueSizeUtil.isEmpty(this);
+    }
     
     @Override
     public long currentProducerIndex() {
