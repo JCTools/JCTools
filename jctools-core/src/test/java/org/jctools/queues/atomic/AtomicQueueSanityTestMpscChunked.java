@@ -1,6 +1,7 @@
 package org.jctools.queues.atomic;
 
 import org.jctools.queues.QueueSanityTestMpscArray;
+import org.jctools.queues.QueueSanityTestMpscChunked;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
 import org.junit.runner.RunWith;
@@ -11,19 +12,18 @@ import java.util.Collection;
 import java.util.Queue;
 
 @RunWith(Parameterized.class)
-public class MpscAtomicArrayQueueSanityTest extends QueueSanityTestMpscArray
+public class AtomicQueueSanityTestMpscChunked extends QueueSanityTestMpscChunked
 {
     @Parameterized.Parameters
     public static Collection<Object[]> parameters()
     {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
-        // need at least size 2 for this test
-        list.add(makeQueue(0, 1, 2, Ordering.FIFO, new MpscAtomicArrayQueue<>(2)));
-        list.add(makeQueue(0, 1, SIZE, Ordering.FIFO, new MpscAtomicArrayQueue<>(SIZE)));
+        list.add(makeQueue(0, 1, 4, Ordering.FIFO, new MpscChunkedAtomicArrayQueue<>(2, 4)));// MPSC size 1
+        list.add(makeQueue(0, 1, SIZE, Ordering.FIFO, new MpscChunkedAtomicArrayQueue<>(8, SIZE)));// MPSC size SIZE
         return list;
     }
 
-    public MpscAtomicArrayQueueSanityTest(ConcurrentQueueSpec spec, Queue<Integer> queue)
+    public AtomicQueueSanityTestMpscChunked(ConcurrentQueueSpec spec, Queue<Integer> queue)
     {
         super(spec, queue);
     }

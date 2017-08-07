@@ -19,33 +19,11 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.*;
 import static org.junit.Assume.assumeThat;
 
-@RunWith(Parameterized.class)
-public class MpqSanityTest
+public abstract class MpqSanityTest
 {
 
     static final int SIZE = 8192 * 2;
-    public static final int CONCURRENT_TEST_DURATION = 250;
-
-    @Parameterized.Parameters
-    public static Collection<Object[]> parameters()
-    {
-        ArrayList<Object[]> list = new ArrayList<Object[]>();
-        list.add(makeMpq(1, 1, 0, Ordering.FIFO, null));// unbounded SPSC
-        list.add(makeMpq(0, 1, 0, Ordering.FIFO, null));// unbounded MPSC
-
-        list.add(makeMpq(1, 1, 4, Ordering.FIFO, null));// SPSC size 4
-        list.add(makeMpq(1, 1, SIZE, Ordering.FIFO, null));// SPSC size SIZE
-
-        list.add(makeMpq(1, 0, 1, Ordering.FIFO, null));// SPMC size 1
-        list.add(makeMpq(1, 0, SIZE, Ordering.FIFO, null));// SPMC size SIZE
-
-        list.add(makeMpq(0, 1, 1, Ordering.FIFO, null));// MPSC size 1
-        list.add(makeMpq(0, 1, SIZE, Ordering.FIFO, null));// MPSC size SIZE
-
-        list.add(makeMpq(0, 0, 2, Ordering.FIFO, null));
-        list.add(makeMpq(0, 0, SIZE, Ordering.FIFO, null));
-        return list;
-    }
+    static final int CONCURRENT_TEST_DURATION = 250;
 
     private final MessagePassingQueue<Integer> queue;
     private final ConcurrentQueueSpec spec;

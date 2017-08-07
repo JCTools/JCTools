@@ -9,19 +9,18 @@ import java.util.ArrayList;
 import java.util.Collection;
 
 @RunWith(Parameterized.class)
-public class MpqSanityTestSpscUnbounded extends MpqSanityTest
+public class MpqSanityTestSpscArray extends MpqSanityTest
 {
-
     @Parameterized.Parameters
     public static Collection<Object[]> parameters()
     {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
-        list.add(makeMpq(1, 1, 0, Ordering.FIFO, new SpscUnboundedArrayQueue<>(2)));
-        list.add(makeMpq(1, 1, 0, Ordering.FIFO, new SpscUnboundedArrayQueue<>(64)));
+        list.add(makeMpq(1, 1, 4, Ordering.FIFO, null));// SPSC size 4
+        list.add(makeMpq(1, 1, SIZE, Ordering.FIFO, null));// SPSC size SIZE
         return list;
     }
 
-    public MpqSanityTestSpscUnbounded(ConcurrentQueueSpec spec, MessagePassingQueue<Integer> queue)
+    public MpqSanityTestSpscArray(ConcurrentQueueSpec spec, MessagePassingQueue<Integer> queue)
     {
         super(spec, queue);
     }

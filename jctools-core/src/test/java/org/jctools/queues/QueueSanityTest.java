@@ -20,7 +20,7 @@ public abstract class QueueSanityTest
 {
 
     public static final int SIZE = 8192 * 2;
-    public static final int CONCURRENT_TEST_DURATION = 250;
+    static final int CONCURRENT_TEST_DURATION = 250;
 
     protected final Queue<Integer> queue;
     protected final ConcurrentQueueSpec spec;

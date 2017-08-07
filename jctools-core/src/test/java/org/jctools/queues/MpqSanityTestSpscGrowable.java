@@ -16,8 +16,8 @@ public class MpqSanityTestSpscGrowable extends MpqSanityTest
     public static Collection<Object[]> parameters()
     {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
-        list.add(makeMpq(0, 1, 16, Ordering.FIFO, new SpscGrowableArrayQueue<>(8, 16)));
-        list.add(makeMpq(0, 1, SIZE, Ordering.FIFO, new SpscGrowableArrayQueue<>(8, SIZE)));
+        list.add(makeMpq(1, 1, 16, Ordering.FIFO, new SpscGrowableArrayQueue<>(8, 16)));
+        list.add(makeMpq(1, 1, SIZE, Ordering.FIFO, new SpscGrowableArrayQueue<>(8, SIZE)));
         return list;
     }
 

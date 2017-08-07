@@ -20,7 +20,7 @@ import static org.jctools.queues.matchers.Matchers.emptyAndZeroSize;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-public class AtomicSpscArrayQueueTest
+public class SpscAtomicArrayQueueTest
 {
     @Test
     public void shouldWorkAfterWrap()
