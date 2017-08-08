@@ -45,6 +45,14 @@ abstract class SpscAtomicArrayQueueProducerFields<E> extends SpscAtomicArrayQueu
     public SpscAtomicArrayQueueProducerFields(int capacity) {
         super(capacity);
     }
+    
+    public final long lvProducerIndex() {
+        return producerIndex;
+    }
+
+    protected final void soProducerIndex(final long newIndex) {
+        P_INDEX_UPDATER.lazySet(this, newIndex);
+    }
 }
 
 abstract class SpscAtomicArrayQueueL2Pad<E> extends SpscAtomicArrayQueueProducerFields<E> {
@@ -62,6 +70,14 @@ abstract class SpscAtomicArrayQueueConsumerField<E> extends SpscAtomicArrayQueue
     
     public SpscAtomicArrayQueueConsumerField(int capacity) {
         super(capacity);
+    }
+
+    public final long lvConsumerIndex() {
+        return consumerIndex;
+    }
+
+    protected final void soConsumerIndex(final long newIndex) {
+        C_INDEX_UPDATER.lazySet(this, newIndex);
     }
 }
 
@@ -157,24 +173,6 @@ public final class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueConsumerF
     @Override
     public E peek() {
         return lvElement(buffer, calcElementOffset(consumerIndex));
-    }
-
-    private void soProducerIndex(final long newIndex) {
-        P_INDEX_UPDATER.lazySet(this, newIndex);
-    }
-
-    private void soConsumerIndex(final long newIndex) {
-        C_INDEX_UPDATER.lazySet(this, newIndex);
-    }
-
-    @Override
-    public long lvProducerIndex() {
-        return producerIndex;
-    }
-
-    @Override
-    public long lvConsumerIndex() {
-        return consumerIndex;
     }
 
     @Override

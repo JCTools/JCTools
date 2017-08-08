@@ -50,6 +50,16 @@ abstract class SpscArrayQueueProducerFields<E> extends SpscArrayQueueL1Pad<E> {
     public SpscArrayQueueProducerFields(int capacity) {
         super(capacity);
     }
+    
+    @Override
+    public final long lvProducerIndex() {
+        return UNSAFE.getLongVolatile(this, P_INDEX_OFFSET);
+    }
+
+    protected final void soProducerIndex(final long newIndex) {
+        UNSAFE.putOrderedLong(this, P_INDEX_OFFSET, newIndex);
+    }
+    
 }
 
 abstract class SpscArrayQueueL2Pad<E> extends SpscArrayQueueProducerFields<E> {
@@ -74,6 +84,14 @@ abstract class SpscArrayQueueConsumerField<E> extends SpscArrayQueueL2Pad<E> {
     }
     public SpscArrayQueueConsumerField(int capacity) {
         super(capacity);
+    }
+
+    public final long lvConsumerIndex() {
+        return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
+    }
+    
+    protected final void soConsumerIndex(final long newIndex) {
+        UNSAFE.putOrderedLong(this, C_INDEX_OFFSET, newIndex);
     }
 }
 
@@ -172,23 +190,7 @@ public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E> implements
         return lvElement(buffer, calcElementOffset(consumerIndex));
     }
 
-    private void soProducerIndex(final long newIndex) {
-        UNSAFE.putOrderedLong(this, P_INDEX_OFFSET, newIndex);
-    }
 
-    private void soConsumerIndex(final long newIndex) {
-        UNSAFE.putOrderedLong(this, C_INDEX_OFFSET, newIndex);
-    }
-
-    @Override
-    public final long lvProducerIndex() {
-        return UNSAFE.getLongVolatile(this, P_INDEX_OFFSET);
-    }
-
-    @Override
-    public final long lvConsumerIndex() {
-        return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
-    }
 
     @Override
     public boolean relaxedOffer(final E message) {
