@@ -99,7 +99,7 @@ abstract class SpscAtomicArrayQueueConsumerField<E> extends SpscAtomicArrayQueue
  *
  * @param <E>
  */
-public final class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueConsumerField<E> implements IndexedQueue, QueueProgressIndicators {
+public final class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueConsumerField<E> implements QueueProgressIndicators {
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
     

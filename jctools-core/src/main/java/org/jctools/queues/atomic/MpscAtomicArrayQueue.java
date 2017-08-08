@@ -34,7 +34,7 @@ import org.jctools.queues.QueueProgressIndicators;
  * @param <E>
  */
 public final class MpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E>
-        implements IndexedQueue, QueueProgressIndicators {
+        implements QueueProgressIndicators {
     private static final AtomicLongFieldUpdater<MpscAtomicArrayQueue> C_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(MpscAtomicArrayQueue.class, "consumerIndex");
     private static final AtomicLongFieldUpdater<MpscAtomicArrayQueue> P_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(MpscAtomicArrayQueue.class, "producerIndex");
     private static final AtomicLongFieldUpdater<MpscAtomicArrayQueue> P_LIMIT_UPDATER = AtomicLongFieldUpdater.newUpdater(MpscAtomicArrayQueue.class, "producerLimit");

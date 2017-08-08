@@ -114,7 +114,7 @@ abstract class SpmcAtomicArrayQueueL3Pad<E> extends SpmcAtomicArrayQueueProducer
  * @author akarnokd
  * @param <E>
  */
-public final class SpmcAtomicArrayQueue<E> extends SpmcAtomicArrayQueueL3Pad<E> implements IndexedQueue, QueueProgressIndicators {
+public final class SpmcAtomicArrayQueue<E> extends SpmcAtomicArrayQueueL3Pad<E> implements QueueProgressIndicators {
     public SpmcAtomicArrayQueue(int capacity) {
         super(capacity);
     }
