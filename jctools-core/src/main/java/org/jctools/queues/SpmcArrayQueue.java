@@ -207,7 +207,6 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
         return e;
     }
 
-
 	@Override
 	public boolean relaxedOffer(E e) {
 		if (null == e) {

@@ -117,6 +117,7 @@ public final class SpmcAtomicArrayQueue<E> extends SpmcAtomicArrayQueueL3Pad<E> 
     public SpmcAtomicArrayQueue(int capacity) {
         super(capacity);
     }
+    
     @Override
     public boolean offer(final E e) {
         if (null == e) {
