@@ -46,6 +46,7 @@ abstract class MpscArrayQueueTailField<E> extends MpscArrayQueueL1Pad<E> {
         super(capacity);
     }
 
+    @Override
     public final long lvProducerIndex() {
         return producerIndex;
     }
@@ -125,6 +126,7 @@ abstract class MpscArrayQueueConsumerField<E> extends MpscArrayQueueL2Pad<E> {
         return consumerIndex;
     }
 
+    @Override
     public final long lvConsumerIndex() {
         return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
     }
@@ -147,7 +149,7 @@ abstract class MpscArrayQueueConsumerField<E> extends MpscArrayQueueL2Pad<E> {
  *
  * @param <E>
  */
-public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E>implements QueueProgressIndicators {
+public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements QueueProgressIndicators {
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 

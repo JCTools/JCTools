@@ -13,9 +13,12 @@
  */
 package org.jctools.queues.atomic;
 
+import static org.jctools.util.UnsafeRefArrayAccess.soElement;
+
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
+import org.jctools.queues.MpscArrayQueue;
 import org.jctools.queues.QueueProgressIndicators;
 
 abstract class MpscAtomicArrayQueueL1Pad<E> extends AtomicReferenceArrayQueue<E> {
@@ -121,14 +124,61 @@ abstract class MpscAtomicArrayQueueConsumerField<E> extends MpscAtomicArrayQueue
  *
  * @param <E>
  */
-public final class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueConsumerField<E>
-        implements QueueProgressIndicators {
+public final class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueConsumerField<E> implements QueueProgressIndicators {
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
     
     public MpscAtomicArrayQueue(int capacity) {
         super(capacity);
     }
+
+    /**
+     * {@link MpscArrayQueue#offer(E)}} if {@link MpscArrayQueue#size()} is less than threshold.
+     *
+     * @param e the object to offer onto the queue, not null
+     * @param threshold the maximum allowable size
+     * @return true if the offer is successful, false if queue size exceeds threshold
+     * @since 1.0.1
+     */
+    public boolean offerIfBelowThreshold(final E e, int threshold) {
+        if (null == e) {
+            throw new NullPointerException();
+        }
+        final int mask = this.mask;
+        final long capacity = mask + 1;
+
+        long producerLimit = lvProducerLimit(); // LoadLoad
+        long pIndex;
+        do {
+            pIndex = lvProducerIndex(); // LoadLoad
+            long available = producerLimit - pIndex;
+            long size = capacity - available;
+            if (size >= threshold) {
+                final long cIndex = lvConsumerIndex(); // LoadLoad
+                size = pIndex - cIndex;
+                if (size >= threshold) {
+                    return false; // the size exceeds threshold
+                }
+                else {
+                    // update producer limit to the next index that we must recheck the consumer index
+                    producerLimit = cIndex + capacity;
+
+                    // this is racy, but the race is benign
+                    soProducerLimit(producerLimit);
+                }
+            }
+        } while (!casProducerIndex(pIndex, pIndex + 1));
+        /*
+         * NOTE: the new producer index value is made visible BEFORE the element in the array. If we relied on
+         * the index visibility to poll() we would need to handle the case where the element is not visible.
+         */
+
+        // Won CAS, move on to storing
+        final int offset = calcElementOffset(pIndex, mask);
+        soElement(buffer, offset, e); // StoreStore
+        return true; // AWESOME :)
+    }
+    
     /**
      * {@inheritDoc} <br>
      *
