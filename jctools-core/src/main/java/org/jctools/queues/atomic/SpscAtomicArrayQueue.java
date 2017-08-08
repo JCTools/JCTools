@@ -16,8 +16,6 @@ package org.jctools.queues.atomic;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
-import org.jctools.queues.QueueProgressIndicators;
-
 abstract class SpscAtomicArrayQueueColdField<E> extends AtomicReferenceArrayQueue<E> {
     public static final int MAX_LOOK_AHEAD_STEP = Integer.getInteger("jctools.spsc.max.lookahead.step", 4096);
     protected final int lookAheadStep;
@@ -106,7 +104,7 @@ abstract class SpscAtomicArrayQueueL3Pad<E> extends SpscAtomicArrayQueueConsumer
  *
  * @param <E>
  */
-public final class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueL3Pad<E> implements QueueProgressIndicators {
+public final class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueL3Pad<E> {
 
     public SpscAtomicArrayQueue(final int capacity) {
         super(Math.max(capacity, 4));
@@ -180,15 +178,5 @@ public final class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueL3Pad<E> 
     @Override
     public E peek() {
         return lvElement(buffer, calcElementOffset(consumerIndex));
-    }
-    
-    @Override
-    public long currentProducerIndex() {
-        return lvProducerIndex();
-    }
-
-    @Override
-    public long currentConsumerIndex() {
-        return lvConsumerIndex();
     }
 }

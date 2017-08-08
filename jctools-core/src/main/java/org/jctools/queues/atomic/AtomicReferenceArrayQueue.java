@@ -19,9 +19,10 @@ import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import org.jctools.queues.IndexedQueueSizeUtil;
 import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
+import org.jctools.queues.QueueProgressIndicators;
 import org.jctools.util.Pow2;
 
-abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> implements IndexedQueue {
+abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> implements IndexedQueue, QueueProgressIndicators {
     protected final AtomicReferenceArray<E> buffer;
     protected final int mask;
     public AtomicReferenceArrayQueue(int capacity) {
@@ -97,5 +98,15 @@ abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> implements 
     @Override
     public final boolean isEmpty() {
         return IndexedQueueSizeUtil.isEmpty(this);
+    }
+    
+    @Override
+    public final long currentProducerIndex() {
+        return lvProducerIndex();
+    }
+
+    @Override
+    public final long currentConsumerIndex() {
+        return lvConsumerIndex();
     }
 }

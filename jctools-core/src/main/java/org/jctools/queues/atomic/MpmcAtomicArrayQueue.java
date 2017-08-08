@@ -16,7 +16,6 @@ package org.jctools.queues.atomic;
 import java.util.concurrent.atomic.AtomicLongArray;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
-import org.jctools.queues.QueueProgressIndicators;
 import org.jctools.util.RangeUtil;
 
 abstract class MpmcAtomicArrayQueueL1Pad<E> extends SequencedAtomicReferenceArrayQueue<E> {
@@ -81,8 +80,7 @@ abstract class MpmcAtomicArrayQueueL3Pad<E> extends MpmcAtomicArrayQueueConsumer
     }
 }
 
-public class MpmcAtomicArrayQueue<E> extends MpmcAtomicArrayQueueL3Pad<E>
-        implements QueueProgressIndicators {
+public class MpmcAtomicArrayQueue<E> extends MpmcAtomicArrayQueueL3Pad<E> {
     
     public MpmcAtomicArrayQueue(int capacity) {
         super(RangeUtil.checkGreaterThanOrEqual(capacity, 2, "capacity"));
@@ -174,16 +172,6 @@ public class MpmcAtomicArrayQueue<E> extends MpmcAtomicArrayQueueL3Pad<E>
             // only return null if queue is empty
         } while (e == null && cIndex != lvProducerIndex());
         return e;
-    }
-
-    @Override
-    public long currentProducerIndex() {
-        return lvProducerIndex();
-    }
-
-    @Override
-    public long currentConsumerIndex() {
-        return lvConsumerIndex();
     }
     
 

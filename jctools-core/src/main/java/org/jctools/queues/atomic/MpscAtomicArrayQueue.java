@@ -17,7 +17,6 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import org.jctools.queues.MpscArrayQueue;
-import org.jctools.queues.QueueProgressIndicators;
 
 abstract class MpscAtomicArrayQueueL1Pad<E> extends AtomicReferenceArrayQueue<E> {
     long p00, p01, p02, p03, p04, p05, p06, p07;
@@ -130,7 +129,7 @@ abstract class MpscAtomicArrayQueueL3Pad<E> extends MpscAtomicArrayQueueConsumer
  *
  * @param <E>
  */
-public final class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> implements QueueProgressIndicators {
+public final class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
     
     public MpscAtomicArrayQueue(int capacity) {
         super(capacity);
@@ -351,15 +350,5 @@ public final class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> 
             }
         }
         return e;
-    }
-
-    @Override
-    public long currentProducerIndex() {
-        return lvProducerIndex();
-    }
-
-    @Override
-    public long currentConsumerIndex() {
-        return lvConsumerIndex();
     }
 }
