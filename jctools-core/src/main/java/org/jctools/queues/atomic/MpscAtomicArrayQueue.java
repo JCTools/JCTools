@@ -13,7 +13,7 @@
  */
 package org.jctools.queues.atomic;
 
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import org.jctools.queues.IndexedQueueSizeUtil;
@@ -35,14 +35,16 @@ import org.jctools.queues.QueueProgressIndicators;
  */
 public final class MpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E>
         implements IndexedQueue, QueueProgressIndicators {
-    private final AtomicLong consumerIndex;
-    private final AtomicLong producerIndex;
-    private final AtomicLong producerLimit;
+    private static final AtomicLongFieldUpdater<MpscAtomicArrayQueue> C_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(MpscAtomicArrayQueue.class, "consumerIndex");
+    private static final AtomicLongFieldUpdater<MpscAtomicArrayQueue> P_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(MpscAtomicArrayQueue.class, "producerIndex");
+    private static final AtomicLongFieldUpdater<MpscAtomicArrayQueue> P_LIMIT_UPDATER = AtomicLongFieldUpdater.newUpdater(MpscAtomicArrayQueue.class, "producerLimit");
+
+    private volatile long consumerIndex;
+    private volatile long producerIndex;
+    private volatile long producerLimit;
+    
     public MpscAtomicArrayQueue(int capacity) {
         super(capacity);
-        this.consumerIndex = new AtomicLong();
-        this.producerIndex = new AtomicLong();
-        this.producerLimit = new AtomicLong();
     }
     /**
      * {@inheritDoc} <br>
@@ -240,25 +242,26 @@ public final class MpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E>
     }
     @Override
     public final long lvConsumerIndex() {
-        return consumerIndex.get();
+        return consumerIndex;
     }
     @Override
     public final long lvProducerIndex() {
-        return producerIndex.get();
+        return producerIndex;
     }
 
     protected final long lvProducerLimit() {
-        return producerLimit.get();
+        return producerLimit;
     }
 
     protected final void soProducerLimit(long v) {
-        producerLimit.lazySet(v);
+        P_LIMIT_UPDATER.lazySet(this, v);
     }
     
     protected final boolean casProducerIndex(long expect, long newValue) {
-        return producerIndex.compareAndSet(expect, newValue);
+        return P_INDEX_UPDATER.compareAndSet(this, expect, newValue);
     }
+    
     protected void soConsumerIndex(long l) {
-        consumerIndex.lazySet(l);
+        C_INDEX_UPDATER.lazySet(this, l);
     }
 }
