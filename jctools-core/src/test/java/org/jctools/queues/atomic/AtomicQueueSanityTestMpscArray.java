@@ -13,6 +13,11 @@ import java.util.Queue;
 @RunWith(Parameterized.class)
 public class AtomicQueueSanityTestMpscArray extends QueueSanityTestMpscArray
 {
+    public AtomicQueueSanityTestMpscArray(ConcurrentQueueSpec spec, Queue<Integer> queue)
+    {
+        super(spec, queue);
+    }
+
     @Parameterized.Parameters
     public static Collection<Object[]> parameters()
     {
@@ -21,11 +26,6 @@ public class AtomicQueueSanityTestMpscArray extends QueueSanityTestMpscArray
         list.add(makeQueue(0, 1, 2, Ordering.FIFO, new MpscAtomicArrayQueue<>(2)));
         list.add(makeQueue(0, 1, SIZE, Ordering.FIFO, new MpscAtomicArrayQueue<>(SIZE)));
         return list;
-    }
-
-    public AtomicQueueSanityTestMpscArray(ConcurrentQueueSpec spec, Queue<Integer> queue)
-    {
-        super(spec, queue);
     }
 
 }

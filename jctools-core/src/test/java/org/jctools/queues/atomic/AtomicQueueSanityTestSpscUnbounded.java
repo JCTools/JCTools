@@ -1,8 +1,6 @@
 package org.jctools.queues.atomic;
 
-import org.jctools.queues.QueueSanityTest;
 import org.jctools.queues.QueueSanityTestSpscUnbounded;
-import org.jctools.queues.SpscUnboundedArrayQueue;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
 import org.junit.runner.RunWith;
@@ -16,6 +14,11 @@ import java.util.Queue;
 public class AtomicQueueSanityTestSpscUnbounded extends QueueSanityTestSpscUnbounded
 {
 
+    public AtomicQueueSanityTestSpscUnbounded(ConcurrentQueueSpec spec, Queue<Integer> queue)
+    {
+        super(spec, queue);
+    }
+
     @Parameterized.Parameters
     public static Collection<Object[]> parameters()
     {
@@ -23,10 +26,5 @@ public class AtomicQueueSanityTestSpscUnbounded extends QueueSanityTestSpscUnbou
         list.add(makeAtomic(1, 1, 0, Ordering.FIFO, new SpscUnboundedAtomicArrayQueue<>(2)));
         list.add(makeAtomic(1, 1, 0, Ordering.FIFO, new SpscUnboundedAtomicArrayQueue<>(64)));
         return list;
-    }
-
-    public AtomicQueueSanityTestSpscUnbounded(ConcurrentQueueSpec spec, Queue<Integer> queue)
-    {
-        super(spec, queue);
     }
 }

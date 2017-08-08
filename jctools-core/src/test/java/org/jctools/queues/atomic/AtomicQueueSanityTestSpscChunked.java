@@ -1,11 +1,8 @@
 package org.jctools.queues.atomic;
 
-import org.jctools.queues.QueueSanityTest;
 import org.jctools.queues.QueueSanityTestSpscChunked;
-import org.jctools.queues.SpscChunkedArrayQueue;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
-import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 

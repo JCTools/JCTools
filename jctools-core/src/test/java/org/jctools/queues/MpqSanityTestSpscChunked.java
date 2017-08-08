@@ -12,6 +12,11 @@ import java.util.Collection;
 @RunWith(Parameterized.class)
 public class MpqSanityTestSpscChunked extends MpqSanityTest
 {
+    public MpqSanityTestSpscChunked(ConcurrentQueueSpec spec, MessagePassingQueue<Integer> queue)
+    {
+        super(spec, queue);
+    }
+
     @Parameterized.Parameters
     public static Collection<Object[]> parameters()
     {
@@ -19,11 +24,6 @@ public class MpqSanityTestSpscChunked extends MpqSanityTest
         list.add(makeMpq(1, 1, 16, Ordering.FIFO, new SpscChunkedArrayQueue<>(8, 16)));// MPSC size 1
         list.add(makeMpq(1, 1, SIZE, Ordering.FIFO, new SpscChunkedArrayQueue<>(8, SIZE)));// MPSC size SIZE
         return list;
-    }
-
-    public MpqSanityTestSpscChunked(ConcurrentQueueSpec spec, MessagePassingQueue<Integer> queue)
-    {
-        super(spec, queue);
     }
 
     @Test

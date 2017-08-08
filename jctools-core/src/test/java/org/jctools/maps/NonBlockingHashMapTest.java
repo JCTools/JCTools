@@ -19,47 +19,58 @@ import java.util.Map;
  * @since 04/06/17
  */
 @SuppressWarnings("unchecked")
-public class NonBlockingHashMapTest extends TestCase {
+public class NonBlockingHashMapTest extends TestCase
+{
 
-    public static Test suite() throws Exception {
+    public static Test suite() throws Exception
+    {
         TestSuite suite = new TestSuite();
 
-        TestSuite mapSuite = mapTestSuite(new TestStringMapGenerator() {
+        TestSuite mapSuite = mapTestSuite(new TestStringMapGenerator()
+        {
             @Override
-            protected Map<String, String> create(Map.Entry<String, String>[] entries) {
+            protected Map<String, String> create(Map.Entry<String, String>[] entries)
+            {
                 Map<String, String> map = new NonBlockingHashMap<>();
-                for (Map.Entry<String, String> entry : entries) {
+                for (Map.Entry<String, String> entry : entries)
+                {
                     map.put(entry.getKey(), entry.getValue());
                 }
                 return map;
             }
         }, NonBlockingHashMap.class.getSimpleName());
 
-        TestSuite longMapSuite = mapTestSuite(new TestMapGenerator<Long, Long>() {
+        TestSuite longMapSuite = mapTestSuite(new TestMapGenerator<Long, Long>()
+        {
             @Override
-            public Long[] createKeyArray(int length) {
+            public Long[] createKeyArray(int length)
+            {
                 return new Long[length];
             }
 
             @Override
-            public Long[] createValueArray(int length) {
+            public Long[] createValueArray(int length)
+            {
                 return new Long[length];
             }
 
             @Override
-            public SampleElements<Map.Entry<Long, Long>> samples() {
+            public SampleElements<Map.Entry<Long, Long>> samples()
+            {
                 return new SampleElements<>(
-                        Helpers.mapEntry(1L, 1L),
-                        Helpers.mapEntry(2L, 2L),
-                        Helpers.mapEntry(3L, 3L),
-                        Helpers.mapEntry(4L, 4L),
-                        Helpers.mapEntry(5L, 5L));
+                    Helpers.mapEntry(1L, 1L),
+                    Helpers.mapEntry(2L, 2L),
+                    Helpers.mapEntry(3L, 3L),
+                    Helpers.mapEntry(4L, 4L),
+                    Helpers.mapEntry(5L, 5L));
             }
 
             @Override
-            public Map<Long, Long> create(Object... elements) {
+            public Map<Long, Long> create(Object... elements)
+            {
                 Map<Long, Long> map = new NonBlockingHashMapLong<>();
-                for (Object o : elements) {
+                for (Object o : elements)
+                {
                     Map.Entry<Long, Long> e = (Map.Entry<Long, Long>) o;
                     map.put(e.getKey(), e.getValue());
                 }
@@ -67,12 +78,14 @@ public class NonBlockingHashMapTest extends TestCase {
             }
 
             @Override
-            public Map.Entry<Long, Long>[] createArray(int length) {
+            public Map.Entry<Long, Long>[] createArray(int length)
+            {
                 return new Map.Entry[length];
             }
 
             @Override
-            public Iterable<Map.Entry<Long, Long>> order(List<Map.Entry<Long, Long>> insertionOrder) {
+            public Iterable<Map.Entry<Long, Long>> order(List<Map.Entry<Long, Long>> insertionOrder)
+            {
                 return insertionOrder;
             }
         }, NonBlockingHashMapLong.class.getSimpleName());
@@ -82,14 +95,17 @@ public class NonBlockingHashMapTest extends TestCase {
         return suite;
     }
 
-    private static <T> TestSuite mapTestSuite(TestMapGenerator<T, T> testMapGenerator, String name) {
-        return new MapTestSuiteBuilder<T, T>() {
+    private static <T> TestSuite mapTestSuite(TestMapGenerator<T, T> testMapGenerator, String name)
+    {
+        return new MapTestSuiteBuilder<T, T>()
+        {
             {
                 usingGenerator(testMapGenerator);
             }
 
             @Override
-            protected List<Class<? extends AbstractTester>> getTesters() {
+            protected List<Class<? extends AbstractTester>> getTesters()
+            {
                 List<Class<? extends AbstractTester>> testers = new ArrayList<>(super.getTesters());
                 // NonBlockingHashMap doesn't support null in putIfAbsent and provides putIfAbsentAllowsNull instead
                 testers.remove(MapReplaceEntryTester.class);
@@ -97,10 +113,10 @@ public class NonBlockingHashMapTest extends TestCase {
                 return testers;
             }
         }.withFeatures(
-                MapFeature.GENERAL_PURPOSE,
-                CollectionSize.ANY,
-                CollectionFeature.SUPPORTS_ITERATOR_REMOVE)
-                .named(name)
-                .createTestSuite();
+            MapFeature.GENERAL_PURPOSE,
+            CollectionSize.ANY,
+            CollectionFeature.SUPPORTS_ITERATOR_REMOVE)
+            .named(name)
+            .createTestSuite();
     }
 }

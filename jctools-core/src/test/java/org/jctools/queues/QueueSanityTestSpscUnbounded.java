@@ -13,6 +13,11 @@ import java.util.Queue;
 public class QueueSanityTestSpscUnbounded extends QueueSanityTest
 {
 
+    public QueueSanityTestSpscUnbounded(ConcurrentQueueSpec spec, Queue<Integer> queue)
+    {
+        super(spec, queue);
+    }
+
     @Parameterized.Parameters
     public static Collection<Object[]> parameters()
     {
@@ -20,10 +25,5 @@ public class QueueSanityTestSpscUnbounded extends QueueSanityTest
         list.add(makeQueue(1, 1, 0, Ordering.FIFO, new SpscUnboundedArrayQueue<>(2)));
         list.add(makeQueue(1, 1, 0, Ordering.FIFO, new SpscUnboundedArrayQueue<>(64)));
         return list;
-    }
-
-    public QueueSanityTestSpscUnbounded(ConcurrentQueueSpec spec, Queue<Integer> queue)
-    {
-        super(spec, queue);
     }
 }

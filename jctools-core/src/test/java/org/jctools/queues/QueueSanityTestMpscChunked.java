@@ -12,6 +12,11 @@ import java.util.Queue;
 @RunWith(Parameterized.class)
 public class QueueSanityTestMpscChunked extends QueueSanityTestMpscArray
 {
+    public QueueSanityTestMpscChunked(ConcurrentQueueSpec spec, Queue<Integer> queue)
+    {
+        super(spec, queue);
+    }
+
     @Parameterized.Parameters
     public static Collection<Object[]> parameters()
     {
@@ -19,11 +24,6 @@ public class QueueSanityTestMpscChunked extends QueueSanityTestMpscArray
         list.add(makeQueue(0, 1, 4, Ordering.FIFO, new MpscChunkedArrayQueue<>(2, 4)));// MPSC size 1
         list.add(makeQueue(0, 1, SIZE, Ordering.FIFO, new MpscChunkedArrayQueue<>(8, SIZE)));// MPSC size SIZE
         return list;
-    }
-
-    public QueueSanityTestMpscChunked(ConcurrentQueueSpec spec, Queue<Integer> queue)
-    {
-        super(spec, queue);
     }
 
 }

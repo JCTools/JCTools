@@ -12,6 +12,11 @@ import java.util.Queue;
 @RunWith(Parameterized.class)
 public class QueueSanityTestSpmcArray extends QueueSanityTest
 {
+    public QueueSanityTestSpmcArray(ConcurrentQueueSpec spec, Queue<Integer> queue)
+    {
+        super(spec, queue);
+    }
+
     @Parameterized.Parameters
     public static Collection<Object[]> parameters()
     {
@@ -21,11 +26,6 @@ public class QueueSanityTestSpmcArray extends QueueSanityTest
         list.add(makeQueue(1, 0, SIZE, Ordering.FIFO, null));
 
         return list;
-    }
-
-    public QueueSanityTestSpmcArray(ConcurrentQueueSpec spec, Queue<Integer> queue)
-    {
-        super(spec, queue);
     }
 
 }

@@ -6,11 +6,7 @@ import org.jctools.queues.spec.Preference;
 import org.jctools.util.Pow2;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -27,11 +23,24 @@ public abstract class MpqSanityTest
 
     private final MessagePassingQueue<Integer> queue;
     private final ConcurrentQueueSpec spec;
+    int count = 0;
+    Integer p;
 
     public MpqSanityTest(ConcurrentQueueSpec spec, MessagePassingQueue<Integer> queue)
     {
         this.queue = queue;
         this.spec = spec;
+    }
+
+    static Object[] makeMpq(int producers, int consumers, int capacity, Ordering ordering, Queue<Integer> q)
+    {
+        ConcurrentQueueSpec spec = new ConcurrentQueueSpec(producers, consumers, capacity, ordering,
+            Preference.NONE);
+        if (q == null)
+        {
+            q = QueueFactory.newQueue(spec);
+        }
+        return new Object[] {spec, q};
     }
 
     @Before
@@ -91,9 +100,6 @@ public abstract class MpqSanityTest
             assertEquals(0, sum);
         }
     }
-
-    int count = 0;
-    Integer p;
 
     @Test
     public void sanityDrainBatch()
@@ -272,11 +278,6 @@ public abstract class MpqSanityTest
             assertTrue("Failed to insert:" + i, queue.relaxedOffer(i));
         }
         assertFalse(queue.relaxedOffer(n));
-    }
-
-    static final class Val
-    {
-        public int value;
     }
 
     @Test
@@ -572,15 +573,9 @@ public abstract class MpqSanityTest
 
     }
 
-    static Object[] makeMpq(int producers, int consumers, int capacity, Ordering ordering, Queue<Integer> q)
+    static final class Val
     {
-        ConcurrentQueueSpec spec = new ConcurrentQueueSpec(producers, consumers, capacity, ordering,
-            Preference.NONE);
-        if (q == null)
-        {
-            q = QueueFactory.newQueue(spec);
-        }
-        return new Object[] {spec, q};
+        public int value;
     }
 
 }

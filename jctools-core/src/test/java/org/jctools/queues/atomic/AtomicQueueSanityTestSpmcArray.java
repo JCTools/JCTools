@@ -1,6 +1,5 @@
 package org.jctools.queues.atomic;
 
-import org.jctools.queues.QueueSanityTestMpmcArray;
 import org.jctools.queues.QueueSanityTestSpmcArray;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
@@ -15,6 +14,11 @@ import java.util.Queue;
 
 public class AtomicQueueSanityTestSpmcArray extends QueueSanityTestSpmcArray
 {
+    public AtomicQueueSanityTestSpmcArray(ConcurrentQueueSpec spec, Queue<Integer> queue)
+    {
+        super(spec, queue);
+    }
+
     @Parameterized.Parameters
     public static Collection<Object[]> parameters()
     {
@@ -22,11 +26,6 @@ public class AtomicQueueSanityTestSpmcArray extends QueueSanityTestSpmcArray
         list.add(makeAtomic(1, 0, 1, Ordering.FIFO, null));
         list.add(makeAtomic(1, 0, SIZE, Ordering.FIFO, null));
         return list;
-    }
-
-    public AtomicQueueSanityTestSpmcArray(ConcurrentQueueSpec spec, Queue<Integer> queue)
-    {
-        super(spec, queue);
     }
 
 }

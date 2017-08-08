@@ -11,6 +11,11 @@ import java.util.Collection;
 @RunWith(Parameterized.class)
 public class MpqSanityTestMpscUnbounded extends MpqSanityTest
 {
+    public MpqSanityTestMpscUnbounded(ConcurrentQueueSpec spec, MessagePassingQueue<Integer> queue)
+    {
+        super(spec, queue);
+    }
+
     @Parameterized.Parameters
     public static Collection<Object[]> parameters()
     {
@@ -18,11 +23,6 @@ public class MpqSanityTestMpscUnbounded extends MpqSanityTest
         list.add(makeMpq(0, 1, 0, Ordering.FIFO, new MpscUnboundedArrayQueue<>(2)));
         list.add(makeMpq(0, 1, 0, Ordering.FIFO, new MpscUnboundedArrayQueue<>(64)));
         return list;
-    }
-
-    public MpqSanityTestMpscUnbounded(ConcurrentQueueSpec spec, MessagePassingQueue<Integer> queue)
-    {
-        super(spec, queue);
     }
 
 }

@@ -14,6 +14,11 @@ import java.util.Queue;
 
 public class AtomicQueueSanityTestMpmcArray extends QueueSanityTestMpmcArray
 {
+    public AtomicQueueSanityTestMpmcArray(ConcurrentQueueSpec spec, Queue<Integer> queue)
+    {
+        super(spec, queue);
+    }
+
     @Parameterized.Parameters
     public static Collection<Object[]> parameters()
     {
@@ -23,11 +28,6 @@ public class AtomicQueueSanityTestMpmcArray extends QueueSanityTestMpmcArray
         list.add(makeAtomic(0, 0, 2, Ordering.FIFO, null));
         list.add(makeAtomic(0, 0, SIZE, Ordering.FIFO, null));
         return list;
-    }
-
-    public AtomicQueueSanityTestMpmcArray(ConcurrentQueueSpec spec, Queue<Integer> queue)
-    {
-        super(spec, queue);
     }
 
 }

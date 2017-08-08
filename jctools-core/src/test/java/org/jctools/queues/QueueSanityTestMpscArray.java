@@ -16,6 +16,11 @@ import static org.junit.Assert.assertEquals;
 @RunWith(Parameterized.class)
 public class QueueSanityTestMpscArray extends QueueSanityTest
 {
+    public QueueSanityTestMpscArray(ConcurrentQueueSpec spec, Queue<Integer> queue)
+    {
+        super(spec, queue);
+    }
+
     @Parameterized.Parameters
     public static Collection<Object[]> parameters()
     {
@@ -24,11 +29,6 @@ public class QueueSanityTestMpscArray extends QueueSanityTest
         list.add(makeQueue(0, 1, SIZE, Ordering.FIFO, null));
 
         return list;
-    }
-
-    public QueueSanityTestMpscArray(ConcurrentQueueSpec spec, Queue<Integer> queue)
-    {
-        super(spec, queue);
     }
 
     @Test

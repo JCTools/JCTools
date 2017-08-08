@@ -1,6 +1,5 @@
 package org.jctools.queues.atomic;
 
-import org.jctools.queues.QueueSanityTestMpscArray;
 import org.jctools.queues.QueueSanityTestMpscGrowable;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
@@ -14,6 +13,11 @@ import java.util.Queue;
 @RunWith(Parameterized.class)
 public class AtomicQueueSanityTestMpscGrowable extends QueueSanityTestMpscGrowable
 {
+    public AtomicQueueSanityTestMpscGrowable(ConcurrentQueueSpec spec, Queue<Integer> queue)
+    {
+        super(spec, queue);
+    }
+
     @Parameterized.Parameters
     public static Collection<Object[]> parameters()
     {
@@ -21,10 +25,5 @@ public class AtomicQueueSanityTestMpscGrowable extends QueueSanityTestMpscGrowab
         list.add(makeQueue(0, 1, 4, Ordering.FIFO, new MpscGrowableAtomicArrayQueue<>(2, 4)));// MPSC size 1
         list.add(makeQueue(0, 1, SIZE, Ordering.FIFO, new MpscGrowableAtomicArrayQueue<>(8, SIZE)));// MPSC size SIZE
         return list;
-    }
-
-    public AtomicQueueSanityTestMpscGrowable(ConcurrentQueueSpec spec, Queue<Integer> queue)
-    {
-        super(spec, queue);
     }
 }
