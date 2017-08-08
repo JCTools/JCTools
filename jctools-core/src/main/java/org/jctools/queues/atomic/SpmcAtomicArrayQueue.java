@@ -13,11 +13,11 @@
  */
 package org.jctools.queues.atomic;
 
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
-import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
 import org.jctools.queues.IndexedQueueSizeUtil;
+import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
 import org.jctools.queues.QueueProgressIndicators;
 
 /**
@@ -25,15 +25,16 @@ import org.jctools.queues.QueueProgressIndicators;
  * @author akarnokd
  * @param <E>
  */
-public final class SpmcAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E> implements IndexedQueue, QueueProgressIndicators{
-    private final AtomicLong consumerIndex;
-    private final AtomicLong producerIndex;
-    private final AtomicLong producerIndexCache;
+public final class SpmcAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E> implements IndexedQueue, QueueProgressIndicators {
+    protected static final AtomicLongFieldUpdater<SpmcAtomicArrayQueue> C_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(SpmcAtomicArrayQueue.class, "consumerIndex");
+    protected static final AtomicLongFieldUpdater<SpmcAtomicArrayQueue> P_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(SpmcAtomicArrayQueue.class, "producerIndex");
+    protected static final AtomicLongFieldUpdater<SpmcAtomicArrayQueue> P_INDEX_CACHE_UPDATER = AtomicLongFieldUpdater.newUpdater(SpmcAtomicArrayQueue.class, "producerIndexCache");
+
+    private volatile long consumerIndex;
+    private volatile long producerIndex;
+    private volatile long producerIndexCache;
     public SpmcAtomicArrayQueue(int capacity) {
         super(capacity);
-        this.consumerIndex = new AtomicLong();
-        this.producerIndex = new AtomicLong();
-        this.producerIndexCache = new AtomicLong();
     }
     @Override
     public boolean offer(final E e) {
@@ -113,29 +114,29 @@ public final class SpmcAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E> 
     }
     
     protected final long lvProducerIndexCache() {
-        return producerIndexCache.get();
+        return producerIndexCache;
     }
 
     protected final void svProducerIndexCache(long v) {
-        producerIndexCache.set(v);
+        P_INDEX_CACHE_UPDATER.set(this, v);
     }
     
     @Override
     public final long lvConsumerIndex() {
-        return consumerIndex.get();
+        return consumerIndex;
     }
 
     protected final boolean casHead(long expect, long newValue) {
-        return consumerIndex.compareAndSet(expect, newValue);
+        return C_INDEX_UPDATER.compareAndSet(this, expect, newValue);
     }
 
     @Override
     public final long lvProducerIndex() {
-        return producerIndex.get();
+        return producerIndex;
     }
 
     protected final void soProducerIndex(long v) {
-        producerIndex.lazySet(v);
+        P_INDEX_UPDATER.lazySet(this, v);
     }
 
     @Override
