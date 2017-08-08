@@ -17,6 +17,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import org.jctools.queues.QueueProgressIndicators;
+import org.jctools.queues.IndexedQueueSizeUtil;
+import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
 
 /**
  * A Multi-Producer-Single-Consumer queue based on a {@link AtomicReferenceArrayQueue}. This implies that
@@ -32,7 +34,7 @@ import org.jctools.queues.QueueProgressIndicators;
  * @param <E>
  */
 public final class MpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E>
-        implements QueueProgressIndicators {
+        implements IndexedQueue, QueueProgressIndicators {
     private final AtomicLong consumerIndex;
     private final AtomicLong producerIndex;
     private volatile long headCache;
@@ -202,31 +204,12 @@ public final class MpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E>
      */
     @Override
     public int size() {
-        /*
-         * It is possible for a thread to be interrupted or reschedule between the read of the producer and
-         * consumer indices, therefore protection is required to ensure size is within valid range. In the
-         * event of concurrent polls/offers to this method the size is OVER estimated as we read consumer
-         * index BEFORE the producer index.
-         */
-        long after = lvConsumerIndex();
-        while (true) {
-            final long before = after;
-            final long currentProducerIndex = lvProducerIndex();
-            after = lvConsumerIndex();
-            if (before == after) {
-                return (int) (currentProducerIndex - after);
-            }
-        }
+        return IndexedQueueSizeUtil.size(this);
     }
 
     @Override
     public boolean isEmpty() {
-        // Order matters!
-        // Loading consumer before producer allows for producer increments after consumer index is read.
-        // This ensures the correctness of this method at least for the consumer thread. Other threads POV is
-        // not really
-        // something we can fix here.
-        return (lvConsumerIndex() == lvProducerIndex());
+        return IndexedQueueSizeUtil.isEmpty(this);
     }
 
     @Override
@@ -238,10 +221,12 @@ public final class MpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E>
     public long currentConsumerIndex() {
         return lvConsumerIndex();
     }
-    private long lvConsumerIndex() {
+    @Override
+    public final long lvConsumerIndex() {
         return consumerIndex.get();
     }
-    private long lvProducerIndex() {
+    @Override
+    public final long lvProducerIndex() {
         return producerIndex.get();
     }
     protected final long lvConsumerIndexCache() {
