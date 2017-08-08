@@ -13,8 +13,6 @@
  */
 package org.jctools.queues.atomic;
 
-import static org.jctools.util.UnsafeRefArrayAccess.soElement;
-
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
@@ -30,12 +28,12 @@ abstract class MpscAtomicArrayQueueL1Pad<E> extends AtomicReferenceArrayQueue<E>
     }
 }
 
-abstract class MpscAtomicArrayQueueTailField<E> extends MpscAtomicArrayQueueL1Pad<E> {
-    private static final AtomicLongFieldUpdater<MpscAtomicArrayQueueTailField> P_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(MpscAtomicArrayQueueTailField.class, "producerIndex");
+abstract class MpscAtomicArrayProducerIndexField<E> extends MpscAtomicArrayQueueL1Pad<E> {
+    private static final AtomicLongFieldUpdater<MpscAtomicArrayProducerIndexField> P_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(MpscAtomicArrayProducerIndexField.class, "producerIndex");
     
     private volatile long producerIndex;
 
-    public MpscAtomicArrayQueueTailField(int capacity) {
+    public MpscAtomicArrayProducerIndexField(int capacity) {
         super(capacity);
     }
     
@@ -49,7 +47,7 @@ abstract class MpscAtomicArrayQueueTailField<E> extends MpscAtomicArrayQueueL1Pa
     }
 }
 
-abstract class MpscAtomicArrayQueueMidPad<E> extends MpscAtomicArrayQueueTailField<E> {
+abstract class MpscAtomicArrayQueueMidPad<E> extends MpscAtomicArrayProducerIndexField<E> {
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
@@ -58,13 +56,13 @@ abstract class MpscAtomicArrayQueueMidPad<E> extends MpscAtomicArrayQueueTailFie
     }
 }
 
-abstract class MpscAtomicArrayQueueHeadLimitField<E> extends MpscAtomicArrayQueueMidPad<E> {
-    private static final AtomicLongFieldUpdater<MpscAtomicArrayQueueHeadLimitField> P_LIMIT_UPDATER = AtomicLongFieldUpdater.newUpdater(MpscAtomicArrayQueueHeadLimitField.class, "producerLimit");
+abstract class MpscAtomicArrayQueueProducerLimitField<E> extends MpscAtomicArrayQueueMidPad<E> {
+    private static final AtomicLongFieldUpdater<MpscAtomicArrayQueueProducerLimitField> P_LIMIT_UPDATER = AtomicLongFieldUpdater.newUpdater(MpscAtomicArrayQueueProducerLimitField.class, "producerLimit");
 
     // First unavailable index the producer may claim up to before rereading the consumer index
     private volatile long producerLimit;
 
-    public MpscAtomicArrayQueueHeadLimitField(int capacity) {
+    public MpscAtomicArrayQueueProducerLimitField(int capacity) {
         super(capacity);
         this.producerLimit = capacity;
     }
@@ -78,7 +76,7 @@ abstract class MpscAtomicArrayQueueHeadLimitField<E> extends MpscAtomicArrayQueu
     }
 }
 
-abstract class MpscAtomicArrayQueueL2Pad<E> extends MpscAtomicArrayQueueHeadLimitField<E> {
+abstract class MpscAtomicArrayQueueL2Pad<E> extends MpscAtomicArrayQueueProducerLimitField<E> {
     long p00, p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16;
 
@@ -87,12 +85,12 @@ abstract class MpscAtomicArrayQueueL2Pad<E> extends MpscAtomicArrayQueueHeadLimi
     }
 }
 
-abstract class MpscAtomicArrayQueueConsumerField<E> extends MpscAtomicArrayQueueL2Pad<E> {
-    private static final AtomicLongFieldUpdater<MpscAtomicArrayQueueConsumerField> C_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(MpscAtomicArrayQueueConsumerField.class, "consumerIndex");
+abstract class MpscAtomicArrayQueueConsumerIndexField<E> extends MpscAtomicArrayQueueL2Pad<E> {
+    private static final AtomicLongFieldUpdater<MpscAtomicArrayQueueConsumerIndexField> C_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(MpscAtomicArrayQueueConsumerIndexField.class, "consumerIndex");
 
     protected volatile long consumerIndex;
 
-    public MpscAtomicArrayQueueConsumerField(int capacity) {
+    public MpscAtomicArrayQueueConsumerIndexField(int capacity) {
         super(capacity);
     }
 
@@ -110,6 +108,14 @@ abstract class MpscAtomicArrayQueueConsumerField<E> extends MpscAtomicArrayQueue
     }
 }
 
+abstract class MpscAtomicArrayQueueL3Pad<E> extends MpscAtomicArrayQueueConsumerIndexField<E> {
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
+
+    public MpscAtomicArrayQueueL3Pad(int capacity) {
+        super(capacity);
+    }
+}
 
 /**
  * A Multi-Producer-Single-Consumer queue based on a {@link AtomicReferenceArrayQueue}. This implies that
@@ -124,9 +130,7 @@ abstract class MpscAtomicArrayQueueConsumerField<E> extends MpscAtomicArrayQueue
  *
  * @param <E>
  */
-public final class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueConsumerField<E> implements QueueProgressIndicators {
-    long p01, p02, p03, p04, p05, p06, p07;
-    long p10, p11, p12, p13, p14, p15, p16, p17;
+public final class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> implements QueueProgressIndicators {
     
     public MpscAtomicArrayQueue(int capacity) {
         super(capacity);

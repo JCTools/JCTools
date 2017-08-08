@@ -29,8 +29,8 @@ abstract class SpmcAtomicArrayQueueL1Pad<E> extends AtomicReferenceArrayQueue<E>
     }
 }
 
-abstract class SpmcAtomicArrayQueueProducerField<E> extends SpmcAtomicArrayQueueL1Pad<E> {
-    private static final AtomicLongFieldUpdater<SpmcAtomicArrayQueueProducerField> P_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(SpmcAtomicArrayQueueProducerField.class, "producerIndex");
+abstract class SpmcAtomicArrayQueueProducerIndexField<E> extends SpmcAtomicArrayQueueL1Pad<E> {
+    private static final AtomicLongFieldUpdater<SpmcAtomicArrayQueueProducerIndexField> P_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(SpmcAtomicArrayQueueProducerIndexField.class, "producerIndex");
     private volatile long producerIndex;
 
     @Override
@@ -42,11 +42,11 @@ abstract class SpmcAtomicArrayQueueProducerField<E> extends SpmcAtomicArrayQueue
         P_INDEX_UPDATER.lazySet(this, v);
     }
 
-    public SpmcAtomicArrayQueueProducerField(int capacity) {
+    public SpmcAtomicArrayQueueProducerIndexField(int capacity) {
         super(capacity);
     }
 }
-abstract class SpmcAtomicArrayQueueL2Pad<E> extends SpmcAtomicArrayQueueProducerField<E> {
+abstract class SpmcAtomicArrayQueueL2Pad<E> extends SpmcAtomicArrayQueueProducerIndexField<E> {
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
@@ -54,12 +54,12 @@ abstract class SpmcAtomicArrayQueueL2Pad<E> extends SpmcAtomicArrayQueueProducer
         super(capacity);
     }
 }
-abstract class SpmcAtomicArrayQueueConsumerField<E> extends SpmcAtomicArrayQueueL2Pad<E> {
-    protected static final AtomicLongFieldUpdater<SpmcAtomicArrayQueueConsumerField> C_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(SpmcAtomicArrayQueueConsumerField.class, "consumerIndex");
+abstract class SpmcAtomicArrayQueueConsumerIndexField<E> extends SpmcAtomicArrayQueueL2Pad<E> {
+    protected static final AtomicLongFieldUpdater<SpmcAtomicArrayQueueConsumerIndexField> C_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(SpmcAtomicArrayQueueConsumerIndexField.class, "consumerIndex");
 
     private volatile long consumerIndex;
 
-    public SpmcAtomicArrayQueueConsumerField(int capacity) {
+    public SpmcAtomicArrayQueueConsumerIndexField(int capacity) {
         super(capacity);
     }
 
@@ -73,7 +73,7 @@ abstract class SpmcAtomicArrayQueueConsumerField<E> extends SpmcAtomicArrayQueue
     }
 }
 
-abstract class SpmcAtomicArrayQueueMidPad<E> extends SpmcAtomicArrayQueueConsumerField<E> {
+abstract class SpmcAtomicArrayQueueMidPad<E> extends SpmcAtomicArrayQueueConsumerIndexField<E> {
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
@@ -115,6 +115,7 @@ abstract class SpmcAtomicArrayQueueL3Pad<E> extends SpmcAtomicArrayQueueProducer
  * @param <E>
  */
 public final class SpmcAtomicArrayQueue<E> extends SpmcAtomicArrayQueueL3Pad<E> implements QueueProgressIndicators {
+    
     public SpmcAtomicArrayQueue(int capacity) {
         super(capacity);
     }

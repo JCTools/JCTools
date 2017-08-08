@@ -16,8 +16,6 @@ package org.jctools.queues.atomic;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
-import org.jctools.queues.IndexedQueueSizeUtil;
-import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
 import org.jctools.queues.QueueProgressIndicators;
 
 abstract class SpscAtomicArrayQueueColdField<E> extends AtomicReferenceArrayQueue<E> {
@@ -37,12 +35,12 @@ abstract class SpscAtomicArrayQueueL1Pad<E> extends SpscAtomicArrayQueueColdFiel
     }
 }
 
-abstract class SpscAtomicArrayQueueProducerFields<E> extends SpscAtomicArrayQueueL1Pad<E> {
-    protected static final AtomicLongFieldUpdater<SpscAtomicArrayQueueProducerFields> P_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(SpscAtomicArrayQueueProducerFields.class, "producerIndex");
+abstract class SpscAtomicArrayQueueProducerIndexFields<E> extends SpscAtomicArrayQueueL1Pad<E> {
+    protected static final AtomicLongFieldUpdater<SpscAtomicArrayQueueProducerIndexFields> P_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(SpscAtomicArrayQueueProducerIndexFields.class, "producerIndex");
     protected volatile long producerIndex;
     protected long producerLimit;
 
-    public SpscAtomicArrayQueueProducerFields(int capacity) {
+    public SpscAtomicArrayQueueProducerIndexFields(int capacity) {
         super(capacity);
     }
     
@@ -56,7 +54,7 @@ abstract class SpscAtomicArrayQueueProducerFields<E> extends SpscAtomicArrayQueu
     }
 }
 
-abstract class SpscAtomicArrayQueueL2Pad<E> extends SpscAtomicArrayQueueProducerFields<E> {
+abstract class SpscAtomicArrayQueueL2Pad<E> extends SpscAtomicArrayQueueProducerIndexFields<E> {
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
@@ -65,11 +63,11 @@ abstract class SpscAtomicArrayQueueL2Pad<E> extends SpscAtomicArrayQueueProducer
     }
 }
 
-abstract class SpscAtomicArrayQueueConsumerField<E> extends SpscAtomicArrayQueueL2Pad<E> {
-    protected static final AtomicLongFieldUpdater<SpscAtomicArrayQueueConsumerField> C_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(SpscAtomicArrayQueueConsumerField.class, "consumerIndex");
+abstract class SpscAtomicArrayQueueConsumerIndexField<E> extends SpscAtomicArrayQueueL2Pad<E> {
+    protected static final AtomicLongFieldUpdater<SpscAtomicArrayQueueConsumerIndexField> C_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(SpscAtomicArrayQueueConsumerIndexField.class, "consumerIndex");
     protected volatile long consumerIndex;
     
-    public SpscAtomicArrayQueueConsumerField(int capacity) {
+    public SpscAtomicArrayQueueConsumerIndexField(int capacity) {
         super(capacity);
     }
 
@@ -80,6 +78,15 @@ abstract class SpscAtomicArrayQueueConsumerField<E> extends SpscAtomicArrayQueue
 
     protected final void soConsumerIndex(final long newIndex) {
         C_INDEX_UPDATER.lazySet(this, newIndex);
+    }
+}
+
+abstract class SpscAtomicArrayQueueL3Pad<E> extends SpscAtomicArrayQueueConsumerIndexField<E> {
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
+
+    public SpscAtomicArrayQueueL3Pad(int capacity) {
+        super(capacity);
     }
 }
 
@@ -99,10 +106,8 @@ abstract class SpscAtomicArrayQueueConsumerField<E> extends SpscAtomicArrayQueue
  *
  * @param <E>
  */
-public final class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueConsumerField<E> implements QueueProgressIndicators {
-    long p01, p02, p03, p04, p05, p06, p07;
-    long p10, p11, p12, p13, p14, p15, p16, p17;
-    
+public final class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueL3Pad<E> implements QueueProgressIndicators {
+
     public SpscAtomicArrayQueue(final int capacity) {
         super(Math.max(capacity, 4));
     }

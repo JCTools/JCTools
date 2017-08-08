@@ -27,13 +27,13 @@ abstract class MpscArrayQueueL1Pad<E> extends ConcurrentCircularArrayQueue<E> {
     }
 }
 
-abstract class MpscArrayQueueTailField<E> extends MpscArrayQueueL1Pad<E> {
+abstract class MpscArrayQueueProducerIndexField<E> extends MpscArrayQueueL1Pad<E> {
     private final static long P_INDEX_OFFSET;
 
     static {
         try {
             P_INDEX_OFFSET = UNSAFE
-                    .objectFieldOffset(MpscArrayQueueTailField.class.getDeclaredField("producerIndex"));
+                    .objectFieldOffset(MpscArrayQueueProducerIndexField.class.getDeclaredField("producerIndex"));
         }
         catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
@@ -42,7 +42,7 @@ abstract class MpscArrayQueueTailField<E> extends MpscArrayQueueL1Pad<E> {
 
     private volatile long producerIndex;
 
-    public MpscArrayQueueTailField(int capacity) {
+    public MpscArrayQueueProducerIndexField(int capacity) {
         super(capacity);
     }
 
@@ -56,7 +56,7 @@ abstract class MpscArrayQueueTailField<E> extends MpscArrayQueueL1Pad<E> {
     }
 }
 
-abstract class MpscArrayQueueMidPad<E> extends MpscArrayQueueTailField<E> {
+abstract class MpscArrayQueueMidPad<E> extends MpscArrayQueueProducerIndexField<E> {
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
@@ -65,13 +65,13 @@ abstract class MpscArrayQueueMidPad<E> extends MpscArrayQueueTailField<E> {
     }
 }
 
-abstract class MpscArrayQueueHeadLimitField<E> extends MpscArrayQueueMidPad<E> {
+abstract class MpscArrayQueueProducerLimitField<E> extends MpscArrayQueueMidPad<E> {
     private final static long P_LIMIT_OFFSET;
 
     static {
         try {
             P_LIMIT_OFFSET = UNSAFE
-                    .objectFieldOffset(MpscArrayQueueHeadLimitField.class.getDeclaredField("producerLimit"));
+                    .objectFieldOffset(MpscArrayQueueProducerLimitField.class.getDeclaredField("producerLimit"));
         }
         catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
@@ -80,7 +80,7 @@ abstract class MpscArrayQueueHeadLimitField<E> extends MpscArrayQueueMidPad<E> {
     // First unavailable index the producer may claim up to before rereading the consumer index
     private volatile long producerLimit;
 
-    public MpscArrayQueueHeadLimitField(int capacity) {
+    public MpscArrayQueueProducerLimitField(int capacity) {
         super(capacity);
         this.producerLimit = capacity;
     }
@@ -94,7 +94,7 @@ abstract class MpscArrayQueueHeadLimitField<E> extends MpscArrayQueueMidPad<E> {
     }
 }
 
-abstract class MpscArrayQueueL2Pad<E> extends MpscArrayQueueHeadLimitField<E> {
+abstract class MpscArrayQueueL2Pad<E> extends MpscArrayQueueProducerLimitField<E> {
     long p00, p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16;
 
@@ -103,13 +103,13 @@ abstract class MpscArrayQueueL2Pad<E> extends MpscArrayQueueHeadLimitField<E> {
     }
 }
 
-abstract class MpscArrayQueueConsumerField<E> extends MpscArrayQueueL2Pad<E> {
+abstract class MpscArrayQueueConsumerIndexField<E> extends MpscArrayQueueL2Pad<E> {
     private final static long C_INDEX_OFFSET;
 
     static {
         try {
             C_INDEX_OFFSET = UNSAFE
-                    .objectFieldOffset(MpscArrayQueueConsumerField.class.getDeclaredField("consumerIndex"));
+                    .objectFieldOffset(MpscArrayQueueConsumerIndexField.class.getDeclaredField("consumerIndex"));
         }
         catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
@@ -118,7 +118,7 @@ abstract class MpscArrayQueueConsumerField<E> extends MpscArrayQueueL2Pad<E> {
 
     protected long consumerIndex;
 
-    public MpscArrayQueueConsumerField(int capacity) {
+    public MpscArrayQueueConsumerIndexField(int capacity) {
         super(capacity);
     }
 
@@ -136,6 +136,15 @@ abstract class MpscArrayQueueConsumerField<E> extends MpscArrayQueueL2Pad<E> {
     }
 }
 
+abstract class MpscArrayQueueL3Pad<E> extends MpscArrayQueueConsumerIndexField<E> {
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
+
+    public MpscArrayQueueL3Pad(int capacity) {
+        super(capacity);
+    }
+}
+
 /**
  * A Multi-Producer-Single-Consumer queue based on a {@link ConcurrentCircularArrayQueue}. This implies that
  * any thread may call the offer method, but only a single thread may call poll/peek for correctness to
@@ -149,9 +158,7 @@ abstract class MpscArrayQueueConsumerField<E> extends MpscArrayQueueL2Pad<E> {
  *
  * @param <E>
  */
-public class MpscArrayQueue<E> extends MpscArrayQueueConsumerField<E> implements QueueProgressIndicators {
-    long p01, p02, p03, p04, p05, p06, p07;
-    long p10, p11, p12, p13, p14, p15, p16, p17;
+public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E> implements QueueProgressIndicators {
 
     public MpscArrayQueue(final int capacity) {
         super(capacity);

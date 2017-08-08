@@ -34,12 +34,12 @@ abstract class SpscArrayQueueL1Pad<E> extends SpscArrayQueueColdField<E> {
     }
 }
 
-abstract class SpscArrayQueueProducerFields<E> extends SpscArrayQueueL1Pad<E> {
+abstract class SpscArrayQueueProducerIndexFields<E> extends SpscArrayQueueL1Pad<E> {
     protected final static long P_INDEX_OFFSET;
     static {
         try {
             P_INDEX_OFFSET =
-                UNSAFE.objectFieldOffset(SpscArrayQueueProducerFields.class.getDeclaredField("producerIndex"));
+                UNSAFE.objectFieldOffset(SpscArrayQueueProducerIndexFields.class.getDeclaredField("producerIndex"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
@@ -47,7 +47,7 @@ abstract class SpscArrayQueueProducerFields<E> extends SpscArrayQueueL1Pad<E> {
     protected long producerIndex;
     protected long producerLimit;
 
-    public SpscArrayQueueProducerFields(int capacity) {
+    public SpscArrayQueueProducerIndexFields(int capacity) {
         super(capacity);
     }
     
@@ -62,7 +62,7 @@ abstract class SpscArrayQueueProducerFields<E> extends SpscArrayQueueL1Pad<E> {
     
 }
 
-abstract class SpscArrayQueueL2Pad<E> extends SpscArrayQueueProducerFields<E> {
+abstract class SpscArrayQueueL2Pad<E> extends SpscArrayQueueProducerIndexFields<E> {
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
@@ -71,18 +71,18 @@ abstract class SpscArrayQueueL2Pad<E> extends SpscArrayQueueProducerFields<E> {
     }
 }
 
-abstract class SpscArrayQueueConsumerField<E> extends SpscArrayQueueL2Pad<E> {
+abstract class SpscArrayQueueConsumerIndexField<E> extends SpscArrayQueueL2Pad<E> {
     protected long consumerIndex;
     protected final static long C_INDEX_OFFSET;
     static {
         try {
             C_INDEX_OFFSET =
-                UNSAFE.objectFieldOffset(SpscArrayQueueConsumerField.class.getDeclaredField("consumerIndex"));
+                UNSAFE.objectFieldOffset(SpscArrayQueueConsumerIndexField.class.getDeclaredField("consumerIndex"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
     }
-    public SpscArrayQueueConsumerField(int capacity) {
+    public SpscArrayQueueConsumerIndexField(int capacity) {
         super(capacity);
     }
 
@@ -92,6 +92,15 @@ abstract class SpscArrayQueueConsumerField<E> extends SpscArrayQueueL2Pad<E> {
     
     protected final void soConsumerIndex(final long newIndex) {
         UNSAFE.putOrderedLong(this, C_INDEX_OFFSET, newIndex);
+    }
+}
+
+abstract class SpscArrayQueueL3Pad<E> extends SpscArrayQueueConsumerIndexField<E> {
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
+
+    public SpscArrayQueueL3Pad(int capacity) {
+        super(capacity);
     }
 }
 
@@ -112,9 +121,7 @@ abstract class SpscArrayQueueConsumerField<E> extends SpscArrayQueueL2Pad<E> {
  *
  * @param <E>
  */
-public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E> implements QueueProgressIndicators {
-    long p01, p02, p03, p04, p05, p06, p07;
-    long p10, p11, p12, p13, p14, p15, p16, p17;
+public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E> implements QueueProgressIndicators {
     
     public SpscArrayQueue(final int capacity) {
         super(Math.max(capacity, 4));
@@ -189,7 +196,6 @@ public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E> implements
     public E peek() {
         return lvElement(buffer, calcElementOffset(consumerIndex));
     }
-
 
 
     @Override
