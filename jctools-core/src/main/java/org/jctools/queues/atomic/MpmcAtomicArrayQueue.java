@@ -19,15 +19,71 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import org.jctools.queues.QueueProgressIndicators;
 import org.jctools.util.RangeUtil;
 
-public class MpmcAtomicArrayQueue<E> extends SequencedAtomicReferenceArrayQueue<E>
-        implements QueueProgressIndicators {
-    
-    private static final AtomicLongFieldUpdater<MpmcAtomicArrayQueue> P_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(MpmcAtomicArrayQueue.class, "producerIndex");
-    private static final AtomicLongFieldUpdater<MpmcAtomicArrayQueue> C_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(MpmcAtomicArrayQueue.class, "consumerIndex");
-    
+abstract class MpmcAtomicArrayQueueL1Pad<E> extends SequencedAtomicReferenceArrayQueue<E> {
+    long p00, p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16;
+    public MpmcAtomicArrayQueueL1Pad(int capacity) {
+        super(capacity);
+    }
+}
+
+abstract class MpmcAtomicArrayQueueProducerIndexField<E> extends MpmcAtomicArrayQueueL1Pad<E> {
+    private static final AtomicLongFieldUpdater<MpmcAtomicArrayQueueProducerIndexField> P_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(MpmcAtomicArrayQueueProducerIndexField.class, "producerIndex");
+
     private volatile long producerIndex;
+
+    public MpmcAtomicArrayQueueProducerIndexField(int capacity) {
+        super(capacity);
+    }
+
+    @Override
+    public final long lvProducerIndex() {
+        return producerIndex;
+    }
+
+    protected final boolean casProducerIndex(long expect, long newValue) {
+        return P_INDEX_UPDATER.compareAndSet(this, expect, newValue);
+    }
+}
+
+abstract class MpmcAtomicArrayQueueL2Pad<E> extends MpmcAtomicArrayQueueProducerIndexField<E> {
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
+    public MpmcAtomicArrayQueueL2Pad(int capacity) {
+        super(capacity);
+    }
+}
+
+abstract class MpmcAtomicArrayQueueConsumerIndexField<E> extends MpmcAtomicArrayQueueL2Pad<E> {
+    private static final AtomicLongFieldUpdater<MpmcAtomicArrayQueueConsumerIndexField> C_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(MpmcAtomicArrayQueueConsumerIndexField.class, "consumerIndex");
+
     private volatile long consumerIndex;
 
+    public MpmcAtomicArrayQueueConsumerIndexField(int capacity) {
+        super(capacity);
+    }
+    
+    @Override
+    public final long lvConsumerIndex() {
+        return consumerIndex;
+    }
+
+    protected final boolean casConsumerIndex(long expect, long newValue) {
+        return C_INDEX_UPDATER.compareAndSet(this, expect, newValue);
+    }
+}
+
+abstract class MpmcAtomicArrayQueueL3Pad<E> extends MpmcAtomicArrayQueueConsumerIndexField<E> {
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
+    public MpmcAtomicArrayQueueL3Pad(int capacity) {
+        super(capacity);
+    }
+}
+
+public class MpmcAtomicArrayQueue<E> extends MpmcAtomicArrayQueueL3Pad<E>
+        implements QueueProgressIndicators {
+    
     public MpmcAtomicArrayQueue(int capacity) {
         super(RangeUtil.checkGreaterThanOrEqual(capacity, 2, "capacity"));
     }
@@ -129,23 +185,6 @@ public class MpmcAtomicArrayQueue<E> extends SequencedAtomicReferenceArrayQueue<
     public long currentConsumerIndex() {
         return lvConsumerIndex();
     }
-
-    @Override
-    public final long lvProducerIndex() {
-        return producerIndex;
-    }
-
-    protected final boolean casProducerIndex(long expect, long newValue) {
-        return P_INDEX_UPDATER.compareAndSet(this, expect, newValue);
-    }
     
-    @Override
-    public final long lvConsumerIndex() {
-        return consumerIndex;
-    }
-
-    protected final boolean casConsumerIndex(long expect, long newValue) {
-        return C_INDEX_UPDATER.compareAndSet(this, expect, newValue);
-    }
 
 }

@@ -28,11 +28,11 @@ abstract class MpmcArrayQueueL1Pad<E> extends ConcurrentSequencedCircularArrayQu
     }
 }
 
-abstract class MpmcArrayQueueProducerField<E> extends MpmcArrayQueueL1Pad<E> {
+abstract class MpmcArrayQueueProducerIndexField<E> extends MpmcArrayQueueL1Pad<E> {
     private final static long P_INDEX_OFFSET;
     static {
         try {
-            P_INDEX_OFFSET = UNSAFE.objectFieldOffset(MpmcArrayQueueProducerField.class
+            P_INDEX_OFFSET = UNSAFE.objectFieldOffset(MpmcArrayQueueProducerIndexField.class
                     .getDeclaredField("producerIndex"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
@@ -40,7 +40,7 @@ abstract class MpmcArrayQueueProducerField<E> extends MpmcArrayQueueL1Pad<E> {
     }
     private volatile long producerIndex;
 
-    public MpmcArrayQueueProducerField(int capacity) {
+    public MpmcArrayQueueProducerIndexField(int capacity) {
         super(capacity);
     }
 
@@ -53,7 +53,7 @@ abstract class MpmcArrayQueueProducerField<E> extends MpmcArrayQueueL1Pad<E> {
     }
 }
 
-abstract class MpmcArrayQueueL2Pad<E> extends MpmcArrayQueueProducerField<E> {
+abstract class MpmcArrayQueueL2Pad<E> extends MpmcArrayQueueProducerIndexField<E> {
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
     public MpmcArrayQueueL2Pad(int capacity) {
@@ -61,11 +61,11 @@ abstract class MpmcArrayQueueL2Pad<E> extends MpmcArrayQueueProducerField<E> {
     }
 }
 
-abstract class MpmcArrayQueueConsumerField<E> extends MpmcArrayQueueL2Pad<E> {
+abstract class MpmcArrayQueueConsumerIndexField<E> extends MpmcArrayQueueL2Pad<E> {
     private final static long C_INDEX_OFFSET;
     static {
         try {
-            C_INDEX_OFFSET = UNSAFE.objectFieldOffset(MpmcArrayQueueConsumerField.class
+            C_INDEX_OFFSET = UNSAFE.objectFieldOffset(MpmcArrayQueueConsumerIndexField.class
                     .getDeclaredField("consumerIndex"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
@@ -73,7 +73,7 @@ abstract class MpmcArrayQueueConsumerField<E> extends MpmcArrayQueueL2Pad<E> {
     }
     private volatile long consumerIndex;
 
-    public MpmcArrayQueueConsumerField(int capacity) {
+    public MpmcArrayQueueConsumerIndexField(int capacity) {
         super(capacity);
     }
 
@@ -83,6 +83,14 @@ abstract class MpmcArrayQueueConsumerField<E> extends MpmcArrayQueueL2Pad<E> {
 
     protected final boolean casConsumerIndex(long expect, long newValue) {
         return UNSAFE.compareAndSwapLong(this, C_INDEX_OFFSET, expect, newValue);
+    }
+}
+
+abstract class MpmcArrayQueueL3Pad<E> extends MpmcArrayQueueConsumerIndexField<E> {
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
+    public MpmcArrayQueueL3Pad(int capacity) {
+        super(capacity);
     }
 }
 
@@ -111,11 +119,10 @@ abstract class MpmcArrayQueueConsumerField<E> extends MpmcArrayQueueL2Pad<E> {
  * @param <E>
  *            type of the element stored in the {@link java.util.Queue}
  */
-public class MpmcArrayQueue<E> extends MpmcArrayQueueConsumerField<E> implements QueueProgressIndicators {
-    long p01, p02, p03, p04, p05, p06, p07;
-    long p10, p11, p12, p13, p14, p15, p16, p17;
+public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E> implements QueueProgressIndicators {
     final static int RECOMENDED_POLL_BATCH = CPUs * 4;
     public final static int RECOMENDED_OFFER_BATCH = CPUs * 4;
+    
     public MpmcArrayQueue(final int capacity) {
         super(RangeUtil.checkGreaterThanOrEqual(capacity, 2, "capacity"));
     }
