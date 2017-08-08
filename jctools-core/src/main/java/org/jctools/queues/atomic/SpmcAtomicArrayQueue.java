@@ -13,6 +13,7 @@
  */
 package org.jctools.queues.atomic;
 
+
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
@@ -20,19 +21,99 @@ import org.jctools.queues.IndexedQueueSizeUtil;
 import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
 import org.jctools.queues.QueueProgressIndicators;
 
+abstract class SpmcAtomicArrayQueueL1Pad<E> extends AtomicReferenceArrayQueue<E> {
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
+
+    public SpmcAtomicArrayQueueL1Pad(int capacity) {
+        super(capacity);
+    }
+}
+
+abstract class SpmcAtomicArrayQueueProducerField<E> extends SpmcAtomicArrayQueueL1Pad<E> {
+    private static final AtomicLongFieldUpdater<SpmcAtomicArrayQueueProducerField> P_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(SpmcAtomicArrayQueueProducerField.class, "producerIndex");
+    private volatile long producerIndex;
+
+    public final long lvProducerIndex() {
+        return producerIndex;
+    }
+
+    protected final void soProducerIndex(long v) {
+        P_INDEX_UPDATER.lazySet(this, v);
+    }
+
+    public SpmcAtomicArrayQueueProducerField(int capacity) {
+        super(capacity);
+    }
+}
+abstract class SpmcAtomicArrayQueueL2Pad<E> extends SpmcAtomicArrayQueueProducerField<E> {
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
+
+    public SpmcAtomicArrayQueueL2Pad(int capacity) {
+        super(capacity);
+    }
+}
+abstract class SpmcAtomicArrayQueueConsumerField<E> extends SpmcAtomicArrayQueueL2Pad<E> {
+    protected static final AtomicLongFieldUpdater<SpmcAtomicArrayQueueConsumerField> C_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(SpmcAtomicArrayQueueConsumerField.class, "consumerIndex");
+
+    private volatile long consumerIndex;
+
+    public SpmcAtomicArrayQueueConsumerField(int capacity) {
+        super(capacity);
+    }
+
+    public final long lvConsumerIndex() {
+        return consumerIndex;
+    }
+
+    protected final boolean casHead(long expect, long newValue) {
+        return C_INDEX_UPDATER.compareAndSet(this, expect, newValue);
+    }
+}
+
+abstract class SpmcAtomicArrayQueueMidPad<E> extends SpmcAtomicArrayQueueConsumerField<E> {
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
+
+    public SpmcAtomicArrayQueueMidPad(int capacity) {
+        super(capacity);
+    }
+}
+
+abstract class SpmcAtomicArrayQueueProducerIndexCacheField<E> extends SpmcAtomicArrayQueueMidPad<E> {
+    // This is separated from the consumerIndex which will be highly contended in the hope that this value spends most
+    // of it's time in a cache line that is Shared(and rarely invalidated)
+    private volatile long producerIndexCache;
+
+    public SpmcAtomicArrayQueueProducerIndexCacheField(int capacity) {
+        super(capacity);
+    }
+
+    protected final long lvProducerIndexCache() {
+        return producerIndexCache;
+    }
+
+    protected final void svProducerIndexCache(long v) {
+        producerIndexCache = v;
+    }
+}
+
+abstract class SpmcAtomicArrayQueueL3Pad<E> extends SpmcAtomicArrayQueueProducerIndexCacheField<E> {
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
+
+    public SpmcAtomicArrayQueueL3Pad(int capacity) {
+        super(capacity);
+    }
+}
+
 /**
  * A single-producer multiple-consumer AtomicReferenceArray-backed queue.
  * @author akarnokd
  * @param <E>
  */
-public final class SpmcAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E> implements IndexedQueue, QueueProgressIndicators {
-    protected static final AtomicLongFieldUpdater<SpmcAtomicArrayQueue> C_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(SpmcAtomicArrayQueue.class, "consumerIndex");
-    protected static final AtomicLongFieldUpdater<SpmcAtomicArrayQueue> P_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(SpmcAtomicArrayQueue.class, "producerIndex");
-    protected static final AtomicLongFieldUpdater<SpmcAtomicArrayQueue> P_INDEX_CACHE_UPDATER = AtomicLongFieldUpdater.newUpdater(SpmcAtomicArrayQueue.class, "producerIndexCache");
-
-    private volatile long consumerIndex;
-    private volatile long producerIndex;
-    private volatile long producerIndexCache;
+public final class SpmcAtomicArrayQueue<E> extends SpmcAtomicArrayQueueL3Pad<E> implements IndexedQueue, QueueProgressIndicators {
     public SpmcAtomicArrayQueue(int capacity) {
         super(capacity);
     }
@@ -113,32 +194,6 @@ public final class SpmcAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E> 
         return e;
     }
     
-    protected final long lvProducerIndexCache() {
-        return producerIndexCache;
-    }
-
-    protected final void svProducerIndexCache(long v) {
-        P_INDEX_CACHE_UPDATER.set(this, v);
-    }
-    
-    @Override
-    public final long lvConsumerIndex() {
-        return consumerIndex;
-    }
-
-    protected final boolean casHead(long expect, long newValue) {
-        return C_INDEX_UPDATER.compareAndSet(this, expect, newValue);
-    }
-
-    @Override
-    public final long lvProducerIndex() {
-        return producerIndex;
-    }
-
-    protected final void soProducerIndex(long v) {
-        P_INDEX_UPDATER.lazySet(this, v);
-    }
-
     @Override
     public int size() {
         return IndexedQueueSizeUtil.size(this);
