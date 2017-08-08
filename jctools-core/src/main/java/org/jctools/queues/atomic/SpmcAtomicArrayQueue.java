@@ -17,7 +17,6 @@ package org.jctools.queues.atomic;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
-import org.jctools.queues.IndexedQueueSizeUtil;
 import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
 import org.jctools.queues.QueueProgressIndicators;
 
@@ -34,6 +33,7 @@ abstract class SpmcAtomicArrayQueueProducerField<E> extends SpmcAtomicArrayQueue
     private static final AtomicLongFieldUpdater<SpmcAtomicArrayQueueProducerField> P_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(SpmcAtomicArrayQueueProducerField.class, "producerIndex");
     private volatile long producerIndex;
 
+    @Override
     public final long lvProducerIndex() {
         return producerIndex;
     }
@@ -63,6 +63,7 @@ abstract class SpmcAtomicArrayQueueConsumerField<E> extends SpmcAtomicArrayQueue
         super(capacity);
     }
 
+    @Override
     public final long lvConsumerIndex() {
         return consumerIndex;
     }
@@ -193,16 +194,6 @@ public final class SpmcAtomicArrayQueue<E> extends SpmcAtomicArrayQueueL3Pad<E> 
             }
         } while (null == (e = lvElement(buffer, calcElementOffset(currentConsumerIndex, mask))));
         return e;
-    }
-    
-    @Override
-    public int size() {
-        return IndexedQueueSizeUtil.size(this);
-    }
-
-    @Override
-    public boolean isEmpty() {
-        return IndexedQueueSizeUtil.isEmpty(this);
     }
 
     @Override

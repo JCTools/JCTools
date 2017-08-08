@@ -139,34 +139,6 @@ public class MpmcAtomicArrayQueue<E> extends SequencedAtomicReferenceArrayQueue<
     }
 
     @Override
-    public int size() {
-        /*
-         * It is possible for a thread to be interrupted or reschedule between the read of the producer and
-         * consumer indices, therefore protection is required to ensure size is within valid range. In the
-         * event of concurrent polls/offers to this method the size is OVER estimated as we read consumer
-         * index BEFORE the producer index.
-         */
-        long after = lvConsumerIndex();
-        while (true) {
-            final long before = after;
-            final long currentProducerIndex = lvProducerIndex();
-            after = lvConsumerIndex();
-            if (before == after) {
-                return (int) (currentProducerIndex - after);
-            }
-        }
-    }
-
-    @Override
-    public boolean isEmpty() {
-        // Order matters!
-        // Loading consumer before producer allows for producer increments after consumer index is read.
-        // This ensures this method is conservative in it's estimate. Note that as this is an MPMC there is
-        // nothing we can do to make this an exact method.
-        return (lvConsumerIndex() == lvProducerIndex());
-    }
-
-    @Override
     public long currentProducerIndex() {
         return lvProducerIndex();
     }
@@ -176,14 +148,17 @@ public class MpmcAtomicArrayQueue<E> extends SequencedAtomicReferenceArrayQueue<
         return lvConsumerIndex();
     }
 
-    protected final long lvProducerIndex() {
+    @Override
+    public final long lvProducerIndex() {
         return producerIndex.get();
     }
 
     protected final boolean casProducerIndex(long expect, long newValue) {
         return producerIndex.compareAndSet(expect, newValue);
     }
-    protected final long lvConsumerIndex() {
+    
+    @Override
+    public final long lvConsumerIndex() {
         return consumerIndex.get();
     }
 

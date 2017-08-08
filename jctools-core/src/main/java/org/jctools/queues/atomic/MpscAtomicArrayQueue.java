@@ -216,21 +216,6 @@ public final class MpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E>
         return e;
     }
 
-    /**
-     * {@inheritDoc}
-     * <p>
-     *
-     */
-    @Override
-    public int size() {
-        return IndexedQueueSizeUtil.size(this);
-    }
-
-    @Override
-    public boolean isEmpty() {
-        return IndexedQueueSizeUtil.isEmpty(this);
-    }
-
     @Override
     public long currentProducerIndex() {
         return lvProducerIndex();
@@ -240,10 +225,12 @@ public final class MpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E>
     public long currentConsumerIndex() {
         return lvConsumerIndex();
     }
+    
     @Override
     public final long lvConsumerIndex() {
         return consumerIndex;
     }
+    
     @Override
     public final long lvProducerIndex() {
         return producerIndex;

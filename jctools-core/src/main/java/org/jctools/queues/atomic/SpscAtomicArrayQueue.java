@@ -46,6 +46,7 @@ abstract class SpscAtomicArrayQueueProducerFields<E> extends SpscAtomicArrayQueu
         super(capacity);
     }
     
+    @Override
     public final long lvProducerIndex() {
         return producerIndex;
     }
@@ -72,6 +73,7 @@ abstract class SpscAtomicArrayQueueConsumerField<E> extends SpscAtomicArrayQueue
         super(capacity);
     }
 
+    @Override
     public final long lvConsumerIndex() {
         return consumerIndex;
     }
@@ -173,16 +175,6 @@ public final class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueConsumerF
     @Override
     public E peek() {
         return lvElement(buffer, calcElementOffset(consumerIndex));
-    }
-
-    @Override
-    public int size() {
-        return IndexedQueueSizeUtil.size(this);
-    }
-
-    @Override
-    public boolean isEmpty() {
-        return IndexedQueueSizeUtil.isEmpty(this);
     }
     
     @Override

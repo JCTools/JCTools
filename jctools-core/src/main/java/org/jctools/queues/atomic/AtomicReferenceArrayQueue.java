@@ -17,9 +17,11 @@ import java.util.AbstractQueue;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
+import org.jctools.queues.IndexedQueueSizeUtil;
+import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
 import org.jctools.util.Pow2;
 
-abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> {
+abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> implements IndexedQueue {
     protected final AtomicReferenceArray<E> buffer;
     protected final int mask;
     public AtomicReferenceArrayQueue(int capacity) {
@@ -80,5 +82,20 @@ abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> {
 
     protected final int capacity() {
         return (int) (mask + 1);
+    }
+
+    /**
+     * {@inheritDoc}
+     * <p>
+     *
+     */
+    @Override
+    public final int size() {
+        return IndexedQueueSizeUtil.size(this);
+    }
+
+    @Override
+    public final boolean isEmpty() {
+        return IndexedQueueSizeUtil.isEmpty(this);
     }
 }
