@@ -178,7 +178,6 @@ public class NBHMID_Tester2 {
   }
 
   @Test
-  @Ignore
   public void testSerial() {
     assertTrue ( _nbhm.isEmpty() );
     assertThat ( _nbhm.put("k1","v1"), nullValue() );
@@ -201,7 +200,20 @@ public class NBHMID_Tester2 {
       ObjectInputStream in = new ObjectInputStream(fis);
       NonBlockingIdentityHashMap nbhm = (NonBlockingIdentityHashMap)in.readObject();
       in.close();
-      assertEquals(_nbhm.toString(),nbhm.toString());
+
+      assertEquals(_nbhm.size(), nbhm.size());
+      Object[] keys = nbhm.keySet().toArray();
+      if (keys[0].equals("k1"))
+      {
+        assertEquals(nbhm.get(keys[0]), "v1");
+        assertEquals(nbhm.get(keys[1]), "v2");
+      }
+      else
+      {
+        assertEquals(nbhm.get(keys[1]), "v1");
+        assertEquals(nbhm.get(keys[0]), "v2");
+      }
+
       if( !f.delete() ) throw new IOException("delete failed");
     } catch(IOException|ClassNotFoundException ex) {
       ex.printStackTrace();
