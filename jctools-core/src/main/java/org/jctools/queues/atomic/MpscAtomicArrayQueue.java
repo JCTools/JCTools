@@ -16,9 +16,9 @@ package org.jctools.queues.atomic;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
-import org.jctools.queues.QueueProgressIndicators;
 import org.jctools.queues.IndexedQueueSizeUtil;
 import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
+import org.jctools.queues.QueueProgressIndicators;
 
 /**
  * A Multi-Producer-Single-Consumer queue based on a {@link AtomicReferenceArrayQueue}. This implies that
@@ -37,11 +37,12 @@ public final class MpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E>
         implements IndexedQueue, QueueProgressIndicators {
     private final AtomicLong consumerIndex;
     private final AtomicLong producerIndex;
-    private volatile long headCache;
+    private final AtomicLong producerLimit;
     public MpscAtomicArrayQueue(int capacity) {
         super(capacity);
         this.consumerIndex = new AtomicLong();
         this.producerIndex = new AtomicLong();
+        this.producerLimit = new AtomicLong();
     }
     /**
      * {@inheritDoc} <br>
@@ -61,32 +62,32 @@ public final class MpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E>
 
         // use a cached view on consumer index (potentially updated in loop)
         final int mask = this.mask;
-        final long capacity = mask + 1;
-        long consumerIndexCache = lvConsumerIndexCache(); // LoadLoad
-        long currentProducerIndex;
+        long producerLimit = lvProducerLimit(); // LoadLoad
+        long pIndex;
         do {
-            currentProducerIndex = lvProducerIndex(); // LoadLoad
-            final long wrapPoint = currentProducerIndex - capacity;
-            if (consumerIndexCache <= wrapPoint) {
-                final long currHead = lvConsumerIndex(); // LoadLoad
-                if (currHead <= wrapPoint) {
+            pIndex = lvProducerIndex(); // LoadLoad
+            if (pIndex >= producerLimit) {
+                final long cIndex = lvConsumerIndex(); // LoadLoad
+                producerLimit = cIndex + mask + 1;
+
+                if (pIndex >= producerLimit) {
                     return false; // FULL :(
-                } else {
-                    // update shared cached value of the consumerIndex
-                    svConsumerIndexCache(currHead); // StoreLoad
-                    // update on stack copy, we might need this value again if we lose the CAS.
-                    consumerIndexCache = currHead;
+                }
+                else {
+                    // update producer limit to the next index that we must recheck the consumer index
+                    // this is racy, but the race is benign
+                    soProducerLimit(producerLimit);
                 }
             }
-        } while (!casProducerIndex(currentProducerIndex, currentProducerIndex + 1));
+        } while (!casProducerIndex(pIndex, pIndex + 1));
         /*
          * NOTE: the new producer index value is made visible BEFORE the element in the array. If we relied on
          * the index visibility to poll() we would need to handle the case where the element is not visible.
          */
 
         // Won CAS, move on to storing
-        final int offset = calcElementOffset(currentProducerIndex, mask);
-        soElement(offset, e); // StoreStore
+        final int offset = calcElementOffset(pIndex, mask);
+        soElement(buffer, offset, e); // StoreStore
         return true; // AWESOME :)
     }
 
@@ -95,33 +96,47 @@ public final class MpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E>
      *
      * @param e new element, not null
      * @return 1 if next element cannot be filled, -1 if CAS failed, 0 if successful
+     * @deprecated This was renamed to {@link #failFastOffer(Object)} please migrate
      */
+    @Deprecated
     public final int weakOffer(final E e) {
+        return failFastOffer(e);
+    }
+
+    /**
+     * A wait free alternative to offer which fails on CAS failure.
+     *
+     * @param e new element, not null
+     * @return 1 if next element cannot be filled, -1 if CAS failed, 0 if successful
+     */
+    public final int failFastOffer(final E e) {
         if (null == e) {
-            throw new NullPointerException("Null is not a valid element");
+            throw new NullPointerException();
         }
         final int mask = this.mask;
         final long capacity = mask + 1;
-        final long currentTail = lvProducerIndex(); // LoadLoad
-        final long consumerIndexCache = lvConsumerIndexCache(); // LoadLoad
-        final long wrapPoint = currentTail - capacity;
-        if (consumerIndexCache <= wrapPoint) {
-            long currHead = lvConsumerIndex(); // LoadLoad
-            if (currHead <= wrapPoint) {
+        final long pIndex = lvProducerIndex(); // LoadLoad
+        long producerLimit = lvProducerLimit(); // LoadLoad
+        if (pIndex >= producerLimit) {
+            final long cIndex = lvConsumerIndex(); // LoadLoad
+            producerLimit = cIndex + capacity;
+            if (pIndex >= producerLimit) {
                 return 1; // FULL :(
-            } else {
-                svConsumerIndexCache(currHead); // StoreLoad
+            }
+            else {
+                // update producer limit to the next index that we must recheck the consumer index
+                soProducerLimit(producerLimit); // StoreLoad
             }
         }
 
         // look Ma, no loop!
-        if (!casProducerIndex(currentTail, currentTail + 1)) {
+        if (!casProducerIndex(pIndex, pIndex + 1)) {
             return -1; // CAS FAIL :(
         }
 
         // Won CAS, move on to storing
-        final int offset = calcElementOffset(currentTail, mask);
-        soElement(offset, e);
+        final int offset = calcElementOffset(pIndex, mask);
+        soElement(buffer, offset, e);
         return 0; // AWESOME :)
     }
 
@@ -136,8 +151,8 @@ public final class MpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E>
      */
     @Override
     public E poll() {
-        final long consumerIndex = lvConsumerIndex(); // LoadLoad
-        final int offset = calcElementOffset(consumerIndex);
+        final long cIndex = lvConsumerIndex(); // LoadLoad
+        final int offset = calcElementOffset(cIndex);
         // Copy field to avoid re-reading after volatile load
         final AtomicReferenceArray<E> buffer = this.buffer;
 
@@ -149,17 +164,18 @@ public final class MpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E>
              * winning the CAS on offer but before storing the element in the queue. Other producers may go on
              * to fill up the queue after this element.
              */
-            if (consumerIndex != lvProducerIndex()) {
+            if (cIndex != lvProducerIndex()) {
                 do {
                     e = lvElement(buffer, offset);
                 } while (e == null);
-            } else {
+            }
+            else {
                 return null;
             }
         }
 
         spElement(buffer, offset, null);
-        soConsumerIndex(consumerIndex + 1); // StoreStore
+        soConsumerIndex(cIndex + 1); // StoreStore
         return e;
     }
 
@@ -177,8 +193,8 @@ public final class MpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E>
         // Copy field to avoid re-reading after volatile load
         final AtomicReferenceArray<E> buffer = this.buffer;
 
-        final long consumerIndex = lvConsumerIndex(); // LoadLoad
-        final int offset = calcElementOffset(consumerIndex);
+        final long cIndex = lvConsumerIndex(); // LoadLoad
+        final int offset = calcElementOffset(cIndex);
         E e = lvElement(buffer, offset);
         if (null == e) {
             /*
@@ -186,11 +202,12 @@ public final class MpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E>
              * winning the CAS on offer but before storing the element in the queue. Other producers may go on
              * to fill up the queue after this element.
              */
-            if (consumerIndex != lvProducerIndex()) {
+            if (cIndex != lvProducerIndex()) {
                 do {
                     e = lvElement(buffer, offset);
                 } while (e == null);
-            } else {
+            }
+            else {
                 return null;
             }
         }
@@ -229,13 +246,15 @@ public final class MpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E>
     public final long lvProducerIndex() {
         return producerIndex.get();
     }
-    protected final long lvConsumerIndexCache() {
-        return headCache;
+
+    protected final long lvProducerLimit() {
+        return producerLimit.get();
     }
 
-    protected final void svConsumerIndexCache(long v) {
-        headCache = v;
+    protected final void soProducerLimit(long v) {
+        producerLimit.lazySet(v);
     }
+    
     protected final boolean casProducerIndex(long expect, long newValue) {
         return producerIndex.compareAndSet(expect, newValue);
     }
