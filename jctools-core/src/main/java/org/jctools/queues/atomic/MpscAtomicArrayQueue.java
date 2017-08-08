@@ -16,9 +16,97 @@ package org.jctools.queues.atomic;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
-import org.jctools.queues.IndexedQueueSizeUtil;
-import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
 import org.jctools.queues.QueueProgressIndicators;
+
+abstract class MpscAtomicArrayQueueL1Pad<E> extends AtomicReferenceArrayQueue<E> {
+    long p00, p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16;
+
+    public MpscAtomicArrayQueueL1Pad(int capacity) {
+        super(capacity);
+    }
+}
+
+abstract class MpscAtomicArrayQueueTailField<E> extends MpscAtomicArrayQueueL1Pad<E> {
+    private static final AtomicLongFieldUpdater<MpscAtomicArrayQueueTailField> P_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(MpscAtomicArrayQueueTailField.class, "producerIndex");
+    
+    private volatile long producerIndex;
+
+    public MpscAtomicArrayQueueTailField(int capacity) {
+        super(capacity);
+    }
+    
+    @Override
+    public final long lvProducerIndex() {
+        return producerIndex;
+    }
+
+    protected final boolean casProducerIndex(long expect, long newValue) {
+        return P_INDEX_UPDATER.compareAndSet(this, expect, newValue);
+    }
+}
+
+abstract class MpscAtomicArrayQueueMidPad<E> extends MpscAtomicArrayQueueTailField<E> {
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
+
+    public MpscAtomicArrayQueueMidPad(int capacity) {
+        super(capacity);
+    }
+}
+
+abstract class MpscAtomicArrayQueueHeadLimitField<E> extends MpscAtomicArrayQueueMidPad<E> {
+    private static final AtomicLongFieldUpdater<MpscAtomicArrayQueueHeadLimitField> P_LIMIT_UPDATER = AtomicLongFieldUpdater.newUpdater(MpscAtomicArrayQueueHeadLimitField.class, "producerLimit");
+
+    // First unavailable index the producer may claim up to before rereading the consumer index
+    private volatile long producerLimit;
+
+    public MpscAtomicArrayQueueHeadLimitField(int capacity) {
+        super(capacity);
+        this.producerLimit = capacity;
+    }
+
+    protected final long lvProducerLimit() {
+        return producerLimit;
+    }
+
+    protected final void soProducerLimit(long v) {
+        P_LIMIT_UPDATER.lazySet(this, v);
+    }
+}
+
+abstract class MpscAtomicArrayQueueL2Pad<E> extends MpscAtomicArrayQueueHeadLimitField<E> {
+    long p00, p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16;
+
+    public MpscAtomicArrayQueueL2Pad(int capacity) {
+        super(capacity);
+    }
+}
+
+abstract class MpscAtomicArrayQueueConsumerField<E> extends MpscAtomicArrayQueueL2Pad<E> {
+    private static final AtomicLongFieldUpdater<MpscAtomicArrayQueueConsumerField> C_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(MpscAtomicArrayQueueConsumerField.class, "consumerIndex");
+
+    protected volatile long consumerIndex;
+
+    public MpscAtomicArrayQueueConsumerField(int capacity) {
+        super(capacity);
+    }
+
+    protected final long lpConsumerIndex() {
+        return consumerIndex;
+    }
+    
+    @Override
+    public final long lvConsumerIndex() {
+        return consumerIndex;
+    }
+    
+    protected final void soConsumerIndex(long l) {
+        C_INDEX_UPDATER.lazySet(this, l);
+    }
+}
+
 
 /**
  * A Multi-Producer-Single-Consumer queue based on a {@link AtomicReferenceArrayQueue}. This implies that
@@ -33,15 +121,10 @@ import org.jctools.queues.QueueProgressIndicators;
  *
  * @param <E>
  */
-public final class MpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E>
+public final class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueConsumerField<E>
         implements QueueProgressIndicators {
-    private static final AtomicLongFieldUpdater<MpscAtomicArrayQueue> C_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(MpscAtomicArrayQueue.class, "consumerIndex");
-    private static final AtomicLongFieldUpdater<MpscAtomicArrayQueue> P_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(MpscAtomicArrayQueue.class, "producerIndex");
-    private static final AtomicLongFieldUpdater<MpscAtomicArrayQueue> P_LIMIT_UPDATER = AtomicLongFieldUpdater.newUpdater(MpscAtomicArrayQueue.class, "producerLimit");
-
-    private volatile long consumerIndex;
-    private volatile long producerIndex;
-    private volatile long producerLimit;
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
     
     public MpscAtomicArrayQueue(int capacity) {
         super(capacity);
@@ -224,31 +307,5 @@ public final class MpscAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E>
     @Override
     public long currentConsumerIndex() {
         return lvConsumerIndex();
-    }
-    
-    @Override
-    public final long lvConsumerIndex() {
-        return consumerIndex;
-    }
-    
-    @Override
-    public final long lvProducerIndex() {
-        return producerIndex;
-    }
-
-    protected final long lvProducerLimit() {
-        return producerLimit;
-    }
-
-    protected final void soProducerLimit(long v) {
-        P_LIMIT_UPDATER.lazySet(this, v);
-    }
-    
-    protected final boolean casProducerIndex(long expect, long newValue) {
-        return P_INDEX_UPDATER.compareAndSet(this, expect, newValue);
-    }
-    
-    protected void soConsumerIndex(long l) {
-        C_INDEX_UPDATER.lazySet(this, l);
     }
 }
