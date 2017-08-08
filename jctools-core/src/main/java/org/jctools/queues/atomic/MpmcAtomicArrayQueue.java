@@ -13,21 +13,23 @@
  */
 package org.jctools.queues.atomic;
 
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongArray;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 import org.jctools.queues.QueueProgressIndicators;
 import org.jctools.util.RangeUtil;
 
 public class MpmcAtomicArrayQueue<E> extends SequencedAtomicReferenceArrayQueue<E>
         implements QueueProgressIndicators {
-    private final AtomicLong producerIndex;
-    private final AtomicLong consumerIndex;
+    
+    private static final AtomicLongFieldUpdater<MpmcAtomicArrayQueue> P_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(MpmcAtomicArrayQueue.class, "producerIndex");
+    private static final AtomicLongFieldUpdater<MpmcAtomicArrayQueue> C_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(MpmcAtomicArrayQueue.class, "consumerIndex");
+    
+    private volatile long producerIndex;
+    private volatile long consumerIndex;
 
     public MpmcAtomicArrayQueue(int capacity) {
         super(RangeUtil.checkGreaterThanOrEqual(capacity, 2, "capacity"));
-        this.producerIndex = new AtomicLong();
-        this.consumerIndex = new AtomicLong();
     }
 
     @Override
@@ -130,20 +132,20 @@ public class MpmcAtomicArrayQueue<E> extends SequencedAtomicReferenceArrayQueue<
 
     @Override
     public final long lvProducerIndex() {
-        return producerIndex.get();
+        return producerIndex;
     }
 
     protected final boolean casProducerIndex(long expect, long newValue) {
-        return producerIndex.compareAndSet(expect, newValue);
+        return P_INDEX_UPDATER.compareAndSet(this, expect, newValue);
     }
     
     @Override
     public final long lvConsumerIndex() {
-        return consumerIndex.get();
+        return consumerIndex;
     }
 
     protected final boolean casConsumerIndex(long expect, long newValue) {
-        return consumerIndex.compareAndSet(expect, newValue);
+        return C_INDEX_UPDATER.compareAndSet(this, expect, newValue);
     }
 
 }
