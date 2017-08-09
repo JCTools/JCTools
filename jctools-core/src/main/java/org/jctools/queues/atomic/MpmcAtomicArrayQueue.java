@@ -13,21 +13,77 @@
  */
 package org.jctools.queues.atomic;
 
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongArray;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
-import org.jctools.queues.QueueProgressIndicators;
 import org.jctools.util.RangeUtil;
 
-public class MpmcAtomicArrayQueue<E> extends SequencedAtomicReferenceArrayQueue<E>
-        implements QueueProgressIndicators {
-    private final AtomicLong producerIndex;
-    private final AtomicLong consumerIndex;
+abstract class MpmcAtomicArrayQueueL1Pad<E> extends SequencedAtomicReferenceArrayQueue<E> {
+    long p00, p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16;
+    public MpmcAtomicArrayQueueL1Pad(int capacity) {
+        super(capacity);
+    }
+}
 
+abstract class MpmcAtomicArrayQueueProducerIndexField<E> extends MpmcAtomicArrayQueueL1Pad<E> {
+    private static final AtomicLongFieldUpdater<MpmcAtomicArrayQueueProducerIndexField> P_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(MpmcAtomicArrayQueueProducerIndexField.class, "producerIndex");
+
+    private volatile long producerIndex;
+
+    public MpmcAtomicArrayQueueProducerIndexField(int capacity) {
+        super(capacity);
+    }
+
+    @Override
+    public final long lvProducerIndex() {
+        return producerIndex;
+    }
+
+    protected final boolean casProducerIndex(long expect, long newValue) {
+        return P_INDEX_UPDATER.compareAndSet(this, expect, newValue);
+    }
+}
+
+abstract class MpmcAtomicArrayQueueL2Pad<E> extends MpmcAtomicArrayQueueProducerIndexField<E> {
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
+    public MpmcAtomicArrayQueueL2Pad(int capacity) {
+        super(capacity);
+    }
+}
+
+abstract class MpmcAtomicArrayQueueConsumerIndexField<E> extends MpmcAtomicArrayQueueL2Pad<E> {
+    private static final AtomicLongFieldUpdater<MpmcAtomicArrayQueueConsumerIndexField> C_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(MpmcAtomicArrayQueueConsumerIndexField.class, "consumerIndex");
+
+    private volatile long consumerIndex;
+
+    public MpmcAtomicArrayQueueConsumerIndexField(int capacity) {
+        super(capacity);
+    }
+    
+    @Override
+    public final long lvConsumerIndex() {
+        return consumerIndex;
+    }
+
+    protected final boolean casConsumerIndex(long expect, long newValue) {
+        return C_INDEX_UPDATER.compareAndSet(this, expect, newValue);
+    }
+}
+
+abstract class MpmcAtomicArrayQueueL3Pad<E> extends MpmcAtomicArrayQueueConsumerIndexField<E> {
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
+    public MpmcAtomicArrayQueueL3Pad(int capacity) {
+        super(capacity);
+    }
+}
+
+public class MpmcAtomicArrayQueue<E> extends MpmcAtomicArrayQueueL3Pad<E> {
+    
     public MpmcAtomicArrayQueue(int capacity) {
         super(RangeUtil.checkGreaterThanOrEqual(capacity, 2, "capacity"));
-        this.producerIndex = new AtomicLong();
-        this.consumerIndex = new AtomicLong();
     }
 
     @Override
@@ -35,45 +91,32 @@ public class MpmcAtomicArrayQueue<E> extends SequencedAtomicReferenceArrayQueue<
         if (null == e) {
             throw new NullPointerException();
         }
-
-        // local load of field to avoid repeated loads after volatile reads
         final int mask = this.mask;
         final int capacity = mask + 1;
         final AtomicLongArray sBuffer = sequenceBuffer;
-        long currentProducerIndex;
+
+        long pIndex;
         int seqOffset;
+        long seq;
         long cIndex = Long.MIN_VALUE;// start with bogus value, hope we don't need it
-        while (true) {
-            currentProducerIndex = lvProducerIndex(); // LoadLoad
-            seqOffset = calcSequenceOffset(currentProducerIndex, mask);
-            final long seq = lvSequence(sBuffer, seqOffset); // LoadLoad
-            final long delta = seq - currentProducerIndex;
-
-            if (delta == 0) {
-                // this is expected if we see this first time around
-                if (casProducerIndex(currentProducerIndex, currentProducerIndex + 1)) {
-                    // Successful CAS: full barrier
-                    break;
-                }
-                // failed cas, retry 1
-            } else if (delta < 0 && // poll has not moved this value forward
-                    currentProducerIndex - capacity >= cIndex && // test against cached cIndex
-                    currentProducerIndex - capacity >= (cIndex = lvConsumerIndex())) { // test against latest cIndex
+        do {
+            pIndex = lvProducerIndex();
+            seqOffset = calcSequenceOffset(pIndex, mask);
+            seq = lvSequence(sBuffer, seqOffset);
+            if (seq < pIndex) { // consumer has not moved this seq forward, it's as last producer left
                 // Extra check required to ensure [Queue.offer == false iff queue is full]
-                return false;
+                if (pIndex - capacity >= cIndex && // test against cached cIndex
+                    pIndex - capacity >= (cIndex = lvConsumerIndex())) { // test against latest cIndex
+                    return false;
+                } else {
+                    seq = pIndex + 1; // (+) hack to make it go around again without CAS
+                }
             }
+        } while (seq > pIndex || // another producer has moved the sequence(or +)
+                !casProducerIndex(pIndex, pIndex + 1)); // failed to increment
 
-            // another producer has moved the sequence by one, retry 2
-        }
-
-        // on 64bit(no compressed oops) JVM this is the same as seqOffset
-        final int elementOffset = calcElementOffset(currentProducerIndex, mask);
-        spElement(elementOffset, e);
-
-        // increment sequence by 1, the value expected by consumer
-        // (seeing this value from a producer will lead to retry 2)
-        soSequence(sBuffer, seqOffset, currentProducerIndex + 1); // StoreStore
-
+        soElement(buffer, calcElementOffset(pIndex, mask), e);
+        soSequence(sBuffer, seqOffset, pIndex + 1); // seq++;
         return true;
     }
 
@@ -86,109 +129,50 @@ public class MpmcAtomicArrayQueue<E> extends SequencedAtomicReferenceArrayQueue<
     @Override
     public E poll() {
         // local load of field to avoid repeated loads after volatile reads
-        final AtomicLongArray lSequenceBuffer = sequenceBuffer;
+        final AtomicLongArray sBuffer = sequenceBuffer;
         final int mask = this.mask;
-        long currentConsumerIndex;
+
+        long cIndex;
+        long seq;
         int seqOffset;
+        long expectedSeq;
         long pIndex = -1; // start with bogus value, hope we don't need it
-        while (true) {
-            currentConsumerIndex = lvConsumerIndex();// LoadLoad
-            seqOffset = calcSequenceOffset(currentConsumerIndex, mask);
-            final long seq = lvSequence(lSequenceBuffer, seqOffset);// LoadLoad
-            final long delta = seq - (currentConsumerIndex + 1);
-
-            if (delta == 0) {
-                if (casConsumerIndex(currentConsumerIndex, currentConsumerIndex + 1)) {
-                    // Successful CAS: full barrier
-                    break;
+        do {
+            cIndex = lvConsumerIndex();
+            seqOffset = calcSequenceOffset(cIndex, mask);
+            seq = lvSequence(sBuffer, seqOffset);
+            expectedSeq = cIndex + 1;
+            if (seq < expectedSeq) { // slot has not been moved by producer
+                if (cIndex >= pIndex && // test against cached pIndex
+                    cIndex == (pIndex = lvProducerIndex())) { // update pIndex if we must
+                    // strict empty check, this ensures [Queue.poll() == null iff isEmpty()]
+                    return null;
+                } else {
+                    seq = expectedSeq + 1; // trip another go around
                 }
-                // failed cas, retry 1
-            } else if (delta < 0 && // slot has not been moved by producer
-                    currentConsumerIndex >= pIndex && // test against cached pIndex
-                    currentConsumerIndex == (pIndex = lvProducerIndex())) { // update pIndex if we must
-                // strict empty check, this ensures [Queue.poll() == null iff isEmpty()]
-                return null;
             }
+        } while (seq > expectedSeq || // another consumer beat us to it
+                !casConsumerIndex(cIndex, cIndex + 1)); // failed the CAS
 
-            // another consumer beat us and moved sequence ahead, retry 2
-        }
-
-        // on 64bit(no compressed oops) JVM this is the same as seqOffset
-        final int offset = calcElementOffset(currentConsumerIndex, mask);
-        final E e = lpElement(offset);
-        spElement(offset, null);
-
-        // Move sequence ahead by capacity, preparing it for next offer
-        // (seeing this value from a consumer will lead to retry 2)
-        soSequence(lSequenceBuffer, seqOffset, currentConsumerIndex + mask + 1);// StoreStore
-
+        final int offset = calcElementOffset(cIndex, mask);
+        final E e = lpElement(buffer, offset);
+        soElement(buffer, offset, null);
+        soSequence(sBuffer, seqOffset, cIndex + mask + 1);// i.e. seq += capacity
         return e;
     }
-
+    
     @Override
     public E peek() {
-        long currConsumerIndex;
+        long cIndex;
         E e;
         do {
-            currConsumerIndex = lvConsumerIndex();
+            cIndex = lvConsumerIndex();
             // other consumers may have grabbed the element, or queue might be empty
-            e = lpElement(calcElementOffset(currConsumerIndex));
+            e = lpElement(calcElementOffset(cIndex));
             // only return null if queue is empty
-        } while (e == null && currConsumerIndex != lvProducerIndex());
+        } while (e == null && cIndex != lvProducerIndex());
         return e;
     }
-
-    @Override
-    public int size() {
-        /*
-         * It is possible for a thread to be interrupted or reschedule between the read of the producer and
-         * consumer indices, therefore protection is required to ensure size is within valid range. In the
-         * event of concurrent polls/offers to this method the size is OVER estimated as we read consumer
-         * index BEFORE the producer index.
-         */
-        long after = lvConsumerIndex();
-        while (true) {
-            final long before = after;
-            final long currentProducerIndex = lvProducerIndex();
-            after = lvConsumerIndex();
-            if (before == after) {
-                return (int) (currentProducerIndex - after);
-            }
-        }
-    }
-
-    @Override
-    public boolean isEmpty() {
-        // Order matters!
-        // Loading consumer before producer allows for producer increments after consumer index is read.
-        // This ensures this method is conservative in it's estimate. Note that as this is an MPMC there is
-        // nothing we can do to make this an exact method.
-        return (lvConsumerIndex() == lvProducerIndex());
-    }
-
-    @Override
-    public long currentProducerIndex() {
-        return lvProducerIndex();
-    }
-
-    @Override
-    public long currentConsumerIndex() {
-        return lvConsumerIndex();
-    }
-
-    protected final long lvProducerIndex() {
-        return producerIndex.get();
-    }
-
-    protected final boolean casProducerIndex(long expect, long newValue) {
-        return producerIndex.compareAndSet(expect, newValue);
-    }
-    protected final long lvConsumerIndex() {
-        return consumerIndex.get();
-    }
-
-    protected final boolean casConsumerIndex(long expect, long newValue) {
-        return consumerIndex.compareAndSet(expect, newValue);
-    }
+    
 
 }

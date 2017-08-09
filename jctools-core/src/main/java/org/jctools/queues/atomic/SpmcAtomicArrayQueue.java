@@ -13,26 +13,110 @@
  */
 package org.jctools.queues.atomic;
 
-import java.util.concurrent.atomic.AtomicLong;
+
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
-import org.jctools.queues.QueueProgressIndicators;
+abstract class SpmcAtomicArrayQueueL1Pad<E> extends AtomicReferenceArrayQueue<E> {
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
+
+    public SpmcAtomicArrayQueueL1Pad(int capacity) {
+        super(capacity);
+    }
+}
+
+abstract class SpmcAtomicArrayQueueProducerIndexField<E> extends SpmcAtomicArrayQueueL1Pad<E> {
+    private static final AtomicLongFieldUpdater<SpmcAtomicArrayQueueProducerIndexField> P_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(SpmcAtomicArrayQueueProducerIndexField.class, "producerIndex");
+    private volatile long producerIndex;
+
+    @Override
+    public final long lvProducerIndex() {
+        return producerIndex;
+    }
+
+    protected final void soProducerIndex(long v) {
+        P_INDEX_UPDATER.lazySet(this, v);
+    }
+
+    public SpmcAtomicArrayQueueProducerIndexField(int capacity) {
+        super(capacity);
+    }
+}
+abstract class SpmcAtomicArrayQueueL2Pad<E> extends SpmcAtomicArrayQueueProducerIndexField<E> {
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
+
+    public SpmcAtomicArrayQueueL2Pad(int capacity) {
+        super(capacity);
+    }
+}
+abstract class SpmcAtomicArrayQueueConsumerIndexField<E> extends SpmcAtomicArrayQueueL2Pad<E> {
+    protected static final AtomicLongFieldUpdater<SpmcAtomicArrayQueueConsumerIndexField> C_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(SpmcAtomicArrayQueueConsumerIndexField.class, "consumerIndex");
+
+    private volatile long consumerIndex;
+
+    public SpmcAtomicArrayQueueConsumerIndexField(int capacity) {
+        super(capacity);
+    }
+
+    @Override
+    public final long lvConsumerIndex() {
+        return consumerIndex;
+    }
+
+    protected final boolean casHead(long expect, long newValue) {
+        return C_INDEX_UPDATER.compareAndSet(this, expect, newValue);
+    }
+}
+
+abstract class SpmcAtomicArrayQueueMidPad<E> extends SpmcAtomicArrayQueueConsumerIndexField<E> {
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
+
+    public SpmcAtomicArrayQueueMidPad(int capacity) {
+        super(capacity);
+    }
+}
+
+abstract class SpmcAtomicArrayQueueProducerIndexCacheField<E> extends SpmcAtomicArrayQueueMidPad<E> {
+    // This is separated from the consumerIndex which will be highly contended in the hope that this value spends most
+    // of it's time in a cache line that is Shared(and rarely invalidated)
+    private volatile long producerIndexCache;
+
+    public SpmcAtomicArrayQueueProducerIndexCacheField(int capacity) {
+        super(capacity);
+    }
+
+    protected final long lvProducerIndexCache() {
+        return producerIndexCache;
+    }
+
+    protected final void svProducerIndexCache(long v) {
+        producerIndexCache = v;
+    }
+}
+
+abstract class SpmcAtomicArrayQueueL3Pad<E> extends SpmcAtomicArrayQueueProducerIndexCacheField<E> {
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
+
+    public SpmcAtomicArrayQueueL3Pad(int capacity) {
+        super(capacity);
+    }
+}
 
 /**
  * A single-producer multiple-consumer AtomicReferenceArray-backed queue.
  * @author akarnokd
  * @param <E>
  */
-public final class SpmcAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E> implements QueueProgressIndicators{
-    private final AtomicLong consumerIndex;
-    private final AtomicLong producerIndex;
-    private final AtomicLong producerIndexCache;
+public final class SpmcAtomicArrayQueue<E> extends SpmcAtomicArrayQueueL3Pad<E> {
+    
     public SpmcAtomicArrayQueue(int capacity) {
         super(capacity);
-        this.consumerIndex = new AtomicLong();
-        this.producerIndex = new AtomicLong();
-        this.producerIndexCache = new AtomicLong();
     }
+    
     @Override
     public boolean offer(final E e) {
         if (null == e) {
@@ -56,14 +140,14 @@ public final class SpmcAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E> 
         spElement(buffer, offset, e);
         // single producer, so store ordered is valid. It is also required to correctly publish the element
         // and for the consumers to pick up the tail value.
-        soTail(currProducerIndex + 1);
+        soProducerIndex(currProducerIndex + 1);
         return true;
     }
 
     @Override
     public E poll() {
         long currentConsumerIndex;
-        final long currProducerIndexCache = lvProducerIndexCache();
+        long currProducerIndexCache = lvProducerIndexCache();
         do {
             currentConsumerIndex = lvConsumerIndex();
             if (currentConsumerIndex >= currProducerIndexCache) {
@@ -71,18 +155,22 @@ public final class SpmcAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E> 
                 if (currentConsumerIndex >= currProducerIndex) {
                     return null;
                 } else {
+                    currProducerIndexCache = currProducerIndex;
                     svProducerIndexCache(currProducerIndex);
                 }
             }
         } while (!casHead(currentConsumerIndex, currentConsumerIndex + 1));
         // consumers are gated on latest visible tail, and so can't see a null value in the queue or overtake
         // and wrap to hit same location.
-        final int offset = calcElementOffset(currentConsumerIndex);
-        final AtomicReferenceArray<E> lb = buffer;
+        return removeElement(buffer, currentConsumerIndex, mask);
+    }
+
+    private E removeElement(final AtomicReferenceArray<E> buffer, long index, final int mask) {
+        final int offset = calcElementOffset(index, mask);
         // load plain, element happens before it's index becomes visible
-        final E e = lpElement(lb, offset);
+        final E e = lpElement(buffer, offset);
         // store ordered, make sure nulling out is visible. Producer is waiting for this value.
-        soElement(lb, offset, null);
+        soElement(buffer, offset, null);
         return e;
     }
 
@@ -102,66 +190,7 @@ public final class SpmcAtomicArrayQueue<E> extends AtomicReferenceArrayQueue<E> 
                     svProducerIndexCache(currProducerIndex);
                 }
             }
-        } while (null == (e = lvElement(calcElementOffset(currentConsumerIndex, mask))));
+        } while (null == (e = lvElement(buffer, calcElementOffset(currentConsumerIndex, mask))));
         return e;
-    }
-
-    @Override
-    public int size() {
-        /*
-         * It is possible for a thread to be interrupted or reschedule between the read of the producer and consumer
-         * indices, therefore protection is required to ensure size is within valid range. In the event of concurrent
-         * polls/offers to this method the size is OVER estimated as we read consumer index BEFORE the producer index.
-         */
-        long after = lvConsumerIndex();
-        while (true) {
-            final long before = after;
-            final long currentProducerIndex = lvProducerIndex();
-            after = lvConsumerIndex();
-            if (before == after) {
-                return (int) (currentProducerIndex - after);
-            }
-        }
-    }
-
-    @Override
-    public boolean isEmpty() {
-        // Order matters!
-        // Loading consumer before producer allows for producer increments after consumer index is read.
-        // This ensures the correctness of this method at least for the consumer thread. Other threads POV is not really
-        // something we can fix here.
-        return (lvConsumerIndex() == lvProducerIndex());
-    }
-
-    @Override
-    public long currentProducerIndex() {
-        return lvProducerIndex();
-    }
-
-    @Override
-    public long currentConsumerIndex() {
-        return lvConsumerIndex();
-    }
-    protected final long lvProducerIndexCache() {
-        return producerIndexCache.get();
-    }
-
-    protected final void svProducerIndexCache(long v) {
-        producerIndexCache.set(v);
-    }
-    protected final long lvConsumerIndex() {
-        return consumerIndex.get();
-    }
-
-    protected final boolean casHead(long expect, long newValue) {
-        return consumerIndex.compareAndSet(expect, newValue);
-    }
-
-    protected final long lvProducerIndex() {
-        return producerIndex.get();
-    }
-
-    protected final void soTail(long v) {
-        producerIndex.lazySet(v);
     }
 }

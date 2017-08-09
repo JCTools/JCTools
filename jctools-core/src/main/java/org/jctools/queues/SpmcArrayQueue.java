@@ -17,6 +17,7 @@ import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeRefArrayAccess.lpElement;
 import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
 import static org.jctools.util.UnsafeRefArrayAccess.soElement;
+import static org.jctools.util.UnsafeRefArrayAccess.spElement;
 
 import org.jctools.util.UnsafeRefArrayAccess;
 
@@ -29,12 +30,12 @@ abstract class SpmcArrayQueueL1Pad<E> extends ConcurrentCircularArrayQueue<E> {
     }
 }
 
-abstract class SpmcArrayQueueProducerField<E> extends SpmcArrayQueueL1Pad<E> {
+abstract class SpmcArrayQueueProducerIndexField<E> extends SpmcArrayQueueL1Pad<E> {
     protected final static long P_INDEX_OFFSET;
     static {
         try {
             P_INDEX_OFFSET =
-                    UNSAFE.objectFieldOffset(SpmcArrayQueueProducerField.class.getDeclaredField("producerIndex"));
+                    UNSAFE.objectFieldOffset(SpmcArrayQueueProducerIndexField.class.getDeclaredField("producerIndex"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
@@ -49,12 +50,12 @@ abstract class SpmcArrayQueueProducerField<E> extends SpmcArrayQueueL1Pad<E> {
         UNSAFE.putOrderedLong(this, P_INDEX_OFFSET, v);
     }
 
-    public SpmcArrayQueueProducerField(int capacity) {
+    public SpmcArrayQueueProducerIndexField(int capacity) {
         super(capacity);
     }
 }
 
-abstract class SpmcArrayQueueL2Pad<E> extends SpmcArrayQueueProducerField<E> {
+abstract class SpmcArrayQueueL2Pad<E> extends SpmcArrayQueueProducerIndexField<E> {
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
@@ -63,19 +64,19 @@ abstract class SpmcArrayQueueL2Pad<E> extends SpmcArrayQueueProducerField<E> {
     }
 }
 
-abstract class SpmcArrayQueueConsumerField<E> extends SpmcArrayQueueL2Pad<E> {
+abstract class SpmcArrayQueueConsumerIndexField<E> extends SpmcArrayQueueL2Pad<E> {
     protected final static long C_INDEX_OFFSET;
     static {
         try {
             C_INDEX_OFFSET =
-                    UNSAFE.objectFieldOffset(SpmcArrayQueueConsumerField.class.getDeclaredField("consumerIndex"));
+                    UNSAFE.objectFieldOffset(SpmcArrayQueueConsumerIndexField.class.getDeclaredField("consumerIndex"));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
     }
     private volatile long consumerIndex;
 
-    public SpmcArrayQueueConsumerField(int capacity) {
+    public SpmcArrayQueueConsumerIndexField(int capacity) {
         super(capacity);
     }
 
@@ -88,7 +89,7 @@ abstract class SpmcArrayQueueConsumerField<E> extends SpmcArrayQueueL2Pad<E> {
     }
 }
 
-abstract class SpmcArrayQueueMidPad<E> extends SpmcArrayQueueConsumerField<E> {
+abstract class SpmcArrayQueueMidPad<E> extends SpmcArrayQueueConsumerIndexField<E> {
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
@@ -125,6 +126,7 @@ abstract class SpmcArrayQueueL3Pad<E> extends SpmcArrayQueueProducerIndexCacheFi
 }
 
 public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueueProgressIndicators {
+    
     public SpmcArrayQueue(final int capacity) {
         super(capacity);
     }
@@ -138,7 +140,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
         final long mask = this.mask;
         final long currProducerIndex = lvProducerIndex();
         final long offset = calcElementOffset(currProducerIndex, mask);
-        if (null != UnsafeRefArrayAccess.lvElement(buffer, offset)) {
+        if (null != lvElement(buffer, offset)) {
             long size = currProducerIndex - lvConsumerIndex();
 
             if(size > mask) {
@@ -146,10 +148,10 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
             }
             else {
                 // spin wait for slot to clear, buggers wait freedom
-                while(null != UnsafeRefArrayAccess.lvElement(buffer, offset));
+                while(null != lvElement(buffer, offset));
             }
         }
-        UnsafeRefArrayAccess.spElement(buffer, offset, e);
+        spElement(buffer, offset, e);
         // single producer, so store ordered is valid. It is also required to correctly publish the element
         // and for the consumers to pick up the tail value.
         soProducerIndex(currProducerIndex + 1);
@@ -205,7 +207,6 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
         } while (null == (e = lvElement(buffer, calcElementOffset(currentConsumerIndex, mask))));
         return e;
     }
-
 
 	@Override
 	public boolean relaxedOffer(E e) {
