@@ -61,6 +61,7 @@
         <module>jctools-experimental</module>
         <module>jctools-benchmarks</module>
         <module>jctools-concurrency-test</module>
+        <module>jctools-build</module>
     </modules>
 
     <build>

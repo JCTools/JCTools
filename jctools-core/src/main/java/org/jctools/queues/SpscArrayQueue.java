@@ -34,6 +34,7 @@ abstract class SpscArrayQueueL1Pad<E> extends SpscArrayQueueColdField<E> {
     }
 }
 
+// $gen:ordered-fields
 abstract class SpscArrayQueueProducerIndexFields<E> extends SpscArrayQueueL1Pad<E> {
     protected final static long P_INDEX_OFFSET;
     static {
@@ -56,8 +57,8 @@ abstract class SpscArrayQueueProducerIndexFields<E> extends SpscArrayQueueL1Pad<
         return UNSAFE.getLongVolatile(this, P_INDEX_OFFSET);
     }
 
-    protected final void soProducerIndex(final long newIndex) {
-        UNSAFE.putOrderedLong(this, P_INDEX_OFFSET, newIndex);
+    protected final void soProducerIndex(final long newValue) {
+        UNSAFE.putOrderedLong(this, P_INDEX_OFFSET, newValue);
     }
     
 }
@@ -71,6 +72,7 @@ abstract class SpscArrayQueueL2Pad<E> extends SpscArrayQueueProducerIndexFields<
     }
 }
 
+//$gen:ordered-fields
 abstract class SpscArrayQueueConsumerIndexField<E> extends SpscArrayQueueL2Pad<E> {
     protected long consumerIndex;
     protected final static long C_INDEX_OFFSET;
@@ -90,8 +92,8 @@ abstract class SpscArrayQueueConsumerIndexField<E> extends SpscArrayQueueL2Pad<E
         return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
     }
     
-    protected final void soConsumerIndex(final long newIndex) {
-        UNSAFE.putOrderedLong(this, C_INDEX_OFFSET, newIndex);
+    protected final void soConsumerIndex(final long newValue) {
+        UNSAFE.putOrderedLong(this, C_INDEX_OFFSET, newValue);
     }
 }
 
@@ -121,7 +123,7 @@ abstract class SpscArrayQueueL3Pad<E> extends SpscArrayQueueConsumerIndexField<E
  *
  * @param <E>
  */
-public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E> implements QueueProgressIndicators {
+public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E> {
     
     public SpscArrayQueue(final int capacity) {
         super(Math.max(capacity, 4));
@@ -197,32 +199,37 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E> implements QueuePr
         return lvElement(buffer, calcElementOffset(consumerIndex));
     }
 
-
+    // $gen:ignore
     @Override
     public boolean relaxedOffer(final E message) {
         return offer(message);
     }
 
+    // $gen:ignore
     @Override
     public E relaxedPoll() {
         return poll();
     }
 
+    // $gen:ignore
     @Override
     public E relaxedPeek() {
         return peek();
     }
 
+    // $gen:ignore
     @Override
     public int drain(final Consumer<E> c) {
         return drain(c, capacity());
     }
 
+    // $gen:ignore
     @Override
     public int fill(final Supplier<E> s) {
         return fill(s, capacity());
     }
 
+    // $gen:ignore
     @Override
     public int drain(final Consumer<E> c, final int limit) {
         final E[] buffer = this.buffer;
@@ -243,6 +250,7 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E> implements QueuePr
         return limit;
     }
 
+    // $gen:ignore
     @Override
     public int fill(final Supplier<E> s, final int limit) {
         final E[] buffer = this.buffer;
@@ -275,6 +283,7 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E> implements QueuePr
         return limit;
     }
 
+    // $gen:ignore
     @Override
     public void drain(final Consumer<E> c, final WaitStrategy w, final ExitCondition exit) {
         final E[] buffer = this.buffer;
@@ -299,6 +308,7 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E> implements QueuePr
         }
     }
 
+    // $gen:ignore
     @Override
     public void fill(final Supplier<E> s, final WaitStrategy w, final ExitCondition e) {
         final E[] buffer = this.buffer;

@@ -28,6 +28,7 @@ abstract class MpmcArrayQueueL1Pad<E> extends ConcurrentSequencedCircularArrayQu
     }
 }
 
+//$gen:ordered-fields
 abstract class MpmcArrayQueueProducerIndexField<E> extends MpmcArrayQueueL1Pad<E> {
     private final static long P_INDEX_OFFSET;
     static {
@@ -44,6 +45,7 @@ abstract class MpmcArrayQueueProducerIndexField<E> extends MpmcArrayQueueL1Pad<E
         super(capacity);
     }
 
+    @Override
     public final long lvProducerIndex() {
         return producerIndex;
     }
@@ -61,6 +63,7 @@ abstract class MpmcArrayQueueL2Pad<E> extends MpmcArrayQueueProducerIndexField<E
     }
 }
 
+//$gen:ordered-fields
 abstract class MpmcArrayQueueConsumerIndexField<E> extends MpmcArrayQueueL2Pad<E> {
     private final static long C_INDEX_OFFSET;
     static {
@@ -77,6 +80,7 @@ abstract class MpmcArrayQueueConsumerIndexField<E> extends MpmcArrayQueueL2Pad<E
         super(capacity);
     }
 
+    @Override
     public final long lvConsumerIndex() {
         return consumerIndex;
     }
@@ -144,7 +148,8 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E> {
             pIndex = lvProducerIndex();
             seqOffset = calcSequenceOffset(pIndex, mask);
             seq = lvSequence(sBuffer, seqOffset);
-            if (seq < pIndex) { // consumer has not moved this seq forward, it's as last producer left
+            // consumer has not moved this seq forward, it's as last producer left
+            if (seq < pIndex) { 
                 // Extra check required to ensure [Queue.offer == false iff queue is full]
                 if (pIndex - capacity >= cIndex && // test against cached cIndex
                     pIndex - capacity >= (cIndex = lvConsumerIndex())) { // test against latest cIndex
@@ -215,6 +220,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E> {
         return e;
     }
 
+    // $gen:ignore
 	@Override
 	public boolean relaxedOffer(E e) {
 		if (null == e) {
@@ -241,6 +247,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E> {
         return true;
 	}
 
+    // $gen:ignore
 	@Override
 	public E relaxedPoll() {
         final long[] sBuffer = sequenceBuffer;
@@ -268,12 +275,14 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E> {
         return e;
 	}
 
+    // $gen:ignore
 	@Override
 	public E relaxedPeek() {
         long currConsumerIndex = lvConsumerIndex();
         return lpElement(buffer, calcElementOffset(currConsumerIndex));
 	}
 
+    // $gen:ignore
     @Override
     public int drain(Consumer<E> c) {
         final int capacity = capacity();
@@ -288,6 +297,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E> {
         return sum;
     }
 
+    // $gen:ignore
     @Override
     public int fill(Supplier<E> s) {
         long result = 0;// result is a long because we want to have a safepoint check at regular intervals
@@ -302,6 +312,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E> {
         return (int) result;
     }
 
+    // $gen:ignore
     @Override
     public int drain(Consumer<E> c, int limit) {
         final long[] sBuffer = sequenceBuffer;
@@ -333,6 +344,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E> {
         return limit;
     }
 
+    // $gen:ignore
     @Override
     public int fill(Supplier<E> s, int limit) {
         final long[] sBuffer = sequenceBuffer;
@@ -359,6 +371,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E> {
         return limit;
     }
 
+    // $gen:ignore
     @Override
     public void drain(Consumer<E> c,
             WaitStrategy w,
@@ -373,6 +386,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E> {
         }
     }
 
+    // $gen:ignore
     @Override
     public void fill(Supplier<E> s,
             WaitStrategy w,

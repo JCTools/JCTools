@@ -27,6 +27,7 @@ abstract class MpscArrayQueueL1Pad<E> extends ConcurrentCircularArrayQueue<E> {
     }
 }
 
+//$gen:ordered-fields
 abstract class MpscArrayQueueProducerIndexField<E> extends MpscArrayQueueL1Pad<E> {
     private final static long P_INDEX_OFFSET;
 
@@ -65,6 +66,7 @@ abstract class MpscArrayQueueMidPad<E> extends MpscArrayQueueProducerIndexField<
     }
 }
 
+//$gen:ordered-fields
 abstract class MpscArrayQueueProducerLimitField<E> extends MpscArrayQueueMidPad<E> {
     private final static long P_LIMIT_OFFSET;
 
@@ -89,8 +91,8 @@ abstract class MpscArrayQueueProducerLimitField<E> extends MpscArrayQueueMidPad<
         return producerLimit;
     }
 
-    protected final void soProducerLimit(long v) {
-        UNSAFE.putOrderedLong(this, P_LIMIT_OFFSET, v);
+    protected final void soProducerLimit(long newValue) {
+        UNSAFE.putOrderedLong(this, P_LIMIT_OFFSET, newValue);
     }
 }
 
@@ -103,6 +105,7 @@ abstract class MpscArrayQueueL2Pad<E> extends MpscArrayQueueProducerLimitField<E
     }
 }
 
+//$gen:ordered-fields
 abstract class MpscArrayQueueConsumerIndexField<E> extends MpscArrayQueueL2Pad<E> {
     private final static long C_INDEX_OFFSET;
 
@@ -131,8 +134,8 @@ abstract class MpscArrayQueueConsumerIndexField<E> extends MpscArrayQueueL2Pad<E
         return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
     }
 
-    protected void soConsumerIndex(long l) {
-        UNSAFE.putOrderedLong(this, C_INDEX_OFFSET, l);
+    protected void soConsumerIndex(long newValue) {
+        UNSAFE.putOrderedLong(this, C_INDEX_OFFSET, newValue);
     }
 }
 
@@ -369,11 +372,13 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E> {
         return e;
     }
 
+    // $gen:ignore
     @Override
     public boolean relaxedOffer(E e) {
         return offer(e);
     }
 
+    // $gen:ignore
     @Override
     public E relaxedPoll() {
         final E[] buffer = this.buffer;
@@ -391,6 +396,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E> {
         return e;
     }
 
+    // $gen:ignore
     @Override
     public E relaxedPeek() {
         final E[] buffer = this.buffer;
@@ -399,11 +405,13 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E> {
         return lvElement(buffer, calcElementOffset(cIndex, mask));
     }
 
+    // $gen:ignore
     @Override
     public int drain(Consumer<E> c) {
         return drain(c, capacity());
     }
 
+    // $gen:ignore
     @Override
     public int fill(Supplier<E> s) {
         long result = 0;// result is a long because we want to have a safepoint check at regular intervals
@@ -418,6 +426,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E> {
         return (int) result;
     }
 
+    // $gen:ignore
     @Override
     public int drain(final Consumer<E> c, final int limit) {
         final E[] buffer = this.buffer;
@@ -438,6 +447,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E> {
         return limit;
     }
 
+    // $gen:ignore
     @Override
     public int fill(Supplier<E> s, int limit) {
         final long mask = this.mask;
@@ -472,6 +482,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E> {
         return actualLimit;
     }
 
+    // $gen:ignore
     @Override
     public void drain(Consumer<E> c, WaitStrategy w, ExitCondition exit) {
         final E[] buffer = this.buffer;
@@ -496,6 +507,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E> {
         }
     }
 
+    // $gen:ignore
     @Override
     public void fill(Supplier<E> s, WaitStrategy w, ExitCondition exit) {
         int idleCounter = 0;
