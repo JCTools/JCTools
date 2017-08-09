@@ -119,7 +119,7 @@ abstract class MpmcArrayQueueL3Pad<E> extends MpmcArrayQueueConsumerIndexField<E
  * @param <E>
  *            type of the element stored in the {@link java.util.Queue}
  */
-public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E> implements QueueProgressIndicators {
+public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E> {
     final static int RECOMENDED_POLL_BATCH = CPUs * 4;
     public final static int RECOMENDED_OFFER_BATCH = CPUs * 4;
     

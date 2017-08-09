@@ -158,7 +158,7 @@ abstract class MpscArrayQueueL3Pad<E> extends MpscArrayQueueConsumerIndexField<E
  *
  * @param <E>
  */
-public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E> implements QueueProgressIndicators {
+public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E> {
 
     public MpscArrayQueue(final int capacity) {
         super(capacity);
