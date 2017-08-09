@@ -14,6 +14,7 @@
 package org.jctools.util;
 
 import sun.misc.Unsafe;
+
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.util.concurrent.atomic.AtomicReferenceArray;
@@ -30,37 +31,49 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
  * </ol>
  *
  * @author nitsanw
- *
  */
-public class UnsafeAccess {
+@InternalAPI
+public class UnsafeAccess
+{
     public static final boolean SUPPORTS_GET_AND_SET;
     public static final Unsafe UNSAFE;
-    static {
+
+    static
+    {
         Unsafe instance;
-        try {
+        try
+        {
             final Field field = Unsafe.class.getDeclaredField("theUnsafe");
             field.setAccessible(true);
             instance = (Unsafe) field.get(null);
-        } catch (Exception ignored) {
+        }
+        catch (Exception ignored)
+        {
             // Some platforms, notably Android, might not have a sun.misc.Unsafe
             // implementation with a private `theUnsafe` static instance. In this
             // case we can try and call the default constructor, which proves
             // sufficient for Android usage.
-            try {
+            try
+            {
                 Constructor<Unsafe> c = Unsafe.class.getDeclaredConstructor();
                 c.setAccessible(true);
                 instance = c.newInstance();
-            } catch (Exception e) {
+            }
+            catch (Exception e)
+            {
                 SUPPORTS_GET_AND_SET = false;
                 throw new RuntimeException(e);
             }
         }
 
         boolean getAndSetSupport = false;
-        try {
-            Unsafe.class.getMethod("getAndSetObject", Object.class, Long.TYPE,Object.class);
+        try
+        {
+            Unsafe.class.getMethod("getAndSetObject", Object.class, Long.TYPE, Object.class);
             getAndSetSupport = true;
-        } catch (Exception ignored) {
+        }
+        catch (Exception ignored)
+        {
         }
 
         UNSAFE = instance;

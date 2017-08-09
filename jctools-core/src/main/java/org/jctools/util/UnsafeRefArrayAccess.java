@@ -28,24 +28,29 @@ import static org.jctools.util.UnsafeAccess.UNSAFE;
  * <p>
  *
  * @author nitsanw
- *
- * @param <E>
  */
-public final class UnsafeRefArrayAccess {
+@InternalAPI
+public final class UnsafeRefArrayAccess
+{
     public static final long REF_ARRAY_BASE;
     public static final int REF_ELEMENT_SHIFT;
-    static {
+
+    static
+    {
         final int scale = UnsafeAccess.UNSAFE.arrayIndexScale(Object[].class);
-        if (4 == scale) {
+        if (4 == scale)
+        {
             REF_ELEMENT_SHIFT = 2;
-        } else if (8 == scale) {
+        }
+        else if (8 == scale)
+        {
             REF_ELEMENT_SHIFT = 3;
-        } else {
+        }
+        else
+        {
             throw new IllegalStateException("Unknown pointer size");
         }
         REF_ARRAY_BASE = UnsafeAccess.UNSAFE.arrayBaseOffset(Object[].class);
-    }
-    private UnsafeRefArrayAccess() {
     }
 
     /**
@@ -53,9 +58,10 @@ public final class UnsafeRefArrayAccess {
      *
      * @param buffer this.buffer
      * @param offset computed via {@link UnsafeRefArrayAccess#calcElementOffset(long)}
-     * @param e an orderly kitty
+     * @param e      an orderly kitty
      */
-    public static <E> void spElement(E[] buffer, long offset, E e) {
+    public static <E> void spElement(E[] buffer, long offset, E e)
+    {
         UNSAFE.putObject(buffer, offset, e);
     }
 
@@ -64,9 +70,10 @@ public final class UnsafeRefArrayAccess {
      *
      * @param buffer this.buffer
      * @param offset computed via {@link UnsafeRefArrayAccess#calcElementOffset}
-     * @param e an orderly kitty
+     * @param e      an orderly kitty
      */
-    public static <E> void soElement(E[] buffer, long offset, E e) {
+    public static <E> void soElement(E[] buffer, long offset, E e)
+    {
         UNSAFE.putOrderedObject(buffer, offset, e);
     }
 
@@ -78,7 +85,8 @@ public final class UnsafeRefArrayAccess {
      * @return the element at the offset
      */
     @SuppressWarnings("unchecked")
-    public static <E> E lpElement(E[] buffer, long offset) {
+    public static <E> E lpElement(E[] buffer, long offset)
+    {
         return (E) UNSAFE.getObject(buffer, offset);
     }
 
@@ -90,7 +98,8 @@ public final class UnsafeRefArrayAccess {
      * @return the element at the offset
      */
     @SuppressWarnings("unchecked")
-    public static <E> E lvElement(E[] buffer, long offset) {
+    public static <E> E lvElement(E[] buffer, long offset)
+    {
         return (E) UNSAFE.getObjectVolatile(buffer, offset);
     }
 
@@ -98,7 +107,8 @@ public final class UnsafeRefArrayAccess {
      * @param index desirable element index
      * @return the offset in bytes within the array for a given index.
      */
-    public static long calcElementOffset(long index) {
+    public static long calcElementOffset(long index)
+    {
         return REF_ARRAY_BASE + (index << REF_ELEMENT_SHIFT);
     }
 }

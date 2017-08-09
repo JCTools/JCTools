@@ -16,11 +16,9 @@ package org.jctools.util;
 /**
  * Power of 2 utility functions.
  */
+@InternalAPI
 public final class Pow2 {
     public static final int MAX_POW2 = 1 << 30;
-
-    private Pow2() {
-    }
 
     /**
      * @param value from which next positive power of two will be found.

@@ -13,48 +13,56 @@
  */
 package org.jctools.util;
 
-public final class RangeUtil {
+@InternalAPI
+public final class RangeUtil
+{
+    public static long checkPositive(long n, String name)
+    {
+        if (n <= 0)
+        {
+            throw new IllegalArgumentException(name + ": " + n + " (expected: > 0)");
+        }
 
-  private RangeUtil() {
-  }
-
-  public static long checkPositive(long n, String name) {
-    if (n <= 0) {
-      throw new IllegalArgumentException(name + ": " + n + " (expected: > 0)");
+        return n;
     }
 
-    return n;
-  }
+    public static int checkPositiveOrZero(int n, String name)
+    {
+        if (n < 0)
+        {
+            throw new IllegalArgumentException(name + ": " + n + " (expected: >= 0)");
+        }
 
-  public static int checkPositiveOrZero(int n, String name) {
-    if (n < 0) {
-      throw new IllegalArgumentException(name + ": " + n + " (expected: >= 0)");
+        return n;
     }
 
-    return n;
-  }
+    public static int checkLessThan(int n, int expected, String name)
+    {
+        if (n >= expected)
+        {
+            throw new IllegalArgumentException(name + ": " + n + " (expected: < " + expected + ')');
+        }
 
-  public static int checkLessThan(int n, int expected, String name) {
-    if (n >= expected) {
-      throw new IllegalArgumentException(name + ": " + n + " (expected: < " + expected + ')');
+        return n;
     }
 
-    return n;
-  }
+    public static int checkLessThanOrEqual(int n, long expected, String name)
+    {
+        if (n > expected)
+        {
+            throw new IllegalArgumentException(name + ": " + n + " (expected: <= " + expected + ')');
+        }
 
-  public static int checkLessThanOrEqual(int n, long expected, String name) {
-    if (n > expected) {
-      throw new IllegalArgumentException(name + ": " + n + " (expected: <= " + expected + ')');
+        return n;
     }
 
-    return n;
-  }
+    public static int checkGreaterThanOrEqual(int n, int expected, String name)
+    {
+        if (n < expected)
+        {
+            throw new IllegalArgumentException(name + ": " + n + " (expected: >= " + expected + ')');
+        }
 
-  public static int checkGreaterThanOrEqual(int n, int expected, String name) {
-    if (n < expected) {
-      throw new IllegalArgumentException(name + ": " + n + " (expected: >= " + expected + ')');
+        return n;
     }
-
-    return n;
-  }
 }
