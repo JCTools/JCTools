@@ -13,12 +13,13 @@
  */
 package org.jctools.queues;
 
-public final class IndexedQueueSizeUtil {
-    public interface IndexedQueue {
-        long lvConsumerIndex();
-        long lvProducerIndex();
-    }
-    public static int size(IndexedQueue iq) {
+import org.jctools.util.InternalAPI;
+
+@InternalAPI
+public final class IndexedQueueSizeUtil
+{
+    public static int size(IndexedQueue iq)
+    {
         /*
          * It is possible for a thread to be interrupted or reschedule between the read of the producer and
          * consumer indices, therefore protection is required to ensure size is within valid range. In the
@@ -27,30 +28,43 @@ public final class IndexedQueueSizeUtil {
          */
         long after = iq.lvConsumerIndex();
         long size;
-        while (true) {
+        while (true)
+        {
             final long before = after;
             final long currentProducerIndex = iq.lvProducerIndex();
             after = iq.lvConsumerIndex();
-            if (before == after) {
+            if (before == after)
+            {
                 size = (currentProducerIndex - after);
                 break;
             }
         }
         // Long overflow is impossible (), so size is always positive. Integer overflow is possible for the unbounded
         // indexed queues.
-        if (size > Integer.MAX_VALUE) {
+        if (size > Integer.MAX_VALUE)
+        {
             return Integer.MAX_VALUE;
         }
-        else {
+        else
+        {
             return (int) size;
         }
     }
 
-    public static boolean isEmpty(IndexedQueue iq) {
+    public static boolean isEmpty(IndexedQueue iq)
+    {
         // Order matters!
         // Loading consumer before producer allows for producer increments after consumer index is read.
         // This ensures this method is conservative in it's estimate. Note that as this is an MPMC there is
         // nothing we can do to make this an exact method.
         return (iq.lvConsumerIndex() == iq.lvProducerIndex());
+    }
+
+    @InternalAPI
+    public interface IndexedQueue
+    {
+        long lvConsumerIndex();
+
+        long lvProducerIndex();
     }
 }
