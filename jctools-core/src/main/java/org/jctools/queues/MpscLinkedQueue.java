@@ -47,7 +47,7 @@ public abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E> {
     }
     
     protected MpscLinkedQueue() {
-        LinkedQueueNode<E> node = new LinkedQueueNode<E>();
+        LinkedQueueNode<E> node = newNode();
         spConsumerNode(node);
         xchgProducerNode(node);// this ensures correct construction: StoreLoad
     }
@@ -75,7 +75,7 @@ public abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E> {
         if (null == e) {
             throw new NullPointerException();
         }
-        final LinkedQueueNode<E> nextNode = new LinkedQueueNode<E>(e);
+        final LinkedQueueNode<E> nextNode = newNode(e);
         final LinkedQueueNode<E> prevProducerNode = xchgProducerNode(nextNode);
         // Should a producer thread get interrupted here the chain WILL be broken until that thread is resumed
         // and completes the store in prev.next.
@@ -106,8 +106,7 @@ public abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E> {
         LinkedQueueNode<E> nextNode = currConsumerNode.lvNext();
         if (nextNode != null) {
             return getSingleConsumerNodeValue(currConsumerNode, nextNode);
-        }
-        else if (currConsumerNode != lvProducerNode()) {
+        } else if (currConsumerNode != lvProducerNode()) {
             // spin, we are no longer wait free
             while ((nextNode = currConsumerNode.lvNext()) == null);
             // got the next node...
@@ -123,8 +122,7 @@ public abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E> {
         LinkedQueueNode<E> nextNode = currConsumerNode.lvNext();
         if (nextNode != null) {
             return nextNode.lpValue();
-        }
-        else if (currConsumerNode != lvProducerNode()) {
+        } else if (currConsumerNode != lvProducerNode()) {
             // spin, we are no longer wait free
             while ((nextNode = currConsumerNode.lvNext()) == null);
             // got the next node...
@@ -146,10 +144,10 @@ public abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E> {
     @Override
     public int fill(Supplier<E> s, int limit) {
         if (limit == 0) return 0;
-        LinkedQueueNode<E> tail = new LinkedQueueNode<E>(s.get());
+        LinkedQueueNode<E> tail = newNode(s.get());
         final LinkedQueueNode<E> head = tail;
         for (int i = 1; i < limit; i++) {
-            final LinkedQueueNode<E> temp = new LinkedQueueNode<E>(s.get());
+            final LinkedQueueNode<E> temp = newNode(s.get());
             tail.soNext(temp);
             tail = temp;
         }

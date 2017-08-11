@@ -17,8 +17,6 @@ import java.util.AbstractQueue;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
-import org.jctools.queues.MessagePassingQueue;
-
 abstract class BaseLinkedAtomicQueuePad0<E> extends AbstractQueue<E> {
     long p00, p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16;
@@ -29,8 +27,8 @@ abstract class BaseLinkedAtomicQueueProducerNodeRef<E> extends BaseLinkedAtomicQ
 
     protected volatile LinkedQueueAtomicNode<E> producerNode;
     
-    protected final void spProducerNode(LinkedQueueAtomicNode<E> node) {
-        P_NODE_UPDATER.lazySet(this, node);
+    protected final void spProducerNode(LinkedQueueAtomicNode<E> newValue) {
+        P_NODE_UPDATER.lazySet(this, newValue);
     }
     
     protected final LinkedQueueAtomicNode<E> lvProducerNode() {
@@ -41,8 +39,8 @@ abstract class BaseLinkedAtomicQueueProducerNodeRef<E> extends BaseLinkedAtomicQ
         return lvProducerNode();
     }
     
-    protected final LinkedQueueAtomicNode<E> xchgProducerNode(LinkedQueueAtomicNode<E> node) {
-        return P_NODE_UPDATER.getAndSet(this, node);
+    protected final LinkedQueueAtomicNode<E> xchgProducerNode(LinkedQueueAtomicNode<E> newValue) {
+        return P_NODE_UPDATER.getAndSet(this, newValue);
     }
 }
 
@@ -56,8 +54,8 @@ abstract class BaseLinkedAtomicQueueConsumerNodeRef<E> extends BaseLinkedAtomicQ
 
     protected volatile LinkedQueueAtomicNode<E> consumerNode;
     
-    protected final void spConsumerNode(LinkedQueueAtomicNode<E> node) {
-        C_NODE_UPDATER.lazySet(this, node);
+    protected final void spConsumerNode(LinkedQueueAtomicNode<E> newValue) {
+        C_NODE_UPDATER.lazySet(this, newValue);
     }
     
     protected final LinkedQueueAtomicNode<E> lvConsumerNode() {
@@ -84,6 +82,14 @@ abstract class BaseLinkedAtomicQueue<E> extends BaseLinkedAtomicQueuePad2<E> {
     @Override
     public String toString() {
         return this.getClass().getName();
+    }
+    
+    protected final LinkedQueueAtomicNode<E> newNode() {
+        return new LinkedQueueAtomicNode<E>();
+    }
+    
+    protected final LinkedQueueAtomicNode<E> newNode(E e) {
+        return new LinkedQueueAtomicNode<E>(e);
     }
     
     public final int size() {
@@ -116,8 +122,6 @@ abstract class BaseLinkedAtomicQueue<E> extends BaseLinkedAtomicQueuePad2<E> {
      * Queue is empty when producerNode is the same as consumerNode. An alternative implementation would be to
      * observe the producerNode.value is null, which also means an empty queue because only the
      * consumerNode.value is allowed to be null.
-     *
-     * @see MessagePassingQueue#isEmpty()
      */
     @Override
     public final boolean isEmpty() {

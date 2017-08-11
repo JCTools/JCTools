@@ -31,7 +31,7 @@ package org.jctools.queues.atomic;
 public final class SpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
 
     public SpscLinkedAtomicQueue() {
-        LinkedQueueAtomicNode<E> node = new LinkedQueueAtomicNode<E>();
+        LinkedQueueAtomicNode<E> node = newNode();
         spProducerNode(node);
         spConsumerNode(node);
         node.soNext(null); // this ensures correct construction: StoreStore
@@ -57,7 +57,7 @@ public final class SpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
         if (null == e) {
             throw new NullPointerException();
         }
-        final LinkedQueueAtomicNode<E> nextNode = new LinkedQueueAtomicNode<E>(e);
+        final LinkedQueueAtomicNode<E> nextNode = newNode(e);
         lpProducerNode().soNext(nextNode);
         spProducerNode(nextNode);
         return true;

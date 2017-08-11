@@ -30,7 +30,7 @@ package org.jctools.queues.atomic;
 public final class MpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
 
     public MpscLinkedAtomicQueue() {
-        LinkedQueueAtomicNode<E> node = new LinkedQueueAtomicNode<E>();
+        LinkedQueueAtomicNode<E> node = newNode();
         spConsumerNode(node);
         xchgProducerNode(node);// this ensures correct construction: StoreLoad
     }
@@ -55,7 +55,7 @@ public final class MpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
         if (null == e) {
             throw new NullPointerException();
         }
-        final LinkedQueueAtomicNode<E> nextNode = new LinkedQueueAtomicNode<E>(e);
+        final LinkedQueueAtomicNode<E> nextNode = newNode(e);
         final LinkedQueueAtomicNode<E> prevProducerNode = xchgProducerNode(nextNode);
         // Should a producer thread get interrupted here the chain WILL be broken until that thread is resumed
         // and completes the store in prev.next.
@@ -86,8 +86,7 @@ public final class MpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
         LinkedQueueAtomicNode<E> nextNode = currConsumerNode.lvNext();
         if (nextNode != null) {
             return getSingleConsumerNodeValue(currConsumerNode, nextNode);
-        }
-        else if (currConsumerNode != lvProducerNode()) {
+        } else if (currConsumerNode != lvProducerNode()) {
             // spin, we are no longer wait free
             while ((nextNode = currConsumerNode.lvNext()) == null);
             // got the next node...
@@ -103,8 +102,7 @@ public final class MpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
         LinkedQueueAtomicNode<E> nextNode = currConsumerNode.lvNext();
         if (nextNode != null) {
             return nextNode.lpValue();
-        }
-        else if (currConsumerNode != lvProducerNode()) {
+        } else if (currConsumerNode != lvProducerNode()) {
             // spin, we are no longer wait free
             while ((nextNode = currConsumerNode.lvNext()) == null);
             // got the next node...

@@ -39,8 +39,8 @@ abstract class BaseLinkedQueueProducerNodeRef<E> extends BaseLinkedQueuePad0<E> 
 
     protected LinkedQueueNode<E> producerNode;
 
-    protected final void spProducerNode(LinkedQueueNode<E> node) {
-        producerNode = node;
+    protected final void spProducerNode(LinkedQueueNode<E> newValue) {
+        producerNode = newValue;
     }
 
     @SuppressWarnings("unchecked")
@@ -73,8 +73,8 @@ abstract class BaseLinkedQueueConsumerNodeRef<E> extends BaseLinkedQueuePad1<E> 
 
     protected LinkedQueueNode<E> consumerNode;
 
-    protected final void spConsumerNode(LinkedQueueNode<E> node) {
-        consumerNode = node;
+    protected final void spConsumerNode(LinkedQueueNode<E> newValue) {
+        consumerNode = newValue;
     }
 
     @SuppressWarnings("unchecked")
@@ -110,6 +110,14 @@ abstract class BaseLinkedQueue<E> extends BaseLinkedQueuePad2<E> {
     @Override
     public String toString() {
         return this.getClass().getName();
+    }
+    
+    protected final LinkedQueueNode<E> newNode() {
+        return new LinkedQueueNode<E>();
+    }
+    
+    protected final LinkedQueueNode<E> newNode(E e) {
+        return new LinkedQueueNode<E>(e);
     }
     
     /**
