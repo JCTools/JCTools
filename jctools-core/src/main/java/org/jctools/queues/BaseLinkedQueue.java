@@ -203,13 +203,11 @@ abstract class BaseLinkedQueue<E> extends BaseLinkedQueuePad2<E> {
         return null;
     }
 
-    // $gen:ignore
     @Override
     public boolean relaxedOffer(E e) {
         return offer(e);
     }
 
-    // $gen:ignore
     @Override
     public int drain(Consumer<E> c) {
         long result = 0;// use long to force safepoint into loop below
@@ -221,7 +219,6 @@ abstract class BaseLinkedQueue<E> extends BaseLinkedQueuePad2<E> {
         return (int) result;
     }
 
-    // $gen:ignore
     @Override
     public int drain(Consumer<E> c, int limit) {
         LinkedQueueNode<E> chaserNode = this.consumerNode;
@@ -239,7 +236,6 @@ abstract class BaseLinkedQueue<E> extends BaseLinkedQueuePad2<E> {
         return limit;
     }
     
-    // $gen:ignore
     @Override
     public void drain(Consumer<E> c, WaitStrategy wait, ExitCondition exit) {
         LinkedQueueNode<E> chaserNode = this.consumerNode;
@@ -261,7 +257,6 @@ abstract class BaseLinkedQueue<E> extends BaseLinkedQueuePad2<E> {
         }
     }
 
-    // $gen:ignore
     @Override
     public int capacity() {
         return UNBOUNDED_CAPACITY;

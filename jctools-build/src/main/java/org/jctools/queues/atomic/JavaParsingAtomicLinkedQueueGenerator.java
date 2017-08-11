@@ -7,7 +7,6 @@ import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Stream;
 
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ast.CompilationUnit;
@@ -78,18 +77,6 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends VoidVisitorAdap
              */
             node.removeModifier(Modifier.ABSTRACT);
             node.addModifier(Modifier.FINAL);
-        } else if ("BaseLinkedAtomicQueue".equals(node.getNameAsString())) {
-            /*
-             * Special case for Base
-             */
-            // Remove the override annotations off of these two methods
-            Stream.concat(node.getMethodsByName("relaxedPoll").stream(), node.getMethodsByName("relaxedPeek").stream())
-                    .forEach(method -> {
-                        method.getAnnotations().removeIf(a -> "Override".equals(a.getNameAsString()));
-                        EnumSet<Modifier> modifiers = method.getModifiers();
-                        modifiers.remove(Modifier.PUBLIC);
-                        modifiers.add(Modifier.PROTECTED);
-                    });
         }
 
         if (isCommentPresent(node, GEN_DIRECTIVE_CLASS_CONTAINS_ORDERED_FIELD_ACCESSORS)) {
@@ -201,8 +188,6 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends VoidVisitorAdap
                 parent.setName(translateQueueName(parent.getNameAsString()));
             }
         }
-
-        types.removeIf(t -> "MessagePassingQueue".equals(t.getNameAsString()));
     }
 
     /**
@@ -489,6 +474,8 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends VoidVisitorAdap
             cu.addImport(importDecl);
         }
         cu.addImport(importDeclaration("java.util.concurrent.atomic.AtomicReferenceFieldUpdater"));
+        cu.addImport(importDeclaration("org.jctools.queues.MessagePassingQueue"));
+        
     }
 
     private static void processSpecialNodeTypes(Parameter node) {
