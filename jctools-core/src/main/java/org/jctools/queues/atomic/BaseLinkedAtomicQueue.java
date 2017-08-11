@@ -15,17 +15,16 @@ package org.jctools.queues.atomic;
 
 import java.util.AbstractQueue;
 import java.util.Iterator;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import org.jctools.queues.MessagePassingQueue;
 
 abstract class BaseLinkedAtomicQueue<E> extends AbstractQueue<E> {
-    private final AtomicReference<LinkedQueueAtomicNode<E>> producerNode;
-    private final AtomicReference<LinkedQueueAtomicNode<E>> consumerNode;
-    public BaseLinkedAtomicQueue() {
-        producerNode = new AtomicReference<LinkedQueueAtomicNode<E>>();
-        consumerNode = new AtomicReference<LinkedQueueAtomicNode<E>>();
-    }
+    private static final AtomicReferenceFieldUpdater<BaseLinkedAtomicQueue, LinkedQueueAtomicNode> P_NODE_UPDATER = AtomicReferenceFieldUpdater.newUpdater(BaseLinkedAtomicQueue.class, LinkedQueueAtomicNode.class, "producerNode");
+    private static final AtomicReferenceFieldUpdater<BaseLinkedAtomicQueue, LinkedQueueAtomicNode> C_NODE_UPDATER = AtomicReferenceFieldUpdater.newUpdater(BaseLinkedAtomicQueue.class, LinkedQueueAtomicNode.class, "consumerNode");
+    
+    private volatile LinkedQueueAtomicNode<E> producerNode;
+    private volatile LinkedQueueAtomicNode<E> consumerNode;
 
     @Override
     public final Iterator<E> iterator() {
@@ -102,30 +101,30 @@ abstract class BaseLinkedAtomicQueue<E> extends AbstractQueue<E> {
     }
     
     protected final LinkedQueueAtomicNode<E> lvProducerNode() {
-        return producerNode.get();
+        return producerNode;
     }
     
     protected final LinkedQueueAtomicNode<E> lpProducerNode() {
-        return producerNode.get();
+        return lvProducerNode();
     }
     
     protected final void spProducerNode(LinkedQueueAtomicNode<E> node) {
-        producerNode.lazySet(node);
+        P_NODE_UPDATER.lazySet(this, node);
     }
     
     protected final LinkedQueueAtomicNode<E> xchgProducerNode(LinkedQueueAtomicNode<E> node) {
-        return producerNode.getAndSet(node);
+        return P_NODE_UPDATER.getAndSet(this, node);
     }
     
     protected final LinkedQueueAtomicNode<E> lvConsumerNode() {
-        return consumerNode.get();
+        return consumerNode;
     }
 
     protected final LinkedQueueAtomicNode<E> lpConsumerNode() {
-        return consumerNode.get();
+        return lvConsumerNode();
     }
     
     protected final void spConsumerNode(LinkedQueueAtomicNode<E> node) {
-        consumerNode.lazySet(node);
+        C_NODE_UPDATER.lazySet(this, node);
     }
 }
