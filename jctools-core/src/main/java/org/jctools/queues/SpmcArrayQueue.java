@@ -30,6 +30,7 @@ abstract class SpmcArrayQueueL1Pad<E> extends ConcurrentCircularArrayQueue<E> {
     }
 }
 
+//$gen:ordered-fields
 abstract class SpmcArrayQueueProducerIndexField<E> extends SpmcArrayQueueL1Pad<E> {
     protected final static long P_INDEX_OFFSET;
     static {
@@ -46,8 +47,8 @@ abstract class SpmcArrayQueueProducerIndexField<E> extends SpmcArrayQueueL1Pad<E
         return UNSAFE.getLongVolatile(this, P_INDEX_OFFSET);
     }
 
-    protected final void soProducerIndex(long v) {
-        UNSAFE.putOrderedLong(this, P_INDEX_OFFSET, v);
+    protected final void soProducerIndex(long newValue) {
+        UNSAFE.putOrderedLong(this, P_INDEX_OFFSET, newValue);
     }
 
     public SpmcArrayQueueProducerIndexField(int capacity) {
@@ -64,6 +65,7 @@ abstract class SpmcArrayQueueL2Pad<E> extends SpmcArrayQueueProducerIndexField<E
     }
 }
 
+//$gen:ordered-fields
 abstract class SpmcArrayQueueConsumerIndexField<E> extends SpmcArrayQueueL2Pad<E> {
     protected final static long C_INDEX_OFFSET;
     static {
@@ -84,7 +86,7 @@ abstract class SpmcArrayQueueConsumerIndexField<E> extends SpmcArrayQueueL2Pad<E
         return consumerIndex;
     }
 
-    protected final boolean casHead(long expect, long newValue) {
+    protected final boolean casConsumerIndex(long expect, long newValue) {
         return UNSAFE.compareAndSwapLong(this, C_INDEX_OFFSET, expect, newValue);
     }
 }
@@ -98,6 +100,7 @@ abstract class SpmcArrayQueueMidPad<E> extends SpmcArrayQueueConsumerIndexField<
     }
 }
 
+//$gen:ordered-fields
 abstract class SpmcArrayQueueProducerIndexCacheField<E> extends SpmcArrayQueueMidPad<E> {
     // This is separated from the consumerIndex which will be highly contended in the hope that this value spends most
     // of it's time in a cache line that is Shared(and rarely invalidated)
@@ -111,8 +114,8 @@ abstract class SpmcArrayQueueProducerIndexCacheField<E> extends SpmcArrayQueueMi
         return producerIndexCache;
     }
 
-    protected final void svProducerIndexCache(long v) {
-        producerIndexCache = v;
+    protected final void svProducerIndexCache(long newValue) {
+        producerIndexCache = newValue;
     }
 }
 
@@ -125,7 +128,7 @@ abstract class SpmcArrayQueueL3Pad<E> extends SpmcArrayQueueProducerIndexCacheFi
     }
 }
 
-public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueueProgressIndicators {
+public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> {
     
     public SpmcArrayQueue(final int capacity) {
         super(capacity);
@@ -173,7 +176,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
                     svProducerIndexCache(currProducerIndex);
                 }
             }
-        } while (!casHead(currentConsumerIndex, currentConsumerIndex + 1));
+        } while (!casConsumerIndex(currentConsumerIndex, currentConsumerIndex + 1));
         // consumers are gated on latest visible tail, and so can't see a null value in the queue or overtake
         // and wrap to hit same location.
         return removeElement(buffer, currentConsumerIndex, mask);
@@ -208,6 +211,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
         return e;
     }
 
+    // $gen:ignore
 	@Override
 	public boolean relaxedOffer(E e) {
 		if (null == e) {
@@ -227,11 +231,13 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
         return true;
 	}
 
+    // $gen:ignore
 	@Override
 	public E relaxedPoll() {
         return poll();
     }
 
+    // $gen:ignore
     @Override
     public E relaxedPeek() {
     	final E[] buffer = this.buffer;
@@ -240,6 +246,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
         return lvElement(buffer, calcElementOffset(consumerIndex, mask));
 	}
 
+    // $gen:ignore
     @Override
     public int drain(final Consumer<E> c) {
         final int capacity = capacity();
@@ -254,11 +261,13 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
         return sum;
     }
 
+    // $gen:ignore
     @Override
     public int fill(final Supplier<E> s) {
         return fill(s, capacity());
     }
 
+    // $gen:ignore
     @Override
     public int drain(final Consumer<E> c, final int limit) {
         final E[] buffer = this.buffer;
@@ -281,7 +290,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
             // try and claim up to 'limit' elements in one go
             int remaining = (int) (currProducerIndexCache - currentConsumerIndex);
             adjustedLimit = Math.min(remaining, limit);
-        } while (!casHead(currentConsumerIndex, currentConsumerIndex + adjustedLimit));
+        } while (!casConsumerIndex(currentConsumerIndex, currentConsumerIndex + adjustedLimit));
 
         for (int i = 0; i < adjustedLimit; i++) {
             c.accept(removeElement(buffer, currentConsumerIndex + i, mask));
@@ -291,6 +300,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
 
 
 
+    // $gen:ignore
     @Override
     public int fill(final Supplier<E> s, final int limit) {
         final E[] buffer = this.buffer;
@@ -309,6 +319,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
         return limit;
     }
 
+    // $gen:ignore
     @Override
     public void drain(final Consumer<E> c, final WaitStrategy w, final ExitCondition exit) {
         int idleCounter = 0;
@@ -321,6 +332,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> implements QueuePr
         }
     }
 
+    // $gen:ignore
     @Override
     public void fill(final Supplier<E> s, final WaitStrategy w, final ExitCondition e) {
         final E[] buffer = this.buffer;

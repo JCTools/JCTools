@@ -98,6 +98,42 @@
 					</execution>
 				</executions>
 			</plugin>
+   
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>1.6.0</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>${project.groupId}</groupId>
+                        <artifactId>jctools-build</artifactId>
+                        <version>${project.version}</version>
+                    </dependency>
+                </dependencies>
+                <executions>
+                    <execution>
+                        <id>generate-atomic-queues</id>
+                        <goals>
+                            <goal>java</goal>
+                        </goals>
+                        <phase>generate-sources</phase>
+                        <configuration>
+                            <includePluginDependencies>true</includePluginDependencies>
+                            <includeProjectDependencies>false</includeProjectDependencies>
+                            <mainClass>org.jctools.queues.atomic.JavaParsingAtomicArrayQueueGenerator</mainClass>
+                            <arguments>
+                                <!-- Output dest -->
+                                <argument>${basedir}/src/main/java/org/jctools/queues/atomic</argument>
+                                <!-- List of input files -->
+                                <argument>${basedir}/src/main/java/org/jctools/queues/SpscArrayQueue.java</argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/SpmcArrayQueue.java</argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/MpscArrayQueue.java</argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/MpmcArrayQueue.java</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+               </executions>
+            </plugin>
 		</plugins>
 	</build>
 
