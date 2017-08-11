@@ -87,6 +87,11 @@ abstract class BaseLinkedQueueConsumerNodeRef<E> extends BaseLinkedQueuePad1<E> 
     }
 }
 
+abstract class BaseLinkedQueuePad2<E> extends BaseLinkedQueueConsumerNodeRef<E> {
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
+}
+
 /**
  * A base data structure for concurrent linked queues. For convenience also pulled in common single consumer
  * methods since at this time there's no plan to implement MC.
@@ -95,9 +100,7 @@ abstract class BaseLinkedQueueConsumerNodeRef<E> extends BaseLinkedQueuePad1<E> 
  *
  * @param <E>
  */
-abstract class BaseLinkedQueue<E> extends BaseLinkedQueueConsumerNodeRef<E> {
-    long p01, p02, p03, p04, p05, p06, p07;
-    long p10, p11, p12, p13, p14, p15, p16, p17;
+abstract class BaseLinkedQueue<E> extends BaseLinkedQueuePad2<E> {
 
     @Override
     public final Iterator<E> iterator() {
