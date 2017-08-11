@@ -31,7 +31,6 @@ package org.jctools.queues.atomic;
 public final class SpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
 
     public SpscLinkedAtomicQueue() {
-        super();
         LinkedQueueAtomicNode<E> node = new LinkedQueueAtomicNode<E>();
         spProducerNode(node);
         spConsumerNode(node);
@@ -80,22 +79,12 @@ public final class SpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
      */
     @Override
     public E poll() {
-        final LinkedQueueAtomicNode<E> currConsumerNode = lpConsumerNode();
-        final LinkedQueueAtomicNode<E> nextNode = currConsumerNode.lvNext();
-        if (nextNode != null) {
-            return getSingleConsumerNodeValue(currConsumerNode, nextNode);
-        }
-        return null;
+        return relaxedPoll();
     }
 
     @Override
     public E peek() {
-        final LinkedQueueAtomicNode<E> nextNode = lpConsumerNode().lvNext();
-        if (nextNode != null) {
-            return nextNode.lpValue();
-        } else {
-            return null;
-        }
+        return relaxedPeek();
     }
 
 }

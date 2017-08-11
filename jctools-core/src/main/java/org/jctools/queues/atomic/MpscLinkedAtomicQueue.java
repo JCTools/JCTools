@@ -14,24 +14,22 @@
 package org.jctools.queues.atomic;
 
 /**
- * This is a direct Java port of the MPSC algorithm as presented <a
- * href="http://www.1024cores.net/home/lock-free-algorithms/queues/non-intrusive-mpsc-node-based-queue"> on 1024
- * Cores</a> by D. Vyukov. The original has been adapted to Java and it's quirks with regards to memory model and
- * layout:
+ * This is a direct Java port of the MPSC algorithm as presented
+ * <a href="http://www.1024cores.net/home/lock-free-algorithms/queues/non-intrusive-mpsc-node-based-queue"> on
+ * 1024 Cores</a> by D. Vyukov. The original has been adapted to Java and it's quirks with regards to memory
+ * model and layout:
  * <ol>
  * <li>Use XCHG functionality provided by AtomicReference (which is better in JDK 8+).
  * </ol>
- * The queue is initialized with a stub node which is set to both the producer and consumer node references. From this
- * point follow the notes on offer/poll.
+ * The queue is initialized with a stub node which is set to both the producer and consumer node references.
+ * From this point follow the notes on offer/poll.
  *
+ * @param <E> the type of elements in this queue
  * @author nitsanw
- *
- * @param <E>
  */
 public final class MpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
 
     public MpscLinkedAtomicQueue() {
-        super();
         LinkedQueueAtomicNode<E> node = new LinkedQueueAtomicNode<E>();
         spConsumerNode(node);
         xchgProducerNode(node);// this ensures correct construction: StoreLoad
@@ -46,8 +44,8 @@ public final class MpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
      * <li>Swaps it atomically with current producer node (only one producer 'wins')
      * <li>Sets the new node as the node following from the swapped producer node
      * </ol>
-     * This works because each producer is guaranteed to 'plant' a new node and link the old node. No 2 producers can
-     * get the same producer node as part of XCHG guarantee.
+     * This works because each producer is guaranteed to 'plant' a new node and link the old node. No 2
+     * producers can get the same producer node as part of XCHG guarantee.
      *
      * @see org.jctools.queues.MessagePassingQueue#offer(Object)
      * @see java.util.Queue#offer(java.lang.Object)
@@ -75,8 +73,9 @@ public final class MpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
      * <li>If it is null, the queue is assumed empty (though it might not be).
      * <li>If it is not null set it as the consumer node and return it's now evacuated value.
      * </ol>
-     * This means the consumerNode.value is always null, which is also the starting point for the queue. Because null
-     * values are not allowed to be offered this is the only node with it's value set to null at any one time.
+     * This means the consumerNode.value is always null, which is also the starting point for the queue.
+     * Because null values are not allowed to be offered this is the only node with it's value set to null at
+     * any one time.
      *
      * @see org.jctools.queues.MessagePassingQueue#poll()
      * @see java.util.Queue#poll()
@@ -90,7 +89,7 @@ public final class MpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
         }
         else if (currConsumerNode != lvProducerNode()) {
             // spin, we are no longer wait free
-            while((nextNode = currConsumerNode.lvNext()) == null);
+            while ((nextNode = currConsumerNode.lvNext()) == null);
             // got the next node...
 
             return getSingleConsumerNodeValue(currConsumerNode, nextNode);
@@ -107,7 +106,7 @@ public final class MpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
         }
         else if (currConsumerNode != lvProducerNode()) {
             // spin, we are no longer wait free
-            while((nextNode = currConsumerNode.lvNext()) == null);
+            while ((nextNode = currConsumerNode.lvNext()) == null);
             // got the next node...
             return nextNode.lpValue();
         }

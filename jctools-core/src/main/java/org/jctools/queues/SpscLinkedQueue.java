@@ -32,9 +32,10 @@ package org.jctools.queues;
 public class SpscLinkedQueue<E> extends BaseLinkedQueue<E> {
 
     public SpscLinkedQueue() {
-        spProducerNode(new LinkedQueueNode<E>());
-        spConsumerNode(producerNode);
-        consumerNode.soNext(null); // this ensures correct construction: StoreStore
+        LinkedQueueNode<E> node = new LinkedQueueNode<E>();
+        spProducerNode(node);
+        spConsumerNode(node);
+        node.soNext(null); // this ensures correct construction: StoreStore
     }
 
     /**
@@ -58,8 +59,7 @@ public class SpscLinkedQueue<E> extends BaseLinkedQueue<E> {
             throw new NullPointerException();
         }
         final LinkedQueueNode<E> nextNode = new LinkedQueueNode<E>(e);
-        final LinkedQueueNode<E> producerNode = lpProducerNode();
-        producerNode.soNext(nextNode);
+        lpProducerNode().soNext(nextNode);
         spProducerNode(nextNode);
         return true;
     }

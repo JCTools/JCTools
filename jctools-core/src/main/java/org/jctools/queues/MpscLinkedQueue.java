@@ -45,9 +45,11 @@ public abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E> {
             return new MpscLinkedQueue7<E>();
         }
     }
+    
     protected MpscLinkedQueue() {
-        consumerNode = new LinkedQueueNode<E>();
-        xchgProducerNode(consumerNode);// this ensures correct construction: StoreLoad
+        LinkedQueueNode<E> node = new LinkedQueueNode<E>();
+        spConsumerNode(node);
+        xchgProducerNode(node);// this ensures correct construction: StoreLoad
     }
 
     protected abstract LinkedQueueNode<E> xchgProducerNode(LinkedQueueNode<E> nextNode);
@@ -107,8 +109,7 @@ public abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E> {
         }
         else if (currConsumerNode != lvProducerNode()) {
             // spin, we are no longer wait free
-            while ((nextNode = currConsumerNode.lvNext()) == null)
-                ;
+            while ((nextNode = currConsumerNode.lvNext()) == null);
             // got the next node...
 
             return getSingleConsumerNodeValue(currConsumerNode, nextNode);
@@ -118,15 +119,14 @@ public abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E> {
 
     @Override
     public final E peek() {
-        LinkedQueueNode<E> currConsumerNode = consumerNode; // don't load twice, it's alright
+        LinkedQueueNode<E> currConsumerNode = lpConsumerNode(); // don't load twice, it's alright
         LinkedQueueNode<E> nextNode = currConsumerNode.lvNext();
         if (nextNode != null) {
             return nextNode.lpValue();
         }
         else if (currConsumerNode != lvProducerNode()) {
             // spin, we are no longer wait free
-            while ((nextNode = currConsumerNode.lvNext()) == null)
-                ;
+            while ((nextNode = currConsumerNode.lvNext()) == null);
             // got the next node...
             return nextNode.lpValue();
         }

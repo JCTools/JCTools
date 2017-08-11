@@ -26,39 +26,17 @@ abstract class BaseLinkedAtomicQueue<E> extends AbstractQueue<E> {
         producerNode = new AtomicReference<LinkedQueueAtomicNode<E>>();
         consumerNode = new AtomicReference<LinkedQueueAtomicNode<E>>();
     }
-    protected final LinkedQueueAtomicNode<E> lvProducerNode() {
-        return producerNode.get();
-    }
-    protected final LinkedQueueAtomicNode<E> lpProducerNode() {
-        return producerNode.get();
-    }
-    protected final void spProducerNode(LinkedQueueAtomicNode<E> node) {
-        producerNode.lazySet(node);
-    }
-    protected final LinkedQueueAtomicNode<E> xchgProducerNode(LinkedQueueAtomicNode<E> node) {
-        return producerNode.getAndSet(node);
-    }
-    protected final LinkedQueueAtomicNode<E> lvConsumerNode() {
-        return consumerNode.get();
-    }
 
-    protected final LinkedQueueAtomicNode<E> lpConsumerNode() {
-        return consumerNode.get();
-    }
-    protected final void spConsumerNode(LinkedQueueAtomicNode<E> node) {
-        consumerNode.lazySet(node);
-    }
     @Override
     public final Iterator<E> iterator() {
         throw new UnsupportedOperationException();
     }
 
-
     @Override
     public String toString() {
         return this.getClass().getName();
     }
-
+    
     public final int size() {
         // Read consumer first, this is important because if the producer is node is 'older' than the consumer
         // the consumer may overtake it (consume past it). This will lead to an infinite loop below.
@@ -81,13 +59,14 @@ abstract class BaseLinkedAtomicQueue<E> extends AbstractQueue<E> {
         }
         return size;
     }
+    
     /**
      * {@inheritDoc} <br>
      * <p>
      * IMPLEMENTATION NOTES:<br>
-     * Queue is empty when producerNode is the same as consumerNode. An alternative implementation would be to observe
-     * the producerNode.value is null, which also means an empty queue because only the consumerNode.value is allowed to
-     * be null.
+     * Queue is empty when producerNode is the same as consumerNode. An alternative implementation would be to
+     * observe the producerNode.value is null, which also means an empty queue because only the
+     * consumerNode.value is allowed to be null.
      *
      * @see MessagePassingQueue#isEmpty()
      */
@@ -99,9 +78,54 @@ abstract class BaseLinkedAtomicQueue<E> extends AbstractQueue<E> {
     protected E getSingleConsumerNodeValue(LinkedQueueAtomicNode<E> currConsumerNode, LinkedQueueAtomicNode<E> nextNode) {
         // we have to null out the value because we are going to hang on to the node
         final E nextValue = nextNode.getAndNullValue();
-        // fix up the next ref to prevent promoted nodes from keep new ones alive
+        // Fix up the next ref of currConsumerNode to prevent promoted nodes from keeping new ones alive.
         currConsumerNode.soNext(currConsumerNode);
         spConsumerNode(nextNode);
         return nextValue;
+    }
+
+    protected E relaxedPoll() {
+        final LinkedQueueAtomicNode<E> currConsumerNode = lpConsumerNode();
+        final LinkedQueueAtomicNode<E> nextNode = currConsumerNode.lvNext();
+        if (nextNode != null) {
+            return getSingleConsumerNodeValue(currConsumerNode, nextNode);
+        }
+        return null;
+    }
+
+    protected E relaxedPeek() {
+        final LinkedQueueAtomicNode<E> nextNode = lpConsumerNode().lvNext();
+        if (nextNode != null) {
+            return nextNode.lpValue();
+        }
+        return null;
+    }
+    
+    protected final LinkedQueueAtomicNode<E> lvProducerNode() {
+        return producerNode.get();
+    }
+    
+    protected final LinkedQueueAtomicNode<E> lpProducerNode() {
+        return producerNode.get();
+    }
+    
+    protected final void spProducerNode(LinkedQueueAtomicNode<E> node) {
+        producerNode.lazySet(node);
+    }
+    
+    protected final LinkedQueueAtomicNode<E> xchgProducerNode(LinkedQueueAtomicNode<E> node) {
+        return producerNode.getAndSet(node);
+    }
+    
+    protected final LinkedQueueAtomicNode<E> lvConsumerNode() {
+        return consumerNode.get();
+    }
+
+    protected final LinkedQueueAtomicNode<E> lpConsumerNode() {
+        return consumerNode.get();
+    }
+    
+    protected final void spConsumerNode(LinkedQueueAtomicNode<E> node) {
+        consumerNode.lazySet(node);
     }
 }

@@ -108,6 +108,7 @@ abstract class BaseLinkedQueue<E> extends BaseLinkedQueueConsumerNodeRef<E> {
     public String toString() {
         return this.getClass().getName();
     }
+    
     /**
      * {@inheritDoc} <br>
      * <p>
@@ -157,11 +158,6 @@ abstract class BaseLinkedQueue<E> extends BaseLinkedQueueConsumerNodeRef<E> {
         return lvConsumerNode() == lvProducerNode();
     }
 
-    @Override
-    public int capacity() {
-        return UNBOUNDED_CAPACITY;
-    }
-
     protected E getSingleConsumerNodeValue(LinkedQueueNode<E> currConsumerNode, LinkedQueueNode<E> nextNode) {
         // we have to null out the value because we are going to hang on to the node
         final E nextValue = nextNode.getAndNullValue();
@@ -177,12 +173,26 @@ abstract class BaseLinkedQueue<E> extends BaseLinkedQueueConsumerNodeRef<E> {
 
     @Override
     public E relaxedPoll() {
-        LinkedQueueNode<E> currConsumerNode = lpConsumerNode(); // don't load twice, it's alright
-        LinkedQueueNode<E> nextNode = currConsumerNode.lvNext();
+        final LinkedQueueNode<E> currConsumerNode = lpConsumerNode();
+        final LinkedQueueNode<E> nextNode = currConsumerNode.lvNext();
         if (nextNode != null) {
             return getSingleConsumerNodeValue(currConsumerNode, nextNode);
         }
         return null;
+    }
+
+    @Override
+    public E relaxedPeek() {
+        final LinkedQueueNode<E> nextNode = lpConsumerNode().lvNext();
+        if (nextNode != null) {
+            return nextNode.lpValue();
+        }
+        return null;
+    }
+
+    @Override
+    public boolean relaxedOffer(E e) {
+        return offer(e);
     }
 
     @Override
@@ -235,18 +245,8 @@ abstract class BaseLinkedQueue<E> extends BaseLinkedQueueConsumerNodeRef<E> {
     }
 
     @Override
-    public E relaxedPeek() {
-        LinkedQueueNode<E> currConsumerNode = consumerNode; // don't load twice, it's alright
-        LinkedQueueNode<E> nextNode = currConsumerNode.lvNext();
-        if (nextNode != null) {
-            return nextNode.lpValue();
-        }
-        return null;
-    }
-
-    @Override
-    public boolean relaxedOffer(E e) {
-        return offer(e);
+    public int capacity() {
+        return UNBOUNDED_CAPACITY;
     }
 
 }
