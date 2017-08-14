@@ -13,15 +13,18 @@
  */
 package org.jctools.queues;
 
-import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
+import static org.jctools.queues.CircularArrayOffsetCalculator.calcElementOffset;
+import static org.jctools.queues.LinkedArrayQueueUtil.length;
+import static org.jctools.queues.LinkedArrayQueueUtil.nextArrayOffset;
+import static org.jctools.util.UnsafeAccess.UNSAFE;
+import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
+import static org.jctools.util.UnsafeRefArrayAccess.soElement;
 
 import java.lang.reflect.Field;
 import java.util.AbstractQueue;
 import java.util.Iterator;
 
-import static org.jctools.queues.CircularArrayOffsetCalculator.calcElementOffset;
-import static org.jctools.util.UnsafeAccess.UNSAFE;
-import static org.jctools.util.UnsafeRefArrayAccess.*;
+import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
 
 abstract class BaseSpscLinkedArrayQueuePrePad<E> extends AbstractQueue<E> implements IndexedQueue
 {
@@ -165,11 +168,6 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
         // prevent GC nepotism
         soElement(curr, offset, null);
         return nextBuffer;
-    }
-
-    private long nextArrayOffset(E[] curr)
-    {
-        return REF_ARRAY_BASE + ((long) (length(curr) - 1) << REF_ELEMENT_SHIFT);
     }
 
     @Override
@@ -396,9 +394,5 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
             soElement(nextBuffer, offset, null);// StoreStore
             return n;
         }
-    }
-
-    private int length(E[] nextBuffer) {
-        return nextBuffer.length;
     }
 }

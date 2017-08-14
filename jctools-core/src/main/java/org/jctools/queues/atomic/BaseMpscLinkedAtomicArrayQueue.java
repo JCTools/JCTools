@@ -14,7 +14,9 @@
 package org.jctools.queues.atomic;
 
 import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.allocate;
+import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.length;
 import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.lvElement;
+import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.modifiedCalcElementOffset;
 import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.soElement;
 
 import java.util.AbstractQueue;
@@ -151,14 +153,6 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
         consumerBuffer = buffer;
         consumerMask = mask;
         soProducerLimit(mask); // we know it's all empty to start with
-    }
-
-    /**
-     * This method assumes index is actually (index << 1) because lower bit is used for resize hence the >> 1
-     */
-    private static int modifiedCalcElementOffset(long index, long mask)
-    {
-        return (int) (index & mask) >> 1;
     }
 
     @Override
@@ -431,10 +425,6 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
         consumerMask = (length(nextBuffer) - 2) << 1;
         final int offsetInNew = modifiedCalcElementOffset(index, consumerMask);
         return offsetInNew;
-    }
-
-    private int length(AtomicReferenceArray<E> buf) {
-        return buf.length();
     }
 
     @Override

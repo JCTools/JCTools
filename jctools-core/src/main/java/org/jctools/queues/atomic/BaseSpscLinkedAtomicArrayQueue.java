@@ -13,18 +13,20 @@
  */
 package org.jctools.queues.atomic;
 
-import org.jctools.queues.IndexedQueueSizeUtil;
-import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
-import org.jctools.queues.QueueProgressIndicators;
+import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.calcElementOffset;
+import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.length;
+import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.lvElement;
+import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.nextArrayOffset;
+import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.soElement;
 
 import java.util.AbstractQueue;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
-import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.lvElement;
-import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.soElement;
-import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.calcElementOffset;
+import org.jctools.queues.IndexedQueueSizeUtil;
+import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
+import org.jctools.queues.QueueProgressIndicators;
 
 abstract class BaseSpscLinkedAtomicArrayQueuePrePad<E> extends AbstractQueue<E> implements IndexedQueue
 {
@@ -147,11 +149,6 @@ abstract class BaseSpscLinkedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArr
         // prevent GC nepotism
         soElement(curr, offset, null);
         return nextBuffer;
-    }
-
-    private int nextArrayOffset(AtomicReferenceArray<E> curr)
-    {
-        return length(curr) - 1;
     }
 
     /**
@@ -279,9 +276,5 @@ abstract class BaseSpscLinkedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArr
             soElement(nextBuffer, offset, null);// StoreStore
             return n;
         }
-    }
-
-    private int length(AtomicReferenceArray<E> nextBuffer) {
-        return nextBuffer.length();
     }
 }

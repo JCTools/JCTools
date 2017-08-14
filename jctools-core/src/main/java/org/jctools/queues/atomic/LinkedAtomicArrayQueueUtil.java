@@ -1,5 +1,7 @@
 package org.jctools.queues.atomic;
 
+import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.length;
+
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 final class LinkedAtomicArrayQueueUtil {
@@ -32,6 +34,23 @@ final class LinkedAtomicArrayQueueUtil {
 
     static <E> AtomicReferenceArray<E> allocate(int capacity) {
         return new AtomicReferenceArray<E>(capacity);
+    }
+
+    static int length(AtomicReferenceArray<?> buf) {
+        return buf.length();
+    }
+
+    /**
+     * This method assumes index is actually (index << 1) because lower bit is used for resize hence the >> 1
+     */
+    static int modifiedCalcElementOffset(long index, long mask)
+    {
+        return (int) (index & mask) >> 1;
+    }
+
+    static int nextArrayOffset(AtomicReferenceArray<?> curr)
+    {
+        return length(curr) - 1;
     }
 
 }

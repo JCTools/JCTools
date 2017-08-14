@@ -13,17 +13,20 @@
  */
 package org.jctools.queues;
 
-import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
-import org.jctools.util.Pow2;
-import org.jctools.util.RangeUtil;
+import static org.jctools.queues.CircularArrayOffsetCalculator.allocate;
+import static org.jctools.queues.LinkedArrayQueueUtil.length;
+import static org.jctools.queues.LinkedArrayQueueUtil.modifiedCalcElementOffset;
+import static org.jctools.util.UnsafeAccess.UNSAFE;
+import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
+import static org.jctools.util.UnsafeRefArrayAccess.soElement;
 
 import java.lang.reflect.Field;
 import java.util.AbstractQueue;
 import java.util.Iterator;
 
-import static org.jctools.queues.CircularArrayOffsetCalculator.allocate;
-import static org.jctools.util.UnsafeAccess.UNSAFE;
-import static org.jctools.util.UnsafeRefArrayAccess.*;
+import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
+import org.jctools.util.Pow2;
+import org.jctools.util.RangeUtil;
 
 abstract class BaseMpscLinkedArrayQueuePad1<E> extends AbstractQueue<E> implements IndexedQueue
 {
@@ -177,15 +180,6 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
         consumerBuffer = buffer;
         consumerMask = mask;
         soProducerLimit(mask); // we know it's all empty to start with
-    }
-
-    /**
-     * This method assumes index is actually (index << 1) because lower bit is used for resize. This is
-     * compensated for by reducing the element shift. The computation is constant folded, so there's no cost.
-     */
-    private static long modifiedCalcElementOffset(long index, long mask)
-    {
-        return REF_ARRAY_BASE + ((index & mask) << (REF_ELEMENT_SHIFT - 1));
     }
 
     @Override
@@ -458,10 +452,6 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
         consumerMask = (length(nextBuffer) - 2) << 1;
         final long offsetInNew = modifiedCalcElementOffset(index, consumerMask);
         return offsetInNew;
-    }
-
-    private int length(E[] buf) {
-        return buf.length;
     }
 
     @Override
