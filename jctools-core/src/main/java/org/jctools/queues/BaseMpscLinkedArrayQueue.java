@@ -53,7 +53,7 @@ abstract class BaseMpscLinkedArrayQueueProducerFields<E> extends BaseMpscLinkedA
     {
         return UNSAFE.getLongVolatile(this, P_INDEX_OFFSET);
     }
-    
+
     final void soProducerIndex(long newValue)
     {
         UNSAFE.putOrderedLong(this, P_INDEX_OFFSET, newValue);
@@ -163,7 +163,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
      * @param initialCapacity the queue initial capacity. If chunk size is fixed this will be the chunk size.
      *                        Must be 2 or more.
      */
-    public BaseMpscLinkedArrayQueue(int initialCapacity)
+    public BaseMpscLinkedArrayQueue(final int initialCapacity)
     {
         RangeUtil.checkGreaterThanOrEqual(initialCapacity, 2, "initialCapacity");
 
@@ -247,7 +247,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
     }
 
     @Override
-    public boolean offer(E e)
+    public boolean offer(final E e)
     {
         if (null == e)
         {
@@ -415,11 +415,11 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
     protected abstract long availableInQueue(long pIndex, long cIndex);
 
     @SuppressWarnings("unchecked")
-    private E[] getNextBuffer(E[] buffer, long mask)
+    private E[] getNextBuffer(final E[] buffer, final long mask)
     {
-        final long nextArrayOffset = nextArrayOffset(mask);
-        final E[] nextBuffer = (E[]) lvElement(buffer, nextArrayOffset);
-        soElement(buffer, nextArrayOffset, null);
+        final long offset = nextArrayOffset(mask);
+        final E[] nextBuffer = (E[]) lvElement(buffer, offset);
+        soElement(buffer, offset, null);
         return nextBuffer;
     }
 
@@ -430,21 +430,21 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
 
     private E newBufferPoll(E[] nextBuffer, long index)
     {
-        final long offsetInNew = newBufferAndOffset(nextBuffer, index);
-        final E n = lvElement(nextBuffer, offsetInNew);// LoadLoad
+        final long offset = newBufferAndOffset(nextBuffer, index);
+        final E n = lvElement(nextBuffer, offset);// LoadLoad
         if (n == null)
         {
             throw new IllegalStateException("new buffer must have at least one element");
         }
-        soElement(nextBuffer, offsetInNew, null);// StoreStore
+        soElement(nextBuffer, offset, null);// StoreStore
         soConsumerIndex(index + 2);
         return n;
     }
 
     private E newBufferPeek(E[] nextBuffer, long index)
     {
-        final long offsetInNew = newBufferAndOffset(nextBuffer, index);
-        final E n = lvElement(nextBuffer, offsetInNew);// LoadLoad
+        final long offset = newBufferAndOffset(nextBuffer, index);
+        final E n = lvElement(nextBuffer, offset);// LoadLoad
         if (null == n)
         {
             throw new IllegalStateException("new buffer must have at least one element");
@@ -455,9 +455,13 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
     private long newBufferAndOffset(E[] nextBuffer, long index)
     {
         consumerBuffer = nextBuffer;
-        consumerMask = (nextBuffer.length - 2) << 1;
+        consumerMask = (length(nextBuffer) - 2) << 1;
         final long offsetInNew = modifiedCalcElementOffset(index, consumerMask);
         return offsetInNew;
+    }
+
+    private int length(E[] buf) {
+        return buf.length;
     }
 
     @Override
@@ -524,12 +528,6 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
     }
 
     @Override
-    public int drain(Consumer<E> c)
-    {
-        return drain(c, capacity());
-    }
-
-    @Override
     public int fill(Supplier<E> s)
     {
         long result = 0;// result is a long because we want to have a safepoint check at regular intervals
@@ -545,22 +543,6 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
         }
         while (result <= capacity);
         return (int) result;
-    }
-
-    @Override
-    public int drain(Consumer<E> c, int limit)
-    {
-        /**
-         * Impl note: there are potentially some small gains to be had by manually inlining relaxedPoll() and hoisting
-         * reused fields out to reduce redundant reads.
-         */
-        int i = 0;
-        E m;
-        for (; i < limit && (m = relaxedPoll()) != null; i++)
-        {
-            c.accept(m);
-        }
-        return i;
     }
 
     @Override
@@ -624,23 +606,6 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
     }
 
     @Override
-    public void drain(Consumer<E> c, WaitStrategy w, ExitCondition exit)
-    {
-        int idleCounter = 0;
-        while (exit.keepRunning())
-        {
-            E e = relaxedPoll();
-            if (e == null)
-            {
-                idleCounter = w.idle(idleCounter);
-                continue;
-            }
-            idleCounter = 0;
-            c.accept(e);
-        }
-    }
-
-    @Override
     public void fill(
         Supplier<E> s,
         WaitStrategy w,
@@ -662,6 +627,45 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
         }
     }
 
+    @Override
+    public int drain(Consumer<E> c)
+    {
+        return drain(c, capacity());
+    }
+
+    @Override
+    public int drain(final Consumer<E> c, final int limit)
+    {
+        /**
+         * Impl note: there are potentially some small gains to be had by manually inlining relaxedPoll() and hoisting
+         * reused fields out to reduce redundant reads.
+         */
+        int i = 0;
+        E m;
+        for (; i < limit && (m = relaxedPoll()) != null; i++)
+        {
+            c.accept(m);
+        }
+        return i;
+    }
+
+    @Override
+    public void drain(Consumer<E> c, WaitStrategy w, ExitCondition exit)
+    {
+        int idleCounter = 0;
+        while (exit.keepRunning())
+        {
+            E e = relaxedPoll();
+            if (e == null)
+            {
+                idleCounter = w.idle(idleCounter);
+                continue;
+            }
+            idleCounter = 0;
+            c.accept(e);
+        }
+    }
+
     private void resize(long oldMask, E[] oldBuffer, long pIndex, E e)
     {
         int newBufferLength = getNextBufferSize(oldBuffer);
@@ -673,7 +677,6 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
 
         final long offsetInOld = modifiedCalcElementOffset(pIndex, oldMask);
         final long offsetInNew = modifiedCalcElementOffset(pIndex, newMask);
-
 
         soElement(newBuffer, offsetInNew, e);// element in new array
         soElement(oldBuffer, nextArrayOffset(oldMask), newBuffer);// buffer linked
