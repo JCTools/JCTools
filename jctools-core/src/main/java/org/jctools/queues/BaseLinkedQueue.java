@@ -24,6 +24,7 @@ abstract class BaseLinkedQueuePad0<E> extends AbstractQueue<E> implements Messag
     long p10, p11, p12, p13, p14, p15, p16;
 }
 
+// $gen:ordered-fields
 abstract class BaseLinkedQueueProducerNodeRef<E> extends BaseLinkedQueuePad0<E> {
     protected final static long P_NODE_OFFSET;
 
@@ -58,6 +59,7 @@ abstract class BaseLinkedQueuePad1<E> extends BaseLinkedQueueProducerNodeRef<E> 
     long p10, p11, p12, p13, p14, p15, p16, p17;
 }
 
+//$gen:ordered-fields
 abstract class BaseLinkedQueueConsumerNodeRef<E> extends BaseLinkedQueuePad1<E> {
     protected final static long C_NODE_OFFSET;
 
@@ -201,11 +203,13 @@ abstract class BaseLinkedQueue<E> extends BaseLinkedQueuePad2<E> {
         return null;
     }
 
+    // $gen:ignore
     @Override
     public boolean relaxedOffer(E e) {
         return offer(e);
     }
 
+    // $gen:ignore
     @Override
     public int drain(Consumer<E> c) {
         long result = 0;// use long to force safepoint into loop below
@@ -217,6 +221,7 @@ abstract class BaseLinkedQueue<E> extends BaseLinkedQueuePad2<E> {
         return (int) result;
     }
 
+    // $gen:ignore
     @Override
     public int drain(Consumer<E> c, int limit) {
         LinkedQueueNode<E> chaserNode = this.consumerNode;
@@ -233,7 +238,8 @@ abstract class BaseLinkedQueue<E> extends BaseLinkedQueuePad2<E> {
         }
         return limit;
     }
-
+    
+    // $gen:ignore
     @Override
     public void drain(Consumer<E> c, WaitStrategy wait, ExitCondition exit) {
         LinkedQueueNode<E> chaserNode = this.consumerNode;
@@ -255,6 +261,7 @@ abstract class BaseLinkedQueue<E> extends BaseLinkedQueuePad2<E> {
         }
     }
 
+    // $gen:ignore
     @Override
     public int capacity() {
         return UNBOUNDED_CAPACITY;

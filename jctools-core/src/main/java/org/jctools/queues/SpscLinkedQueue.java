@@ -89,6 +89,7 @@ public class SpscLinkedQueue<E> extends BaseLinkedQueue<E> {
         return relaxedPeek();
     }
 
+    // $gen:ignore
     @Override
     public int fill(Supplier<E> s) {
         long result = 0;// result is a long because we want to have a safepoint check at regular intervals
@@ -99,6 +100,7 @@ public class SpscLinkedQueue<E> extends BaseLinkedQueue<E> {
         return (int) result;
     }
 
+    // $gen:ignore
     @Override
     public int fill(Supplier<E> s, int limit) {
         if (limit == 0) return 0;
@@ -115,6 +117,7 @@ public class SpscLinkedQueue<E> extends BaseLinkedQueue<E> {
         return limit;
     }
 
+    // $gen:ignore
     @Override
     public void fill(Supplier<E> s, WaitStrategy wait, ExitCondition exit) {
         LinkedQueueNode<E> chaserNode = producerNode;

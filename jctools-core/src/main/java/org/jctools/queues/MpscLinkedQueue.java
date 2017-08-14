@@ -37,6 +37,7 @@ public abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E> {
      *
      * @return the right queue for you!
      */
+    // $gen:ignore
     public static <E> MpscLinkedQueue<E> newMpscLinkedQueue() {
         if (UnsafeAccess.SUPPORTS_GET_AND_SET) {
             return new MpscLinkedQueue8<E>();
@@ -52,6 +53,7 @@ public abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E> {
         xchgProducerNode(node);// this ensures correct construction: StoreLoad
     }
 
+    // $gen:ignore
     protected abstract LinkedQueueNode<E> xchgProducerNode(LinkedQueueNode<E> nextNode);
 
     /**
@@ -131,6 +133,7 @@ public abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E> {
         return null;
     }
 
+    // $gen:ignore
     @Override
     public int fill(Supplier<E> s) {
         long result = 0;// result is a long because we want to have a safepoint check at regular intervals
@@ -140,7 +143,8 @@ public abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E> {
         } while (result <= Integer.MAX_VALUE - 4096);
         return (int) result;
     }
-
+    
+    // $gen:ignore
     @Override
     public int fill(Supplier<E> s, int limit) {
         if (limit == 0) return 0;
@@ -156,6 +160,7 @@ public abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E> {
         return limit;
     }
 
+    // $gen:ignore
     @Override
     public void fill(Supplier<E> s, WaitStrategy wait, ExitCondition exit) {
         while (exit.keepRunning()) {

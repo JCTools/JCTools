@@ -112,7 +112,7 @@
                 </dependencies>
                 <executions>
                     <execution>
-                        <id>generate-atomic-queues</id>
+                        <id>generate-atomic-array-queues</id>
                         <goals>
                             <goal>java</goal>
                         </goals>
@@ -129,6 +129,26 @@
                                 <argument>${basedir}/src/main/java/org/jctools/queues/SpmcArrayQueue.java</argument>
                                 <argument>${basedir}/src/main/java/org/jctools/queues/MpscArrayQueue.java</argument>
                                 <argument>${basedir}/src/main/java/org/jctools/queues/MpmcArrayQueue.java</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>generate-atomic-linked-queues</id>
+                        <goals>
+                            <goal>java</goal>
+                        </goals>
+                        <phase>generate-sources</phase>
+                        <configuration>
+                            <includePluginDependencies>true</includePluginDependencies>
+                            <includeProjectDependencies>false</includeProjectDependencies>
+                            <mainClass>org.jctools.queues.atomic.JavaParsingAtomicLinkedQueueGenerator</mainClass>
+                            <arguments>
+                                <!-- Output dest -->
+                                <argument>${basedir}/src/main/java/org/jctools/queues/atomic</argument>
+                                <!-- List of input files -->
+                                <argument>${basedir}/src/main/java/org/jctools/queues/BaseLinkedQueue.java</argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/SpscLinkedQueue.java</argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/MpscLinkedQueue.java</argument>
                             </arguments>
                         </configuration>
                     </execution>
