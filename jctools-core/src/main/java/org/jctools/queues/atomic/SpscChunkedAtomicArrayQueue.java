@@ -27,11 +27,11 @@ public class SpscChunkedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArrayQue
     private int maxQueueCapacity;
     private long producerQueueLimit;
 
-    public SpscChunkedAtomicArrayQueue(final int capacity) {
+    public SpscChunkedAtomicArrayQueue(int capacity) {
         this(Math.max(8, Pow2.roundToPowerOfTwo(capacity / 8)), capacity);
     }
 
-    public SpscChunkedAtomicArrayQueue(final int chunkSize, final int capacity) {
+    public SpscChunkedAtomicArrayQueue(int chunkSize, int capacity) {
         RangeUtil.checkGreaterThanOrEqual(capacity, 16, "capacity");
         // minimal chunk size of eight makes sure minimal lookahead step is 2
         RangeUtil.checkGreaterThanOrEqual(chunkSize, 8, "chunkSize");
@@ -53,7 +53,7 @@ public class SpscChunkedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArrayQue
     }
 
     @Override
-    protected final boolean offerColdPath(AtomicReferenceArray<E> buffer, long mask, long pIndex, int offset, E e, Supplier<? extends E> s) {
+    final boolean offerColdPath(AtomicReferenceArray<E> buffer, long mask, long pIndex, int offset, E v, Supplier<? extends E> s) {
         // use a fixed lookahead step based on buffer capacity
         final long lookAheadStep = (mask + 1) / 4;
         long pBufferLimit = pIndex + lookAheadStep;
@@ -62,7 +62,7 @@ public class SpscChunkedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArrayQue
 
         if (pIndex >= pQueueLimit) {
             // we tested against a potentially out of date queue limit, refresh it
-            long cIndex = lvConsumerIndex();
+            final long cIndex = lvConsumerIndex();
             producerQueueLimit = pQueueLimit = cIndex + maxQueueCapacity;
             // if we're full we're full
             if (pIndex >= pQueueLimit) {
@@ -79,18 +79,16 @@ public class SpscChunkedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArrayQue
         if (pBufferLimit > pIndex + 1 && // there's sufficient room in buffer/queue to use pBufferLimit
                 null == lvElement(buffer, calcElementOffset(pBufferLimit, mask))) {
             producerBufferLimit = pBufferLimit - 1; // joy, there's plenty of room
-            writeToQueue(buffer, e, pIndex, offset);
-        }
-        else if (null == lvElement(buffer, calcElementOffset(pIndex + 1, mask))) { // buffer is not full
-            writeToQueue(buffer, e, pIndex, offset);
-        }
-        else {
+            writeToQueue(buffer, v == null ? s.get() : v, pIndex, offset);
+        } else if (null == lvElement(buffer, calcElementOffset(pIndex + 1, mask))) { // buffer is not full
+            writeToQueue(buffer, v == null ? s.get() : v, pIndex, offset);
+        } else {
             // we got one slot left to write into, and we are not full. Need to link new buffer.
             // allocate new buffer of same length
             final AtomicReferenceArray<E> newBuffer = allocate((int)(mask + 2));
             producerBuffer = newBuffer;
 
-            linkOldToNew(pIndex, buffer, offset, newBuffer, offset, e);
+            linkOldToNew(pIndex, buffer, offset, newBuffer, offset, v == null ? s.get() : v);
         }
         return true;
     }
