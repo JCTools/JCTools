@@ -26,6 +26,7 @@ import com.github.javaparser.ast.comments.Comment;
 import com.github.javaparser.ast.comments.JavadocComment;
 import com.github.javaparser.ast.expr.AssignExpr;
 import com.github.javaparser.ast.expr.AssignExpr.Operator;
+import com.github.javaparser.ast.expr.CastExpr;
 import com.github.javaparser.ast.expr.ClassExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.FieldAccessExpr;
@@ -40,7 +41,9 @@ import com.github.javaparser.ast.nodeTypes.NodeWithType;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.stmt.ReturnStmt;
+import com.github.javaparser.ast.type.ArrayType;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
+import com.github.javaparser.ast.type.PrimitiveType;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 
@@ -61,6 +64,15 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends VoidVisitorAdap
         if (n.getScope() instanceof NameExpr) {
             NameExpr name = (NameExpr) n.getScope();
             name.setName(translateQueueName(name.getNameAsString()));
+        }
+    }
+    
+    @Override
+    public void visit(CastExpr n, Void arg) {
+        super.visit(n, arg);
+        
+        if (isRefArray(n.getType(), "E")) {
+            n.setType(atomicRefArrayType((ArrayType) n.getType()));
         }
     }
 
@@ -258,7 +270,11 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends VoidVisitorAdap
                 }
 
                 if (usesFieldUpdater) {
-                    n.getMembers().add(0, declareFieldUpdater(className, variableName));
+                    if (PrimitiveType.longType().equals(variable.getType())) {
+                        n.getMembers().add(0, declareLongFieldUpdater(className, variableName));
+                    } else {
+                        n.getMembers().add(0, declareRefFieldUpdater(className, variableName));
+                    }
                 }
             }
 
@@ -369,20 +385,47 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends VoidVisitorAdap
 
     /**
      * Generates something like
-     * <code>private static final AtomicLongFieldUpdater<MpmcAtomicArrayQueueProducerIndexField> P_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(MpmcAtomicArrayQueueProducerIndexField.class, "producerIndex");</code>
+     * <code>private static final AtomicReferenceFieldUpdater<MpmcAtomicArrayQueueProducerNodeField> P_NODE_UPDATER = AtomicReferenceFieldUpdater.newUpdater(MpmcAtomicArrayQueueProducerNodeField.class, "producerNode");</code>
      * 
      * @param className
      * @param variableName
      * @return
      */
-    private static FieldDeclaration declareFieldUpdater(String className, String variableName) {
-        MethodCallExpr initializer = newAtomicLongFieldUpdater(className, variableName);
+    private static FieldDeclaration declareRefFieldUpdater(String className, String variableName) {
+        MethodCallExpr initializer = newAtomicRefFieldUpdater(className, variableName);
 
         ClassOrInterfaceType type = simpleParametricType("AtomicReferenceFieldUpdater", className,
                 "LinkedQueueAtomicNode");
         FieldDeclaration newField = fieldDeclarationWithInitialiser(type, fieldUpdaterFieldName(variableName),
                 initializer, Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL);
         return newField;
+    }
+
+    private static MethodCallExpr newAtomicRefFieldUpdater(String className, String variableName) {
+        return methodCallExpr("AtomicReferenceFieldUpdater", "newUpdater", new ClassExpr(classType(className)),
+                new ClassExpr(classType("LinkedQueueAtomicNode")), new StringLiteralExpr(variableName));
+    }
+
+    /**
+     * Generates something like
+     * <code>private static final AtomicLongFieldUpdater<MpmcAtomicArrayQueueProducerIndexField> P_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(MpmcAtomicArrayQueueProducerIndexField.class, "producerIndex");</code>
+     * 
+     * @param className
+     * @param variableName
+     * @return
+     */
+    private static FieldDeclaration declareLongFieldUpdater(String className, String variableName) {
+        MethodCallExpr initializer = newAtomicLongFieldUpdater(className, variableName);
+
+        ClassOrInterfaceType type = simpleParametricType("AtomicLongFieldUpdater", className);
+        FieldDeclaration newField = fieldDeclarationWithInitialiser(type, fieldUpdaterFieldName(variableName),
+                initializer, Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL);
+        return newField;
+    }
+
+    private static MethodCallExpr newAtomicLongFieldUpdater(String className, String variableName) {
+        return methodCallExpr("AtomicLongFieldUpdater", "newUpdater", new ClassExpr(classType(className)),
+                new StringLiteralExpr(variableName));
     }
 
     /**
@@ -397,6 +440,14 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends VoidVisitorAdap
         return body;
     }
 
+    private static boolean isRefArray(Type in, String refClassName) {
+        if (in instanceof ArrayType) {
+            ArrayType aType = (ArrayType) in;
+            return isRefType(aType.getComponentType(), refClassName);
+        }
+        return false;
+    }
+
     private static boolean isRefType(Type in, String className) {
         // Does not check type parameters
         if (in instanceof ClassOrInterfaceType) {
@@ -405,9 +456,10 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends VoidVisitorAdap
         return false;
     }
 
-    private static MethodCallExpr newAtomicLongFieldUpdater(String className, String variableName) {
-        return methodCallExpr("AtomicReferenceFieldUpdater", "newUpdater", new ClassExpr(classType(className)),
-                new ClassExpr(classType("LinkedQueueAtomicNode")), new StringLiteralExpr(variableName));
+    private static ClassOrInterfaceType atomicRefArrayType(ArrayType in) {
+        ClassOrInterfaceType out = new ClassOrInterfaceType(null, "AtomicReferenceArray");
+        out.setTypeArguments(in.getComponentType());
+        return out;
     }
 
     private static MethodCallExpr methodCallExpr(String owner, String method, Expression... args) {
@@ -434,17 +486,21 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends VoidVisitorAdap
         return new ImportDeclaration(new Name(name), false, false);
     }
 
+    private static ImportDeclaration staticImportDeclaration(String name) {
+        return new ImportDeclaration(new Name(name), true, false);
+    }
+
     private static String translateQueueName(String originalQueueName) {
         if (originalQueueName.length() < 5) {
             return originalQueueName;
         }
-
-        String start = originalQueueName.substring(0, 4);
-        String end = originalQueueName.substring(4);
-        if ((start.equals("Spsc") || start.equals("Spmc") || start.equals("Mpsc") || start.equals("Mpmc")
-                || start.equals("Base")) && end.startsWith("LinkedQueue")) {
-            String suffix = end.substring("LinkedQueue".length());
-            return start + "LinkedAtomicQueue" + suffix;
+        
+        if (originalQueueName.contains("LinkedQueue") || originalQueueName.contains("LinkedArrayQueue")) {
+            return originalQueueName.replace("Linked", "LinkedAtomic");
+        }
+        
+        if (originalQueueName.contains("ArrayQueue")) {
+            return originalQueueName.replace("ArrayQueue", "AtomicArrayQueue");
         }
 
         return originalQueueName;
@@ -456,6 +512,12 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends VoidVisitorAdap
             return "P_NODE_UPDATER";
         case "consumerNode":
             return "C_NODE_UPDATER";
+        case "consumerIndex":
+            return "C_INDEX_UPDATER";
+        case "producerIndex":
+            return "P_INDEX_UPDATER";
+        case "producerLimit":
+            return "P_LIMIT_UPDATER";
         default:
             throw new IllegalArgumentException("Unhandled field: " + fieldName);
         }
@@ -464,9 +526,18 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends VoidVisitorAdap
     private static void organiseImports(CompilationUnit cu) {
         List<ImportDeclaration> importDecls = new ArrayList<>();
         for (ImportDeclaration importDeclaration : cu.getImports()) {
-            if (importDeclaration.getNameAsString().startsWith("org.jctools.util.Unsafe")) {
+            String name = importDeclaration.getNameAsString();
+            if (name.startsWith("org.jctools.util.Unsafe")) {
                 continue;
             }
+            if (name.startsWith("org.jctools.queues.CircularArrayOffsetCalculator")) {
+                continue;
+            }
+            
+            if (name.startsWith("org.jctools.queues.LinkedArrayQueueUtil")) {
+                importDeclaration.setName(name.replace("org.jctools.queues.LinkedArrayQueueUtil", "org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil"));
+            }
+            
             importDecls.add(importDeclaration);
         }
         cu.getImports().clear();
@@ -474,8 +545,15 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends VoidVisitorAdap
             cu.addImport(importDecl);
         }
         cu.addImport(importDeclaration("java.util.concurrent.atomic.AtomicReferenceFieldUpdater"));
+        cu.addImport(importDeclaration("java.util.concurrent.atomic.AtomicLongFieldUpdater"));
         cu.addImport(importDeclaration("org.jctools.queues.MessagePassingQueue"));
-        
+        cu.addImport(importDeclaration("org.jctools.queues.MessagePassingQueue.Supplier"));
+        cu.addImport(importDeclaration("org.jctools.queues.MessagePassingQueueUtil"));
+        cu.addImport(importDeclaration("org.jctools.queues.QueueProgressIndicators"));
+        cu.addImport(importDeclaration("org.jctools.queues.IndexedQueueSizeUtil"));
+        cu.addImport(staticImportDeclaration("org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.*"));
+        cu.addImport(importDeclaration("java.util.concurrent.atomic.AtomicReferenceArray"));
+        cu.addImport(importDeclaration("org.jctools.queues.MpmcArrayQueue"));
     }
 
     private static void processSpecialNodeTypes(Parameter node) {
@@ -491,8 +569,11 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends VoidVisitorAdap
     }
 
     private static void processSpecialNodeTypes(ObjectCreationExpr node) {
-        if (isRefType(node.getType(), "LinkedQueueNode")) {
+        Type type = node.getType();
+        if (isRefType(type, "LinkedQueueNode")) {
             node.setType(simpleParametricType("LinkedQueueAtomicNode", "E"));
+        } else if (isRefArray(type, "E")) {
+            node.setType(atomicRefArrayType((ArrayType) type));
         }
     }
 
@@ -506,8 +587,20 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends VoidVisitorAdap
      */
     private static void processSpecialNodeTypes(NodeWithType<?, Type> node, String name) {
         Type type = node.getType();
-        if (isRefType(type, "LinkedQueueNode")) {
+        if (node instanceof MethodDeclaration && ("newBufferAndOffset".equals(name) || "nextArrayOffset".equals(name))) {
+            node.setType(PrimitiveType.intType());
+        } else if (PrimitiveType.longType().equals(type)) {
+            switch(name) {
+            case "offset":
+            case "offsetInNew":
+            case "offsetInOld":
+            case "lookAheadElementOffset":
+                node.setType(PrimitiveType.intType());
+            }
+        } else if (isRefType(type, "LinkedQueueNode")) {
             node.setType(simpleParametricType("LinkedQueueAtomicNode", "E"));
+        } else if (isRefArray(type, "E")) {
+            node.setType(atomicRefArrayType((ArrayType) type));
         }
     }
 
@@ -536,14 +629,16 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends VoidVisitorAdap
             }
             outputFileName += ".java";
 
+            File outputFile = new File(outputDirectory, outputFileName);
             try {
-                writer = new FileWriter(new File(outputDirectory, outputFileName));
+                writer = new FileWriter(outputFile);
                 writer.write(cu.toString());
             } finally {
                 if (writer != null) {
                     writer.close();
                 }
             }
+            System.out.println("Saved to " + outputFile);
         }
     }
 

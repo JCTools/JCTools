@@ -39,6 +39,7 @@ abstract class BaseSpscLinkedArrayQueueConsumerColdFields<E> extends BaseSpscLin
     protected E[] consumerBuffer;
 }
 
+// $gen:ordered-fields
 abstract class BaseSpscLinkedArrayQueueConsumerField<E> extends BaseSpscLinkedArrayQueueConsumerColdFields<E>
 {
     private final static long C_INDEX_OFFSET;
@@ -74,6 +75,7 @@ abstract class BaseSpscLinkedArrayQueueL2Pad<E> extends BaseSpscLinkedArrayQueue
     long p10, p11, p12, p13, p14, p15, p16, p17;
 }
 
+// $gen:ordered-fields
 abstract class BaseSpscLinkedArrayQueueProducerFields<E> extends BaseSpscLinkedArrayQueueL2Pad<E>
 {
     private final static long P_INDEX_OFFSET;

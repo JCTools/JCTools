@@ -34,6 +34,7 @@ abstract class BaseMpscLinkedArrayQueuePad1<E> extends AbstractQueue<E> implemen
     long p10, p11, p12, p13, p14, p15, p16, p17;
 }
 
+// $gen:ordered-fields
 abstract class BaseMpscLinkedArrayQueueProducerFields<E> extends BaseMpscLinkedArrayQueuePad1<E>
 {
     private final static long P_INDEX_OFFSET;
@@ -74,6 +75,7 @@ abstract class BaseMpscLinkedArrayQueuePad2<E> extends BaseMpscLinkedArrayQueueP
     long p10, p11, p12, p13, p14, p15, p16, p17;
 }
 
+// $gen:ordered-fields
 abstract class BaseMpscLinkedArrayQueueConsumerFields<E> extends BaseMpscLinkedArrayQueuePad2<E>
 {
     private final static long C_INDEX_OFFSET;
@@ -110,6 +112,7 @@ abstract class BaseMpscLinkedArrayQueuePad3<E> extends BaseMpscLinkedArrayQueueC
     long p10, p11, p12, p13, p14, p15, p16, p17;
 }
 
+// $gen:ordered-fields
 abstract class BaseMpscLinkedArrayQueueColdProducerFields<E> extends BaseMpscLinkedArrayQueuePad3<E>
 {
     private final static long P_LIMIT_OFFSET;
@@ -468,7 +471,6 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
 
     @Override
     public abstract int capacity();
-
 
     @Override
     public boolean relaxedOffer(E e)
