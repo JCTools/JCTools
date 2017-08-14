@@ -18,6 +18,8 @@ import org.jctools.queues.QueueProgressIndicators;
 import org.jctools.util.Pow2;
 import org.jctools.util.RangeUtil;
 
+import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.length;
+
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 
@@ -50,8 +52,8 @@ public class MpscGrowableAtomicArrayQueue<E> extends MpscChunkedAtomicArrayQueue
     @Override
     protected int getNextBufferSize(AtomicReferenceArray<E> buffer) {
         final long maxSize = maxQueueCapacity / 2;
-        RangeUtil.checkLessThanOrEqual(buffer.length(), maxSize, "buffer.length");
-        final int newSize = 2 * (buffer.length() - 1);
+        RangeUtil.checkLessThanOrEqual(length(buffer), maxSize, "buffer.length");
+        final int newSize = 2 * (length(buffer) - 1);
         return newSize + 1;
     }
 

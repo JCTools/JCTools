@@ -13,6 +13,8 @@
  */
 package org.jctools.queues;
 
+import static org.jctools.queues.LinkedArrayQueueUtil.length;
+
 import org.jctools.util.Pow2;
 import org.jctools.util.RangeUtil;
 
@@ -45,8 +47,8 @@ public class MpscGrowableArrayQueue<E> extends MpscChunkedArrayQueue<E> {
     @Override
     protected int getNextBufferSize(E[] buffer) {
         final long maxSize = maxQueueCapacity / 2;
-        RangeUtil.checkLessThanOrEqual(buffer.length, maxSize, "buffer.length");
-        final int newSize = 2 * (buffer.length - 1);
+        RangeUtil.checkLessThanOrEqual(length(buffer), maxSize, "buffer.length");
+        final int newSize = 2 * (length(buffer) - 1);
         return newSize + 1;
     }
 
