@@ -24,8 +24,7 @@ import org.jctools.util.RangeUtil;
  *
  * @param <E>
  */
-public class MpscGrowableArrayQueue<E> extends MpscChunkedArrayQueue<E>
-        implements MessagePassingQueue<E>, QueueProgressIndicators {
+public class MpscGrowableArrayQueue<E> extends MpscChunkedArrayQueue<E> {
 
     public MpscGrowableArrayQueue(int maxCapacity) {
         super(Math.max(2, Pow2.roundToPowerOfTwo(maxCapacity / 8)), maxCapacity);

@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import static java.lang.Math.max;
 import static java.lang.Math.min;
+import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.length;
 import static org.jctools.util.Pow2.roundToPowerOfTwo;
 
 abstract class MpscChunkedAtomicArrayQueueColdProducerFields<E> extends BaseMpscLinkedAtomicArrayQueue<E> {
@@ -71,7 +72,7 @@ public class MpscChunkedAtomicArrayQueue<E> extends MpscChunkedAtomicArrayQueueC
 
     @Override
     protected int getNextBufferSize(AtomicReferenceArray<E> buffer) {
-        return buffer.length();
+        return length(buffer);
     }
 
     @Override
