@@ -19,7 +19,7 @@ import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.soElement;
 
 import java.util.AbstractQueue;
 import java.util.Iterator;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
@@ -37,22 +37,25 @@ abstract class BaseMpscLinkedAtomicArrayQueuePad1<E> extends AbstractQueue<E> im
 
 abstract class BaseMpscLinkedAtomicArrayQueueProducerFields<E> extends BaseMpscLinkedAtomicArrayQueuePad1<E>
 {
-    protected AtomicLong producerIndex;
+    private static final AtomicLongFieldUpdater<BaseMpscLinkedAtomicArrayQueueProducerFields> P_INDEX_UPDATER =
+            AtomicLongFieldUpdater.newUpdater(BaseMpscLinkedAtomicArrayQueueProducerFields.class, "producerIndex");
+    
+    protected volatile long producerIndex;
     
     @Override
     public final long lvProducerIndex()
     {
-        return producerIndex.get();
+        return producerIndex;
     }
 
     final void soProducerIndex(long newValue)
     {
-        producerIndex.set(newValue);
+        P_INDEX_UPDATER.lazySet(this, newValue);
     }
 
     final boolean casProducerIndex(long expect, long newValue)
     {
-        return producerIndex.compareAndSet(expect, newValue);
+        return P_INDEX_UPDATER.compareAndSet(this, expect, newValue);
     }
 }
 
@@ -64,19 +67,22 @@ abstract class BaseMpscLinkedAtomicArrayQueuePad2<E> extends BaseMpscLinkedAtomi
 
 abstract class BaseMpscLinkedAtomicArrayQueueConsumerFields<E> extends BaseMpscLinkedAtomicArrayQueuePad2<E>
 {
+    private static final AtomicLongFieldUpdater<BaseMpscLinkedAtomicArrayQueueConsumerFields> C_INDEX_UPDATER =
+            AtomicLongFieldUpdater.newUpdater(BaseMpscLinkedAtomicArrayQueueConsumerFields.class, "consumerIndex");
+    
     protected long consumerMask;
     protected AtomicReferenceArray<E> consumerBuffer;
-    protected AtomicLong consumerIndex;
+    protected volatile long consumerIndex;
 
     @Override
     public final long lvConsumerIndex()
     {
-        return consumerIndex.get();
+        return consumerIndex;
     }
 
     final void soConsumerIndex(long newValue)
     {
-        consumerIndex.set(newValue);
+        C_INDEX_UPDATER.lazySet(this, newValue);
     }
 }
 
@@ -88,23 +94,26 @@ abstract class BaseMpscLinkedAtomicArrayQueuePad3<E> extends BaseMpscLinkedAtomi
 
 abstract class BaseMpscLinkedAtomicArrayQueueColdProducerFields<E> extends BaseMpscLinkedAtomicArrayQueuePad3<E>
 {
-    protected volatile AtomicLong producerLimit;
+    private static final AtomicLongFieldUpdater<BaseMpscLinkedAtomicArrayQueueColdProducerFields> P_LIMIT_UPDATER =
+            AtomicLongFieldUpdater.newUpdater(BaseMpscLinkedAtomicArrayQueueColdProducerFields.class, "producerLimit");
+    
+    protected volatile long producerLimit;
     protected long producerMask;
     protected AtomicReferenceArray<E> producerBuffer;
 
     final long lvProducerLimit()
     {
-        return producerLimit.get();
+        return producerLimit;
     }
 
     final boolean casProducerLimit(long expect, long newValue)
     {
-        return producerLimit.compareAndSet(expect, newValue);
+        return P_LIMIT_UPDATER.compareAndSet(this, expect, newValue);
     }
 
     final void soProducerLimit(long newValue)
     {
-        producerLimit.set(newValue);
+        P_LIMIT_UPDATER.lazySet(this, newValue);
     }
 }
 
@@ -131,10 +140,6 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
     public BaseMpscLinkedAtomicArrayQueue(final int initialCapacity)
     {
         RangeUtil.checkGreaterThanOrEqual(initialCapacity, 2, "initialCapacity");
-
-        this.consumerIndex = new AtomicLong();
-        this.producerIndex = new AtomicLong();
-        this.producerLimit = new AtomicLong();
 
         int p2capacity = Pow2.roundToPowerOfTwo(initialCapacity);
         // leave lower bit of mask clear
@@ -281,7 +286,7 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
     public E poll()
     {
         final AtomicReferenceArray<E> buffer = consumerBuffer;
-        final long index = consumerIndex.get();
+        final long index = consumerIndex;
         final long mask = consumerMask;
 
         final int offset = modifiedCalcElementOffset(index, mask);
@@ -324,7 +329,7 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
     public E peek()
     {
         final AtomicReferenceArray<E> buffer = consumerBuffer;
-        final long index = consumerIndex.get();
+        final long index = consumerIndex;
         final long mask = consumerMask;
 
         final int offset = modifiedCalcElementOffset(index, mask);
@@ -459,7 +464,7 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
     public E relaxedPoll()
     {
         final AtomicReferenceArray<E> buffer = consumerBuffer;
-        final long index = consumerIndex.get();
+        final long index = consumerIndex;
         final long mask = consumerMask;
 
         final int offset = modifiedCalcElementOffset(index, mask);
@@ -483,7 +488,7 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
     public E relaxedPeek()
     {
         final AtomicReferenceArray<E> buffer = consumerBuffer;
-        final long index = consumerIndex.get();
+        final long index = consumerIndex;
         final long mask = consumerMask;
 
         final int offset = modifiedCalcElementOffset(index, mask);
