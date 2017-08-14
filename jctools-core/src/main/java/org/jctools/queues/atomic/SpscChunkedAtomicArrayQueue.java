@@ -18,6 +18,10 @@ import org.jctools.util.RangeUtil;
 
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
+import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.allocate;
+import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.calcElementOffset;
+import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.lvElement;
+
 public class SpscChunkedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArrayQueue<E> {
     private int maxQueueCapacity;
     private long producerQueueLimit;

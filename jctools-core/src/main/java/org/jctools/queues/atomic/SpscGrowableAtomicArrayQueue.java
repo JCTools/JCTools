@@ -19,6 +19,10 @@ import org.jctools.util.RangeUtil;
 
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
+import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.allocate;
+import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.calcElementOffset;
+import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.lvElement;
+
 public class SpscGrowableAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArrayQueue<E> {
     private int maxQueueCapacity; // ignored by the unbounded implementation
     private long lookAheadStep;// ignored by the unbounded implementation

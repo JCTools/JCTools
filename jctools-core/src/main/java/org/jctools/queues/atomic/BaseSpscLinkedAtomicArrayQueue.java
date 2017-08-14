@@ -22,36 +22,69 @@ import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
-abstract class BaseSpscLinkedAtomicArrayQueuePrePad<E> extends AbstractQueue<E> {
+import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.lvElement;
+import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.soElement;
+import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.calcElementOffset;
+
+abstract class BaseSpscLinkedAtomicArrayQueuePrePad<E> extends AbstractQueue<E> implements IndexedQueue
+{
     long p0, p1, p2, p3, p4, p5, p6, p7;
     long p10, p11, p12, p13, p14, p15;
     //  p16, p17; drop 2 longs, the cold fields act as buffer
 }
 
-abstract class BaseSpscLinkedAtomicArrayQueueConsumerColdFields<E> extends BaseSpscLinkedAtomicArrayQueuePrePad<E> {
+abstract class BaseSpscLinkedAtomicArrayQueueConsumerColdFields<E> extends BaseSpscLinkedAtomicArrayQueuePrePad<E>
+{
     protected long consumerMask;
     protected AtomicReferenceArray<E> consumerBuffer;
 }
 
-abstract class BaseSpscLinkedAtomicArrayQueueConsumerField<E> extends BaseSpscLinkedAtomicArrayQueueConsumerColdFields<E> {
-    static final AtomicLongFieldUpdater<BaseSpscLinkedAtomicArrayQueueConsumerField> C_INDEX_UPDATER =
+abstract class BaseSpscLinkedAtomicArrayQueueConsumerField<E> extends BaseSpscLinkedAtomicArrayQueueConsumerColdFields<E>
+{
+    private static final AtomicLongFieldUpdater<BaseSpscLinkedAtomicArrayQueueConsumerField> C_INDEX_UPDATER =
             AtomicLongFieldUpdater.newUpdater(BaseSpscLinkedAtomicArrayQueueConsumerField.class, "consumerIndex");
+    
     protected volatile long consumerIndex;
+    
+    final void soConsumerIndex(long newValue)
+    {
+        C_INDEX_UPDATER.lazySet(this, newValue);
+    }
+
+    @Override
+    public final long lvConsumerIndex()
+    {
+        return consumerIndex;
+    }
 }
 
-abstract class BaseSpscLinkedAtomicArrayQueueL2Pad<E> extends BaseSpscLinkedAtomicArrayQueueConsumerField<E> {
+abstract class BaseSpscLinkedAtomicArrayQueueL2Pad<E> extends BaseSpscLinkedAtomicArrayQueueConsumerField<E>
+{
     long p0, p1, p2, p3, p4, p5, p6, p7;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 }
 
-abstract class BaseSpscLinkedAtomicArrayQueueProducerFields<E> extends BaseSpscLinkedAtomicArrayQueueL2Pad<E> {
-    static final AtomicLongFieldUpdater<BaseSpscLinkedAtomicArrayQueueProducerFields> P_INDEX_UPDATER =
+abstract class BaseSpscLinkedAtomicArrayQueueProducerFields<E> extends BaseSpscLinkedAtomicArrayQueueL2Pad<E>
+{
+    private static final AtomicLongFieldUpdater<BaseSpscLinkedAtomicArrayQueueProducerFields> P_INDEX_UPDATER =
             AtomicLongFieldUpdater.newUpdater(BaseSpscLinkedAtomicArrayQueueProducerFields.class, "producerIndex");
+    
     protected volatile long producerIndex;
 
+    final void soProducerIndex(long newValue)
+    {
+        P_INDEX_UPDATER.lazySet(this, newValue);
+    }
+
+    @Override
+    public final long lvProducerIndex()
+    {
+        return producerIndex;
+    }
 }
 
-abstract class BaseSpscLinkedAtomicArrayQueueProducerColdFields<E> extends BaseSpscLinkedAtomicArrayQueueProducerFields<E> {
+abstract class BaseSpscLinkedAtomicArrayQueueProducerColdFields<E> extends BaseSpscLinkedAtomicArrayQueueProducerFields<E>
+{
     protected long producerBufferLimit;
     protected long producerMask; // fixed for chunked and unbounded
 
@@ -59,70 +92,66 @@ abstract class BaseSpscLinkedAtomicArrayQueueProducerColdFields<E> extends BaseS
 }
 
 abstract class BaseSpscLinkedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArrayQueueProducerColdFields<E>
-        implements QueueProgressIndicators, IndexedQueue {
+        implements QueueProgressIndicators
+{
 
-    protected static final Object JUMP = new Object();
-
-    protected final void soProducerIndex(long v) {
-        P_INDEX_UPDATER.lazySet(this, v);
-    }
-
-    protected final void soConsumerIndex(long v) {
-        C_INDEX_UPDATER.lazySet(this, v);
-    }
-
-    public final long lvProducerIndex() {
-        return producerIndex;
-    }
-
-    public final long lvConsumerIndex() {
-        return consumerIndex;
-    }
-
-    protected static <E> AtomicReferenceArray<E> allocate(int capacity) {
-        return new AtomicReferenceArray<E>(capacity);
-    }
+    private static final Object JUMP = new Object();
 
     @Override
-    public final Iterator<E> iterator() {
+    public final Iterator<E> iterator()
+    {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public String toString() {
+    public final int size()
+    {
+        return IndexedQueueSizeUtil.size(this);
+    }
+
+    @Override
+    public final boolean isEmpty()
+    {
+        return IndexedQueueSizeUtil.isEmpty(this);
+    }
+
+    @Override
+    public String toString()
+    {
         return this.getClass().getName();
     }
 
     @Override
-    public long currentProducerIndex() {
+    public long currentProducerIndex()
+    {
         return lvProducerIndex();
     }
 
     @Override
-    public long currentConsumerIndex() {
+    public long currentConsumerIndex()
+    {
         return lvConsumerIndex();
     }
 
-
-    protected final void soNext(AtomicReferenceArray<E> curr, AtomicReferenceArray<E> next) {
-        soElement(curr, nextArrayOffset(curr), next);
-    }
-
-    private void soElement(AtomicReferenceArray curr, int i, Object e) {
-        curr.lazySet(i, e);
+    protected final void soNext(AtomicReferenceArray<E> curr, AtomicReferenceArray<E> next)
+    {
+        int offset = nextArrayOffset(curr);
+        soElement(curr, offset, next);
     }
 
     @SuppressWarnings("unchecked")
-    protected final AtomicReferenceArray<E> lvNextArrayAndUnlink(AtomicReferenceArray curr) {
-        final int nextArrayOffset = nextArrayOffset(curr);
-        final AtomicReferenceArray<E> nextBuffer = (AtomicReferenceArray<E>) curr.get(nextArrayOffset);
+    protected final AtomicReferenceArray<E> lvNextArrayAndUnlink(AtomicReferenceArray<E> curr)
+    {
+        final int offset = nextArrayOffset(curr);
+        final AtomicReferenceArray<E> nextBuffer = (AtomicReferenceArray<E>) lvElement(curr, offset);
         // prevent GC nepotism
-        soElement(curr, nextArrayOffset, null);
+        soElement(curr, offset, null);
         return nextBuffer;
     }
 
-    private int nextArrayOffset(AtomicReferenceArray<E> curr) {
-        return (curr.length() - 1);
+    private int nextArrayOffset(AtomicReferenceArray<E> curr)
+    {
+        return length(curr) - 1;
     }
 
     /**
@@ -149,22 +178,12 @@ abstract class BaseSpscLinkedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArr
         return offerColdPath(buffer, mask, e, index, offset);
     }
 
-    protected abstract boolean offerColdPath(AtomicReferenceArray<E> buffer, long mask, E e, long pIndex, int offset);
-
-    protected final void linkOldToNew(final long currIndex, final AtomicReferenceArray<E> oldBuffer, final int offset,
-            final AtomicReferenceArray<E> newBuffer, final int offsetInNew, final E e) {
-        soElement(newBuffer, offsetInNew, e);// StoreStore
-        // link to next buffer and add next indicator as element of old buffer
-        soNext(oldBuffer, newBuffer);
-        soElement(oldBuffer, offset, JUMP);
-        // index is visible after elements (isEmpty/poll ordering)
-        soProducerIndex(currIndex + 1);// this ensures atomic write of long on 32bit platforms
-    }
-
-    protected final void writeToQueue(final AtomicReferenceArray<E> buffer, final E e, final long index, final int offset) {
-        soElement(buffer, offset, e);// StoreStore
-        soProducerIndex(index + 1);// this ensures atomic write of long on 32bit platforms
-    }
+    abstract boolean offerColdPath(
+            AtomicReferenceArray<E> buffer,
+            long mask,
+            E e,
+            long pIndex,
+            int offset);
 
     /**
      * {@inheritDoc}
@@ -192,14 +211,6 @@ abstract class BaseSpscLinkedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArr
         return null;
     }
 
-    protected E lvElement(AtomicReferenceArray<E> buffer, int offset) {
-        return buffer.get(offset);
-    }
-
-    protected static int calcElementOffset(long index, long mask) {
-        return (int) (index & mask);
-    }
-
     /**
      * {@inheritDoc}
      * <p>
@@ -220,38 +231,57 @@ abstract class BaseSpscLinkedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArr
         return (E) e;
     }
 
-    private E newBufferPeek(AtomicReferenceArray<E> buffer, final long index) {
-        AtomicReferenceArray<E> nextBuffer = lvNextArrayAndUnlink(buffer);
-        consumerBuffer = nextBuffer;
-        final long newMask = nextBuffer.length() - 2;
-        consumerMask = newMask;
-        final int offsetInNew = calcElementOffset(index, newMask);
-        return lvElement(nextBuffer, offsetInNew);// LoadLoad
+    final void linkOldToNew(
+            final long currIndex,
+            final AtomicReferenceArray<E> oldBuffer, final int offset,
+            final AtomicReferenceArray<E> newBuffer, final int offsetInNew,
+            final E e)
+    {
+        soElement(newBuffer, offsetInNew, e);// StoreStore
+        // link to next buffer and add next indicator as element of old buffer
+        soNext(oldBuffer, newBuffer);
+        soElement(oldBuffer, offset, JUMP);
+        // index is visible after elements (isEmpty/poll ordering)
+        soProducerIndex(currIndex + 1);// this ensures atomic write of long on 32bit platforms
     }
 
-    private E newBufferPoll(AtomicReferenceArray<E> buffer, final long index) {
+    final void writeToQueue(final AtomicReferenceArray<E> buffer, final E e, final long index, final int offset)
+    {
+        soElement(buffer, offset, e);// StoreStore
+        soProducerIndex(index + 1);// this ensures atomic write of long on 32bit platforms
+    }
+
+    private E newBufferPeek(final AtomicReferenceArray<E> buffer, final long index)
+    {
         AtomicReferenceArray<E> nextBuffer = lvNextArrayAndUnlink(buffer);
         consumerBuffer = nextBuffer;
-        final long newMask = nextBuffer.length() - 2;
-        consumerMask = newMask;
-        final int offsetInNew = calcElementOffset(index, newMask);
-        final E n = lvElement(nextBuffer, offsetInNew);// LoadLoad
-        if (null == n) {
+        final long mask = length(nextBuffer) - 2;
+        consumerMask = mask;
+        final int offset = calcElementOffset(index, mask);
+        return lvElement(nextBuffer, offset);// LoadLoad
+    }
+
+    private E newBufferPoll(final AtomicReferenceArray<E> buffer, final long index)
+    {
+        AtomicReferenceArray<E> nextBuffer = lvNextArrayAndUnlink(buffer);
+        consumerBuffer = nextBuffer;
+        final long mask = length(nextBuffer) - 2;
+        consumerMask = mask;
+        final int offset = calcElementOffset(index, mask);
+        final E n = lvElement(nextBuffer, offset);// LoadLoad
+        if (null == n)
+        {
             throw new IllegalStateException("new buffer must have at least one element");
-        } else {
+        }
+        else
+        {
             soConsumerIndex(index + 1);// this ensures correctness on 32bit platforms
-            soElement(nextBuffer, offsetInNew, null);// StoreStore
+            soElement(nextBuffer, offset, null);// StoreStore
             return n;
         }
     }
 
-    @Override
-    public final int size() {
-        return IndexedQueueSizeUtil.size(this);
-    }
-
-    @Override
-    public final boolean isEmpty() {
-        return IndexedQueueSizeUtil.isEmpty(this);
+    private int length(AtomicReferenceArray<E> nextBuffer) {
+        return nextBuffer.length();
     }
 }

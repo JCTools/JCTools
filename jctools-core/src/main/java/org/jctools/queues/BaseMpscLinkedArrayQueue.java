@@ -13,6 +13,7 @@
  */
 package org.jctools.queues;
 
+import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
 import org.jctools.util.Pow2;
 import org.jctools.util.RangeUtil;
 
@@ -24,7 +25,7 @@ import static org.jctools.queues.CircularArrayOffsetCalculator.allocate;
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeRefArrayAccess.*;
 
-abstract class BaseMpscLinkedArrayQueuePad1<E> extends AbstractQueue<E>
+abstract class BaseMpscLinkedArrayQueuePad1<E> extends AbstractQueue<E> implements IndexedQueue
 {
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
@@ -32,7 +33,36 @@ abstract class BaseMpscLinkedArrayQueuePad1<E> extends AbstractQueue<E>
 
 abstract class BaseMpscLinkedArrayQueueProducerFields<E> extends BaseMpscLinkedArrayQueuePad1<E>
 {
+    private final static long P_INDEX_OFFSET;
+    
+    static {
+        try
+        {
+            Field iField = BaseMpscLinkedArrayQueueProducerFields.class.getDeclaredField("producerIndex");
+            P_INDEX_OFFSET = UNSAFE.objectFieldOffset(iField);
+        }
+        catch (NoSuchFieldException e)
+        {
+            throw new RuntimeException(e);
+        }
+    }
     protected long producerIndex;
+
+    @Override
+    public final long lvProducerIndex()
+    {
+        return UNSAFE.getLongVolatile(this, P_INDEX_OFFSET);
+    }
+    
+    final void soProducerIndex(long newValue)
+    {
+        UNSAFE.putOrderedLong(this, P_INDEX_OFFSET, newValue);
+    }
+
+    final boolean casProducerIndex(long expect, long newValue)
+    {
+        return UNSAFE.compareAndSwapLong(this, P_INDEX_OFFSET, expect, newValue);
+    }
 }
 
 abstract class BaseMpscLinkedArrayQueuePad2<E> extends BaseMpscLinkedArrayQueueProducerFields<E>
@@ -43,9 +73,32 @@ abstract class BaseMpscLinkedArrayQueuePad2<E> extends BaseMpscLinkedArrayQueueP
 
 abstract class BaseMpscLinkedArrayQueueConsumerFields<E> extends BaseMpscLinkedArrayQueuePad2<E>
 {
+    private final static long C_INDEX_OFFSET;
+    static {
+        try
+        {
+            Field iField = BaseMpscLinkedArrayQueueConsumerFields.class.getDeclaredField("consumerIndex");
+            C_INDEX_OFFSET = UNSAFE.objectFieldOffset(iField);
+        }
+        catch (NoSuchFieldException e)
+        {
+            throw new RuntimeException(e);
+        }
+    }
     protected long consumerMask;
     protected E[] consumerBuffer;
     protected long consumerIndex;
+
+    @Override
+    public final long lvConsumerIndex()
+    {
+        return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
+    }
+
+    final void soConsumerIndex(long newValue)
+    {
+        UNSAFE.putOrderedLong(this, C_INDEX_OFFSET, newValue);
+    }
 }
 
 abstract class BaseMpscLinkedArrayQueuePad3<E> extends BaseMpscLinkedArrayQueueConsumerFields<E>
@@ -56,9 +109,38 @@ abstract class BaseMpscLinkedArrayQueuePad3<E> extends BaseMpscLinkedArrayQueueC
 
 abstract class BaseMpscLinkedArrayQueueColdProducerFields<E> extends BaseMpscLinkedArrayQueuePad3<E>
 {
+    private final static long P_LIMIT_OFFSET;
+    static
+    {
+        try
+        {
+            Field iField = BaseMpscLinkedArrayQueueColdProducerFields.class.getDeclaredField("producerLimit");
+            P_LIMIT_OFFSET = UNSAFE.objectFieldOffset(iField);
+        }
+        catch (NoSuchFieldException e)
+        {
+            throw new RuntimeException(e);
+        }
+    }
+    
     protected volatile long producerLimit;
     protected long producerMask;
     protected E[] producerBuffer;
+
+    final long lvProducerLimit()
+    {
+        return producerLimit;
+    }
+
+    final boolean casProducerLimit(long expect, long newValue)
+    {
+        return UNSAFE.compareAndSwapLong(this, P_LIMIT_OFFSET, expect, newValue);
+    }
+
+    final void soProducerLimit(long newValue)
+    {
+        UNSAFE.putOrderedLong(this, P_LIMIT_OFFSET, newValue);
+    }
 }
 
 
@@ -74,41 +156,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
 {
     // No post padding here, subclasses must add
 
-    private final static long P_INDEX_OFFSET;
-    private final static long C_INDEX_OFFSET;
-    private final static long P_LIMIT_OFFSET;
     private final static Object JUMP = new Object();
-
-    static
-    {
-        try
-        {
-            Field iField = BaseMpscLinkedArrayQueueProducerFields.class.getDeclaredField("producerIndex");
-            P_INDEX_OFFSET = UNSAFE.objectFieldOffset(iField);
-        }
-        catch (NoSuchFieldException e)
-        {
-            throw new RuntimeException(e);
-        }
-        try
-        {
-            Field iField = BaseMpscLinkedArrayQueueConsumerFields.class.getDeclaredField("consumerIndex");
-            C_INDEX_OFFSET = UNSAFE.objectFieldOffset(iField);
-        }
-        catch (NoSuchFieldException e)
-        {
-            throw new RuntimeException(e);
-        }
-        try
-        {
-            Field iField = BaseMpscLinkedArrayQueueColdProducerFields.class.getDeclaredField("producerLimit");
-            P_LIMIT_OFFSET = UNSAFE.objectFieldOffset(iField);
-        }
-        catch (NoSuchFieldException e)
-        {
-            throw new RuntimeException(e);
-        }
-    }
 
 
     /**
@@ -410,46 +458,6 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
         consumerMask = (nextBuffer.length - 2) << 1;
         final long offsetInNew = modifiedCalcElementOffset(index, consumerMask);
         return offsetInNew;
-    }
-
-    private long lvProducerIndex()
-    {
-        return UNSAFE.getLongVolatile(this, P_INDEX_OFFSET);
-    }
-
-    private long lvConsumerIndex()
-    {
-        return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
-    }
-
-    private void soProducerIndex(long v)
-    {
-        UNSAFE.putOrderedLong(this, P_INDEX_OFFSET, v);
-    }
-
-    private boolean casProducerIndex(long expect, long newValue)
-    {
-        return UNSAFE.compareAndSwapLong(this, P_INDEX_OFFSET, expect, newValue);
-    }
-
-    private void soConsumerIndex(long v)
-    {
-        UNSAFE.putOrderedLong(this, C_INDEX_OFFSET, v);
-    }
-
-    private long lvProducerLimit()
-    {
-        return producerLimit;
-    }
-
-    private boolean casProducerLimit(long expect, long newValue)
-    {
-        return UNSAFE.compareAndSwapLong(this, P_LIMIT_OFFSET, expect, newValue);
-    }
-
-    private void soProducerLimit(long v)
-    {
-        UNSAFE.putOrderedLong(this, P_LIMIT_OFFSET, v);
     }
 
     @Override

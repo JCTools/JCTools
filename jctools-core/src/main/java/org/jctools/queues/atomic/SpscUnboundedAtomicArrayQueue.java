@@ -17,6 +17,10 @@ import org.jctools.util.Pow2;
 
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
+import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.allocate;
+import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.calcElementOffset;
+import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.lvElement;
+
 public class SpscUnboundedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArrayQueue<E> {
 
     public SpscUnboundedAtomicArrayQueue(final int chunkSize) {
