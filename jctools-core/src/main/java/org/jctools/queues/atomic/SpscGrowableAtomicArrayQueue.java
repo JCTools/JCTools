@@ -22,11 +22,13 @@ import org.jctools.queues.MessagePassingQueue.Supplier;
 
 import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.allocate;
 import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.calcElementOffset;
+import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.length;
 import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.lvElement;
 
 public class SpscGrowableAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArrayQueue<E> {
-    private int maxQueueCapacity; // ignored by the unbounded implementation
+    private final int maxQueueCapacity; // ignored by the unbounded implementation
     private long lookAheadStep;// ignored by the unbounded implementation
+
     public SpscGrowableAtomicArrayQueue(final int capacity) {
         this(Math.max(8, Pow2.roundToPowerOfTwo(capacity / 8)), capacity);
     }
@@ -49,11 +51,15 @@ public class SpscGrowableAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArrayQu
         consumerMask = mask;
         producerBufferLimit = mask - 1; // we know it's all empty to start with
         adjustLookAheadStep(chunkCapacity);
-        soProducerIndex(0L);// serves as a StoreStore barrier to support correct publication
     }
 
-    protected final boolean offerColdPath(final AtomicReferenceArray<E> buffer, final long mask, final long index, final int offset,
-                                          final E e, Supplier<? extends E> s) {
+    @Override
+    final boolean offerColdPath(
+            final AtomicReferenceArray<E> buffer,
+            final long mask,
+            final long index,
+            final int offset,
+            final E v, Supplier<? extends E> s) {
         final long lookAheadStep = this.lookAheadStep;
         // normal case, go around the buffer or resize if full (unless we hit max capacity)
         if (lookAheadStep > 0) {
@@ -61,14 +67,14 @@ public class SpscGrowableAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArrayQu
             // Try and look ahead a number of elements so we don't have to do this all the time
             if (null == lvElement(buffer, lookAheadElementOffset)) {
                 producerBufferLimit = index + lookAheadStep - 1; // joy, there's plenty of room
-                writeToQueue(buffer, e, index, offset);
+                writeToQueue(buffer, v == null ? s.get() : v, index, offset);
                 return true;
             }
             // we're at max capacity, can use up last element
             final int maxCapacity = maxQueueCapacity;
             if (mask + 1 == maxCapacity) {
                 if (null == lvElement(buffer, offset)) {
-                    writeToQueue(buffer, e, index, offset);
+                    writeToQueue(buffer, v == null ? s.get() : v, index, offset);
                     return true;
                 }
                 // we're full and can't grow
@@ -76,16 +82,16 @@ public class SpscGrowableAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArrayQu
             }
             // not at max capacity, so must allow extra slot for next buffer pointer
             if (null == lvElement(buffer, calcElementOffset(index + 1, mask))) { // buffer is not full
-                writeToQueue(buffer, e, index, offset);
+                writeToQueue(buffer, v == null ? s.get() : v, index, offset);
             } else {
                 // allocate new buffer of same length
                 final AtomicReferenceArray<E> newBuffer = allocate((int) (2*(mask +1) + 1));
 
                 producerBuffer = newBuffer;
-                producerMask = newBuffer.length() - 2;
+                producerMask = length(newBuffer) - 2;
 
                 final int offsetInNew = calcElementOffset(index, producerMask);
-                linkOldToNew(index, buffer, offset, newBuffer, offsetInNew, e);
+                linkOldToNew(index, buffer, offset, newBuffer, offsetInNew, v == null ? s.get() : v);
                 int newCapacity = (int) (producerMask + 1);
                 if (newCapacity == maxCapacity) {
                     long currConsumerIndex = lvConsumerIndex();
@@ -107,7 +113,7 @@ public class SpscGrowableAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArrayQu
             // verify size
             long currConsumerIndex = lvConsumerIndex();
             int size = (int) (index - currConsumerIndex);
-            int maxCapacity = (int) mask+1; // we're on max capacity or we wouldn't be here
+            int maxCapacity = (int) mask + 1; // we're on max capacity or we wouldn't be here
             if (size == maxCapacity) {
                 // consumer index has not changed since adjusting the lookAhead index, we're full
                 return false;
@@ -124,11 +130,10 @@ public class SpscGrowableAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArrayQu
                 this.lookAheadStep = (int) (currConsumerIndex - firstIndexInCurrentBuffer);
             }
             producerBufferLimit = currConsumerIndex + maxCapacity;
-            writeToQueue(buffer, e, index, offset);
+            writeToQueue(buffer, v == null ? s.get() : v, index, offset);
             return true;
         }
     }
-
 
     private void adjustLookAheadStep(int capacity) {
         lookAheadStep = Math.min(capacity / 4, SpscArrayQueue.MAX_LOOK_AHEAD_STEP);
