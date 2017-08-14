@@ -17,6 +17,7 @@ import org.jctools.util.Pow2;
 import org.jctools.util.RangeUtil;
 
 import java.util.concurrent.atomic.AtomicReferenceArray;
+import org.jctools.queues.MessagePassingQueue.Supplier;
 
 import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.allocate;
 import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.calcElementOffset;
@@ -52,7 +53,7 @@ public class SpscChunkedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArrayQue
     }
 
     @Override
-    protected final boolean offerColdPath(AtomicReferenceArray<E> buffer, long mask, E e, long pIndex, int offset) {
+    protected final boolean offerColdPath(AtomicReferenceArray<E> buffer, long mask, long pIndex, int offset, E e, Supplier<? extends E> s) {
         // use a fixed lookahead step based on buffer capacity
         final long lookAheadStep = (mask + 1) / 4;
         long pBufferLimit = pIndex + lookAheadStep;

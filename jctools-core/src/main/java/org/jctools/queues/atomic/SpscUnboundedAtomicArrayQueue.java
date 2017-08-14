@@ -16,6 +16,7 @@ package org.jctools.queues.atomic;
 import org.jctools.util.Pow2;
 
 import java.util.concurrent.atomic.AtomicReferenceArray;
+import org.jctools.queues.MessagePassingQueue.Supplier;
 
 import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.allocate;
 import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.calcElementOffset;
@@ -36,7 +37,7 @@ public class SpscUnboundedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArrayQ
     }
 
     @Override
-    protected boolean offerColdPath(AtomicReferenceArray<E> buffer, long mask, E e, long pIndex, int offset) {
+    protected boolean offerColdPath(AtomicReferenceArray<E> buffer, long mask, long pIndex, int offset, E e, Supplier<? extends E> s) {
         // use a fixed lookahead step based on buffer capacity
         final long lookAheadStep = (mask + 1) / 4;
         long pBufferLimit = pIndex + lookAheadStep;
@@ -45,11 +46,9 @@ public class SpscUnboundedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArrayQ
         if (null == lvElement(buffer, calcElementOffset(pBufferLimit, mask))) {
             producerBufferLimit = pBufferLimit - 1; // joy, there's plenty of room
             writeToQueue(buffer, e, pIndex, offset);
-        }
-        else if (null == lvElement(buffer, calcElementOffset(pIndex + 1, mask))) { // buffer is not full
+        } else if (null == lvElement(buffer, calcElementOffset(pIndex + 1, mask))) { // buffer is not full
             writeToQueue(buffer, e, pIndex, offset);
-        }
-        else {
+        } else {
             // we got one slot left to write into, and we are not full. Need to link new buffer.
             // allocate new buffer of same length
             final AtomicReferenceArray<E> newBuffer =  allocate((int)(mask + 2));

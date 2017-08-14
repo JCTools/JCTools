@@ -26,67 +26,58 @@ import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import org.jctools.queues.IndexedQueueSizeUtil;
 import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
+import org.jctools.queues.MessagePassingQueue.Supplier;
 import org.jctools.queues.QueueProgressIndicators;
 
-abstract class BaseSpscLinkedAtomicArrayQueuePrePad<E> extends AbstractQueue<E> implements IndexedQueue
-{
+abstract class BaseSpscLinkedAtomicArrayQueuePrePad<E> extends AbstractQueue<E> implements IndexedQueue {
     long p0, p1, p2, p3, p4, p5, p6, p7;
     long p10, p11, p12, p13, p14, p15;
     //  p16, p17; drop 2 longs, the cold fields act as buffer
 }
 
-abstract class BaseSpscLinkedAtomicArrayQueueConsumerColdFields<E> extends BaseSpscLinkedAtomicArrayQueuePrePad<E>
-{
+abstract class BaseSpscLinkedAtomicArrayQueueConsumerColdFields<E> extends BaseSpscLinkedAtomicArrayQueuePrePad<E> {
     protected long consumerMask;
     protected AtomicReferenceArray<E> consumerBuffer;
 }
 
-abstract class BaseSpscLinkedAtomicArrayQueueConsumerField<E> extends BaseSpscLinkedAtomicArrayQueueConsumerColdFields<E>
-{
+abstract class BaseSpscLinkedAtomicArrayQueueConsumerField<E> extends BaseSpscLinkedAtomicArrayQueueConsumerColdFields<E> {
     private static final AtomicLongFieldUpdater<BaseSpscLinkedAtomicArrayQueueConsumerField> C_INDEX_UPDATER =
             AtomicLongFieldUpdater.newUpdater(BaseSpscLinkedAtomicArrayQueueConsumerField.class, "consumerIndex");
     
     protected volatile long consumerIndex;
     
-    final void soConsumerIndex(long newValue)
-    {
+    final void soConsumerIndex(long newValue) {
         C_INDEX_UPDATER.lazySet(this, newValue);
     }
 
     @Override
-    public final long lvConsumerIndex()
-    {
+    public final long lvConsumerIndex() {
         return consumerIndex;
     }
 }
 
-abstract class BaseSpscLinkedAtomicArrayQueueL2Pad<E> extends BaseSpscLinkedAtomicArrayQueueConsumerField<E>
-{
+abstract class BaseSpscLinkedAtomicArrayQueueL2Pad<E> extends BaseSpscLinkedAtomicArrayQueueConsumerField<E> {
     long p0, p1, p2, p3, p4, p5, p6, p7;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 }
 
-abstract class BaseSpscLinkedAtomicArrayQueueProducerFields<E> extends BaseSpscLinkedAtomicArrayQueueL2Pad<E>
-{
+abstract class BaseSpscLinkedAtomicArrayQueueProducerFields<E> extends BaseSpscLinkedAtomicArrayQueueL2Pad<E> {
     private static final AtomicLongFieldUpdater<BaseSpscLinkedAtomicArrayQueueProducerFields> P_INDEX_UPDATER =
             AtomicLongFieldUpdater.newUpdater(BaseSpscLinkedAtomicArrayQueueProducerFields.class, "producerIndex");
     
     protected volatile long producerIndex;
 
-    final void soProducerIndex(long newValue)
-    {
+    final void soProducerIndex(long newValue) {
         P_INDEX_UPDATER.lazySet(this, newValue);
     }
 
     @Override
-    public final long lvProducerIndex()
-    {
+    public final long lvProducerIndex() {
         return producerIndex;
     }
 }
 
-abstract class BaseSpscLinkedAtomicArrayQueueProducerColdFields<E> extends BaseSpscLinkedAtomicArrayQueueProducerFields<E>
-{
+abstract class BaseSpscLinkedAtomicArrayQueueProducerColdFields<E> extends BaseSpscLinkedAtomicArrayQueueProducerFields<E> {
     protected long producerBufferLimit;
     protected long producerMask; // fixed for chunked and unbounded
 
@@ -94,56 +85,47 @@ abstract class BaseSpscLinkedAtomicArrayQueueProducerColdFields<E> extends BaseS
 }
 
 abstract class BaseSpscLinkedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArrayQueueProducerColdFields<E>
-        implements QueueProgressIndicators
-{
+        implements QueueProgressIndicators {
 
     private static final Object JUMP = new Object();
 
     @Override
-    public final Iterator<E> iterator()
-    {
+    public final Iterator<E> iterator() {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public final int size()
-    {
+    public final int size() {
         return IndexedQueueSizeUtil.size(this);
     }
 
     @Override
-    public final boolean isEmpty()
-    {
+    public final boolean isEmpty() {
         return IndexedQueueSizeUtil.isEmpty(this);
     }
 
     @Override
-    public String toString()
-    {
+    public String toString() {
         return this.getClass().getName();
     }
 
     @Override
-    public long currentProducerIndex()
-    {
+    public long currentProducerIndex() {
         return lvProducerIndex();
     }
 
     @Override
-    public long currentConsumerIndex()
-    {
+    public long currentConsumerIndex() {
         return lvConsumerIndex();
     }
 
-    protected final void soNext(AtomicReferenceArray<E> curr, AtomicReferenceArray<E> next)
-    {
+    protected final void soNext(AtomicReferenceArray<E> curr, AtomicReferenceArray<E> next) {
         int offset = nextArrayOffset(curr);
         soElement(curr, offset, next);
     }
 
     @SuppressWarnings("unchecked")
-    protected final AtomicReferenceArray<E> lvNextArrayAndUnlink(AtomicReferenceArray<E> curr)
-    {
+    protected final AtomicReferenceArray<E> lvNextArrayAndUnlink(AtomicReferenceArray<E> curr) {
         final int offset = nextArrayOffset(curr);
         final AtomicReferenceArray<E> nextBuffer = (AtomicReferenceArray<E>) lvElement(curr, offset);
         // prevent GC nepotism
@@ -172,15 +154,16 @@ abstract class BaseSpscLinkedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArr
             writeToQueue(buffer, e, index, offset);
             return true;
         }
-        return offerColdPath(buffer, mask, e, index, offset);
+        return offerColdPath(buffer, mask, index, offset, e, null);
     }
 
     abstract boolean offerColdPath(
             AtomicReferenceArray<E> buffer,
             long mask,
-            E e,
             long pIndex,
-            int offset);
+            int offset,
+            E e, 
+            Supplier<? extends E> s);
 
     /**
      * {@inheritDoc}
@@ -232,8 +215,7 @@ abstract class BaseSpscLinkedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArr
             final long currIndex,
             final AtomicReferenceArray<E> oldBuffer, final int offset,
             final AtomicReferenceArray<E> newBuffer, final int offsetInNew,
-            final E e)
-    {
+            final E e) {
         soElement(newBuffer, offsetInNew, e);// StoreStore
         // link to next buffer and add next indicator as element of old buffer
         soNext(oldBuffer, newBuffer);
@@ -242,14 +224,12 @@ abstract class BaseSpscLinkedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArr
         soProducerIndex(currIndex + 1);// this ensures atomic write of long on 32bit platforms
     }
 
-    final void writeToQueue(final AtomicReferenceArray<E> buffer, final E e, final long index, final int offset)
-    {
+    final void writeToQueue(final AtomicReferenceArray<E> buffer, final E e, final long index, final int offset) {
         soElement(buffer, offset, e);// StoreStore
         soProducerIndex(index + 1);// this ensures atomic write of long on 32bit platforms
     }
 
-    private E newBufferPeek(final AtomicReferenceArray<E> buffer, final long index)
-    {
+    private E newBufferPeek(final AtomicReferenceArray<E> buffer, final long index) {
         AtomicReferenceArray<E> nextBuffer = lvNextArrayAndUnlink(buffer);
         consumerBuffer = nextBuffer;
         final long mask = length(nextBuffer) - 2;
@@ -258,20 +238,16 @@ abstract class BaseSpscLinkedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArr
         return lvElement(nextBuffer, offset);// LoadLoad
     }
 
-    private E newBufferPoll(final AtomicReferenceArray<E> buffer, final long index)
-    {
+    private E newBufferPoll(final AtomicReferenceArray<E> buffer, final long index) {
         AtomicReferenceArray<E> nextBuffer = lvNextArrayAndUnlink(buffer);
         consumerBuffer = nextBuffer;
         final long mask = length(nextBuffer) - 2;
         consumerMask = mask;
         final int offset = calcElementOffset(index, mask);
         final E n = lvElement(nextBuffer, offset);// LoadLoad
-        if (null == n)
-        {
+        if (null == n) {
             throw new IllegalStateException("new buffer must have at least one element");
-        }
-        else
-        {
+        } else {
             soConsumerIndex(index + 1);// this ensures correctness on 32bit platforms
             soElement(nextBuffer, offset, null);// StoreStore
             return n;

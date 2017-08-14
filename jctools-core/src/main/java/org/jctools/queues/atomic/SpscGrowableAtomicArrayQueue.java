@@ -18,6 +18,7 @@ import org.jctools.util.Pow2;
 import org.jctools.util.RangeUtil;
 
 import java.util.concurrent.atomic.AtomicReferenceArray;
+import org.jctools.queues.MessagePassingQueue.Supplier;
 
 import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.allocate;
 import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.calcElementOffset;
@@ -51,8 +52,8 @@ public class SpscGrowableAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArrayQu
         soProducerIndex(0L);// serves as a StoreStore barrier to support correct publication
     }
 
-    protected final boolean offerColdPath(final AtomicReferenceArray<E> buffer, final long mask, final E e, final long index,
-                                          final int offset) {
+    protected final boolean offerColdPath(final AtomicReferenceArray<E> buffer, final long mask, final long index, final int offset,
+                                          final E e, Supplier<? extends E> s) {
         final long lookAheadStep = this.lookAheadStep;
         // normal case, go around the buffer or resize if full (unless we hit max capacity)
         if (lookAheadStep > 0) {
