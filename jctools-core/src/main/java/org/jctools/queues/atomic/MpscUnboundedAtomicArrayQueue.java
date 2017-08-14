@@ -16,6 +16,8 @@ package org.jctools.queues.atomic;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpmcArrayQueue;
 
+import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.length;
+
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 /**
@@ -44,7 +46,6 @@ public class MpscUnboundedAtomicArrayQueue<E> extends BaseMpscLinkedAtomicArrayQ
         return MessagePassingQueue.UNBOUNDED_CAPACITY;
     }
 
-
     @Override
     public int drain(Consumer<E> c) {
         return drain(c, 4096);
@@ -66,7 +67,7 @@ public class MpscUnboundedAtomicArrayQueue<E> extends BaseMpscLinkedAtomicArrayQ
 
     @Override
     protected int getNextBufferSize(AtomicReferenceArray<E> buffer) {
-        return buffer.length();
+        return length(buffer);
     }
 
     @Override
