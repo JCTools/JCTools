@@ -211,7 +211,6 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> {
         return e;
     }
 
-    // $gen:ignore
 	@Override
 	public boolean relaxedOffer(E e) {
 		if (null == e) {
@@ -221,23 +220,21 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> {
         final long mask = this.mask;
         final long producerIndex = lvProducerIndex();
         final long offset = calcElementOffset(producerIndex, mask);
-        if (null != UnsafeRefArrayAccess.lvElement(buffer, offset)) {
+        if (null != lvElement(buffer, offset)) {
         	return false;
         }
-        UnsafeRefArrayAccess.spElement(buffer, offset, e);
+        spElement(buffer, offset, e);
         // single producer, so store ordered is valid. It is also required to correctly publish the element
         // and for the consumers to pick up the tail value.
         soProducerIndex(producerIndex + 1);
         return true;
 	}
 
-    // $gen:ignore
 	@Override
 	public E relaxedPoll() {
         return poll();
     }
 
-    // $gen:ignore
     @Override
     public E relaxedPeek() {
     	final E[] buffer = this.buffer;
@@ -246,7 +243,6 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> {
         return lvElement(buffer, calcElementOffset(consumerIndex, mask));
 	}
 
-    // $gen:ignore
     @Override
     public int drain(final Consumer<E> c) {
         final int capacity = capacity();
@@ -261,13 +257,11 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> {
         return sum;
     }
 
-    // $gen:ignore
     @Override
     public int fill(final Supplier<E> s) {
         return fill(s, capacity());
     }
 
-    // $gen:ignore
     @Override
     public int drain(final Consumer<E> c, final int limit) {
         final E[] buffer = this.buffer;
@@ -300,7 +294,6 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> {
 
 
 
-    // $gen:ignore
     @Override
     public int fill(final Supplier<E> s, final int limit) {
         final E[] buffer = this.buffer;
@@ -319,7 +312,6 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> {
         return limit;
     }
 
-    // $gen:ignore
     @Override
     public void drain(final Consumer<E> c, final WaitStrategy w, final ExitCondition exit) {
         int idleCounter = 0;
@@ -332,7 +324,6 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> {
         }
     }
 
-    // $gen:ignore
     @Override
     public void fill(final Supplier<E> s, final WaitStrategy w, final ExitCondition e) {
         final E[] buffer = this.buffer;

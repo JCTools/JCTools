@@ -244,4 +244,171 @@ public class MpmcAtomicArrayQueue<E> extends MpmcAtomicArrayQueueL3Pad<E> {
         } while (e == null && cIndex != lvProducerIndex());
         return e;
     }
+
+    @Override
+    public boolean relaxedOffer(E e) {
+        if (null == e) {
+            throw new NullPointerException();
+        }
+        final int mask = this.mask;
+        final AtomicLongArray sBuffer = sequenceBuffer;
+        long pIndex;
+        int seqOffset;
+        long seq;
+        do {
+            pIndex = lvProducerIndex();
+            seqOffset = calcSequenceOffset(pIndex, mask);
+            seq = lvSequence(sBuffer, seqOffset);
+            if (seq < pIndex) {
+                // slot not cleared by consumer yet
+                return false;
+            }
+        } while (// another producer has moved the sequence
+        seq > pIndex || // failed to increment
+        !casProducerIndex(pIndex, pIndex + 1));
+        soElement(buffer, calcElementOffset(pIndex, mask), e);
+        soSequence(sBuffer, seqOffset, pIndex + 1);
+        return true;
+    }
+
+    @Override
+    public E relaxedPoll() {
+        final AtomicLongArray sBuffer = sequenceBuffer;
+        final int mask = this.mask;
+        long cIndex;
+        int seqOffset;
+        long seq;
+        long expectedSeq;
+        do {
+            cIndex = lvConsumerIndex();
+            seqOffset = calcSequenceOffset(cIndex, mask);
+            seq = lvSequence(sBuffer, seqOffset);
+            expectedSeq = cIndex + 1;
+            if (seq < expectedSeq) {
+                return null;
+            }
+        } while (// another consumer beat us to it
+        seq > expectedSeq || // failed the CAS
+        !casConsumerIndex(cIndex, cIndex + 1));
+        final int offset = calcElementOffset(cIndex, mask);
+        final E e = lpElement(buffer, offset);
+        soElement(buffer, offset, null);
+        soSequence(sBuffer, seqOffset, cIndex + mask + 1);
+        return e;
+    }
+
+    @Override
+    public E relaxedPeek() {
+        long currConsumerIndex = lvConsumerIndex();
+        return lpElement(buffer, calcElementOffset(currConsumerIndex));
+    }
+
+    @Override
+    public int drain(Consumer<E> c) {
+        final int capacity = capacity();
+        int sum = 0;
+        while (sum < capacity) {
+            int drained = 0;
+            if ((drained = drain(c, MpmcAtomicArrayQueue.RECOMENDED_POLL_BATCH)) == 0) {
+                break;
+            }
+            sum += drained;
+        }
+        return sum;
+    }
+
+    @Override
+    public int fill(Supplier<E> s) {
+        // result is a long because we want to have a safepoint check at regular intervals
+        long result = 0;
+        final int capacity = capacity();
+        do {
+            final int filled = fill(s, RECOMENDED_OFFER_BATCH);
+            if (filled == 0) {
+                return (int) result;
+            }
+            result += filled;
+        } while (result <= capacity);
+        return (int) result;
+    }
+
+    @Override
+    public int drain(Consumer<E> c, int limit) {
+        final AtomicLongArray sBuffer = sequenceBuffer;
+        final int mask = this.mask;
+        final AtomicReferenceArray<E> buffer = this.buffer;
+        long cIndex;
+        int seqOffset;
+        long seq;
+        long expectedSeq;
+        for (int i = 0; i < limit; i++) {
+            do {
+                cIndex = lvConsumerIndex();
+                seqOffset = calcSequenceOffset(cIndex, mask);
+                seq = lvSequence(sBuffer, seqOffset);
+                expectedSeq = cIndex + 1;
+                if (seq < expectedSeq) {
+                    return i;
+                }
+            } while (// another consumer beat us to it
+            seq > expectedSeq || // failed the CAS
+            !casConsumerIndex(cIndex, cIndex + 1));
+            final int offset = calcElementOffset(cIndex, mask);
+            final E e = lpElement(buffer, offset);
+            soElement(buffer, offset, null);
+            soSequence(sBuffer, seqOffset, cIndex + mask + 1);
+            c.accept(e);
+        }
+        return limit;
+    }
+
+    @Override
+    public int fill(Supplier<E> s, int limit) {
+        final AtomicLongArray sBuffer = sequenceBuffer;
+        final int mask = this.mask;
+        final AtomicReferenceArray<E> buffer = this.buffer;
+        long pIndex;
+        int seqOffset;
+        long seq;
+        for (int i = 0; i < limit; i++) {
+            do {
+                pIndex = lvProducerIndex();
+                seqOffset = calcSequenceOffset(pIndex, mask);
+                seq = lvSequence(sBuffer, seqOffset);
+                if (seq < pIndex) {
+                    // slot not cleared by consumer yet
+                    return i;
+                }
+            } while (// another producer has moved the sequence
+            seq > pIndex || // failed to increment
+            !casProducerIndex(pIndex, pIndex + 1));
+            soElement(buffer, calcElementOffset(pIndex, mask), s.get());
+            soSequence(sBuffer, seqOffset, pIndex + 1);
+        }
+        return limit;
+    }
+
+    @Override
+    public void drain(Consumer<E> c, WaitStrategy w, ExitCondition exit) {
+        int idleCounter = 0;
+        while (exit.keepRunning()) {
+            if (drain(c, MpmcAtomicArrayQueue.RECOMENDED_POLL_BATCH) == 0) {
+                idleCounter = w.idle(idleCounter);
+                continue;
+            }
+            idleCounter = 0;
+        }
+    }
+
+    @Override
+    public void fill(Supplier<E> s, WaitStrategy w, ExitCondition exit) {
+        int idleCounter = 0;
+        while (exit.keepRunning()) {
+            if (fill(s, MpmcAtomicArrayQueue.RECOMENDED_OFFER_BATCH) == 0) {
+                idleCounter = w.idle(idleCounter);
+                continue;
+            }
+            idleCounter = 0;
+        }
+    }
 }
