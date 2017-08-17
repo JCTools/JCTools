@@ -17,7 +17,7 @@ import java.nio.ByteBuffer;
 
 import org.jctools.channels.OffHeapFixedMessageSizeRingBuffer;
 
-import org.jctools.util.JvmInfo;
+import org.jctools.util.PortableJvmInfo;
 import org.jctools.util.Pow2;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
@@ -35,7 +35,7 @@ import static org.jctools.util.UnsafeDirectByteBuffer.allocateAlignedByteBuffer;
 public final class MpscFFLamportOffHeapFixedSizeRingBuffer extends OffHeapFixedMessageSizeRingBuffer {
 
    public MpscFFLamportOffHeapFixedSizeRingBuffer(final int capacity, final int primitiveMessageSize, final int referenceMessageSize) {
-      this(allocateAlignedByteBuffer(getRequiredBufferSize(capacity, primitiveMessageSize), JvmInfo.CACHE_LINE_SIZE), Pow2.roundToPowerOfTwo(capacity), true, true, true, primitiveMessageSize, createReferenceArray(capacity, referenceMessageSize), referenceMessageSize);
+      this(allocateAlignedByteBuffer(getRequiredBufferSize(capacity, primitiveMessageSize), PortableJvmInfo.CACHE_LINE_SIZE), Pow2.roundToPowerOfTwo(capacity), true, true, true, primitiveMessageSize, createReferenceArray(capacity, referenceMessageSize), referenceMessageSize);
    }
 
    private final long consumerIndexCacheAddress;

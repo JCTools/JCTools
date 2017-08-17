@@ -1,7 +1,7 @@
 package org.jctools.queues;
 
 import org.jctools.util.InternalAPI;
-import org.jctools.util.JvmInfo;
+import org.jctools.util.PortableJvmInfo;
 import org.jctools.util.UnsafeRefArrayAccess;
 
 @InternalAPI
@@ -13,7 +13,7 @@ public final class PaddedCircularArrayOffsetCalculator
     static
     {
         // 2 cache lines pad
-        REF_BUFFER_PAD = (JvmInfo.CACHE_LINE_SIZE * 2) >> UnsafeRefArrayAccess.REF_ELEMENT_SHIFT;
+        REF_BUFFER_PAD = (PortableJvmInfo.CACHE_LINE_SIZE * 2) >> UnsafeRefArrayAccess.REF_ELEMENT_SHIFT;
         // Including the buffer pad in the array base offset
         final int paddingOffset = REF_BUFFER_PAD << UnsafeRefArrayAccess.REF_ELEMENT_SHIFT;
         REF_ARRAY_BASE = UnsafeRefArrayAccess.REF_ARRAY_BASE + paddingOffset;

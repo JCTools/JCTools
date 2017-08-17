@@ -13,7 +13,7 @@
  */
 package org.jctools.queues;
 
-import static org.jctools.util.JvmInfo.CPUs;
+import static org.jctools.util.PortableJvmInfo.CPUs;
 import static org.jctools.util.Pow2.isPowerOfTwo;
 import static org.jctools.util.Pow2.roundToPowerOfTwo;
 

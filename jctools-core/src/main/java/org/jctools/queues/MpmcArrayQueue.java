@@ -13,7 +13,7 @@
  */
 package org.jctools.queues;
 
-import static org.jctools.util.JvmInfo.CPUs;
+import static org.jctools.util.PortableJvmInfo.CPUs;
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeRefArrayAccess.lpElement;
 import static org.jctools.util.UnsafeRefArrayAccess.soElement;

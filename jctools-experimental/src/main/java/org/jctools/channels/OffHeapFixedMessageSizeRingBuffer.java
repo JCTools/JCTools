@@ -13,7 +13,7 @@
  */
 package org.jctools.channels;
 
-import static org.jctools.util.JvmInfo.CACHE_LINE_SIZE;
+import static org.jctools.util.PortableJvmInfo.CACHE_LINE_SIZE;
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeDirectByteBuffer.alignedSlice;
 import static org.jctools.util.UnsafeDirectByteBuffer.allocateAlignedByteBuffer;
@@ -21,7 +21,6 @@ import static org.jctools.util.UnsafeDirectByteBuffer.allocateAlignedByteBuffer;
 import java.nio.ByteBuffer;
 
 import org.jctools.channels.proxy.ProxyChannelRingBuffer;
-import org.jctools.util.JvmInfo;
 import org.jctools.util.Pow2;
 import org.jctools.util.UnsafeDirectByteBuffer;
 import org.jctools.util.UnsafeRefArrayAccess;
@@ -39,7 +38,7 @@ public abstract class OffHeapFixedMessageSizeRingBuffer extends ProxyChannelRing
     public static final int WRITE_RELEASE_INDICATOR = 2;
     public static final int WRITE_ACQUIRE_INDICATOR = 3;
     public static final byte MESSAGE_INDICATOR_SIZE = 4;
-    public static final int HEADER_SIZE = 4 * JvmInfo.CACHE_LINE_SIZE;
+    public static final int HEADER_SIZE = 4 * CACHE_LINE_SIZE;
 
     private final ByteBuffer buffy;
     protected final long bufferAddress;
@@ -105,7 +104,7 @@ public abstract class OffHeapFixedMessageSizeRingBuffer extends ProxyChannelRing
         this.buffy = alignedSlice(HEADER_SIZE + (actualCapacity * (this.messageSize)), CACHE_LINE_SIZE, buff);
 
         long alignedAddress = UnsafeDirectByteBuffer.getAddress(buffy);
-        if (alignedAddress % JvmInfo.CACHE_LINE_SIZE != 0) {
+        if (alignedAddress % CACHE_LINE_SIZE != 0) {
             throw new IllegalStateException("buffer is expected to be cache line aligned by now");
         }
         // Layout of the RingBuffer (assuming 64b cache line):
@@ -115,7 +114,7 @@ public abstract class OffHeapFixedMessageSizeRingBuffer extends ProxyChannelRing
         // pad(64b) |
         // buffer (capacity * messageSize)
         this.consumerIndexAddress = alignedAddress;
-        this.producerIndexAddress = this.consumerIndexAddress + 2 * JvmInfo.CACHE_LINE_SIZE;
+        this.producerIndexAddress = this.consumerIndexAddress + 2 * CACHE_LINE_SIZE;
         this.bufferAddress = alignedAddress + HEADER_SIZE;
         this.mask = actualCapacity - 1;
         

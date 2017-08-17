@@ -13,7 +13,7 @@
  */
 package org.jctools.queues;
 
-import org.jctools.util.JvmInfo;
+import org.jctools.util.PortableJvmInfo;
 import org.jctools.util.Pow2;
 import org.jctools.util.UnsafeAccess;
 import org.jctools.util.UnsafeDirectByteBuffer;
@@ -42,12 +42,12 @@ public final class SpscOffHeapIntQueue extends AbstractQueue<Integer> {
 	public SpscOffHeapIntQueue(final int capacity) {
 		this(allocateAlignedByteBuffer(
 		        getRequiredBufferSize(capacity),
-		        JvmInfo.CACHE_LINE_SIZE),
+		        PortableJvmInfo.CACHE_LINE_SIZE),
 		        Pow2.roundToPowerOfTwo(capacity),(byte)(PRODUCER | CONSUMER));
 	}
 
 	public static int getRequiredBufferSize(final int capacity) {
-	    return 4 * JvmInfo.CACHE_LINE_SIZE + (Pow2.roundToPowerOfTwo(capacity) << INT_ELEMENT_SCALE);
+	    return 4 * PortableJvmInfo.CACHE_LINE_SIZE + (Pow2.roundToPowerOfTwo(capacity) << INT_ELEMENT_SCALE);
     }
 
 	/**
@@ -61,16 +61,16 @@ public final class SpscOffHeapIntQueue extends AbstractQueue<Integer> {
 	public SpscOffHeapIntQueue(final ByteBuffer buff,
 			final int capacity, byte viewMask) {
 		this.capacity = Pow2.roundToPowerOfTwo(capacity);
-		buffy = alignedSlice(4 * JvmInfo.CACHE_LINE_SIZE + (this.capacity << INT_ELEMENT_SCALE),
-									JvmInfo.CACHE_LINE_SIZE, buff);
+		buffy = alignedSlice(4 * PortableJvmInfo.CACHE_LINE_SIZE + (this.capacity << INT_ELEMENT_SCALE),
+		        PortableJvmInfo.CACHE_LINE_SIZE, buff);
 
 		long alignedAddress = UnsafeDirectByteBuffer.getAddress(buffy);
 
 		headAddress = alignedAddress;
 		tailCacheAddress = headAddress + 8;
-		tailAddress = headAddress + 2 * JvmInfo.CACHE_LINE_SIZE;
+		tailAddress = headAddress + 2 * PortableJvmInfo.CACHE_LINE_SIZE;
 		headCacheAddress = tailAddress + 8;
-		arrayBase = alignedAddress + 4 * JvmInfo.CACHE_LINE_SIZE;
+		arrayBase = alignedAddress + 4 * PortableJvmInfo.CACHE_LINE_SIZE;
 		// producer owns tail and headCache
 		if((viewMask & PRODUCER) == PRODUCER){
     		setHeadCache(0);
