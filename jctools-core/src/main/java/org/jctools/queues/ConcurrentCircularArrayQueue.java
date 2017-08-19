@@ -91,7 +91,7 @@ public abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircular
     @Override
     public void clear()
     {
-        while (poll() != null || !isEmpty())
+        while (poll() != null)
         {
             // if you stare into the void
         }
