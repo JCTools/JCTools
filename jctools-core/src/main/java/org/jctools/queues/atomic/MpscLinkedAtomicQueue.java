@@ -65,6 +65,67 @@ public final class MpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
         return true;
     }
 
+
+    /**
+     * {@inheritDoc}
+     * <p>
+     * This method is only safe to call from the (single) consumer thread, and is subject to best effort when racing
+     * with producers.
+     */
+    @Override
+    public final boolean remove(Object o)
+    {
+        if (null == o)
+        {
+            return false; // Null elements are not permitted, so null will never be removed.
+        }
+
+        final LinkedQueueAtomicNode<E> originalConsumerNode = lpConsumerNode();
+        LinkedQueueAtomicNode<E> prevConsumerNode = originalConsumerNode;
+        LinkedQueueAtomicNode<E> currConsumerNode = getNextConsumerNode(originalConsumerNode);
+        while (currConsumerNode != null)
+        {
+            if (o.equals(currConsumerNode.lpValue()))
+            {
+                LinkedQueueAtomicNode<E> nextNode = getNextConsumerNode(currConsumerNode);
+                // e.g.: consumerNode -> node0 -> node1(o==v) -> node2 ... => consumerNode -> node0 -> node2
+                if (nextNode != null)
+                {
+                    // We are removing an interior node.
+                    prevConsumerNode.soNext(nextNode);
+
+                }
+                // This case reflects: prevConsumerNode != originalConsumerNode && nextNode == null
+                // At rest, this would be the producerNode, but we must contend with racing. Changes to subclassed
+                // queues need to consider remove() when implementing offer().
+                else
+                {
+                    // producerNode is currConsumerNode, try to atomically update the reference to move it to the
+                    // previous node.
+                    prevConsumerNode.soNext(null);
+                    if (!producerNode.compareAndSet(currConsumerNode, prevConsumerNode))
+                    {
+                        // If the producer(s) have offered more items we need to remove the currConsumerNode link.
+                        while ((nextNode = currConsumerNode.lvNext()) == null)
+                        {
+                            ;
+                        }
+                        prevConsumerNode.soNext(nextNode);
+                    }
+                }
+
+                // Avoid GC nepotism because we are discarding the current node.
+                currConsumerNode.soNext(null);
+                currConsumerNode.spValue(null);
+
+                return true;
+            }
+            prevConsumerNode = currConsumerNode;
+            currConsumerNode = getNextConsumerNode(currConsumerNode);
+        }
+        return false;
+    }
+
     /**
      * {@inheritDoc} <br>
      * <p>

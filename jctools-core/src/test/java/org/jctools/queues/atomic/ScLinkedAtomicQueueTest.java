@@ -3,27 +3,32 @@ package org.jctools.queues.atomic;
 import org.junit.Test;
 
 import java.util.Queue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.LockSupport;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
-public abstract class ScLinkedAtomicQueueTest {
-    protected abstract Queue<Integer> newQueue();
-
-    private static <T> void assertQueueEmpty(Queue<T> queue) {
+public abstract class ScLinkedAtomicQueueTest
+{
+    private static <T> void assertQueueEmpty(Queue<T> queue)
+    {
         assertNull(queue.peek());
         assertNull(queue.poll());
         assertTrue(queue.isEmpty());
         assertEquals(0, queue.size());
     }
 
-    private void removeSimple(int removeValue, int expectedFirst, int expectedSecond) throws InterruptedException {
+    protected abstract Queue<Integer> newQueue();
+
+    private void removeSimple(int removeValue, int expectedFirst, int expectedSecond) throws InterruptedException
+    {
         final Queue<Integer> queue = newQueue();
-        Thread t = new Thread() {
+        Thread t = new Thread()
+        {
             @Override
-            public void run() {
+            public void run()
+            {
                 queue.offer(1);
                 queue.offer(2);
                 queue.offer(3);
@@ -34,7 +39,8 @@ public abstract class ScLinkedAtomicQueueTest {
 
         t.start();
 
-        while (queue.size() < 3) {
+        while (queue.size() < 3)
+        {
             Thread.yield();
         }
 
@@ -52,26 +58,32 @@ public abstract class ScLinkedAtomicQueueTest {
     }
 
     @Test
-    public void removeConsumerNode() throws InterruptedException {
+    public void removeConsumerNode() throws InterruptedException
+    {
         removeSimple(1, 2, 3);
     }
 
     @Test
-    public void removeInteriorNode() throws InterruptedException {
+    public void removeInteriorNode() throws InterruptedException
+    {
         removeSimple(2, 1, 3);
     }
 
     @Test
-    public void removeProducerNode() throws InterruptedException {
+    public void removeProducerNode() throws InterruptedException
+    {
         removeSimple(3, 1, 2);
     }
 
     @Test
-    public void removeFailsWhenExpected() throws InterruptedException {
+    public void removeFailsWhenExpected() throws InterruptedException
+    {
         final Queue<Integer> queue = newQueue();
-        Thread t = new Thread() {
+        Thread t = new Thread()
+        {
             @Override
-            public void run() {
+            public void run()
+            {
                 queue.offer(1);
                 queue.offer(2);
                 queue.offer(3);
@@ -82,7 +94,8 @@ public abstract class ScLinkedAtomicQueueTest {
 
         t.start();
 
-        while (queue.size() < 3) {
+        while (queue.size() < 3)
+        {
             Thread.yield();
         }
 
@@ -101,61 +114,75 @@ public abstract class ScLinkedAtomicQueueTest {
         t.join();
     }
 
-    @Test
-    public void removeStressTest() throws InterruptedException {
-        // The test maybe racy ... just repeat it numerous times to increase the likely hood we will catch a failure.
-        for (int i = 0; i < 10000; ++i) {
-            final Queue<Integer> queue = newQueue();
-            Thread t = new Thread() {
-                @Override
-                public void run() {
-                    queue.offer(1);
-                    queue.offer(2);
-                    queue.offer(3);
-                    queue.offer(4);
-                    queue.offer(5);
-                    queue.offer(6);
+    @Test(timeout = 1000)
+    public void removeStressTest() throws InterruptedException
+    {
+        final AtomicBoolean running = new AtomicBoolean(true);
+        final AtomicBoolean failed = new AtomicBoolean(false);
+        final Queue<Integer> queue = newQueue();
+
+        Thread p = new Thread()
+        {
+            @Override
+            public void run()
+            {
+                int i = 0;
+                try
+                {
+                    while (running.get())
+                    {
+                        if (queue.isEmpty())
+                        {
+                            queue.offer(i++);
+                            queue.offer(i++);
+                            queue.offer(i++);
+                        }
+                    }
                 }
-            };
-
-            assertQueueEmpty(queue);
-
-            t.start();
-
-            while (queue.size() < 3) {
-                Thread.yield();
+                catch (Exception e)
+                {
+                    e.printStackTrace();
+                    failed.set(true);
+                    running.set(false);
+                }
             }
+        };
 
-            // Remove from the middle
-            assertTrue(queue.remove(2));
-            assertFalse(queue.remove(2));
-
-            // Remove from the front
-            assertTrue(queue.remove(1));
-            assertFalse(queue.remove(1));
-
-            assertTrue(queue.remove(3));
-            assertFalse(queue.remove(3));
-
-            while (queue.size() != 3) {
-                Thread.yield();
+        Thread c = new Thread()
+        {
+            @Override
+            public void run()
+            {
+                int i = 0;
+                try
+                {
+                    while (running.get())
+                    {
+                        if (!queue.isEmpty())
+                        {
+                            if (!queue.remove(i))
+                            {
+                                failed.set(true);
+                                running.set(false);
+                            }
+                            i++;
+                        }
+                    }
+                }
+                catch (Exception e)
+                {
+                    e.printStackTrace();
+                    failed.set(true);
+                    running.set(false);
+                }
             }
-
-            // Remove from the end
-            assertTrue(queue.remove(6));
-            assertFalse(queue.remove(6));
-
-            // Remove from the middle
-            assertTrue(queue.remove(4));
-            assertFalse(queue.remove(4));
-
-            // Remove the last element
-            assertTrue(queue.remove(5));
-            assertFalse(queue.remove(5));
-
-            assertQueueEmpty(queue);
-
-            t.join();
-        }
+        };
+        p.start();
+        c.start();
+        LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(250));
+        running.set(false);
+        p.join();
+        c.join();
+        assertFalse(failed.get());
     }
 }

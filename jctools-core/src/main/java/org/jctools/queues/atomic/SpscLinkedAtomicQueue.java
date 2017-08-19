@@ -13,6 +13,8 @@
  */
 package org.jctools.queues.atomic;
 
+import org.jctools.queues.MessagePassingQueue;
+
 /**
  * This is a weakened version of the MPSC algorithm as presented <a
  * href="http://www.1024cores.net/home/lock-free-algorithms/queues/non-intrusive-mpsc-node-based-queue"> on 1024
