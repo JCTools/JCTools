@@ -175,8 +175,7 @@ public final class MpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
         return null;
     }
 
-    @Override
-    LinkedQueueAtomicNode<E> getNextConsumerNode(LinkedQueueAtomicNode<E> currConsumerNode) {
+    private LinkedQueueAtomicNode<E> getNextConsumerNode(LinkedQueueAtomicNode<E> currConsumerNode) {
         LinkedQueueAtomicNode<E> nextNode = currConsumerNode.lvNext();
         if (nextNode == null && currConsumerNode != lvProducerNode()) {
             // spin, we are no longer wait free
