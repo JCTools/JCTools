@@ -22,7 +22,7 @@ import org.jctools.channels.ChannelProducer;
 import org.jctools.channels.ChannelReceiver;
 import org.jctools.channels.mpsc.MpscChannel;
 import org.jctools.channels.spsc.SpscChannel;
-import org.jctools.util.JvmInfo;
+import org.jctools.util.PortableJvmInfo;
 import org.jctools.util.Pow2;
 import org.openjdk.jmh.annotations.AuxCounters;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -77,7 +77,7 @@ public class ChannelThroughputBackoffNone {
             }
         };
         buffer = ByteBuffer
-                .allocateDirect(Pow2.roundToPowerOfTwo(capacity * 2) * (8 + 4) + JvmInfo.CACHE_LINE_SIZE * 5);
+                .allocateDirect(Pow2.roundToPowerOfTwo(capacity * 2) * (8 + 4) + PortableJvmInfo.CACHE_LINE_SIZE * 5);
 
         switch (type) {
         case Spsc:

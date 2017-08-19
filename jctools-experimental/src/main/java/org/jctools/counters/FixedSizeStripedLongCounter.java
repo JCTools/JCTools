@@ -4,7 +4,7 @@ import static org.jctools.util.UnsafeAccess.UNSAFE;
 
 import java.util.concurrent.ThreadLocalRandom;
 
-import org.jctools.util.JvmInfo;
+import org.jctools.util.PortableJvmInfo;
 import org.jctools.util.Pow2;
 
 /**
@@ -18,11 +18,11 @@ abstract class FixedSizeStripedLongCounterPrePad {
     long l9, l10, l11, l12, l13, l14, l15;
 }
 abstract class FixedSizeStripedLongCounterFields extends FixedSizeStripedLongCounterPrePad {
-    protected static final int CACHE_LINE_IN_LONGS = JvmInfo.CACHE_LINE_SIZE / 8;
+    protected static final int CACHE_LINE_IN_LONGS = PortableJvmInfo.CACHE_LINE_SIZE / 8;
     // place first element at the end of the cache line of the array object
-    protected static final long COUNTER_ARRAY_BASE = Math.max(UNSAFE.arrayBaseOffset(long[].class), JvmInfo.CACHE_LINE_SIZE - 8);
+    protected static final long COUNTER_ARRAY_BASE = Math.max(UNSAFE.arrayBaseOffset(long[].class), PortableJvmInfo.CACHE_LINE_SIZE - 8);
     // element shift is enlarged to include the padding, still aligned to long
-    protected static final long ELEMENT_SHIFT = Integer.numberOfTrailingZeros(JvmInfo.CACHE_LINE_SIZE);
+    protected static final long ELEMENT_SHIFT = Integer.numberOfTrailingZeros(PortableJvmInfo.CACHE_LINE_SIZE);
     
     // we pad each element in the array to effectively write a counter in each cache line
     protected final long[] cells;

@@ -73,14 +73,14 @@ public class UnsafeDirectByteBuffer {
 	}
 
 	public static boolean isPageAligned(long address) {
-		return (address & (JvmInfo.PAGE_SIZE - 1)) == 0;
+		return (address & (UnsafeJvmInfo.PAGE_SIZE - 1)) == 0;
 	}
 
 	/**
 	 * This assumes cache line is 64b
 	 */
 	public static boolean isCacheAligned(long address) {
-		return (address & (JvmInfo.CACHE_LINE_SIZE - 1)) == 0;
+		return (address & (PortableJvmInfo.CACHE_LINE_SIZE - 1)) == 0;
 	}
 
 	public static boolean isAligned(long address, long align) {

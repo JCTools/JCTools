@@ -13,7 +13,7 @@
  */
 package org.jctools.channels.spsc;
 
-import static org.jctools.util.JvmInfo.CACHE_LINE_SIZE;
+import static org.jctools.util.PortableJvmInfo.CACHE_LINE_SIZE;
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeDirectByteBuffer.allocateAlignedByteBuffer;
 

@@ -13,7 +13,7 @@
  */
 package org.jctools.queues.atomic;
 
-import static org.jctools.util.JvmInfo.CPUs;
+import static org.jctools.util.PortableJvmInfo.CPUs;
 import org.jctools.util.RangeUtil;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceArray;

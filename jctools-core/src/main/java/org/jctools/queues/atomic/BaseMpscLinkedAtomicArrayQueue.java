@@ -23,7 +23,7 @@ import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
-import static org.jctools.util.JvmInfo.CPUs;
+import static org.jctools.util.PortableJvmInfo.CPUs;
 
 abstract class BaseMpscLinkedAtomicArrayQueuePad1<E> extends AbstractQueue<E> {
     long p01, p02, p03, p04, p05, p06, p07;

@@ -11,7 +11,7 @@ import java.util.Collection;
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.jctools.util.JvmInfo.CPUs;
+import static org.jctools.util.PortableJvmInfo.CPUs;
 import static org.junit.Assert.assertEquals;
 
 @RunWith(Parameterized.class)

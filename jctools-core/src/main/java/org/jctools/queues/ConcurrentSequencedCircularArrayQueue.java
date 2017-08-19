@@ -13,7 +13,7 @@
  */
 package org.jctools.queues;
 
-import org.jctools.util.JvmInfo;
+import org.jctools.util.PortableJvmInfo;
 import org.jctools.util.UnsafeAccess;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
@@ -30,7 +30,7 @@ public abstract class ConcurrentSequencedCircularArrayQueue<E> extends Concurren
             throw new IllegalStateException("Unexpected long[] element size");
         }
         // 2 cache lines pad
-        SEQ_BUFFER_PAD = (JvmInfo.CACHE_LINE_SIZE * 2) / scale;
+        SEQ_BUFFER_PAD = (PortableJvmInfo.CACHE_LINE_SIZE * 2) / scale;
         // Including the buffer pad in the array base offset
         ARRAY_BASE = UnsafeAccess.UNSAFE.arrayBaseOffset(long[].class) + (SEQ_BUFFER_PAD * scale);
     }

@@ -19,7 +19,7 @@ import static org.jctools.util.UnsafeDirectByteBuffer.allocateAlignedByteBuffer;
 import java.nio.ByteBuffer;
 
 import org.jctools.channels.OffHeapFixedMessageSizeRingBuffer;
-import org.jctools.util.JvmInfo;
+import org.jctools.util.PortableJvmInfo;
 import org.jctools.util.Pow2;
 
 /**
@@ -31,7 +31,7 @@ import org.jctools.util.Pow2;
 public class MpscOffHeapFixedSizeRingBuffer extends OffHeapFixedMessageSizeRingBuffer {
 
     public MpscOffHeapFixedSizeRingBuffer(final int capacity, final int messageSize, int referenceMessageSize) {
-        this(allocateAlignedByteBuffer(getRequiredBufferSize(capacity, messageSize), JvmInfo.CACHE_LINE_SIZE),
+        this(allocateAlignedByteBuffer(getRequiredBufferSize(capacity, messageSize), PortableJvmInfo.CACHE_LINE_SIZE),
                 Pow2.roundToPowerOfTwo(capacity),
                 true,
                 true,
