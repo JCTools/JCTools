@@ -13,13 +13,16 @@
  */
 package org.jctools.jmh.latency;
 
-import java.util.Queue;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
-
 import org.jctools.queues.QueueByTypeFactory;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
+
+import java.util.Queue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
@@ -27,104 +30,44 @@ import org.openjdk.jmh.infra.Blackhole;
 @Warmup(iterations = 10, time = 1, timeUnit = TimeUnit.SECONDS)
 @Measurement(iterations = 10, time = 1, timeUnit = TimeUnit.SECONDS)
 @SuppressWarnings("serial")
-public class QueueBurstCost {
+public class QueueBurstCost
+{
     private static final long DELAY_PRODUCER = Long.getLong("delay.p", 0L);
     private static final long DELAY_CONSUMER = Long.getLong("delay.c", 0L);
-
-    abstract static class AbstractEvent extends AtomicBoolean {
-        abstract void handle();
-    }
-
-    static class Go extends AbstractEvent {
-        @Override
-        void handle() {
-            // do nothing
-        }
-    }
-
-    @State(Scope.Thread)
-    public static class Stop extends AbstractEvent {
-        @Override
-        void handle() {
-            lazySet(true);
-        }
-    }
-
-    static class ConsumerPad {
-        public long p40, p41, p42, p43, p44, p45, p46;
-        public long p30, p31, p32, p33, p34, p35, p36, p37;
-    }
-    static class ConsumerFields extends ConsumerPad {
-        Queue<AbstractEvent> q;
-        volatile boolean isRunning = true;
-        CountDownLatch stopped;
-    }
-    static class Consumer extends ConsumerFields implements Runnable {
-        public long p40, p41, p42, p43, p44, p45, p46;
-        public long p30, p31, p32, p33, p34, p35, p36, p37;
-
-        public Consumer(Queue<AbstractEvent> q) {
-            this.q = q;
-        }
-        @Override
-        public void run() {
-            final Queue<AbstractEvent> q = this.q;
-            while (isRunning) {
-                consume(q);
-            }
-            stopped.countDown();
-        }
-
-        @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-        private void consume(Queue<AbstractEvent> q) {
-            AbstractEvent e = null;
-            if ((e = q.poll()) == null) {
-                return;
-            }
-            if (DELAY_CONSUMER != 0) {
-                Blackhole.consumeCPU(DELAY_CONSUMER);
-            }
-            e.handle();
-        }
-
-    }
-
     Go GO = new Go();
-
-    @Param({ "SpscArrayQueue", "MpscArrayQueue", "SpmcArrayQueue", "MpmcArrayQueue" })
+    @Param( {"SpscArrayQueue", "MpscArrayQueue", "SpmcArrayQueue", "MpmcArrayQueue"})
     String qType;
-
-    @Param({ "100" })
+    @Param( {"100"})
     int burstSize;
-
     @Param("1")
     int consumerCount;
-
     @Param("true")
     boolean warmup;
-
-    @Param(value = { "132000" })
+    @Param(value = {"132000"})
     String qCapacity;
-
     Queue<AbstractEvent> q;
-
     private ExecutorService consumerExecutor;
     private Consumer consumer;
 
     @Setup(Level.Trial)
-    public void setupQueue() {
-        if (warmup) {
+    public void setupQueue()
+    {
+        if (warmup)
+        {
             q = QueueByTypeFactory.createQueue(qType, 128);
 
             // stretch the queue to the limit, working through resizing and full
-            for (int i = 0; i < 128 + 100; i++) {
+            for (int i = 0; i < 128 + 100; i++)
+            {
                 q.offer(GO);
             }
-            for (int i = 0; i < 128 + 100; i++) {
+            for (int i = 0; i < 128 + 100; i++)
+            {
                 q.poll();
             }
             // make sure the important common case is exercised
-            for (int i = 0; i < 20000; i++) {
+            for (int i = 0; i < 20000; i++)
+            {
                 q.offer(GO);
                 q.poll();
             }
@@ -135,27 +78,34 @@ public class QueueBurstCost {
     }
 
     @Setup(Level.Iteration)
-    public void startConsumers() {
+    public void startConsumers()
+    {
         consumer.isRunning = true;
         consumer.stopped = new CountDownLatch(consumerCount);
-        for(int i=0;i<consumerCount;i++) consumerExecutor.execute(consumer);
+        for (int i = 0; i < consumerCount; i++)
+        {
+            consumerExecutor.execute(consumer);
+        }
 
     }
 
     @TearDown(Level.Iteration)
-    public void stopConsumers() throws InterruptedException {
+    public void stopConsumers() throws InterruptedException
+    {
         consumer.isRunning = false;
         consumer.stopped.await();
     }
+
     @TearDown(Level.Trial)
-    public void stopExecutor() throws InterruptedException {
+    public void stopExecutor() throws InterruptedException
+    {
         consumerExecutor.shutdown();
     }
 
-
-        @Benchmark
+    @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-    public void burstCost(Stop stop) {
+    public void burstCost(Stop stop)
+    {
         final int burst = burstSize;
         final Queue<AbstractEvent> q = this.q;
         final Go go = GO;
@@ -165,19 +115,107 @@ public class QueueBurstCost {
         waitForIt(stop);
     }
 
-    private void waitForIt(Stop stop) {
-        while (!stop.get());
+    private void waitForIt(Stop stop)
+    {
+        while (!stop.get())
+        {
+            ;
+        }
     }
 
-    private void sendBurst(Queue<AbstractEvent> q, int burst, Go go, Stop stop) {
-        for (int i = 0; i < burst - 1; i++) {
-            while (!q.offer(go));
-            if (DELAY_PRODUCER != 0) {
+    private void sendBurst(Queue<AbstractEvent> q, int burst, Go go, Stop stop)
+    {
+        for (int i = 0; i < burst - 1; i++)
+        {
+            while (!q.offer(go))
+            {
+                ;
+            }
+            if (DELAY_PRODUCER != 0)
+            {
                 Blackhole.consumeCPU(DELAY_PRODUCER);
             }
         }
 
-        while (!q.offer(stop));
+        while (!q.offer(stop))
+        {
+            ;
+        }
+    }
+
+    abstract static class AbstractEvent extends AtomicBoolean
+    {
+        abstract void handle();
+    }
+
+    static class Go extends AbstractEvent
+    {
+        @Override
+        void handle()
+        {
+            // do nothing
+        }
+    }
+
+    @State(Scope.Thread)
+    public static class Stop extends AbstractEvent
+    {
+        @Override
+        void handle()
+        {
+            lazySet(true);
+        }
+    }
+
+    static class ConsumerPad
+    {
+        public long p40, p41, p42, p43, p44, p45, p46;
+        public long p30, p31, p32, p33, p34, p35, p36, p37;
+    }
+
+    static class ConsumerFields extends ConsumerPad
+    {
+        Queue<AbstractEvent> q;
+        volatile boolean isRunning = true;
+        CountDownLatch stopped;
+    }
+
+    static class Consumer extends ConsumerFields implements Runnable
+    {
+        public long p40, p41, p42, p43, p44, p45, p46;
+        public long p30, p31, p32, p33, p34, p35, p36, p37;
+
+        public Consumer(Queue<AbstractEvent> q)
+        {
+            this.q = q;
+        }
+
+        @Override
+        public void run()
+        {
+            final Queue<AbstractEvent> q = this.q;
+            while (isRunning)
+            {
+                consume(q);
+            }
+            stopped.countDown();
+        }
+
+        @CompilerControl(CompilerControl.Mode.DONT_INLINE)
+        private void consume(Queue<AbstractEvent> q)
+        {
+            AbstractEvent e = null;
+            if ((e = q.poll()) == null)
+            {
+                return;
+            }
+            if (DELAY_CONSUMER != 0)
+            {
+                Blackhole.consumeCPU(DELAY_CONSUMER);
+            }
+            e.handle();
+        }
+
     }
 
 
