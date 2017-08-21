@@ -124,8 +124,6 @@ abstract class BaseLinkedAtomicQueue<E> extends AbstractQueue<E>
         return lvConsumerNode() == lvProducerNode();
     }
 
-    abstract LinkedQueueAtomicNode<E> getNextConsumerNode(LinkedQueueAtomicNode<E> currConsumerNode);
-
     protected E getSingleConsumerNodeValue(LinkedQueueAtomicNode<E> currConsumerNode, LinkedQueueAtomicNode<E> nextNode)
     {
         // we have to null out the value because we are going to hang on to the node

@@ -1,4 +1,4 @@
-package org.jctools.queues.atomic;
+package org.jctools.queues;
 
 import org.junit.Test;
 
@@ -9,7 +9,7 @@ import java.util.concurrent.locks.LockSupport;
 
 import static org.junit.Assert.*;
 
-public abstract class ScLinkedAtomicQueueTest
+public abstract class ScQueueRemoveTest
 {
     private static <T> void assertQueueEmpty(Queue<T> queue)
     {

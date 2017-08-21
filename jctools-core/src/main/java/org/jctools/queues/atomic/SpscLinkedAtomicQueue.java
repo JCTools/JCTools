@@ -99,9 +99,4 @@ public final class SpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
             return null;
         }
     }
-
-    @Override
-    LinkedQueueAtomicNode<E> getNextConsumerNode(LinkedQueueAtomicNode<E> currConsumerNode) {
-        return currConsumerNode.lvNext();
-    }
 }

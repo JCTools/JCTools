@@ -15,6 +15,8 @@ package org.jctools.queues;
 
 import org.jctools.util.UnsafeAccess;
 
+import static org.jctools.util.UnsafeAccess.UNSAFE;
+
 /**
  * This is a direct Java port of the MPSC algorithm as presented
  * <a href="http://www.1024cores.net/home/lock-free-algorithms/queues/non-intrusive-mpsc-node-based-queue"> on
@@ -116,6 +118,66 @@ public abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E> {
         return null;
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * This method is only safe to call from the (single) consumer thread, and is subject to best effort when racing
+     * with producers.
+     */
+    @Override
+    public final boolean remove(Object o)
+    {
+        if (null == o)
+        {
+            return false; // Null elements are not permitted, so null will never be removed.
+        }
+
+        final LinkedQueueNode<E> originalConsumerNode = lpConsumerNode();
+        LinkedQueueNode<E> prevConsumerNode = originalConsumerNode;
+        LinkedQueueNode<E> currConsumerNode = getNextConsumerNode(originalConsumerNode);
+        while (currConsumerNode != null)
+        {
+            if (o.equals(currConsumerNode.lpValue()))
+            {
+                LinkedQueueNode<E> nextNode = getNextConsumerNode(currConsumerNode);
+                // e.g.: consumerNode -> node0 -> node1(o==v) -> node2 ... => consumerNode -> node0 -> node2
+                if (nextNode != null)
+                {
+                    // We are removing an interior node.
+                    prevConsumerNode.soNext(nextNode);
+
+                }
+                // This case reflects: prevConsumerNode != originalConsumerNode && nextNode == null
+                // At rest, this would be the producerNode, but we must contend with racing. Changes to subclassed
+                // queues need to consider remove() when implementing offer().
+                else
+                {
+                    // producerNode is currConsumerNode, try to atomically update the reference to move it to the
+                    // previous node.
+                    prevConsumerNode.soNext(null);
+                    if (!UNSAFE.compareAndSwapObject(this, P_NODE_OFFSET, currConsumerNode, prevConsumerNode))
+                    {
+                        // If the producer(s) have offered more items we need to remove the currConsumerNode link.
+                        while ((nextNode = currConsumerNode.lvNext()) == null)
+                        {
+                            ;
+                        }
+                        prevConsumerNode.soNext(nextNode);
+                    }
+                }
+
+                // Avoid GC nepotism because we are discarding the current node.
+                currConsumerNode.soNext(null);
+                currConsumerNode.spValue(null);
+
+                return true;
+            }
+            prevConsumerNode = currConsumerNode;
+            currConsumerNode = getNextConsumerNode(currConsumerNode);
+        }
+        return false;
+    }
+
     @Override
     public final E peek() {
         LinkedQueueNode<E> currConsumerNode = consumerNode; // don't load twice, it's alright
@@ -163,5 +225,14 @@ public abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E> {
         while (exit.keepRunning()) {
             fill(s, 4096);
         }
+    }
+
+    private LinkedQueueNode<E> getNextConsumerNode(LinkedQueueNode<E> currConsumerNode) {
+        LinkedQueueNode<E> nextNode = currConsumerNode.lvNext();
+        if (nextNode == null && currConsumerNode != lvProducerNode()) {
+            // spin, we are no longer wait free
+            while ((nextNode = currConsumerNode.lvNext()) == null);
+        }
+        return nextNode;
     }
 }
