@@ -16,7 +16,7 @@ import java.util.Map;
 
 /**
  * A simple implementation of {@link java.util.Map.Entry}.
- * Does not implement {@link java.util.Map.Entry.setValue}, that is done by users of the class.
+ * Does not implement {@link java.util.Map.Entry#setValue}, that is done by users of the class.
  *
  * @since 1.5
  * @author Cliff Click

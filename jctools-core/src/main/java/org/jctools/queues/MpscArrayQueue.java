@@ -180,8 +180,8 @@ abstract class MpscArrayQueueL3Pad<E> extends MpscArrayQueueConsumerIndexField<E
 }
 
 /**
- * A Multi-Producer-Single-Consumer queue based on a {@link ConcurrentCircularArrayQueue}. This implies that
- * any thread may call the offer method, but only a single thread may call poll/peek for correctness to
+ * A Multi-Producer-Single-Consumer queue based on a {@link org.jctools.queues.ConcurrentCircularArrayQueue}. This
+ * implies that any thread may call the offer method, but only a single thread may call poll/peek for correctness to
  * maintained. <br>
  * This implementation follows patterns documented on the package level for False Sharing protection.<br>
  * This implementation is using the <a href="http://sourceforge.net/projects/mc-fastflow/">Fast Flow</a>
@@ -200,7 +200,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
     }
 
     /**
-     * {@link MpscArrayQueue#offer(E)}} if {@link MpscArrayQueue#size()} is less than threshold.
+     * {@link #offer}} if {@link #size()} is less than threshold.
      *
      * @param e         the object to offer onto the queue, not null
      * @param threshold the maximum allowable size
@@ -260,8 +260,8 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
      * Lock free offer using a single CAS. As class name suggests access is permitted to many threads
      * concurrently.
      *
-     * @see java.util.Queue#offer(java.lang.Object)
-     * @see MessagePassingQueue#offer(Object)
+     * @see java.util.Queue#offer
+     * @see org.jctools.queues.MessagePassingQueue#offer
      */
     @Override
     public boolean offer(final E e)
@@ -356,8 +356,8 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
      * IMPLEMENTATION NOTES:<br>
      * Lock free poll using ordered loads/stores. As class name suggests access is limited to a single thread.
      *
-     * @see java.util.Queue#poll()
-     * @see MessagePassingQueue#poll()
+     * @see java.util.Queue#poll
+     * @see org.jctools.queues.MessagePassingQueue#poll
      */
     @Override
     public E poll()
@@ -401,8 +401,8 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
      * IMPLEMENTATION NOTES:<br>
      * Lock free peek using ordered loads. As class name suggests access is limited to a single thread.
      *
-     * @see java.util.Queue#poll()
-     * @see MessagePassingQueue#poll()
+     * @see java.util.Queue#poll
+     * @see org.jctools.queues.MessagePassingQueue#poll
      */
     @Override
     public E peek()

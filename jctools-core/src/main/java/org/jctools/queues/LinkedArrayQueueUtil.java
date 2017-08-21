@@ -9,12 +9,6 @@ final class LinkedArrayQueueUtil
     {
     }
 
-    /**
-     * Determines the length of the buffer
-     *
-     * @param buf
-     * @return
-     */
     static int length(Object[] buf)
     {
         return buf.length;

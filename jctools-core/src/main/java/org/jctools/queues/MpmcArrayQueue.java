@@ -128,8 +128,8 @@ abstract class MpmcArrayQueueL3Pad<E> extends MpmcArrayQueueConsumerIndexField<E
 }
 
 /**
- * A Multi-Producer-Multi-Consumer queue based on a {@link ConcurrentCircularArrayQueue}. This implies that
- * any and all threads may call the offer/poll/peek methods and correctness is maintained. <br>
+ * A Multi-Producer-Multi-Consumer queue based on a {@link org.jctools.queues.ConcurrentCircularArrayQueue}. This
+ * implies that any and all threads may call the offer/poll/peek methods and correctness is maintained. <br>
  * This implementation follows patterns documented on the package level for False Sharing protection.<br>
  * The algorithm for offer/poll is an adaptation of the one put forward by D. Vyukov (See <a
  * href="http://www.1024cores.net/home/lock-free-algorithms/queues/bounded-mpmc-queue">here</a>). The original

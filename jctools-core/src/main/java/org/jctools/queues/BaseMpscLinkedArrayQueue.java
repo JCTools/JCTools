@@ -635,10 +635,8 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
     @Override
     public int drain(final Consumer<E> c, final int limit)
     {
-        /**
-         * Impl note: there are potentially some small gains to be had by manually inlining relaxedPoll() and hoisting
-         * reused fields out to reduce redundant reads.
-         */
+        // Impl note: there are potentially some small gains to be had by manually inlining relaxedPoll() and hoisting
+        // reused fields out to reduce redundant reads.
         int i = 0;
         E m;
         for (; i < limit && (m = relaxedPoll()) != null; i++)
