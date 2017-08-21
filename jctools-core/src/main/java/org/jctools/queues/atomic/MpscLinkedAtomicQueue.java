@@ -24,18 +24,19 @@ package org.jctools.queues.atomic;
  * The queue is initialized with a stub node which is set to both the producer and consumer node references. From this
  * point follow the notes on offer/poll.
  *
- * @author nitsanw
- *
  * @param <E>
+ * @author nitsanw
  */
-public final class MpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
-
-    public MpscLinkedAtomicQueue() {
+public final class MpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E>
+{
+    public MpscLinkedAtomicQueue()
+    {
         super();
         LinkedQueueAtomicNode<E> node = new LinkedQueueAtomicNode<E>();
         spConsumerNode(node);
         xchgProducerNode(node);// this ensures correct construction: StoreLoad
     }
+
     /**
      * {@inheritDoc} <br>
      * <p>
@@ -53,8 +54,10 @@ public final class MpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
      * @see java.util.Queue#offer(java.lang.Object)
      */
     @Override
-    public final boolean offer(final E e) {
-        if (null == e) {
+    public final boolean offer(final E e)
+    {
+        if (null == e)
+        {
             throw new NullPointerException();
         }
         final LinkedQueueAtomicNode<E> nextNode = new LinkedQueueAtomicNode<E>(e);
@@ -65,6 +68,57 @@ public final class MpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
         return true;
     }
 
+    /**
+     * {@inheritDoc} <br>
+     * <p>
+     * IMPLEMENTATION NOTES:<br>
+     * Poll is allowed from a SINGLE thread.<br>
+     * Poll reads the next node from the consumerNode and:
+     * <ol>
+     * <li>If it is null, the queue is assumed empty (though it might not be).
+     * <li>If it is not null set it as the consumer node and return it's now evacuated value.
+     * </ol>
+     * This means the consumerNode.value is always null, which is also the starting point for the queue. Because null
+     * values are not allowed to be offered this is the only node with it's value set to null at any one time.
+     *
+     * @see org.jctools.queues.MessagePassingQueue#poll()
+     * @see java.util.Queue#poll()
+     */
+    @Override
+    public final E poll()
+    {
+        LinkedQueueAtomicNode<E> currConsumerNode = lpConsumerNode(); // don't load twice, it's alright
+        LinkedQueueAtomicNode<E> nextNode = currConsumerNode.lvNext();
+        if (nextNode != null)
+        {
+            return getSingleConsumerNodeValue(currConsumerNode, nextNode);
+        }
+        else if (currConsumerNode != lvProducerNode())
+        {
+            nextNode = spinWaitForNextNode(currConsumerNode);
+            // got the next node...
+            return getSingleConsumerNodeValue(currConsumerNode, nextNode);
+        }
+        return null;
+    }
+
+    @Override
+    public final E peek()
+    {
+        LinkedQueueAtomicNode<E> currConsumerNode = lpConsumerNode(); // don't load twice, it's alright
+        LinkedQueueAtomicNode<E> nextNode = currConsumerNode.lvNext();
+        if (nextNode != null)
+        {
+            return nextNode.lpValue();
+        }
+        else if (currConsumerNode != lvProducerNode())
+        {
+            nextNode = spinWaitForNextNode(currConsumerNode);
+            // got the next node...
+            return nextNode.lpValue();
+        }
+        return null;
+    }
 
     /**
      * {@inheritDoc}
@@ -103,13 +157,10 @@ public final class MpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
                     // producerNode is currConsumerNode, try to atomically update the reference to move it to the
                     // previous node.
                     prevConsumerNode.soNext(null);
-                    if (!producerNode.compareAndSet(currConsumerNode, prevConsumerNode))
+                    if (!casProducerNode(currConsumerNode, prevConsumerNode))
                     {
                         // If the producer(s) have offered more items we need to remove the currConsumerNode link.
-                        while ((nextNode = currConsumerNode.lvNext()) == null)
-                        {
-                            ;
-                        }
+                        nextNode = spinWaitForNextNode(currConsumerNode);
                         prevConsumerNode.soNext(nextNode);
                     }
                 }
@@ -126,60 +177,27 @@ public final class MpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
         return false;
     }
 
-    /**
-     * {@inheritDoc} <br>
-     * <p>
-     * IMPLEMENTATION NOTES:<br>
-     * Poll is allowed from a SINGLE thread.<br>
-     * Poll reads the next node from the consumerNode and:
-     * <ol>
-     * <li>If it is null, the queue is assumed empty (though it might not be).
-     * <li>If it is not null set it as the consumer node and return it's now evacuated value.
-     * </ol>
-     * This means the consumerNode.value is always null, which is also the starting point for the queue. Because null
-     * values are not allowed to be offered this is the only node with it's value set to null at any one time.
-     *
-     * @see org.jctools.queues.MessagePassingQueue#poll()
-     * @see java.util.Queue#poll()
-     */
-    @Override
-    public final E poll() {
-        LinkedQueueAtomicNode<E> currConsumerNode = lpConsumerNode(); // don't load twice, it's alright
-        LinkedQueueAtomicNode<E> nextNode = currConsumerNode.lvNext();
-        if (nextNode != null) {
-            return getSingleConsumerNodeValue(currConsumerNode, nextNode);
-        }
-        else if (currConsumerNode != lvProducerNode()) {
-            // spin, we are no longer wait free
-            while((nextNode = currConsumerNode.lvNext()) == null);
-            // got the next node...
-
-            return getSingleConsumerNodeValue(currConsumerNode, nextNode);
-        }
-        return null;
+    private boolean casProducerNode(LinkedQueueAtomicNode<E> oldVal, LinkedQueueAtomicNode<E> newVal)
+    {
+        return producerNode.compareAndSet(oldVal, newVal);
     }
 
-    @Override
-    public final E peek() {
-        LinkedQueueAtomicNode<E> currConsumerNode = lpConsumerNode(); // don't load twice, it's alright
+    private LinkedQueueAtomicNode<E> getNextConsumerNode(LinkedQueueAtomicNode<E> currConsumerNode)
+    {
         LinkedQueueAtomicNode<E> nextNode = currConsumerNode.lvNext();
-        if (nextNode != null) {
-            return nextNode.lpValue();
+        if (nextNode == null && currConsumerNode != lvProducerNode())
+        {
+            nextNode = spinWaitForNextNode(currConsumerNode);
         }
-        else if (currConsumerNode != lvProducerNode()) {
-            // spin, we are no longer wait free
-            while((nextNode = currConsumerNode.lvNext()) == null);
-            // got the next node...
-            return nextNode.lpValue();
-        }
-        return null;
+        return nextNode;
     }
 
-    private LinkedQueueAtomicNode<E> getNextConsumerNode(LinkedQueueAtomicNode<E> currConsumerNode) {
-        LinkedQueueAtomicNode<E> nextNode = currConsumerNode.lvNext();
-        if (nextNode == null && currConsumerNode != lvProducerNode()) {
+    private LinkedQueueAtomicNode<E> spinWaitForNextNode(LinkedQueueAtomicNode<E> currNode)
+    {
+        LinkedQueueAtomicNode<E> nextNode;
+        while ((nextNode = currNode.lvNext()) == null)
+        {
             // spin, we are no longer wait free
-            while ((nextNode = currConsumerNode.lvNext()) == null);
         }
         return nextNode;
     }
