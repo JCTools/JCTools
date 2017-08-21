@@ -15,6 +15,7 @@ package org.jctools.queues;
 
 import static java.lang.Math.max;
 import static java.lang.Math.min;
+import static org.jctools.queues.LinkedArrayQueueUtil.length;
 import static org.jctools.util.Pow2.roundToPowerOfTwo;
 
 import org.jctools.util.Pow2;
@@ -68,7 +69,7 @@ public class MpscChunkedArrayQueue<E> extends MpscChunkedArrayQueueColdProducerF
 
     @Override
     protected int getNextBufferSize(E[] buffer) {
-        return buffer.length;
+        return length(buffer);
     }
 
     @Override

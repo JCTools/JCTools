@@ -19,7 +19,7 @@ import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
 import static org.jctools.util.UnsafeRefArrayAccess.soElement;
 import static org.jctools.util.UnsafeRefArrayAccess.spElement;
 
-import org.jctools.util.UnsafeRefArrayAccess;
+import org.jctools.util.PortableJvmInfo;
 
 abstract class SpmcArrayQueueL1Pad<E> extends ConcurrentCircularArrayQueue<E> {
     long p01, p02, p03, p04, p05, p06, p07;
@@ -211,7 +211,6 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> {
         return e;
     }
 
-    // $gen:ignore
 	@Override
 	public boolean relaxedOffer(E e) {
 		if (null == e) {
@@ -221,23 +220,21 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> {
         final long mask = this.mask;
         final long producerIndex = lvProducerIndex();
         final long offset = calcElementOffset(producerIndex, mask);
-        if (null != UnsafeRefArrayAccess.lvElement(buffer, offset)) {
+        if (null != lvElement(buffer, offset)) {
         	return false;
         }
-        UnsafeRefArrayAccess.spElement(buffer, offset, e);
+        spElement(buffer, offset, e);
         // single producer, so store ordered is valid. It is also required to correctly publish the element
         // and for the consumers to pick up the tail value.
         soProducerIndex(producerIndex + 1);
         return true;
 	}
 
-    // $gen:ignore
 	@Override
 	public E relaxedPoll() {
         return poll();
     }
 
-    // $gen:ignore
     @Override
     public E relaxedPeek() {
     	final E[] buffer = this.buffer;
@@ -246,14 +243,13 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> {
         return lvElement(buffer, calcElementOffset(consumerIndex, mask));
 	}
 
-    // $gen:ignore
     @Override
     public int drain(final Consumer<E> c) {
         final int capacity = capacity();
         int sum = 0;
         while (sum < capacity) {
             int drained = 0;
-            if((drained = drain(c, MpmcArrayQueue.RECOMENDED_POLL_BATCH)) == 0) {
+            if((drained = drain(c, PortableJvmInfo.RECOMENDED_POLL_BATCH)) == 0) {
                 break;
             }
             sum+=drained;
@@ -261,13 +257,11 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> {
         return sum;
     }
 
-    // $gen:ignore
     @Override
     public int fill(final Supplier<E> s) {
         return fill(s, capacity());
     }
 
-    // $gen:ignore
     @Override
     public int drain(final Consumer<E> c, final int limit) {
         final E[] buffer = this.buffer;
@@ -300,7 +294,6 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> {
 
 
 
-    // $gen:ignore
     @Override
     public int fill(final Supplier<E> s, final int limit) {
         final E[] buffer = this.buffer;
@@ -319,12 +312,11 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> {
         return limit;
     }
 
-    // $gen:ignore
     @Override
     public void drain(final Consumer<E> c, final WaitStrategy w, final ExitCondition exit) {
         int idleCounter = 0;
         while (exit.keepRunning()) {
-            if(drain(c, MpmcArrayQueue.RECOMENDED_POLL_BATCH) == 0) {
+            if(drain(c, PortableJvmInfo.RECOMENDED_POLL_BATCH) == 0) {
                 idleCounter = w.idle(idleCounter);
                 continue;
             }
@@ -332,7 +324,6 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> {
         }
     }
 
-    // $gen:ignore
     @Override
     public void fill(final Supplier<E> s, final WaitStrategy w, final ExitCondition e) {
         final E[] buffer = this.buffer;

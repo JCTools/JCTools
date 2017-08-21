@@ -13,6 +13,7 @@
  */
 package org.jctools.queues.atomic;
 
+import org.jctools.util.PortableJvmInfo;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.concurrent.atomic.AtomicLongArray;
@@ -385,6 +386,152 @@ public class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
             }
         }
         return e;
+    }
+
+    @Override
+    public boolean relaxedOffer(E e) {
+        return offer(e);
+    }
+
+    @Override
+    public E relaxedPoll() {
+        final AtomicReferenceArray<E> buffer = this.buffer;
+        final long cIndex = lpConsumerIndex();
+        final int offset = calcElementOffset(cIndex);
+        // If we can't see the next available element we can't poll
+        // LoadLoad
+        E e = lvElement(buffer, offset);
+        if (null == e) {
+            return null;
+        }
+        spElement(buffer, offset, null);
+        // StoreStore
+        soConsumerIndex(cIndex + 1);
+        return e;
+    }
+
+    @Override
+    public E relaxedPeek() {
+        final AtomicReferenceArray<E> buffer = this.buffer;
+        final int mask = this.mask;
+        final long cIndex = lpConsumerIndex();
+        return lvElement(buffer, calcElementOffset(cIndex, mask));
+    }
+
+    @Override
+    public int drain(Consumer<E> c) {
+        return drain(c, capacity());
+    }
+
+    @Override
+    public int fill(Supplier<E> s) {
+        // result is a long because we want to have a safepoint check at regular intervals
+        long result = 0;
+        final int capacity = capacity();
+        do {
+            final int filled = fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH);
+            if (filled == 0) {
+                return (int) result;
+            }
+            result += filled;
+        } while (result <= capacity);
+        return (int) result;
+    }
+
+    @Override
+    public int drain(final Consumer<E> c, final int limit) {
+        final AtomicReferenceArray<E> buffer = this.buffer;
+        final int mask = this.mask;
+        final long cIndex = lpConsumerIndex();
+        for (int i = 0; i < limit; i++) {
+            final long index = cIndex + i;
+            final int offset = calcElementOffset(index, mask);
+            // LoadLoad
+            final E e = lvElement(buffer, offset);
+            if (null == e) {
+                return i;
+            }
+            spElement(buffer, offset, null);
+            // ordered store -> atomic and ordered for size()
+            soConsumerIndex(index + 1);
+            c.accept(e);
+        }
+        return limit;
+    }
+
+    @Override
+    public int fill(Supplier<E> s, int limit) {
+        final int mask = this.mask;
+        final long capacity = mask + 1;
+        // LoadLoad
+        long producerLimit = lvProducerLimit();
+        long pIndex;
+        int actualLimit = 0;
+        do {
+            // LoadLoad
+            pIndex = lvProducerIndex();
+            long available = producerLimit - pIndex;
+            if (available <= 0) {
+                // LoadLoad
+                final long cIndex = lvConsumerIndex();
+                producerLimit = cIndex + capacity;
+                available = producerLimit - pIndex;
+                if (available <= 0) {
+                    // FULL :(
+                    return 0;
+                } else {
+                    // update producer limit to the next index that we must recheck the consumer index
+                    // StoreLoad
+                    soProducerLimit(producerLimit);
+                }
+            }
+            actualLimit = Math.min((int) available, limit);
+        } while (!casProducerIndex(pIndex, pIndex + actualLimit));
+        // right, now we claimed a few slots and can fill them with goodness
+        final AtomicReferenceArray<E> buffer = this.buffer;
+        for (int i = 0; i < actualLimit; i++) {
+            // Won CAS, move on to storing
+            final int offset = calcElementOffset(pIndex + i, mask);
+            soElement(buffer, offset, s.get());
+        }
+        return actualLimit;
+    }
+
+    @Override
+    public void drain(Consumer<E> c, WaitStrategy w, ExitCondition exit) {
+        final AtomicReferenceArray<E> buffer = this.buffer;
+        final int mask = this.mask;
+        long cIndex = lpConsumerIndex();
+        int counter = 0;
+        while (exit.keepRunning()) {
+            for (int i = 0; i < 4096; i++) {
+                final int offset = calcElementOffset(cIndex, mask);
+                // LoadLoad
+                final E e = lvElement(buffer, offset);
+                if (null == e) {
+                    counter = w.idle(counter);
+                    continue;
+                }
+                cIndex++;
+                counter = 0;
+                spElement(buffer, offset, null);
+                // ordered store -> atomic and ordered for size()
+                soConsumerIndex(cIndex);
+                c.accept(e);
+            }
+        }
+    }
+
+    @Override
+    public void fill(Supplier<E> s, WaitStrategy w, ExitCondition exit) {
+        int idleCounter = 0;
+        while (exit.keepRunning()) {
+            if (fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH) == 0) {
+                idleCounter = w.idle(idleCounter);
+                continue;
+            }
+            idleCounter = 0;
+        }
     }
 
     /**

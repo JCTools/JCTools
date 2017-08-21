@@ -13,6 +13,8 @@
  */
 package org.jctools.queues;
 
+import org.jctools.util.PortableJvmInfo;
+
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
 import static org.jctools.util.UnsafeRefArrayAccess.soElement;
@@ -372,13 +374,11 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E> {
         return e;
     }
 
-    // $gen:ignore
     @Override
     public boolean relaxedOffer(E e) {
         return offer(e);
     }
 
-    // $gen:ignore
     @Override
     public E relaxedPoll() {
         final E[] buffer = this.buffer;
@@ -396,7 +396,6 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E> {
         return e;
     }
 
-    // $gen:ignore
     @Override
     public E relaxedPeek() {
         final E[] buffer = this.buffer;
@@ -405,19 +404,17 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E> {
         return lvElement(buffer, calcElementOffset(cIndex, mask));
     }
 
-    // $gen:ignore
     @Override
     public int drain(Consumer<E> c) {
         return drain(c, capacity());
     }
 
-    // $gen:ignore
     @Override
     public int fill(Supplier<E> s) {
         long result = 0;// result is a long because we want to have a safepoint check at regular intervals
         final int capacity = capacity();
         do {
-            final int filled = fill(s, MpmcArrayQueue.RECOMENDED_OFFER_BATCH);
+            final int filled = fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH);
             if (filled == 0) {
                 return (int) result;
             }
@@ -426,7 +423,6 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E> {
         return (int) result;
     }
 
-    // $gen:ignore
     @Override
     public int drain(final Consumer<E> c, final int limit) {
         final E[] buffer = this.buffer;
@@ -447,7 +443,6 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E> {
         return limit;
     }
 
-    // $gen:ignore
     @Override
     public int fill(Supplier<E> s, int limit) {
         final long mask = this.mask;
@@ -482,7 +477,6 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E> {
         return actualLimit;
     }
 
-    // $gen:ignore
     @Override
     public void drain(Consumer<E> c, WaitStrategy w, ExitCondition exit) {
         final E[] buffer = this.buffer;
@@ -507,12 +501,11 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E> {
         }
     }
 
-    // $gen:ignore
     @Override
     public void fill(Supplier<E> s, WaitStrategy w, ExitCondition exit) {
         int idleCounter = 0;
         while (exit.keepRunning()) {
-            if (fill(s, MpmcArrayQueue.RECOMENDED_OFFER_BATCH) == 0) {
+            if (fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH) == 0) {
                 idleCounter = w.idle(idleCounter);
                 continue;
             }

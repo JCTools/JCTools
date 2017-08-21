@@ -15,6 +15,7 @@ package org.jctools.queues.atomic;
 
 import org.jctools.queues.IndexedQueueSizeUtil;
 import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
+import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.QueueProgressIndicators;
 import org.jctools.util.Pow2;
 
@@ -22,8 +23,8 @@ import java.util.AbstractQueue;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
-abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> implements IndexedQueue, QueueProgressIndicators
-{
+
+abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> implements IndexedQueue, QueueProgressIndicators, MessagePassingQueue<E> {
     protected final AtomicReferenceArray<E> buffer;
     protected final int mask;
 
@@ -65,12 +66,11 @@ abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> implements 
         return (int) index & mask;
     }
 
-    protected final E lvElement(AtomicReferenceArray<E> buffer, int offset)
+    public static <E> E lvElement(AtomicReferenceArray<E> buffer, int offset)
     {
         return buffer.get(offset);
     }
-
-    protected final E lpElement(AtomicReferenceArray<E> buffer, int offset)
+    public static <E> E lpElement(AtomicReferenceArray<E> buffer, int offset)
     {
         return buffer.get(offset); // no weaker form available
     }
@@ -79,9 +79,7 @@ abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> implements 
     {
         return buffer.get(offset); // no weaker form available
     }
-
-    protected final void spElement(AtomicReferenceArray<E> buffer, int offset, E value)
-    {
+    public static <E> void spElement(AtomicReferenceArray<E> buffer, int offset, E value) {
         buffer.lazySet(offset, value);  // no weaker form available
     }
 
@@ -89,9 +87,7 @@ abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> implements 
     {
         buffer.lazySet(offset, value);  // no weaker form available
     }
-
-    protected final void soElement(AtomicReferenceArray<E> buffer, int offset, E value)
-    {
+    public static <E> void soElement(AtomicReferenceArray<E> buffer, int offset, E value) {
         buffer.lazySet(offset, value);
     }
 
@@ -99,9 +95,7 @@ abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> implements 
     {
         buffer.lazySet(offset, value);
     }
-
-    protected final void svElement(AtomicReferenceArray<E> buffer, int offset, E value)
-    {
+    public static <E> void svElement(AtomicReferenceArray<E> buffer, int offset, E value) {
         buffer.set(offset, value);
     }
 
@@ -110,8 +104,8 @@ abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> implements 
         return lvElement(buffer, offset);
     }
 
-    protected final int capacity()
-    {
+    @Override
+    public final int capacity() {
         return (int) (mask + 1);
     }
 

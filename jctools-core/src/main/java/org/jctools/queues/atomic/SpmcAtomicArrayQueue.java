@@ -13,6 +13,7 @@
  */
 package org.jctools.queues.atomic;
 
+import org.jctools.util.PortableJvmInfo;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.concurrent.atomic.AtomicLongArray;
@@ -228,5 +229,140 @@ public class SpmcAtomicArrayQueue<E> extends SpmcAtomicArrayQueueL3Pad<E> {
             }
         } while (null == (e = lvElement(buffer, calcElementOffset(currentConsumerIndex, mask))));
         return e;
+    }
+
+    @Override
+    public boolean relaxedOffer(E e) {
+        if (null == e) {
+            throw new NullPointerException("Null is not a valid element");
+        }
+        final AtomicReferenceArray<E> buffer = this.buffer;
+        final int mask = this.mask;
+        final long producerIndex = lvProducerIndex();
+        final int offset = calcElementOffset(producerIndex, mask);
+        if (null != lvElement(buffer, offset)) {
+            return false;
+        }
+        spElement(buffer, offset, e);
+        // single producer, so store ordered is valid. It is also required to correctly publish the element
+        // and for the consumers to pick up the tail value.
+        soProducerIndex(producerIndex + 1);
+        return true;
+    }
+
+    @Override
+    public E relaxedPoll() {
+        return poll();
+    }
+
+    @Override
+    public E relaxedPeek() {
+        final AtomicReferenceArray<E> buffer = this.buffer;
+        final int mask = this.mask;
+        final long consumerIndex = lvConsumerIndex();
+        return lvElement(buffer, calcElementOffset(consumerIndex, mask));
+    }
+
+    @Override
+    public int drain(final Consumer<E> c) {
+        final int capacity = capacity();
+        int sum = 0;
+        while (sum < capacity) {
+            int drained = 0;
+            if ((drained = drain(c, PortableJvmInfo.RECOMENDED_POLL_BATCH)) == 0) {
+                break;
+            }
+            sum += drained;
+        }
+        return sum;
+    }
+
+    @Override
+    public int fill(final Supplier<E> s) {
+        return fill(s, capacity());
+    }
+
+    @Override
+    public int drain(final Consumer<E> c, final int limit) {
+        final AtomicReferenceArray<E> buffer = this.buffer;
+        final int mask = this.mask;
+        long currProducerIndexCache = lvProducerIndexCache();
+        int adjustedLimit = 0;
+        long currentConsumerIndex;
+        do {
+            currentConsumerIndex = lvConsumerIndex();
+            // is there any space in the queue?
+            if (currentConsumerIndex >= currProducerIndexCache) {
+                long currProducerIndex = lvProducerIndex();
+                if (currentConsumerIndex >= currProducerIndex) {
+                    return 0;
+                } else {
+                    currProducerIndexCache = currProducerIndex;
+                    svProducerIndexCache(currProducerIndex);
+                }
+            }
+            // try and claim up to 'limit' elements in one go
+            int remaining = (int) (currProducerIndexCache - currentConsumerIndex);
+            adjustedLimit = Math.min(remaining, limit);
+        } while (!casConsumerIndex(currentConsumerIndex, currentConsumerIndex + adjustedLimit));
+        for (int i = 0; i < adjustedLimit; i++) {
+            c.accept(removeElement(buffer, currentConsumerIndex + i, mask));
+        }
+        return adjustedLimit;
+    }
+
+    @Override
+    public int fill(final Supplier<E> s, final int limit) {
+        final AtomicReferenceArray<E> buffer = this.buffer;
+        final int mask = this.mask;
+        long producerIndex = this.producerIndex;
+        for (int i = 0; i < limit; i++) {
+            final int offset = calcElementOffset(producerIndex, mask);
+            if (null != lvElement(buffer, offset)) {
+                return i;
+            }
+            producerIndex++;
+            // StoreStore
+            soElement(buffer, offset, s.get());
+            // ordered store -> atomic and ordered for size()
+            soProducerIndex(producerIndex);
+        }
+        return limit;
+    }
+
+    @Override
+    public void drain(final Consumer<E> c, final WaitStrategy w, final ExitCondition exit) {
+        int idleCounter = 0;
+        while (exit.keepRunning()) {
+            if (drain(c, PortableJvmInfo.RECOMENDED_POLL_BATCH) == 0) {
+                idleCounter = w.idle(idleCounter);
+                continue;
+            }
+            idleCounter = 0;
+        }
+    }
+
+    @Override
+    public void fill(final Supplier<E> s, final WaitStrategy w, final ExitCondition e) {
+        final AtomicReferenceArray<E> buffer = this.buffer;
+        final int mask = this.mask;
+        long producerIndex = this.producerIndex;
+        int counter = 0;
+        while (e.keepRunning()) {
+            for (int i = 0; i < 4096; i++) {
+                final int offset = calcElementOffset(producerIndex, mask);
+                if (null != lvElement(buffer, offset)) {
+                    // LoadLoad
+                    counter = w.idle(counter);
+                    continue;
+                }
+                producerIndex++;
+                counter = 0;
+                // StoreStore
+                soElement(buffer, offset, s.get());
+                // ordered store -> atomic and ordered for size()
+                soProducerIndex(producerIndex);
+            }
+        }
     }
 }

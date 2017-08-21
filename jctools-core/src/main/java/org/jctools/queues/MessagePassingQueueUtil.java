@@ -14,7 +14,10 @@
 
 package org.jctools.queues;
 
-final class MessagePassingQueueUtil {
+import org.jctools.util.InternalAPI;
+
+@InternalAPI
+public final class MessagePassingQueueUtil {
 
    private MessagePassingQueueUtil() {
 

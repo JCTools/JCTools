@@ -32,9 +32,10 @@ package org.jctools.queues;
 public class SpscLinkedQueue<E> extends BaseLinkedQueue<E> {
 
     public SpscLinkedQueue() {
-        spProducerNode(new LinkedQueueNode<E>());
-        spConsumerNode(producerNode);
-        consumerNode.soNext(null); // this ensures correct construction: StoreStore
+        LinkedQueueNode<E> node = newNode();
+        spProducerNode(node);
+        spConsumerNode(node);
+        node.soNext(null); // this ensures correct construction: StoreStore
     }
 
     /**
@@ -57,9 +58,8 @@ public class SpscLinkedQueue<E> extends BaseLinkedQueue<E> {
         if (null == e) {
             throw new NullPointerException();
         }
-        final LinkedQueueNode<E> nextNode = new LinkedQueueNode<E>(e);
-        final LinkedQueueNode<E> producerNode = lpProducerNode();
-        producerNode.soNext(nextNode);
+        final LinkedQueueNode<E> nextNode = newNode(e);
+        lpProducerNode().soNext(nextNode);
         spProducerNode(nextNode);
         return true;
     }
@@ -102,10 +102,10 @@ public class SpscLinkedQueue<E> extends BaseLinkedQueue<E> {
     @Override
     public int fill(Supplier<E> s, int limit) {
         if (limit == 0) return 0;
-        LinkedQueueNode<E> tail = new LinkedQueueNode<E>(s.get());
+        LinkedQueueNode<E> tail = newNode(s.get());
         final LinkedQueueNode<E> head = tail;
         for (int i = 1; i < limit; i++) {
-            final LinkedQueueNode<E> temp = new LinkedQueueNode<E>(s.get());
+            final LinkedQueueNode<E> temp = newNode(s.get());
             tail.soNext(temp);
             tail = temp;
         }
@@ -115,13 +115,12 @@ public class SpscLinkedQueue<E> extends BaseLinkedQueue<E> {
         return limit;
     }
 
-
     @Override
     public void fill(Supplier<E> s, WaitStrategy wait, ExitCondition exit) {
         LinkedQueueNode<E> chaserNode = producerNode;
         while (exit.keepRunning()) {
             for (int i = 0; i < 4096; i++) {
-                final LinkedQueueNode<E> nextNode = new LinkedQueueNode<E>(s.get());
+                final LinkedQueueNode<E> nextNode = newNode(s.get());
                 chaserNode.soNext(nextNode);
                 chaserNode = nextNode;
                 this.producerNode = chaserNode;
