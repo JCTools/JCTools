@@ -57,6 +57,11 @@ abstract class BaseLinkedAtomicQueueProducerNodeRef<E> extends BaseLinkedAtomicQ
         return producerNode;
     }
 
+    @SuppressWarnings("unchecked")
+    protected final boolean casProducerNode(LinkedQueueAtomicNode<E> expect, LinkedQueueAtomicNode<E> newValue) {
+        return P_NODE_UPDATER.compareAndSet(this, expect, newValue);
+    }
+
     protected final LinkedQueueAtomicNode<E> lpProducerNode() {
         return producerNode;
     }

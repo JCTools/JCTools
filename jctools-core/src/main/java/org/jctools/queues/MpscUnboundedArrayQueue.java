@@ -13,6 +13,8 @@
  */
 package org.jctools.queues;
 
+import org.jctools.util.PortableJvmInfo;
+
 import static org.jctools.queues.LinkedArrayQueueUtil.length;
 
 /**
@@ -51,7 +53,7 @@ public class MpscUnboundedArrayQueue<E> extends BaseMpscLinkedArrayQueue<E> {
         long result = 0;// result is a long because we want to have a safepoint check at regular intervals
         final int capacity = 4096;
         do {
-            final int filled = fill(s, MpmcArrayQueue.RECOMENDED_OFFER_BATCH);
+            final int filled = fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH);
             if (filled == 0) {
                 return (int) result;
             }

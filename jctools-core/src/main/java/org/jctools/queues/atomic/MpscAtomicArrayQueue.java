@@ -13,6 +13,7 @@
  */
 package org.jctools.queues.atomic;
 
+import org.jctools.util.PortableJvmInfo;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.concurrent.atomic.AtomicLongArray;
@@ -428,7 +429,7 @@ public class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
         long result = 0;
         final int capacity = capacity();
         do {
-            final int filled = fill(s, MpmcAtomicArrayQueue.RECOMENDED_OFFER_BATCH);
+            final int filled = fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH);
             if (filled == 0) {
                 return (int) result;
             }
@@ -525,7 +526,7 @@ public class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
     public void fill(Supplier<E> s, WaitStrategy w, ExitCondition exit) {
         int idleCounter = 0;
         while (exit.keepRunning()) {
-            if (fill(s, MpmcAtomicArrayQueue.RECOMENDED_OFFER_BATCH) == 0) {
+            if (fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH) == 0) {
                 idleCounter = w.idle(idleCounter);
                 continue;
             }

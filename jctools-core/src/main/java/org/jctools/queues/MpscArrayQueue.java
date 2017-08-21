@@ -13,6 +13,8 @@
  */
 package org.jctools.queues;
 
+import org.jctools.util.PortableJvmInfo;
+
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
 import static org.jctools.util.UnsafeRefArrayAccess.soElement;
@@ -412,7 +414,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E> {
         long result = 0;// result is a long because we want to have a safepoint check at regular intervals
         final int capacity = capacity();
         do {
-            final int filled = fill(s, MpmcArrayQueue.RECOMENDED_OFFER_BATCH);
+            final int filled = fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH);
             if (filled == 0) {
                 return (int) result;
             }
@@ -503,7 +505,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E> {
     public void fill(Supplier<E> s, WaitStrategy w, ExitCondition exit) {
         int idleCounter = 0;
         while (exit.keepRunning()) {
-            if (fill(s, MpmcArrayQueue.RECOMENDED_OFFER_BATCH) == 0) {
+            if (fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH) == 0) {
                 idleCounter = w.idle(idleCounter);
                 continue;
             }

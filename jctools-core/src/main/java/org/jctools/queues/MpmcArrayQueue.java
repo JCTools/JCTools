@@ -13,11 +13,11 @@
  */
 package org.jctools.queues;
 
-import static org.jctools.util.PortableJvmInfo.CPUs;
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeRefArrayAccess.lpElement;
 import static org.jctools.util.UnsafeRefArrayAccess.soElement;
 
+import org.jctools.util.PortableJvmInfo;
 import org.jctools.util.RangeUtil;
 
 abstract class MpmcArrayQueueL1Pad<E> extends ConcurrentSequencedCircularArrayQueue<E> {
@@ -124,9 +124,7 @@ abstract class MpmcArrayQueueL3Pad<E> extends MpmcArrayQueueConsumerIndexField<E
  *            type of the element stored in the {@link java.util.Queue}
  */
 public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E> {
-    final static int RECOMENDED_POLL_BATCH = CPUs * 4;
-    public final static int RECOMENDED_OFFER_BATCH = CPUs * 4;
-    
+
     public MpmcArrayQueue(final int capacity) {
         super(RangeUtil.checkGreaterThanOrEqual(capacity, 2, "capacity"));
     }
@@ -285,7 +283,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E> {
         int sum = 0;
         while (sum < capacity) {
             int drained = 0;
-            if((drained = drain(c, MpmcArrayQueue.RECOMENDED_POLL_BATCH)) == 0) {
+            if((drained = drain(c, PortableJvmInfo.RECOMENDED_POLL_BATCH)) == 0) {
                 break;
             }
             sum+=drained;
@@ -298,7 +296,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E> {
         long result = 0;// result is a long because we want to have a safepoint check at regular intervals
         final int capacity = capacity();
         do {
-            final int filled = fill(s, RECOMENDED_OFFER_BATCH);
+            final int filled = fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH);
             if (filled == 0) {
                 return (int) result;
             }
@@ -370,7 +368,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E> {
             ExitCondition exit) {
         int idleCounter = 0;
         while (exit.keepRunning()) {
-            if(drain(c, MpmcArrayQueue.RECOMENDED_POLL_BATCH) == 0) {
+            if(drain(c, PortableJvmInfo.RECOMENDED_POLL_BATCH) == 0) {
                 idleCounter = w.idle(idleCounter);
                 continue;
             }
@@ -384,7 +382,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E> {
             ExitCondition exit) {
         int idleCounter = 0;
         while (exit.keepRunning()) {
-            if (fill(s, MpmcArrayQueue.RECOMENDED_OFFER_BATCH) == 0) {
+            if (fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH) == 0) {
                 idleCounter = w.idle(idleCounter);
                 continue;
             }

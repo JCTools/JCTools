@@ -19,6 +19,7 @@ import java.lang.reflect.Field;
 import java.util.AbstractQueue;
 import java.util.Iterator;
 import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
+import org.jctools.util.PortableJvmInfo;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import org.jctools.queues.MessagePassingQueue;
@@ -195,7 +196,7 @@ abstract class BaseSpscLinkedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArr
         long result = 0;
         final int capacity = capacity();
         do {
-            final int filled = fill(s, MpmcAtomicArrayQueue.RECOMENDED_OFFER_BATCH);
+            final int filled = fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH);
             if (filled == 0) {
                 return (int) result;
             }
@@ -237,11 +238,11 @@ abstract class BaseSpscLinkedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArr
     @Override
     public void fill(Supplier<E> s, WaitStrategy wait, ExitCondition exit) {
         while (exit.keepRunning()) {
-            while (fill(s, MpmcAtomicArrayQueue.RECOMENDED_OFFER_BATCH) != 0 && exit.keepRunning()) {
+            while (fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH) != 0 && exit.keepRunning()) {
                 continue;
             }
             int idleCounter = 0;
-            while (exit.keepRunning() && fill(s, MpmcAtomicArrayQueue.RECOMENDED_OFFER_BATCH) == 0) {
+            while (exit.keepRunning() && fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH) == 0) {
                 idleCounter = wait.idle(idleCounter);
             }
         }

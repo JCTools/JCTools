@@ -25,6 +25,7 @@ import java.util.AbstractQueue;
 import java.util.Iterator;
 
 import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
+import org.jctools.util.PortableJvmInfo;
 
 abstract class BaseSpscLinkedArrayQueuePrePad<E> extends AbstractQueue<E> implements IndexedQueue
 {
@@ -203,7 +204,7 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
         final int capacity = capacity();
         do
         {
-            final int filled = fill(s, MpmcArrayQueue.RECOMENDED_OFFER_BATCH);
+            final int filled = fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH);
             if (filled == 0)
             {
                 return (int) result;
@@ -257,12 +258,12 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
     {
         while (exit.keepRunning())
         {
-            while (fill(s, MpmcArrayQueue.RECOMENDED_OFFER_BATCH) != 0 && exit.keepRunning())
+            while (fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH) != 0 && exit.keepRunning())
             {
                 continue;
             }
             int idleCounter = 0;
-            while (exit.keepRunning() && fill(s, MpmcArrayQueue.RECOMENDED_OFFER_BATCH) == 0)
+            while (exit.keepRunning() && fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH) == 0)
             {
                 idleCounter = wait.idle(idleCounter);
             }

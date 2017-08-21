@@ -13,6 +13,7 @@
  */
 package org.jctools.queues.atomic;
 
+import org.jctools.util.PortableJvmInfo;
 import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.length;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -66,7 +67,7 @@ public class MpscUnboundedAtomicArrayQueue<E> extends BaseMpscLinkedAtomicArrayQ
         long result = 0;
         final int capacity = 4096;
         do {
-            final int filled = fill(s, MpmcAtomicArrayQueue.RECOMENDED_OFFER_BATCH);
+            final int filled = fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH);
             if (filled == 0) {
                 return (int) result;
             }

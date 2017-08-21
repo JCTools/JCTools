@@ -39,6 +39,7 @@ public abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E>
      *
      * @return the right queue for you!
      */
+    // $gen:ignore
     public static <E> MpscLinkedQueue<E> newMpscLinkedQueue()
     {
         if (UnsafeAccess.SUPPORTS_GET_AND_SET)
@@ -239,11 +240,6 @@ public abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E>
 
     // $gen:ignore
     protected abstract LinkedQueueNode<E> xchgProducerNode(LinkedQueueNode<E> nextNode);
-
-    private boolean casProducerNode(LinkedQueueNode<E> oldVal, LinkedQueueNode<E> newVal)
-    {
-        return UNSAFE.compareAndSwapObject(this, P_NODE_OFFSET, oldVal, newVal);
-    }
 
     private LinkedQueueNode<E> getNextConsumerNode(LinkedQueueNode<E> currConsumerNode)
     {

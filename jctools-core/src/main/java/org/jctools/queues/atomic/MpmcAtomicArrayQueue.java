@@ -13,7 +13,7 @@
  */
 package org.jctools.queues.atomic;
 
-import static org.jctools.util.PortableJvmInfo.CPUs;
+import org.jctools.util.PortableJvmInfo;
 import org.jctools.util.RangeUtil;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceArray;
@@ -141,10 +141,6 @@ abstract class MpmcAtomicArrayQueueL3Pad<E> extends MpmcAtomicArrayQueueConsumer
  *            type of the element stored in the {@link java.util.Queue}
  */
 public class MpmcAtomicArrayQueue<E> extends MpmcAtomicArrayQueueL3Pad<E> {
-
-    static final int RECOMENDED_POLL_BATCH = CPUs * 4;
-
-    public static final int RECOMENDED_OFFER_BATCH = CPUs * 4;
 
     public MpmcAtomicArrayQueue(final int capacity) {
         super(RangeUtil.checkGreaterThanOrEqual(capacity, 2, "capacity"));
@@ -309,7 +305,7 @@ public class MpmcAtomicArrayQueue<E> extends MpmcAtomicArrayQueueL3Pad<E> {
         int sum = 0;
         while (sum < capacity) {
             int drained = 0;
-            if ((drained = drain(c, MpmcAtomicArrayQueue.RECOMENDED_POLL_BATCH)) == 0) {
+            if ((drained = drain(c, PortableJvmInfo.RECOMENDED_POLL_BATCH)) == 0) {
                 break;
             }
             sum += drained;
@@ -323,7 +319,7 @@ public class MpmcAtomicArrayQueue<E> extends MpmcAtomicArrayQueueL3Pad<E> {
         long result = 0;
         final int capacity = capacity();
         do {
-            final int filled = fill(s, RECOMENDED_OFFER_BATCH);
+            final int filled = fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH);
             if (filled == 0) {
                 return (int) result;
             }
@@ -392,7 +388,7 @@ public class MpmcAtomicArrayQueue<E> extends MpmcAtomicArrayQueueL3Pad<E> {
     public void drain(Consumer<E> c, WaitStrategy w, ExitCondition exit) {
         int idleCounter = 0;
         while (exit.keepRunning()) {
-            if (drain(c, MpmcAtomicArrayQueue.RECOMENDED_POLL_BATCH) == 0) {
+            if (drain(c, PortableJvmInfo.RECOMENDED_POLL_BATCH) == 0) {
                 idleCounter = w.idle(idleCounter);
                 continue;
             }
@@ -404,7 +400,7 @@ public class MpmcAtomicArrayQueue<E> extends MpmcAtomicArrayQueueL3Pad<E> {
     public void fill(Supplier<E> s, WaitStrategy w, ExitCondition exit) {
         int idleCounter = 0;
         while (exit.keepRunning()) {
-            if (fill(s, MpmcAtomicArrayQueue.RECOMENDED_OFFER_BATCH) == 0) {
+            if (fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH) == 0) {
                 idleCounter = w.idle(idleCounter);
                 continue;
             }

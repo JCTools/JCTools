@@ -19,7 +19,7 @@ import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
 import static org.jctools.util.UnsafeRefArrayAccess.soElement;
 import static org.jctools.util.UnsafeRefArrayAccess.spElement;
 
-import org.jctools.util.UnsafeRefArrayAccess;
+import org.jctools.util.PortableJvmInfo;
 
 abstract class SpmcArrayQueueL1Pad<E> extends ConcurrentCircularArrayQueue<E> {
     long p01, p02, p03, p04, p05, p06, p07;
@@ -249,7 +249,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> {
         int sum = 0;
         while (sum < capacity) {
             int drained = 0;
-            if((drained = drain(c, MpmcArrayQueue.RECOMENDED_POLL_BATCH)) == 0) {
+            if((drained = drain(c, PortableJvmInfo.RECOMENDED_POLL_BATCH)) == 0) {
                 break;
             }
             sum+=drained;
@@ -316,7 +316,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E> {
     public void drain(final Consumer<E> c, final WaitStrategy w, final ExitCondition exit) {
         int idleCounter = 0;
         while (exit.keepRunning()) {
-            if(drain(c, MpmcArrayQueue.RECOMENDED_POLL_BATCH) == 0) {
+            if(drain(c, PortableJvmInfo.RECOMENDED_POLL_BATCH) == 0) {
                 idleCounter = w.idle(idleCounter);
                 continue;
             }

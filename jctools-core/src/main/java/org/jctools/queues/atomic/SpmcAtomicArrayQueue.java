@@ -13,6 +13,7 @@
  */
 package org.jctools.queues.atomic;
 
+import org.jctools.util.PortableJvmInfo;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.concurrent.atomic.AtomicLongArray;
@@ -268,7 +269,7 @@ public class SpmcAtomicArrayQueue<E> extends SpmcAtomicArrayQueueL3Pad<E> {
         int sum = 0;
         while (sum < capacity) {
             int drained = 0;
-            if ((drained = drain(c, MpmcAtomicArrayQueue.RECOMENDED_POLL_BATCH)) == 0) {
+            if ((drained = drain(c, PortableJvmInfo.RECOMENDED_POLL_BATCH)) == 0) {
                 break;
             }
             sum += drained;
@@ -333,7 +334,7 @@ public class SpmcAtomicArrayQueue<E> extends SpmcAtomicArrayQueueL3Pad<E> {
     public void drain(final Consumer<E> c, final WaitStrategy w, final ExitCondition exit) {
         int idleCounter = 0;
         while (exit.keepRunning()) {
-            if (drain(c, MpmcAtomicArrayQueue.RECOMENDED_POLL_BATCH) == 0) {
+            if (drain(c, PortableJvmInfo.RECOMENDED_POLL_BATCH) == 0) {
                 idleCounter = w.idle(idleCounter);
                 continue;
             }
