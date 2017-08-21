@@ -126,7 +126,7 @@ abstract class MpmcAtomicArrayQueueL3Pad<E> extends MpmcAtomicArrayQueueConsumer
  * field of the struct. There is a further alternative in the experimental project which uses iteration phase
  * markers to achieve the same algo and is closer structurally to the original, but sadly does not perform as
  * well as this implementation.<br>
- *
+ * <p>
  * Tradeoffs to keep in mind:
  * <ol>
  * <li>Padding for false sharing: counter fields and queue fields are all padded as well as either side of
@@ -137,8 +137,7 @@ abstract class MpmcAtomicArrayQueueL3Pad<E> extends MpmcAtomicArrayQueueConsumer
  * equal to the requested capacity.
  * </ol>
  *
- * @param <E>
- *            type of the element stored in the {@link java.util.Queue}
+ * @param <E> type of the element stored in the {@link java.util.Queue}
  */
 public class MpmcAtomicArrayQueue<E> extends MpmcAtomicArrayQueueL3Pad<E> {
 

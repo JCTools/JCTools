@@ -186,8 +186,9 @@ public final class MpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
 
     @Override
     public int fill(Supplier<E> s, int limit) {
-        if (limit == 0)
+        if (limit == 0) {
             return 0;
+        }
         LinkedQueueAtomicNode<E> tail = newNode(s.get());
         final LinkedQueueAtomicNode<E> head = tail;
         for (int i = 1; i < limit; i++) {

@@ -167,9 +167,8 @@ abstract class MpscAtomicArrayQueueL3Pad<E> extends MpscAtomicArrayQueueConsumer
  * method for polling from the queue (with minor change to correctly publish the index) and an extension of
  * the Leslie Lamport concurrent queue algorithm (originated by Martin Thompson) on the producer side.<br>
  *
- * @author nitsanw
- *
  * @param <E>
+ * @author nitsanw
  */
 public class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
 
@@ -180,7 +179,7 @@ public class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
     /**
      * {@link MpscArrayQueue#offer(E)}} if {@link MpscArrayQueue#size()} is less than threshold.
      *
-     * @param e the object to offer onto the queue, not null
+     * @param e         the object to offer onto the queue, not null
      * @param threshold the maximum allowable size
      * @return true if the offer is successful, false if queue size exceeds threshold
      * @since 1.0.1
@@ -228,7 +227,7 @@ public class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
 
     /**
      * {@inheritDoc} <br>
-     *
+     * <p>
      * IMPLEMENTATION NOTES:<br>
      * Lock free offer using a single CAS. As class name suggests access is permitted to many threads
      * concurrently.

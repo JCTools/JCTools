@@ -13,13 +13,13 @@
  */
 package org.jctools.queues.atomic;
 
-import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.length;
-import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.nextArrayOffset;
+import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
+import org.jctools.util.PortableJvmInfo;
 import java.lang.reflect.Field;
 import java.util.AbstractQueue;
 import java.util.Iterator;
-import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
-import org.jctools.util.PortableJvmInfo;
+import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.length;
+import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.nextArrayOffset;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import org.jctools.queues.MessagePassingQueue;

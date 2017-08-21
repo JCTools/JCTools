@@ -24,7 +24,8 @@ import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 
-abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> implements IndexedQueue, QueueProgressIndicators, MessagePassingQueue<E> {
+abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> implements IndexedQueue, QueueProgressIndicators, MessagePassingQueue<E>
+{
     protected final AtomicReferenceArray<E> buffer;
     protected final int mask;
 
@@ -70,6 +71,7 @@ abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> implements 
     {
         return buffer.get(offset);
     }
+
     public static <E> E lpElement(AtomicReferenceArray<E> buffer, int offset)
     {
         return buffer.get(offset); // no weaker form available
@@ -79,7 +81,9 @@ abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> implements 
     {
         return buffer.get(offset); // no weaker form available
     }
-    public static <E> void spElement(AtomicReferenceArray<E> buffer, int offset, E value) {
+
+    public static <E> void spElement(AtomicReferenceArray<E> buffer, int offset, E value)
+    {
         buffer.lazySet(offset, value);  // no weaker form available
     }
 
@@ -87,7 +91,9 @@ abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> implements 
     {
         buffer.lazySet(offset, value);  // no weaker form available
     }
-    public static <E> void soElement(AtomicReferenceArray<E> buffer, int offset, E value) {
+
+    public static <E> void soElement(AtomicReferenceArray<E> buffer, int offset, E value)
+    {
         buffer.lazySet(offset, value);
     }
 
@@ -95,7 +101,9 @@ abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> implements 
     {
         buffer.lazySet(offset, value);
     }
-    public static <E> void svElement(AtomicReferenceArray<E> buffer, int offset, E value) {
+
+    public static <E> void svElement(AtomicReferenceArray<E> buffer, int offset, E value)
+    {
         buffer.set(offset, value);
     }
 
@@ -105,7 +113,8 @@ abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> implements 
     }
 
     @Override
-    public final int capacity() {
+    public final int capacity()
+    {
         return (int) (mask + 1);
     }
 

@@ -22,15 +22,15 @@ import java.util.Queue;
  * by the producer before offering the message are visible to the consuming thread after the message has been
  * polled out of the queue.
  *
+ * @param <T> the event/message type
  * @author nitsanw
- *
- * @param <T>
- *            the event/message type
  */
-public interface MessagePassingQueue<T> {
+public interface MessagePassingQueue<T>
+{
     int UNBOUNDED_CAPACITY = -1;
 
-    interface Supplier<T> {
+    interface Supplier<T>
+    {
         /**
          * This method will return the next value to be written to the queue. As such the queue
          * implementations are commited to insert the value once the call is made.
@@ -44,7 +44,8 @@ public interface MessagePassingQueue<T> {
         T get();
     }
 
-    interface Consumer<T> {
+    interface Consumer<T>
+    {
         /**
          * This method will process an element already removed from the queue. This method is expected to
          * never throw an exception.
@@ -59,11 +60,12 @@ public interface MessagePassingQueue<T> {
         void accept(T e);
     }
 
-    interface WaitStrategy {
+    interface WaitStrategy
+    {
         /**
          * This method can implement static or dynamic backoff. Dynamic backoff will rely on the counter for
          * estimating how long the caller has been idling. The expected usage is:
-         *
+         * <p>
          * <pre>
          * <code>
          * int ic = 0;
@@ -84,7 +86,8 @@ public interface MessagePassingQueue<T> {
         int idle(int idleCounter);
     }
 
-    interface ExitCondition {
+    interface ExitCondition
+    {
 
         /**
          * This method should be implemented such that the flag read or determination cannot be hoisted out of
@@ -126,7 +129,7 @@ public interface MessagePassingQueue<T> {
      * rather than O(1).
      *
      * @return number of messages in the queue, between 0 and {@link Integer#MAX_VALUE} but less or equals to
-     *         capacity (if bounded).
+     * capacity (if bounded).
      */
     int size();
 
@@ -179,7 +182,7 @@ public interface MessagePassingQueue<T> {
      * <code><br/>
      * M m;</br>
      * while((m = relaxedPoll()) != null){</br>
-     *  c.accept(m);</br>
+     * c.accept(m);</br>
      * }</br>
      * </code> There's no strong commitment to the queue being empty at the end of a drain. Called from a
      * consumer thread subject to the restrictions appropriate to the implementation.
@@ -201,7 +204,7 @@ public interface MessagePassingQueue<T> {
     /**
      * Remove up to <i>limit</i> elements from the queue and hand to consume. This should be semantically
      * similar to:
-     *
+     * <p>
      * <pre>
      * <code>
      *   M m;
@@ -212,7 +215,7 @@ public interface MessagePassingQueue<T> {
      *   return i;
      * </code>
      * </pre>
-     *
+     * <p>
      * There's no strong commitment to the queue being empty at the end of a drain. Called from a consumer
      * thread subject to the restrictions appropriate to the implementation.
      *
@@ -222,13 +225,13 @@ public interface MessagePassingQueue<T> {
 
     /**
      * Stuff the queue with up to <i>limit</i> elements from the supplier. Semantically similar to:
-     *
+     * <p>
      * <pre>
      * <code>
      *   for(int i=0; i < limit && relaxedOffer(s.get()); i++);</br>
      * </code>
      * </pre>
-     *
+     * <p>
      * There's no strong commitment to the queue being full at the end of a fill. Called from a producer
      * thread subject to the restrictions appropriate to the implementation.
      *
@@ -238,7 +241,7 @@ public interface MessagePassingQueue<T> {
 
     /**
      * Remove elements from the queue and hand to consume forever. Semantically similar to:
-     *
+     * <p>
      * <pre>
      * <code>
      *  int idleCounter = 0;
@@ -253,15 +256,14 @@ public interface MessagePassingQueue<T> {
      *  }
      * </code>
      * </pre>
-     *
+     * <p>
      * Called from a consumer thread subject to the restrictions appropriate to the implementation.
-     *
      */
     void drain(Consumer<T> c, WaitStrategy wait, ExitCondition exit);
 
     /**
      * Stuff the queue with elements from the supplier forever. Semantically similar to:
-     *
+     * <p>
      * <pre>
      * <code>
      *  int idleCounter = 0;
@@ -275,9 +277,8 @@ public interface MessagePassingQueue<T> {
      *  }
      * </code>
      * </pre>
-     *
+     * <p>
      * Called from a producer thread subject to the restrictions appropriate to the implementation.
-     *
      */
     void fill(Supplier<T> s, WaitStrategy wait, ExitCondition exit);
 }

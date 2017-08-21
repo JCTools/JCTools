@@ -15,8 +15,6 @@ package org.jctools.queues;
 
 import org.jctools.util.UnsafeAccess;
 
-import static org.jctools.util.UnsafeAccess.UNSAFE;
-
 /**
  * This is a direct Java port of the MPSC algorithm as presented
  * <a href="http://www.1024cores.net/home/lock-free-algorithms/queues/non-intrusive-mpsc-node-based-queue"> on
@@ -212,14 +210,18 @@ public abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E>
         while (result <= Integer.MAX_VALUE - 4096);
         return (int) result;
     }
-    
+
     @Override
     public int fill(Supplier<E> s, int limit)
     {
-        if (limit == 0) return 0;
+        if (limit == 0)
+        {
+            return 0;
+        }
         LinkedQueueNode<E> tail = newNode(s.get());
         final LinkedQueueNode<E> head = tail;
-        for (int i = 1; i < limit; i++) {
+        for (int i = 1; i < limit; i++)
+        {
             final LinkedQueueNode<E> temp = newNode(s.get());
             tail.soNext(temp);
             tail = temp;

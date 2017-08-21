@@ -18,15 +18,21 @@ import org.jctools.util.UnsafeAccess;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 
-public abstract class ConcurrentSequencedCircularArrayQueue<E> extends ConcurrentCircularArrayQueue<E> {
+public abstract class ConcurrentSequencedCircularArrayQueue<E> extends ConcurrentCircularArrayQueue<E>
+{
     private static final long ARRAY_BASE;
     private static final int ELEMENT_SHIFT;
     protected static final int SEQ_BUFFER_PAD;
-    static {
+
+    static
+    {
         final int scale = UnsafeAccess.UNSAFE.arrayIndexScale(long[].class);
-        if (8 == scale) {
+        if (8 == scale)
+        {
             ELEMENT_SHIFT = 3;
-        } else {
+        }
+        else
+        {
             throw new IllegalStateException("Unexpected long[] element size");
         }
         // 2 cache lines pad
@@ -34,29 +40,38 @@ public abstract class ConcurrentSequencedCircularArrayQueue<E> extends Concurren
         // Including the buffer pad in the array base offset
         ARRAY_BASE = UnsafeAccess.UNSAFE.arrayBaseOffset(long[].class) + (SEQ_BUFFER_PAD * scale);
     }
+
     protected final long[] sequenceBuffer;
 
-    public ConcurrentSequencedCircularArrayQueue(int capacity) {
+    public ConcurrentSequencedCircularArrayQueue(int capacity)
+    {
         super(capacity);
         int actualCapacity = (int) (this.mask + 1);
         // pad data on either end with some empty slots.
         sequenceBuffer = new long[actualCapacity + SEQ_BUFFER_PAD * 2];
-        for (long i = 0; i < actualCapacity; i++) {
+        for (long i = 0; i < actualCapacity; i++)
+        {
             soSequence(sequenceBuffer, calcSequenceOffset(i), i);
         }
     }
 
-    protected final long calcSequenceOffset(long index) {
+    protected final long calcSequenceOffset(long index)
+    {
         return calcSequenceOffset(index, mask);
     }
-    protected static long calcSequenceOffset(long index, long mask) {
+
+    protected static long calcSequenceOffset(long index, long mask)
+    {
         return ARRAY_BASE + ((index & mask) << ELEMENT_SHIFT);
     }
-    protected final void soSequence(long[] buffer, long offset, long e) {
+
+    protected final void soSequence(long[] buffer, long offset, long e)
+    {
         UNSAFE.putOrderedLong(buffer, offset, e);
     }
 
-    protected final long lvSequence(long[] buffer, long offset) {
+    protected final long lvSequence(long[] buffer, long offset)
+    {
         return UNSAFE.getLongVolatile(buffer, offset);
     }
 

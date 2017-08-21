@@ -16,136 +16,165 @@ package org.jctools.queues;
 import org.jctools.util.PortableJvmInfo;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
-import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
-import static org.jctools.util.UnsafeRefArrayAccess.soElement;
-import static org.jctools.util.UnsafeRefArrayAccess.spElement;
+import static org.jctools.util.UnsafeRefArrayAccess.*;
 
-abstract class MpscArrayQueueL1Pad<E> extends ConcurrentCircularArrayQueue<E> {
+abstract class MpscArrayQueueL1Pad<E> extends ConcurrentCircularArrayQueue<E>
+{
     long p00, p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16;
 
-    public MpscArrayQueueL1Pad(int capacity) {
+    public MpscArrayQueueL1Pad(int capacity)
+    {
         super(capacity);
     }
 }
 
 //$gen:ordered-fields
-abstract class MpscArrayQueueProducerIndexField<E> extends MpscArrayQueueL1Pad<E> {
+abstract class MpscArrayQueueProducerIndexField<E> extends MpscArrayQueueL1Pad<E>
+{
     private final static long P_INDEX_OFFSET;
 
-    static {
-        try {
+    static
+    {
+        try
+        {
             P_INDEX_OFFSET = UNSAFE
-                    .objectFieldOffset(MpscArrayQueueProducerIndexField.class.getDeclaredField("producerIndex"));
+                .objectFieldOffset(MpscArrayQueueProducerIndexField.class.getDeclaredField("producerIndex"));
         }
-        catch (NoSuchFieldException e) {
+        catch (NoSuchFieldException e)
+        {
             throw new RuntimeException(e);
         }
     }
 
     private volatile long producerIndex;
 
-    public MpscArrayQueueProducerIndexField(int capacity) {
+    public MpscArrayQueueProducerIndexField(int capacity)
+    {
         super(capacity);
     }
 
     @Override
-    public final long lvProducerIndex() {
+    public final long lvProducerIndex()
+    {
         return producerIndex;
     }
 
-    protected final boolean casProducerIndex(long expect, long newValue) {
+    protected final boolean casProducerIndex(long expect, long newValue)
+    {
         return UNSAFE.compareAndSwapLong(this, P_INDEX_OFFSET, expect, newValue);
     }
 }
 
-abstract class MpscArrayQueueMidPad<E> extends MpscArrayQueueProducerIndexField<E> {
+abstract class MpscArrayQueueMidPad<E> extends MpscArrayQueueProducerIndexField<E>
+{
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
-    public MpscArrayQueueMidPad(int capacity) {
+    public MpscArrayQueueMidPad(int capacity)
+    {
         super(capacity);
     }
 }
 
 //$gen:ordered-fields
-abstract class MpscArrayQueueProducerLimitField<E> extends MpscArrayQueueMidPad<E> {
+abstract class MpscArrayQueueProducerLimitField<E> extends MpscArrayQueueMidPad<E>
+{
     private final static long P_LIMIT_OFFSET;
 
-    static {
-        try {
+    static
+    {
+        try
+        {
             P_LIMIT_OFFSET = UNSAFE
-                    .objectFieldOffset(MpscArrayQueueProducerLimitField.class.getDeclaredField("producerLimit"));
+                .objectFieldOffset(MpscArrayQueueProducerLimitField.class.getDeclaredField("producerLimit"));
         }
-        catch (NoSuchFieldException e) {
+        catch (NoSuchFieldException e)
+        {
             throw new RuntimeException(e);
         }
     }
+
     // First unavailable index the producer may claim up to before rereading the consumer index
     private volatile long producerLimit;
 
-    public MpscArrayQueueProducerLimitField(int capacity) {
+    public MpscArrayQueueProducerLimitField(int capacity)
+    {
         super(capacity);
         this.producerLimit = capacity;
     }
 
-    protected final long lvProducerLimit() {
+    protected final long lvProducerLimit()
+    {
         return producerLimit;
     }
 
-    protected final void soProducerLimit(long newValue) {
+    protected final void soProducerLimit(long newValue)
+    {
         UNSAFE.putOrderedLong(this, P_LIMIT_OFFSET, newValue);
     }
 }
 
-abstract class MpscArrayQueueL2Pad<E> extends MpscArrayQueueProducerLimitField<E> {
+abstract class MpscArrayQueueL2Pad<E> extends MpscArrayQueueProducerLimitField<E>
+{
     long p00, p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16;
 
-    public MpscArrayQueueL2Pad(int capacity) {
+    public MpscArrayQueueL2Pad(int capacity)
+    {
         super(capacity);
     }
 }
 
 //$gen:ordered-fields
-abstract class MpscArrayQueueConsumerIndexField<E> extends MpscArrayQueueL2Pad<E> {
+abstract class MpscArrayQueueConsumerIndexField<E> extends MpscArrayQueueL2Pad<E>
+{
     private final static long C_INDEX_OFFSET;
 
-    static {
-        try {
+    static
+    {
+        try
+        {
             C_INDEX_OFFSET = UNSAFE
-                    .objectFieldOffset(MpscArrayQueueConsumerIndexField.class.getDeclaredField("consumerIndex"));
+                .objectFieldOffset(MpscArrayQueueConsumerIndexField.class.getDeclaredField("consumerIndex"));
         }
-        catch (NoSuchFieldException e) {
+        catch (NoSuchFieldException e)
+        {
             throw new RuntimeException(e);
         }
     }
 
     protected long consumerIndex;
 
-    public MpscArrayQueueConsumerIndexField(int capacity) {
+    public MpscArrayQueueConsumerIndexField(int capacity)
+    {
         super(capacity);
     }
 
-    protected final long lpConsumerIndex() {
+    protected final long lpConsumerIndex()
+    {
         return consumerIndex;
     }
 
     @Override
-    public final long lvConsumerIndex() {
+    public final long lvConsumerIndex()
+    {
         return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
     }
 
-    protected void soConsumerIndex(long newValue) {
+    protected void soConsumerIndex(long newValue)
+    {
         UNSAFE.putOrderedLong(this, C_INDEX_OFFSET, newValue);
     }
 }
 
-abstract class MpscArrayQueueL3Pad<E> extends MpscArrayQueueConsumerIndexField<E> {
+abstract class MpscArrayQueueL3Pad<E> extends MpscArrayQueueConsumerIndexField<E>
+{
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
-    public MpscArrayQueueL3Pad(int capacity) {
+    public MpscArrayQueueL3Pad(int capacity)
+    {
         super(capacity);
     }
 }
@@ -159,26 +188,29 @@ abstract class MpscArrayQueueL3Pad<E> extends MpscArrayQueueConsumerIndexField<E
  * method for polling from the queue (with minor change to correctly publish the index) and an extension of
  * the Leslie Lamport concurrent queue algorithm (originated by Martin Thompson) on the producer side.<br>
  *
- * @author nitsanw
- *
  * @param <E>
+ * @author nitsanw
  */
-public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E> {
+public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
+{
 
-    public MpscArrayQueue(final int capacity) {
+    public MpscArrayQueue(final int capacity)
+    {
         super(capacity);
     }
 
     /**
      * {@link MpscArrayQueue#offer(E)}} if {@link MpscArrayQueue#size()} is less than threshold.
      *
-     * @param e the object to offer onto the queue, not null
+     * @param e         the object to offer onto the queue, not null
      * @param threshold the maximum allowable size
      * @return true if the offer is successful, false if queue size exceeds threshold
      * @since 1.0.1
      */
-    public boolean offerIfBelowThreshold(final E e, int threshold) {
-        if (null == e) {
+    public boolean offerIfBelowThreshold(final E e, int threshold)
+    {
+        if (null == e)
+        {
             throw new NullPointerException();
         }
         final long mask = this.mask;
@@ -186,17 +218,21 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E> {
 
         long producerLimit = lvProducerLimit(); // LoadLoad
         long pIndex;
-        do {
+        do
+        {
             pIndex = lvProducerIndex(); // LoadLoad
             long available = producerLimit - pIndex;
             long size = capacity - available;
-            if (size >= threshold) {
+            if (size >= threshold)
+            {
                 final long cIndex = lvConsumerIndex(); // LoadLoad
                 size = pIndex - cIndex;
-                if (size >= threshold) {
+                if (size >= threshold)
+                {
                     return false; // the size exceeds threshold
                 }
-                else {
+                else
+                {
                     // update producer limit to the next index that we must recheck the consumer index
                     producerLimit = cIndex + capacity;
 
@@ -204,7 +240,8 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E> {
                     soProducerLimit(producerLimit);
                 }
             }
-        } while (!casProducerIndex(pIndex, pIndex + 1));
+        }
+        while (!casProducerIndex(pIndex, pIndex + 1));
         /*
          * NOTE: the new producer index value is made visible BEFORE the element in the array. If we relied on
          * the index visibility to poll() we would need to handle the case where the element is not visible.
@@ -218,7 +255,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E> {
 
     /**
      * {@inheritDoc} <br>
-     *
+     * <p>
      * IMPLEMENTATION NOTES:<br>
      * Lock free offer using a single CAS. As class name suggests access is permitted to many threads
      * concurrently.
@@ -227,8 +264,10 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E> {
      * @see MessagePassingQueue#offer(Object)
      */
     @Override
-    public boolean offer(final E e) {
-        if (null == e) {
+    public boolean offer(final E e)
+    {
+        if (null == e)
+        {
             throw new NullPointerException();
         }
 
@@ -236,22 +275,27 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E> {
         final long mask = this.mask;
         long producerLimit = lvProducerLimit(); // LoadLoad
         long pIndex;
-        do {
+        do
+        {
             pIndex = lvProducerIndex(); // LoadLoad
-            if (pIndex >= producerLimit) {
+            if (pIndex >= producerLimit)
+            {
                 final long cIndex = lvConsumerIndex(); // LoadLoad
                 producerLimit = cIndex + mask + 1;
 
-                if (pIndex >= producerLimit) {
+                if (pIndex >= producerLimit)
+                {
                     return false; // FULL :(
                 }
-                else {
+                else
+                {
                     // update producer limit to the next index that we must recheck the consumer index
                     // this is racy, but the race is benign
                     soProducerLimit(producerLimit);
                 }
             }
-        } while (!casProducerIndex(pIndex, pIndex + 1));
+        }
+        while (!casProducerIndex(pIndex, pIndex + 1));
         /*
          * NOTE: the new producer index value is made visible BEFORE the element in the array. If we relied on
          * the index visibility to poll() we would need to handle the case where the element is not visible.
@@ -269,28 +313,34 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E> {
      * @param e new element, not null
      * @return 1 if next element cannot be filled, -1 if CAS failed, 0 if successful
      */
-    public final int failFastOffer(final E e) {
-        if (null == e) {
+    public final int failFastOffer(final E e)
+    {
+        if (null == e)
+        {
             throw new NullPointerException();
         }
         final long mask = this.mask;
         final long capacity = mask + 1;
         final long pIndex = lvProducerIndex(); // LoadLoad
         long producerLimit = lvProducerLimit(); // LoadLoad
-        if (pIndex >= producerLimit) {
+        if (pIndex >= producerLimit)
+        {
             final long cIndex = lvConsumerIndex(); // LoadLoad
             producerLimit = cIndex + capacity;
-            if (pIndex >= producerLimit) {
+            if (pIndex >= producerLimit)
+            {
                 return 1; // FULL :(
             }
-            else {
+            else
+            {
                 // update producer limit to the next index that we must recheck the consumer index
                 soProducerLimit(producerLimit); // StoreLoad
             }
         }
 
         // look Ma, no loop!
-        if (!casProducerIndex(pIndex, pIndex + 1)) {
+        if (!casProducerIndex(pIndex, pIndex + 1))
+        {
             return -1; // CAS FAIL :(
         }
 
@@ -310,7 +360,8 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E> {
      * @see MessagePassingQueue#poll()
      */
     @Override
-    public E poll() {
+    public E poll()
+    {
         final long cIndex = lpConsumerIndex();
         final long offset = calcElementOffset(cIndex);
         // Copy field to avoid re-reading after volatile load
@@ -318,18 +369,23 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E> {
 
         // If we can't see the next available element we can't poll
         E e = lvElement(buffer, offset); // LoadLoad
-        if (null == e) {
+        if (null == e)
+        {
             /*
              * NOTE: Queue may not actually be empty in the case of a producer (P1) being interrupted after
              * winning the CAS on offer but before storing the element in the queue. Other producers may go on
              * to fill up the queue after this element.
              */
-            if (cIndex != lvProducerIndex()) {
-                do {
+            if (cIndex != lvProducerIndex())
+            {
+                do
+                {
                     e = lvElement(buffer, offset);
-                } while (e == null);
+                }
+                while (e == null);
             }
-            else {
+            else
+            {
                 return null;
             }
         }
@@ -349,25 +405,31 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E> {
      * @see MessagePassingQueue#poll()
      */
     @Override
-    public E peek() {
+    public E peek()
+    {
         // Copy field to avoid re-reading after volatile load
         final E[] buffer = this.buffer;
 
         final long cIndex = lpConsumerIndex(); // LoadLoad
         final long offset = calcElementOffset(cIndex);
         E e = lvElement(buffer, offset);
-        if (null == e) {
+        if (null == e)
+        {
             /*
              * NOTE: Queue may not actually be empty in the case of a producer (P1) being interrupted after
              * winning the CAS on offer but before storing the element in the queue. Other producers may go on
              * to fill up the queue after this element.
              */
-            if (cIndex != lvProducerIndex()) {
-                do {
+            if (cIndex != lvProducerIndex())
+            {
+                do
+                {
                     e = lvElement(buffer, offset);
-                } while (e == null);
+                }
+                while (e == null);
             }
-            else {
+            else
+            {
                 return null;
             }
         }
@@ -375,19 +437,22 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E> {
     }
 
     @Override
-    public boolean relaxedOffer(E e) {
+    public boolean relaxedOffer(E e)
+    {
         return offer(e);
     }
 
     @Override
-    public E relaxedPoll() {
+    public E relaxedPoll()
+    {
         final E[] buffer = this.buffer;
         final long cIndex = lpConsumerIndex();
         final long offset = calcElementOffset(cIndex);
 
         // If we can't see the next available element we can't poll
         E e = lvElement(buffer, offset); // LoadLoad
-        if (null == e) {
+        if (null == e)
+        {
             return null;
         }
 
@@ -397,7 +462,8 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E> {
     }
 
     @Override
-    public E relaxedPeek() {
+    public E relaxedPeek()
+    {
         final E[] buffer = this.buffer;
         final long mask = this.mask;
         final long cIndex = lpConsumerIndex();
@@ -405,35 +471,43 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E> {
     }
 
     @Override
-    public int drain(Consumer<E> c) {
+    public int drain(Consumer<E> c)
+    {
         return drain(c, capacity());
     }
 
     @Override
-    public int fill(Supplier<E> s) {
+    public int fill(Supplier<E> s)
+    {
         long result = 0;// result is a long because we want to have a safepoint check at regular intervals
         final int capacity = capacity();
-        do {
+        do
+        {
             final int filled = fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH);
-            if (filled == 0) {
+            if (filled == 0)
+            {
                 return (int) result;
             }
             result += filled;
-        } while (result <= capacity);
+        }
+        while (result <= capacity);
         return (int) result;
     }
 
     @Override
-    public int drain(final Consumer<E> c, final int limit) {
+    public int drain(final Consumer<E> c, final int limit)
+    {
         final E[] buffer = this.buffer;
         final long mask = this.mask;
         final long cIndex = lpConsumerIndex();
 
-        for (int i = 0; i < limit; i++) {
+        for (int i = 0; i < limit; i++)
+        {
             final long index = cIndex + i;
             final long offset = calcElementOffset(index, mask);
             final E e = lvElement(buffer, offset);// LoadLoad
-            if (null == e) {
+            if (null == e)
+            {
                 return i;
             }
             spElement(buffer, offset, null);
@@ -444,32 +518,39 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E> {
     }
 
     @Override
-    public int fill(Supplier<E> s, int limit) {
+    public int fill(Supplier<E> s, int limit)
+    {
         final long mask = this.mask;
         final long capacity = mask + 1;
         long producerLimit = lvProducerLimit(); // LoadLoad
         long pIndex;
         int actualLimit = 0;
-        do {
+        do
+        {
             pIndex = lvProducerIndex(); // LoadLoad
             long available = producerLimit - pIndex;
-            if (available <= 0) {
+            if (available <= 0)
+            {
                 final long cIndex = lvConsumerIndex(); // LoadLoad
                 producerLimit = cIndex + capacity;
                 available = producerLimit - pIndex;
-                if (available <= 0) {
+                if (available <= 0)
+                {
                     return 0; // FULL :(
                 }
-                else {
+                else
+                {
                     // update producer limit to the next index that we must recheck the consumer index
                     soProducerLimit(producerLimit); // StoreLoad
                 }
             }
             actualLimit = Math.min((int) available, limit);
-        } while (!casProducerIndex(pIndex, pIndex + actualLimit));
+        }
+        while (!casProducerIndex(pIndex, pIndex + actualLimit));
         // right, now we claimed a few slots and can fill them with goodness
         final E[] buffer = this.buffer;
-        for (int i = 0; i < actualLimit; i++) {
+        for (int i = 0; i < actualLimit; i++)
+        {
             // Won CAS, move on to storing
             final long offset = calcElementOffset(pIndex + i, mask);
             soElement(buffer, offset, s.get());
@@ -478,17 +559,21 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E> {
     }
 
     @Override
-    public void drain(Consumer<E> c, WaitStrategy w, ExitCondition exit) {
+    public void drain(Consumer<E> c, WaitStrategy w, ExitCondition exit)
+    {
         final E[] buffer = this.buffer;
         final long mask = this.mask;
         long cIndex = lpConsumerIndex();
 
         int counter = 0;
-        while (exit.keepRunning()) {
-            for (int i = 0; i < 4096; i++) {
+        while (exit.keepRunning())
+        {
+            for (int i = 0; i < 4096; i++)
+            {
                 final long offset = calcElementOffset(cIndex, mask);
                 final E e = lvElement(buffer, offset);// LoadLoad
-                if (null == e) {
+                if (null == e)
+                {
                     counter = w.idle(counter);
                     continue;
                 }
@@ -502,10 +587,13 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E> {
     }
 
     @Override
-    public void fill(Supplier<E> s, WaitStrategy w, ExitCondition exit) {
+    public void fill(Supplier<E> s, WaitStrategy w, ExitCondition exit)
+    {
         int idleCounter = 0;
-        while (exit.keepRunning()) {
-            if (fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH) == 0) {
+        while (exit.keepRunning())
+        {
+            if (fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH) == 0)
+            {
                 idleCounter = w.idle(idleCounter);
                 continue;
             }

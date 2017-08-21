@@ -25,13 +25,14 @@ package org.jctools.queues;
  * The queue is initialized with a stub node which is set to both the producer and consumer node references.
  * From this point follow the notes on offer/poll.
  *
- * @author nitsanw
- *
  * @param <E>
+ * @author nitsanw
  */
-public class SpscLinkedQueue<E> extends BaseLinkedQueue<E> {
+public class SpscLinkedQueue<E> extends BaseLinkedQueue<E>
+{
 
-    public SpscLinkedQueue() {
+    public SpscLinkedQueue()
+    {
         LinkedQueueNode<E> node = newNode();
         spProducerNode(node);
         spConsumerNode(node);
@@ -40,7 +41,7 @@ public class SpscLinkedQueue<E> extends BaseLinkedQueue<E> {
 
     /**
      * {@inheritDoc} <br>
-     *
+     * <p>
      * IMPLEMENTATION NOTES:<br>
      * Offer is allowed from a SINGLE thread.<br>
      * Offer allocates a new node (holding the offered value) and:
@@ -54,8 +55,10 @@ public class SpscLinkedQueue<E> extends BaseLinkedQueue<E> {
      * @see java.util.Queue#offer(java.lang.Object)
      */
     @Override
-    public boolean offer(final E e) {
-        if (null == e) {
+    public boolean offer(final E e)
+    {
+        if (null == e)
+        {
             throw new NullPointerException();
         }
         final LinkedQueueNode<E> nextNode = newNode(e);
@@ -66,7 +69,7 @@ public class SpscLinkedQueue<E> extends BaseLinkedQueue<E> {
 
     /**
      * {@inheritDoc} <br>
-     *
+     * <p>
      * IMPLEMENTATION NOTES:<br>
      * Poll is allowed from a SINGLE thread.<br>
      * Poll reads the next node from the consumerNode and:
@@ -77,34 +80,43 @@ public class SpscLinkedQueue<E> extends BaseLinkedQueue<E> {
      * This means the consumerNode.value is always null, which is also the starting point for the queue.
      * Because null values are not allowed to be offered this is the only node with it's value set to null at
      * any one time.
-     *
      */
     @Override
-    public E poll() {
+    public E poll()
+    {
         return relaxedPoll();
     }
 
     @Override
-    public E peek() {
+    public E peek()
+    {
         return relaxedPeek();
     }
 
     @Override
-    public int fill(Supplier<E> s) {
+    public int fill(Supplier<E> s)
+    {
         long result = 0;// result is a long because we want to have a safepoint check at regular intervals
-        do {
+        do
+        {
             fill(s, 4096);
             result += 4096;
-        } while (result <= Integer.MAX_VALUE - 4096);
+        }
+        while (result <= Integer.MAX_VALUE - 4096);
         return (int) result;
     }
 
     @Override
-    public int fill(Supplier<E> s, int limit) {
-        if (limit == 0) return 0;
+    public int fill(Supplier<E> s, int limit)
+    {
+        if (limit == 0)
+        {
+            return 0;
+        }
         LinkedQueueNode<E> tail = newNode(s.get());
         final LinkedQueueNode<E> head = tail;
-        for (int i = 1; i < limit; i++) {
+        for (int i = 1; i < limit; i++)
+        {
             final LinkedQueueNode<E> temp = newNode(s.get());
             tail.soNext(temp);
             tail = temp;
@@ -116,10 +128,13 @@ public class SpscLinkedQueue<E> extends BaseLinkedQueue<E> {
     }
 
     @Override
-    public void fill(Supplier<E> s, WaitStrategy wait, ExitCondition exit) {
+    public void fill(Supplier<E> s, WaitStrategy wait, ExitCondition exit)
+    {
         LinkedQueueNode<E> chaserNode = producerNode;
-        while (exit.keepRunning()) {
-            for (int i = 0; i < 4096; i++) {
+        while (exit.keepRunning())
+        {
+            for (int i = 0; i < 4096; i++)
+            {
                 final LinkedQueueNode<E> nextNode = newNode(s.get());
                 chaserNode.soNext(nextNode);
                 chaserNode = nextNode;

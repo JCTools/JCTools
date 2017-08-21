@@ -13,12 +13,12 @@
  */
 package org.jctools.queues.atomic;
 
+import org.jctools.util.Pow2;
+import org.jctools.util.RangeUtil;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
 import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.length;
 import static org.jctools.util.Pow2.roundToPowerOfTwo;
-import org.jctools.util.Pow2;
-import org.jctools.util.RangeUtil;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import org.jctools.queues.MessagePassingQueue;
@@ -68,10 +68,10 @@ public class MpscChunkedAtomicArrayQueue<E> extends MpscChunkedAtomicArrayQueueC
 
     /**
      * @param initialCapacity the queue initial capacity. If chunk size is fixed this will be the chunk size.
-     *        Must be 2 or more.
-     * @param maxCapacity the maximum capacity will be rounded up to the closest power of 2 and will be the
-     *        upper limit of number of elements in this queue. Must be 4 or more and round up to a larger
-     *        power of 2 than initialCapacity.
+     *                        Must be 2 or more.
+     * @param maxCapacity     the maximum capacity will be rounded up to the closest power of 2 and will be the
+     *                        upper limit of number of elements in this queue. Must be 4 or more and round up to a larger
+     *                        power of 2 than initialCapacity.
      */
     public MpscChunkedAtomicArrayQueue(int initialCapacity, int maxCapacity) {
         super(initialCapacity, maxCapacity);

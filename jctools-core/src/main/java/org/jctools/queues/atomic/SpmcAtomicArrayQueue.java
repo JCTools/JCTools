@@ -172,7 +172,9 @@ public class SpmcAtomicArrayQueue<E> extends SpmcAtomicArrayQueueL3Pad<E> {
                 return false;
             } else {
                 // spin wait for slot to clear, buggers wait freedom
-                while (null != lvElement(buffer, offset)) ;
+                while (null != lvElement(buffer, offset)) {
+                    ;
+                }
             }
         }
         spElement(buffer, offset, e);

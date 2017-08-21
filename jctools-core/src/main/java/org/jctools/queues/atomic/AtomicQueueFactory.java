@@ -13,47 +13,57 @@
  */
 package org.jctools.queues.atomic;
 
+import org.jctools.queues.spec.ConcurrentQueueSpec;
+
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
-
-import org.jctools.queues.spec.ConcurrentQueueSpec;
 
 /**
  * The queue factory produces {@link java.util.Queue} instances based on a best fit to the {@link ConcurrentQueueSpec}.
  * This allows minimal dependencies between user code and the queue implementations and gives users a way to express
  * their requirements on a higher level.
- * 
+ *
  * @author nitsanw
  * @author akarnokd
- * 
  */
-public class AtomicQueueFactory {
+public class AtomicQueueFactory
+{
 
-    public static <E> Queue<E> newQueue(ConcurrentQueueSpec qs) {
-        if (qs.isBounded()) {
+    public static <E> Queue<E> newQueue(ConcurrentQueueSpec qs)
+    {
+        if (qs.isBounded())
+        {
             // SPSC
-            if (qs.isSpsc()) {
+            if (qs.isSpsc())
+            {
                 return new SpscAtomicArrayQueue<E>(qs.capacity);
             }
             // MPSC
-            else if (qs.isMpsc()) {
+            else if (qs.isMpsc())
+            {
                 return new MpscAtomicArrayQueue<E>(qs.capacity);
             }
             // SPMC
-            else if (qs.isSpmc()) {
+            else if (qs.isSpmc())
+            {
                 return new SpmcAtomicArrayQueue<E>(qs.capacity);
             }
             // MPMC
-            else {
+            else
+            {
                 return new MpmcAtomicArrayQueue<E>(qs.capacity);
             }
-        } else {
+        }
+        else
+        {
             // SPSC
-            if (qs.isSpsc()) {
+            if (qs.isSpsc())
+            {
                 return new SpscLinkedAtomicQueue<E>();
             }
             // MPSC
-            else if (qs.isMpsc()) {
+            else if (qs.isMpsc())
+            {
                 return new MpscLinkedAtomicQueue<E>();
             }
         }

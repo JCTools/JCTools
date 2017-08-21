@@ -3,17 +3,20 @@ package org.jctools.queues;
 import static org.jctools.util.UnsafeRefArrayAccess.REF_ARRAY_BASE;
 import static org.jctools.util.UnsafeRefArrayAccess.REF_ELEMENT_SHIFT;
 
-final class LinkedArrayQueueUtil {
-    private LinkedArrayQueueUtil() {
+final class LinkedArrayQueueUtil
+{
+    private LinkedArrayQueueUtil()
+    {
     }
 
     /**
      * Determines the length of the buffer
-     * 
+     *
      * @param buf
      * @return
      */
-    static int length(Object[] buf) {
+    static int length(Object[] buf)
+    {
         return buf.length;
     }
 

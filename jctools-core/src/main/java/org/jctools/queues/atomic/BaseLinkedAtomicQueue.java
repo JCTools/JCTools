@@ -124,9 +124,8 @@ abstract class BaseLinkedAtomicQueuePad2<E> extends BaseLinkedAtomicQueueConsume
  * A base data structure for concurrent linked queues. For convenience also pulled in common single consumer
  * methods since at this time there's no plan to implement MC.
  *
- * @author nitsanw
- *
  * @param <E>
+ * @author nitsanw
  */
 abstract class BaseLinkedAtomicQueue<E> extends BaseLinkedAtomicQueuePad2<E> {
 

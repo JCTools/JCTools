@@ -142,9 +142,8 @@ abstract class SpscAtomicArrayQueueL3Pad<E> extends SpscAtomicArrayQueueConsumer
  * 2012 - Junchang- BQueue- Efﬁcient and Practical Queuing.pdf <br>
  * </i> This implementation is wait free.
  *
- * @author nitsanw
- *
  * @param <E>
+ * @author nitsanw
  */
 public class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueL3Pad<E> {
 

@@ -13,10 +13,10 @@
  */
 package org.jctools.queues;
 
-import static org.jctools.queues.LinkedArrayQueueUtil.length;
-
 import org.jctools.util.Pow2;
 import org.jctools.util.RangeUtil;
+
+import static org.jctools.queues.LinkedArrayQueueUtil.length;
 
 
 /**
@@ -26,26 +26,30 @@ import org.jctools.util.RangeUtil;
  *
  * @param <E>
  */
-public class MpscGrowableArrayQueue<E> extends MpscChunkedArrayQueue<E> {
+public class MpscGrowableArrayQueue<E> extends MpscChunkedArrayQueue<E>
+{
 
-    public MpscGrowableArrayQueue(int maxCapacity) {
+    public MpscGrowableArrayQueue(int maxCapacity)
+    {
         super(Math.max(2, Pow2.roundToPowerOfTwo(maxCapacity / 8)), maxCapacity);
     }
 
     /**
      * @param initialCapacity the queue initial capacity. If chunk size is fixed this will be the chunk size.
-     *        Must be 2 or more.
-     * @param maxCapacity the maximum capacity will be rounded up to the closest power of 2 and will be the
-     *        upper limit of number of elements in this queue. Must be 4 or more and round up to a larger
-     *        power of 2 than initialCapacity.
+     *                        Must be 2 or more.
+     * @param maxCapacity     the maximum capacity will be rounded up to the closest power of 2 and will be the
+     *                        upper limit of number of elements in this queue. Must be 4 or more and round up to a larger
+     *                        power of 2 than initialCapacity.
      */
-    public MpscGrowableArrayQueue(int initialCapacity, int maxCapacity) {
+    public MpscGrowableArrayQueue(int initialCapacity, int maxCapacity)
+    {
         super(initialCapacity, maxCapacity);
     }
 
 
     @Override
-    protected int getNextBufferSize(E[] buffer) {
+    protected int getNextBufferSize(E[] buffer)
+    {
         final long maxSize = maxQueueCapacity / 2;
         RangeUtil.checkLessThanOrEqual(length(buffer), maxSize, "buffer.length");
         final int newSize = 2 * (length(buffer) - 1);
@@ -53,7 +57,8 @@ public class MpscGrowableArrayQueue<E> extends MpscChunkedArrayQueue<E> {
     }
 
     @Override
-    protected long getCurrentBufferCapacity(long mask) {
-      return (mask + 2 == maxQueueCapacity) ? maxQueueCapacity : mask;
+    protected long getCurrentBufferCapacity(long mask)
+    {
+        return (mask + 2 == maxQueueCapacity) ? maxQueueCapacity : mask;
     }
 }

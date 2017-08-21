@@ -13,21 +13,21 @@
  */
 package org.jctools.queues;
 
+import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
+import org.jctools.util.PortableJvmInfo;
+import org.jctools.util.Pow2;
+import org.jctools.util.RangeUtil;
+
+import java.lang.reflect.Field;
+import java.util.AbstractQueue;
+import java.util.Iterator;
+
 import static org.jctools.queues.CircularArrayOffsetCalculator.allocate;
 import static org.jctools.queues.LinkedArrayQueueUtil.length;
 import static org.jctools.queues.LinkedArrayQueueUtil.modifiedCalcElementOffset;
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
 import static org.jctools.util.UnsafeRefArrayAccess.soElement;
-
-import java.lang.reflect.Field;
-import java.util.AbstractQueue;
-import java.util.Iterator;
-
-import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
-import org.jctools.util.PortableJvmInfo;
-import org.jctools.util.Pow2;
-import org.jctools.util.RangeUtil;
 
 abstract class BaseMpscLinkedArrayQueuePad1<E> extends AbstractQueue<E> implements IndexedQueue
 {
@@ -39,8 +39,9 @@ abstract class BaseMpscLinkedArrayQueuePad1<E> extends AbstractQueue<E> implemen
 abstract class BaseMpscLinkedArrayQueueProducerFields<E> extends BaseMpscLinkedArrayQueuePad1<E>
 {
     private final static long P_INDEX_OFFSET;
-    
-    static {
+
+    static
+    {
         try
         {
             Field iField = BaseMpscLinkedArrayQueueProducerFields.class.getDeclaredField("producerIndex");
@@ -51,6 +52,7 @@ abstract class BaseMpscLinkedArrayQueueProducerFields<E> extends BaseMpscLinkedA
             throw new RuntimeException(e);
         }
     }
+
     protected long producerIndex;
 
     @Override
@@ -80,7 +82,9 @@ abstract class BaseMpscLinkedArrayQueuePad2<E> extends BaseMpscLinkedArrayQueueP
 abstract class BaseMpscLinkedArrayQueueConsumerFields<E> extends BaseMpscLinkedArrayQueuePad2<E>
 {
     private final static long C_INDEX_OFFSET;
-    static {
+
+    static
+    {
         try
         {
             Field iField = BaseMpscLinkedArrayQueueConsumerFields.class.getDeclaredField("consumerIndex");
@@ -91,6 +95,7 @@ abstract class BaseMpscLinkedArrayQueueConsumerFields<E> extends BaseMpscLinkedA
             throw new RuntimeException(e);
         }
     }
+
     protected long consumerMask;
     protected E[] consumerBuffer;
     protected long consumerIndex;
@@ -117,6 +122,7 @@ abstract class BaseMpscLinkedArrayQueuePad3<E> extends BaseMpscLinkedArrayQueueC
 abstract class BaseMpscLinkedArrayQueueColdProducerFields<E> extends BaseMpscLinkedArrayQueuePad3<E>
 {
     private final static long P_LIMIT_OFFSET;
+
     static
     {
         try
@@ -129,7 +135,7 @@ abstract class BaseMpscLinkedArrayQueueColdProducerFields<E> extends BaseMpscLin
             throw new RuntimeException(e);
         }
     }
-    
+
     protected volatile long producerLimit;
     protected long producerMask;
     protected E[] producerBuffer;

@@ -20,15 +20,18 @@ import static org.jctools.queues.CircularArrayOffsetCalculator.allocate;
 import static org.jctools.queues.CircularArrayOffsetCalculator.calcElementOffset;
 import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
 
-public class SpscChunkedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
+public class SpscChunkedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E>
+{
     private final int maxQueueCapacity;
     private long producerQueueLimit;
 
-    public SpscChunkedArrayQueue(int capacity) {
+    public SpscChunkedArrayQueue(int capacity)
+    {
         this(Math.max(8, Pow2.roundToPowerOfTwo(capacity / 8)), capacity);
     }
 
-    public SpscChunkedArrayQueue(int chunkSize, int capacity) {
+    public SpscChunkedArrayQueue(int chunkSize, int capacity)
+    {
         RangeUtil.checkGreaterThanOrEqual(capacity, 16, "capacity");
         // minimal chunk size of eight makes sure minimal lookahead step is 2
         RangeUtil.checkGreaterThanOrEqual(chunkSize, 8, "chunkSize");
@@ -49,39 +52,48 @@ public class SpscChunkedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
     }
 
     @Override
-    final boolean offerColdPath(E[] buffer, long mask, long pIndex, long offset, E v, Supplier<? extends E> s) {
+    final boolean offerColdPath(E[] buffer, long mask, long pIndex, long offset, E v, Supplier<? extends E> s)
+    {
         // use a fixed lookahead step based on buffer capacity
         final long lookAheadStep = (mask + 1) / 4;
         long pBufferLimit = pIndex + lookAheadStep;
 
         long pQueueLimit = producerQueueLimit;
 
-        if (pIndex >= pQueueLimit) {
+        if (pIndex >= pQueueLimit)
+        {
             // we tested against a potentially out of date queue limit, refresh it
             final long cIndex = lvConsumerIndex();
             producerQueueLimit = pQueueLimit = cIndex + maxQueueCapacity;
             // if we're full we're full
-            if (pIndex >= pQueueLimit) {
+            if (pIndex >= pQueueLimit)
+            {
                 return false;
             }
         }
         // if buffer limit is after queue limit we use queue limit. We need to handle overflow so
         // cannot use Math.min
-        if (pBufferLimit - pQueueLimit > 0) {
+        if (pBufferLimit - pQueueLimit > 0)
+        {
             pBufferLimit = pQueueLimit;
         }
 
         // go around the buffer or add a new buffer
         if (pBufferLimit > pIndex + 1 && // there's sufficient room in buffer/queue to use pBufferLimit
-                null == lvElement(buffer, calcElementOffset(pBufferLimit, mask))) {
+            null == lvElement(buffer, calcElementOffset(pBufferLimit, mask)))
+        {
             producerBufferLimit = pBufferLimit - 1; // joy, there's plenty of room
             writeToQueue(buffer, v == null ? s.get() : v, pIndex, offset);
-        } else if (null == lvElement(buffer, calcElementOffset(pIndex + 1, mask))) { // buffer is not full
+        }
+        else if (null == lvElement(buffer, calcElementOffset(pIndex + 1, mask)))
+        { // buffer is not full
             writeToQueue(buffer, v == null ? s.get() : v, pIndex, offset);
-        } else {
+        }
+        else
+        {
             // we got one slot left to write into, and we are not full. Need to link new buffer.
             // allocate new buffer of same length
-            final E[] newBuffer = allocate((int)(mask + 2));
+            final E[] newBuffer = allocate((int) (mask + 2));
             producerBuffer = newBuffer;
 
             linkOldToNew(pIndex, buffer, offset, newBuffer, offset, v == null ? s.get() : v);
@@ -90,7 +102,8 @@ public class SpscChunkedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E> {
     }
 
     @Override
-    public int capacity() {
+    public int capacity()
+    {
         return maxQueueCapacity;
     }
 }
