@@ -13,6 +13,8 @@
  */
 package org.jctools.queues;
 
+import static org.jctools.queues.LinkedArrayQueueUtil.length;
+
 /**
  * An MPSC array queue which starts at <i>initialCapacity</i> and grows to <i>maxCapacity</i> in linked chunks
  * of the initial size. The queue grows only when the current buffer is full and elements are not copied on
@@ -60,7 +62,7 @@ public class MpscUnboundedArrayQueue<E> extends BaseMpscLinkedArrayQueue<E> {
 
     @Override
     protected int getNextBufferSize(E[] buffer) {
-        return buffer.length;
+        return length(buffer);
     }
 
     @Override

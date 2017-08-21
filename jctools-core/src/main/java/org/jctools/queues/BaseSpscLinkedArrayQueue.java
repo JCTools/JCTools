@@ -13,17 +13,20 @@
  */
 package org.jctools.queues;
 
-import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
+import static org.jctools.queues.CircularArrayOffsetCalculator.calcElementOffset;
+import static org.jctools.queues.LinkedArrayQueueUtil.length;
+import static org.jctools.queues.LinkedArrayQueueUtil.nextArrayOffset;
+import static org.jctools.util.UnsafeAccess.UNSAFE;
+import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
+import static org.jctools.util.UnsafeRefArrayAccess.soElement;
 
 import java.lang.reflect.Field;
 import java.util.AbstractQueue;
 import java.util.Iterator;
 
-import static org.jctools.queues.CircularArrayOffsetCalculator.calcElementOffset;
-import static org.jctools.util.UnsafeAccess.UNSAFE;
-import static org.jctools.util.UnsafeRefArrayAccess.*;
+import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
 
-abstract class BaseSpscLinkedArrayQueuePrePad<E> extends AbstractQueue<E>
+abstract class BaseSpscLinkedArrayQueuePrePad<E> extends AbstractQueue<E> implements IndexedQueue
 {
     long p0, p1, p2, p3, p4, p5, p6, p7;
     long p10, p11, p12, p13, p14, p15;
@@ -36,9 +39,34 @@ abstract class BaseSpscLinkedArrayQueueConsumerColdFields<E> extends BaseSpscLin
     protected E[] consumerBuffer;
 }
 
+// $gen:ordered-fields
 abstract class BaseSpscLinkedArrayQueueConsumerField<E> extends BaseSpscLinkedArrayQueueConsumerColdFields<E>
 {
+    private final static long C_INDEX_OFFSET;
+    static {
+        try
+        {
+            Field iField = BaseSpscLinkedArrayQueueConsumerField.class.getDeclaredField("consumerIndex");
+            C_INDEX_OFFSET = UNSAFE.objectFieldOffset(iField);
+        }
+        catch (NoSuchFieldException e)
+        {
+            throw new RuntimeException(e);
+        }
+    }
+    
     protected long consumerIndex;
+
+    final void soConsumerIndex(long newValue)
+    {
+        UNSAFE.putOrderedLong(this, C_INDEX_OFFSET, newValue);
+    }
+
+    @Override
+    public final long lvConsumerIndex()
+    {
+        return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
+    }
 }
 
 abstract class BaseSpscLinkedArrayQueueL2Pad<E> extends BaseSpscLinkedArrayQueueConsumerField<E>
@@ -47,27 +75,10 @@ abstract class BaseSpscLinkedArrayQueueL2Pad<E> extends BaseSpscLinkedArrayQueue
     long p10, p11, p12, p13, p14, p15, p16, p17;
 }
 
+// $gen:ordered-fields
 abstract class BaseSpscLinkedArrayQueueProducerFields<E> extends BaseSpscLinkedArrayQueueL2Pad<E>
 {
-    protected long producerIndex;
-}
-
-abstract class BaseSpscLinkedArrayQueueProducerColdFields<E> extends BaseSpscLinkedArrayQueueProducerFields<E>
-{
-    protected long producerBufferLimit;
-    protected long producerMask; // fixed for chunked and unbounded
-    protected E[] producerBuffer;
-}
-
-abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProducerColdFields<E>
-    implements MessagePassingQueue<E>, QueueProgressIndicators, IndexedQueue
-{
-
-    protected static final Object JUMP = new Object();
-
     private final static long P_INDEX_OFFSET;
-    private final static long C_INDEX_OFFSET;
-
     static
     {
         try
@@ -79,36 +90,35 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
         {
             throw new RuntimeException(e);
         }
-        try
-        {
-            Field iField = BaseSpscLinkedArrayQueueConsumerField.class.getDeclaredField("consumerIndex");
-            C_INDEX_OFFSET = UNSAFE.objectFieldOffset(iField);
-        }
-        catch (NoSuchFieldException e)
-        {
-            throw new RuntimeException(e);
-        }
     }
+    
+    protected long producerIndex;
 
-    final void soProducerIndex(long v)
+    final void soProducerIndex(long newValue)
     {
-        UNSAFE.putOrderedLong(this, P_INDEX_OFFSET, v);
+        UNSAFE.putOrderedLong(this, P_INDEX_OFFSET, newValue);
     }
 
-    final void soConsumerIndex(long v)
-    {
-        UNSAFE.putOrderedLong(this, C_INDEX_OFFSET, v);
-    }
-
-    public final long lvConsumerIndex()
-    {
-        return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
-    }
-
+    @Override
     public final long lvProducerIndex()
     {
         return UNSAFE.getLongVolatile(this, P_INDEX_OFFSET);
     }
+}
+
+abstract class BaseSpscLinkedArrayQueueProducerColdFields<E> extends BaseSpscLinkedArrayQueueProducerFields<E>
+{
+    protected long producerBufferLimit;
+    protected long producerMask; // fixed for chunked and unbounded
+    
+    protected E[] producerBuffer;
+}
+
+abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProducerColdFields<E>
+    implements MessagePassingQueue<E>, QueueProgressIndicators
+{
+
+    private static final Object JUMP = new Object();
 
     @Override
     public final Iterator<E> iterator()
@@ -148,22 +158,18 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
 
     protected final void soNext(E[] curr, E[] next)
     {
-        soElement(curr, nextArrayOffset(curr), next);
+        long offset = nextArrayOffset(curr);
+        soElement(curr, offset, next);
     }
 
     @SuppressWarnings("unchecked")
     protected final E[] lvNextArrayAndUnlink(E[] curr)
     {
-        final long nextArrayOffset = nextArrayOffset(curr);
-        final E[] nextBuffer = (E[]) lvElement(curr, nextArrayOffset);
+        final long offset = nextArrayOffset(curr);
+        final E[] nextBuffer = (E[]) lvElement(curr, offset);
         // prevent GC nepotism
-        soElement(curr, nextArrayOffset, null);
+        soElement(curr, offset, null);
         return nextBuffer;
-    }
-
-    private long nextArrayOffset(E[] curr)
-    {
-        return REF_ARRAY_BASE + ((long) (curr.length - 1) << REF_ELEMENT_SHIFT);
     }
 
     @Override
@@ -270,11 +276,9 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
      * This implementation is correct for single producer thread use only.
      */
     @Override
-    public boolean offer(E e)
-    {
+    public boolean offer(final E e) {
         // Objects.requireNonNull(e);
-        if (null == e)
-        {
+        if (null == e) {
             throw new NullPointerException();
         }
         // local load of field to avoid repeated loads after volatile reads
@@ -283,13 +287,20 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
         final long mask = producerMask;
         final long offset = calcElementOffset(index, mask);
         // expected hot path
-        if (index < producerBufferLimit)
-        {
+        if (index < producerBufferLimit) {
             writeToQueue(buffer, e, index, offset);
             return true;
         }
         return offerColdPath(buffer, mask, index, offset, e, null);
     }
+
+    abstract boolean offerColdPath(
+        E[] buffer,
+        long mask,
+        long pIndex,
+        long offset,
+        E v,
+        Supplier<? extends E> s);
 
     /**
      * {@inheritDoc}
@@ -298,8 +309,7 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
      */
     @SuppressWarnings("unchecked")
     @Override
-    public E poll()
-    {
+    public E poll() {
         // local load of field to avoid repeated loads after volatile reads
         final E[] buffer = consumerBuffer;
         final long index = consumerIndex;
@@ -307,14 +317,11 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
         final long offset = calcElementOffset(index, mask);
         final Object e = lvElement(buffer, offset);// LoadLoad
         boolean isNextBuffer = e == JUMP;
-        if (null != e && !isNextBuffer)
-        {
+        if (null != e && !isNextBuffer) {
             soConsumerIndex(index + 1);// this ensures correctness on 32bit platforms
             soElement(buffer, offset, null);
             return (E) e;
-        }
-        else if (isNextBuffer)
-        {
+        } else if (isNextBuffer) {
             return newBufferPoll(buffer, index);
         }
 
@@ -328,32 +335,24 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
      */
     @SuppressWarnings("unchecked")
     @Override
-    public E peek()
-    {
+    public E peek() {
         final E[] buffer = consumerBuffer;
         final long index = consumerIndex;
         final long mask = consumerMask;
         final long offset = calcElementOffset(index, mask);
         final Object e = lvElement(buffer, offset);// LoadLoad
-        if (e == JUMP)
-        {
+        if (e == JUMP) {
             return newBufferPeek(buffer, index);
         }
 
         return (E) e;
     }
 
-    abstract boolean offerColdPath(
-        E[] buffer,
-        long mask,
-        long pIndex,
-        long offset,
-        E v,
-        Supplier<? extends E> s);
-
     final void linkOldToNew(
-        long currIndex, E[] oldBuffer, long offset,
-        E[] newBuffer, long offsetInNew, E e)
+        final long currIndex,
+        final E[] oldBuffer, final long offset,
+        final E[] newBuffer, final long offsetInNew,
+        final E e)
     {
         soElement(newBuffer, offsetInNew, e);// StoreStore
         // link to next buffer and add next indicator as element of old buffer
@@ -363,30 +362,30 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
         soProducerIndex(currIndex + 1);// this ensures atomic write of long on 32bit platforms
     }
 
-    final void writeToQueue(E[] buffer, E e, long index, long offset)
+    final void writeToQueue(final E[] buffer, final E e, final long index, final long offset)
     {
         soElement(buffer, offset, e);// StoreStore
         soProducerIndex(index + 1);// this ensures atomic write of long on 32bit platforms
     }
 
-    private E newBufferPeek(E[] buffer, long index)
+    private E newBufferPeek(final E[] buffer, final long index)
     {
         E[] nextBuffer = lvNextArrayAndUnlink(buffer);
         consumerBuffer = nextBuffer;
-        final long newMask = nextBuffer.length - 2;
-        consumerMask = newMask;
-        final long offsetInNew = calcElementOffset(index, newMask);
-        return lvElement(nextBuffer, offsetInNew);// LoadLoad
+        final long mask = length(nextBuffer) - 2;
+        consumerMask = mask;
+        final long offset = calcElementOffset(index, mask);
+        return lvElement(nextBuffer, offset);// LoadLoad
     }
 
-    private E newBufferPoll(E[] buffer, long index)
+    private E newBufferPoll(final E[] buffer, final long index)
     {
         E[] nextBuffer = lvNextArrayAndUnlink(buffer);
         consumerBuffer = nextBuffer;
-        final long newMask = nextBuffer.length - 2;
-        consumerMask = newMask;
-        final long offsetInNew = calcElementOffset(index, newMask);
-        final E n = lvElement(nextBuffer, offsetInNew);// LoadLoad
+        final long mask = length(nextBuffer) - 2;
+        consumerMask = mask;
+        final long offset = calcElementOffset(index, mask);
+        final E n = lvElement(nextBuffer, offset);// LoadLoad
         if (null == n)
         {
             throw new IllegalStateException("new buffer must have at least one element");
@@ -394,7 +393,7 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
         else
         {
             soConsumerIndex(index + 1);// this ensures correctness on 32bit platforms
-            soElement(nextBuffer, offsetInNew, null);// StoreStore
+            soElement(nextBuffer, offset, null);// StoreStore
             return n;
         }
     }

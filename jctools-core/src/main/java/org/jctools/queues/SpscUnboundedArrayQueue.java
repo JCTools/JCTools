@@ -64,7 +64,6 @@ public class SpscUnboundedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E>
         return true;
     }
 
-
     @Override
     public int capacity()
     {

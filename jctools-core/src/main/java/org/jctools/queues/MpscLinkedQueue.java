@@ -53,8 +53,9 @@ public abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E>
 
     protected MpscLinkedQueue()
     {
-        consumerNode = new LinkedQueueNode<E>();
-        xchgProducerNode(consumerNode);// this ensures correct construction: StoreLoad
+        LinkedQueueNode<E> node = newNode();
+        spConsumerNode(node);
+        xchgProducerNode(node);
     }
 
     /**
@@ -80,7 +81,7 @@ public abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E>
         {
             throw new NullPointerException();
         }
-        final LinkedQueueNode<E> nextNode = new LinkedQueueNode<E>(e);
+        final LinkedQueueNode<E> nextNode = newNode(e);
         final LinkedQueueNode<E> prevProducerNode = xchgProducerNode(nextNode);
         // Should a producer thread get interrupted here the chain WILL be broken until that thread is resumed
         // and completes the store in prev.next.
@@ -126,7 +127,7 @@ public abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E>
     @Override
     public final E peek()
     {
-        LinkedQueueNode<E> currConsumerNode = consumerNode; // don't load twice, it's alright
+        LinkedQueueNode<E> currConsumerNode = lpConsumerNode(); // don't load twice, it's alright
         LinkedQueueNode<E> nextNode = currConsumerNode.lvNext();
         if (nextNode != null)
         {
@@ -210,19 +211,15 @@ public abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E>
         while (result <= Integer.MAX_VALUE - 4096);
         return (int) result;
     }
-
+    
     @Override
     public int fill(Supplier<E> s, int limit)
     {
-        if (limit == 0)
-        {
-            return 0;
-        }
-        LinkedQueueNode<E> tail = new LinkedQueueNode<E>(s.get());
+        if (limit == 0) return 0;
+        LinkedQueueNode<E> tail = newNode(s.get());
         final LinkedQueueNode<E> head = tail;
-        for (int i = 1; i < limit; i++)
-        {
-            final LinkedQueueNode<E> temp = new LinkedQueueNode<E>(s.get());
+        for (int i = 1; i < limit; i++) {
+            final LinkedQueueNode<E> temp = newNode(s.get());
             tail.soNext(temp);
             tail = temp;
         }
@@ -240,6 +237,7 @@ public abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E>
         }
     }
 
+    // $gen:ignore
     protected abstract LinkedQueueNode<E> xchgProducerNode(LinkedQueueNode<E> nextNode);
 
     private boolean casProducerNode(LinkedQueueNode<E> oldVal, LinkedQueueNode<E> newVal)

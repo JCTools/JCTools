@@ -199,37 +199,31 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E> {
         return lvElement(buffer, calcElementOffset(consumerIndex));
     }
 
-    // $gen:ignore
     @Override
     public boolean relaxedOffer(final E message) {
         return offer(message);
     }
 
-    // $gen:ignore
     @Override
     public E relaxedPoll() {
         return poll();
     }
 
-    // $gen:ignore
     @Override
     public E relaxedPeek() {
         return peek();
     }
 
-    // $gen:ignore
     @Override
     public int drain(final Consumer<E> c) {
         return drain(c, capacity());
     }
 
-    // $gen:ignore
     @Override
     public int fill(final Supplier<E> s) {
         return fill(s, capacity());
     }
 
-    // $gen:ignore
     @Override
     public int drain(final Consumer<E> c, final int limit) {
         final E[] buffer = this.buffer;
@@ -250,7 +244,6 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E> {
         return limit;
     }
 
-    // $gen:ignore
     @Override
     public int fill(final Supplier<E> s, final int limit) {
         final E[] buffer = this.buffer;
@@ -283,7 +276,6 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E> {
         return limit;
     }
 
-    // $gen:ignore
     @Override
     public void drain(final Consumer<E> c, final WaitStrategy w, final ExitCondition exit) {
         final E[] buffer = this.buffer;
@@ -308,7 +300,6 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E> {
         }
     }
 
-    // $gen:ignore
     @Override
     public void fill(final Supplier<E> s, final WaitStrategy w, final ExitCondition e) {
         final E[] buffer = this.buffer;
