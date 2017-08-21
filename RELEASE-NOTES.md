@@ -1,3 +1,16 @@
+2.1.0
+==========
+Bug fixes:
+- PR #188 JvmInfo called from Atomic queues invokes Unsafe methods (thanks @kay )
+
+Features:
+- PR #187 + #186 + #185  Atomic queues are now generated from source (thanks @kay )
+- PR #184 + #190 MpscLinked supports a remove method (thanks @Scottmitch )
+- PR #183   Make SpscLinkedArray queues support the MPQ interface (thanks @franz1981 )
+- PR #181 Testing was expanded for NBHM, and minor issue fixed (thanks @qwwdfsad )
+
+Some further improvements to formatting, javadoc and testing and general tending to the garden by @nitsanw
+
 2.0.2
 ==========
 - PR #168 from @maseev - unifying the approach to queue size range checks and exceptions
