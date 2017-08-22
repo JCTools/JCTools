@@ -33,10 +33,13 @@ import org.jctools.util.UnsafeRefArrayAccess;
  */
 public abstract class OffHeapFixedMessageSizeRingBuffer extends ProxyChannelRingBuffer {
 
-    public static final int READ_RELEASE_INDICATOR = 0;
-    public static final int READ_ACQUIRE_INDICATOR = 1;
-    public static final int WRITE_RELEASE_INDICATOR = 2;
-    public static final int WRITE_ACQUIRE_INDICATOR = 3;
+    /*
+     * Valid values in the buffer are >0, so we use <0 sentinel values for
+     */
+    public static final int READ_RELEASE_INDICATOR = -10;
+    public static final int READ_ACQUIRE_INDICATOR = -11;
+    public static final int WRITE_RELEASE_INDICATOR = -12;
+    public static final int WRITE_ACQUIRE_INDICATOR = -13;
     public static final byte MESSAGE_INDICATOR_SIZE = 4;
     public static final int HEADER_SIZE = 4 * CACHE_LINE_SIZE;
 
@@ -172,14 +175,32 @@ public abstract class OffHeapFixedMessageSizeRingBuffer extends ProxyChannelRing
     }
 
     protected static long offsetForIndex(long bufferAddress, long mask, int messageSize, long currentHead) {
-		return bufferAddress + ((currentHead & mask) * messageSize);
-	}
+        return bufferAddress + ((currentHead & mask) * messageSize);
+    }
+
+    protected final long relativeIndexForOffset(long offset) {
+        return relativeIndexForOffset(bufferAddress, messageSize, offset);
+    }
+
+    /**
+     * Computes an index relative to the buffer start for an offset. This does
+     * not recover the original index because that is a very <b>hard</b>
+     * problem.
+     * 
+     * @param bufferAddress
+     * @param messageSize
+     * @param offset
+     * @return
+     */
+    protected static long relativeIndexForOffset(long bufferAddress, int messageSize, long offset) {
+        return (offset - bufferAddress) / messageSize;
+    }
 
 	protected final long lpConsumerIndex() {
         return UNSAFE.getLong(null, consumerIndexAddress);
     }
 
-    protected final long lvConsumerIndex() {
+	protected final long lvConsumerIndex() {
         return UNSAFE.getLongVolatile(null, consumerIndexAddress);
     }
 
@@ -209,13 +230,13 @@ public abstract class OffHeapFixedMessageSizeRingBuffer extends ProxyChannelRing
         return (currentHead & mask) * referenceMessageSize;
     }
 
-    protected long consumerReferenceArrayIndex() {
-        final long consumerIndex = lpConsumerIndex();
+    protected long consumerReferenceArrayIndex(long offset) {
+        final long consumerIndex = relativeIndexForOffset(offset);
         return arrayIndexForCursor(consumerIndex);
     }
     
-    protected long producerReferenceArrayIndex() {
-        final long producerIndex = lpProducerIndex();
+    protected long producerReferenceArrayIndex(long offset) {
+        final long producerIndex = relativeIndexForOffset(offset);
         return arrayIndexForCursor(producerIndex);
     }
     
