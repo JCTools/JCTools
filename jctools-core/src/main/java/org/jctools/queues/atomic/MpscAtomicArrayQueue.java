@@ -232,7 +232,7 @@ public class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
      * Lock free offer using a single CAS. As class name suggests access is permitted to many threads
      * concurrently.
      *
-     * @see java.util.Queue#offer   
+     * @see java.util.Queue#offer
      * @see org.jctools.queues.MessagePassingQueue#offer
      */
     @Override

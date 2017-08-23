@@ -50,6 +50,7 @@ import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 public final class JavaParsingAtomicLinkedQueueGenerator extends VoidVisitorAdapter<Void> {
     private static final String GEN_DIRECTIVE_CLASS_CONTAINS_ORDERED_FIELD_ACCESSORS = "$gen:ordered-fields";
     private static final String GEN_DIRECTIVE_METHOD_IGNORE = "$gen:ignore";
+    private static final String MPSC_LINKED_ATOMIC_QUEUE_NAME = "MpscLinkedAtomicQueue";
     private static final String INDENT_LEVEL = "    ";
     private final String sourceFileName;
 
@@ -83,7 +84,7 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends VoidVisitorAdap
         replaceParentClassesForAtomics(node);
 
         node.setName(translateQueueName(node.getNameAsString()));
-        if ("MpscLinkedAtomicQueue".equals(node.getNameAsString())) {
+        if (MPSC_LINKED_ATOMIC_QUEUE_NAME.equals(node.getNameAsString())) {
             /*
              * Special case for MPSC
              */
@@ -115,6 +116,11 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends VoidVisitorAdap
         super.visit(n, arg);
         // Update the ctor to match the class name
         n.setName(translateQueueName(n.getNameAsString()));
+        if (MPSC_LINKED_ATOMIC_QUEUE_NAME.equals(n.getNameAsString())) {
+            // Special case for MPSC because the Unsafe variant has a static factory method and a protected constructor.
+            n.setModifier(Modifier.PROTECTED, false);
+            n.setModifier(Modifier.PUBLIC, true);
+        }
     }
 
     @Override
