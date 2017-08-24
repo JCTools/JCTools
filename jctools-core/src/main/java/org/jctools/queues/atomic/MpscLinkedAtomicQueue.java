@@ -44,7 +44,7 @@ import org.jctools.queues.MpmcArrayQueue;
  */
 public final class MpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
 
-    protected MpscLinkedAtomicQueue() {
+    public MpscLinkedAtomicQueue() {
         LinkedQueueAtomicNode<E> node = newNode();
         spConsumerNode(node);
         xchgProducerNode(node);
