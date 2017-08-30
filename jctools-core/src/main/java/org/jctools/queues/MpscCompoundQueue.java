@@ -97,29 +97,38 @@ public class MpscCompoundQueue<E> extends MpscCompoundQueueConsumerQueueIndex<E>
         {
             throw new NullPointerException();
         }
+        final int parallelQueuesMask = this.parallelQueuesMask;
         int start = (int) (Thread.currentThread().getId() & parallelQueuesMask);
+        final MpscArrayQueue<E>[] queues = this.queues;
         if (queues[start].offer(e))
         {
             return true;
         }
         else
         {
-            for (; ; )
+            return slowOffer(queues, parallelQueuesMask, start + 1, e);
+        }
+    }
+
+    private boolean slowOffer(MpscArrayQueue<E>[] queues, int parallelQueuesMask, int start, E e)
+    {
+        final int queueCount = parallelQueuesMask + 1;
+        final int end = start + queueCount;
+        while (true)
+        {
+            int status = 0;
+            for (int i = start; i < end; i++)
             {
-                int status = 0;
-                for (int i = start; i < start + parallelQueues; i++)
+                int s = queues[i & parallelQueuesMask].failFastOffer(e);
+                if (s == 0)
                 {
-                    int s = queues[i & parallelQueuesMask].failFastOffer(e);
-                    if (s == 0)
-                    {
-                        return true;
-                    }
-                    status += s;
+                    return true;
                 }
-                if (status == parallelQueues)
-                {
-                    return false;
-                }
+                status += s;
+            }
+            if (status == queueCount)
+            {
+                return false;
             }
         }
     }
@@ -193,32 +202,22 @@ public class MpscCompoundQueue<E> extends MpscCompoundQueueConsumerQueueIndex<E>
         final int parallelQueuesMask = this.parallelQueuesMask;
         int start = (int) (Thread.currentThread().getId() & parallelQueuesMask);
         final MpscArrayQueue<E>[] queues = this.queues;
-        int status = 0;
-        if ((status = queues[start].failFastOffer(e)) == 0)
+        if (queues[start].failFastOffer(e) == 0)
         {
             return true;
         }
         else
         {
-            for (; ; )
+            // we already offered to first queue, try the rest
+            for (int i = start + 1; i < start + parallelQueuesMask + 1; i++)
             {
-
-                final int parallelQueues = this.parallelQueues;
-                for (int i = start + 1; i < start + parallelQueues; i++)
+                if (queues[i & parallelQueuesMask].failFastOffer(e) == 0)
                 {
-                    int s = queues[i & parallelQueuesMask].failFastOffer(e);
-                    if (s == 0)
-                    {
-                        return true;
-                    }
-                    status += s;
+                    return true;
                 }
-                if (status == parallelQueues)
-                {
-                    return false;
-                }
-                status = 0;
             }
+            // this is a relaxed offer, we can fail for any reason we like
+            return false;
         }
     }
 

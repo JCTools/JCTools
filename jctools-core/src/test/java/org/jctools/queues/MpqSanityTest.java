@@ -104,6 +104,8 @@ public abstract class MpqSanityTest
     @Test
     public void sanityDrainBatch()
     {
+        assumeThat(spec.ordering, not(Ordering.NONE));
+
         assertEquals(0, queue.drain(e ->
         {
         }, SIZE));
@@ -174,6 +176,7 @@ public abstract class MpqSanityTest
     public void supplyMessageUntilFull()
     {
         assumeThat(spec.isBounded(), is(Boolean.TRUE));
+        assumeThat(spec.ordering, not(Ordering.NONE));
         final Val instances = new Val();
         instances.value = 0;
         final MessagePassingQueue.Supplier<Integer> messageFactory = () -> instances.value++;
