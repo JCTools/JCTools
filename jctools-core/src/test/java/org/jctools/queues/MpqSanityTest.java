@@ -4,6 +4,7 @@ import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
 import org.jctools.queues.spec.Preference;
 import org.jctools.util.Pow2;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -19,7 +20,8 @@ public abstract class MpqSanityTest
 {
 
     static final int SIZE = 8192 * 2;
-    static final int CONCURRENT_TEST_DURATION = 250;
+    static final int CONCURRENT_TEST_DURATION = 1000;
+    static final int TEST_TIMEOUT = 30000;
 
     private final MessagePassingQueue<Integer> queue;
     private final ConcurrentQueueSpec spec;
@@ -43,10 +45,13 @@ public abstract class MpqSanityTest
         return new Object[] {spec, q};
     }
 
-    @Before
-    public void clear()
+    @After
+    public void clear() throws InterruptedException
     {
         queue.clear();
+        assertTrue(queue.isEmpty());
+        assertTrue(queue.size() == 0);
+
     }
 
     @Test(expected = NullPointerException.class)
@@ -225,7 +230,7 @@ public abstract class MpqSanityTest
     @Test
     public void test_FIFO_PRODUCER_Ordering() throws Exception
     {
-        assumeThat(spec.ordering, is(not((Ordering.FIFO))));
+        assumeThat(spec.ordering, is((Ordering.FIFO)));
 
         // Arrange
         int i = 0;
@@ -283,13 +288,13 @@ public abstract class MpqSanityTest
         assertFalse(queue.relaxedOffer(n));
     }
 
-    @Test
+    @Test(timeout = TEST_TIMEOUT)
     public void testHappensBefore() throws Exception
     {
         final AtomicBoolean stop = new AtomicBoolean();
         final MessagePassingQueue q = queue;
         final Val fail = new Val();
-        Thread t1 = new Thread(new Runnable()
+        final Runnable runnable = new Runnable()
         {
             @Override
             public void run()
@@ -307,8 +312,10 @@ public abstract class MpqSanityTest
                     Thread.yield();
                 }
             }
-        });
-        Thread t2 = new Thread(new Runnable()
+        };
+        Thread[] producers = producers(runnable);
+
+        Thread consumer = new Thread(new Runnable()
         {
             @Override
             public void run()
@@ -317,38 +324,40 @@ public abstract class MpqSanityTest
                 {
                     for (int i = 0; i < 10; i++)
                     {
-                        Val v = (Val) q.relaxedPeek();
-                        if (v != null && v.value == 0)
+                        Val v1 = (Val) q.relaxedPeek();
+                        if (v1 != null && v1.value == 0)
                         {
                             fail.value = 1;
                             stop.set(true);
                         }
-                        q.relaxedPoll();
+                        else
+                        {
+                            continue;
+                        }
+                        Val v2 = (Val) q.relaxedPoll();
+                        if (v2 == null || v1 != v2)
+                        {
+                            fail.value = 2;
+                            stop.set(true);
+                        }
                     }
                 }
             }
         });
 
-        t1.start();
-        t2.start();
-        Thread.sleep(CONCURRENT_TEST_DURATION);
-        stop.set(true);
-        t1.join();
-        t2.join();
+        stopAll(stop, producers, consumer);
         assertEquals("reordering detected", 0, fail.value);
 
     }
 
-    @Test
-    public void testHappensBeforePrepetualDrain() throws Exception
+    @Test(timeout = TEST_TIMEOUT)
+    public void testHappensBeforePerpetualDrain() throws Exception
     {
         final AtomicBoolean stop = new AtomicBoolean();
         final MessagePassingQueue q = queue;
         final Val fail = new Val();
-        Thread t1 = new Thread(new Runnable()
+        final Runnable runnable = new Runnable()
         {
-            int counter;
-
             @Override
             public void run()
             {
@@ -365,8 +374,10 @@ public abstract class MpqSanityTest
                     Thread.yield();
                 }
             }
-        });
-        Thread t2 = new Thread(new Runnable()
+        };
+        Thread[] producers = producers(runnable);
+
+        Thread consumer = new Thread(new Runnable()
         {
             @Override
             public void run()
@@ -381,9 +392,15 @@ public abstract class MpqSanityTest
                             fail.value = 1;
                             stop.set(true);
                         }
-                    }, e ->
+                        if (v == null)
+                        {
+                            fail.value = 1;
+                            stop.set(true);
+                            System.out.println("Unexpected: v == null");
+                        }
+                    }, idle ->
                     {
-                        return e;
+                        return idle;
                     }, () ->
                     {
                         return !stop.get();
@@ -392,23 +409,18 @@ public abstract class MpqSanityTest
             }
         });
 
-        t1.start();
-        t2.start();
-        Thread.sleep(CONCURRENT_TEST_DURATION);
-        stop.set(true);
-        t1.join();
-        t2.join();
+        stopAll(stop, producers, consumer);
         assertEquals("reordering detected", 0, fail.value);
 
     }
 
-    @Test
-    public void testHappensBeforePrepetualFill() throws Exception
+    @Test(timeout = TEST_TIMEOUT)
+    public void testHappensBeforePerpetualFill() throws Exception
     {
         final AtomicBoolean stop = new AtomicBoolean();
         final MessagePassingQueue q = queue;
         final Val fail = new Val();
-        Thread t1 = new Thread(new Runnable()
+        final Runnable runnable = new Runnable()
         {
             int counter;
 
@@ -432,8 +444,9 @@ public abstract class MpqSanityTest
                     return !stop.get();
                 });
             }
-        });
-        Thread t2 = new Thread(new Runnable()
+        };
+        Thread[] producers = producers(runnable);
+        Thread consumer = new Thread(new Runnable()
         {
             @Override
             public void run()
@@ -442,36 +455,41 @@ public abstract class MpqSanityTest
                 {
                     for (int i = 0; i < 10; i++)
                     {
-                        Val v = (Val) q.relaxedPeek();
+                        Val v1 = (Val) q.relaxedPeek();
                         int r;
-                        if (v != null && (r = v.value) == 0)
+                        if (v1 != null && (r = v1.value) == 0)
                         {
                             fail.value = 1;
                             stop.set(true);
                         }
-                        q.relaxedPoll();
+                        else
+                        {
+                            continue;
+                        }
+
+                        Val v2 = (Val) q.relaxedPoll();
+                        if (v2 == null || v1 != v2)
+                        {
+                            fail.value = 1;
+                            stop.set(true);
+                        }
                     }
                 }
             }
         });
 
-        t1.start();
-        t2.start();
-        Thread.sleep(CONCURRENT_TEST_DURATION);
-        stop.set(true);
-        t1.join();
-        t2.join();
+        stopAll(stop, producers, consumer);
         assertEquals("reordering detected", 0, fail.value);
 
     }
 
-    @Test
-    public void testHappensBeforePrepetualFillDrain() throws Exception
+    @Test(timeout = TEST_TIMEOUT)
+    public void testHappensBeforePerpetualFillDrain() throws Exception
     {
         final AtomicBoolean stop = new AtomicBoolean();
         final MessagePassingQueue q = queue;
         final Val fail = new Val();
-        Thread t1 = new Thread(new Runnable()
+        final Runnable runnable = new Runnable()
         {
             int counter;
 
@@ -494,8 +512,10 @@ public abstract class MpqSanityTest
                     return !stop.get();
                 });
             }
-        });
-        Thread t2 = new Thread(new Runnable()
+        };
+        Thread[] producers = producers(runnable);
+
+        Thread consumer = new Thread(new Runnable()
         {
             @Override
             public void run()
@@ -510,9 +530,15 @@ public abstract class MpqSanityTest
                             fail.value = 1;
                             stop.set(true);
                         }
-                    }, e ->
+                        if (v == null)
+                        {
+                            fail.value = 1;
+                            stop.set(true);
+                            System.out.println("Unexpected: v == null");
+                        }
+                    }, idle ->
                     {
-                        return e;
+                        return idle;
                     }, () ->
                     {
                         return !stop.get();
@@ -521,24 +547,20 @@ public abstract class MpqSanityTest
             }
         });
 
-        t1.start();
-        t2.start();
-        Thread.sleep(CONCURRENT_TEST_DURATION);
-        stop.set(true);
-        t1.join();
-        t2.join();
+        stopAll(stop, producers, consumer);
         assertEquals("reordering detected", 0, fail.value);
+        queue.clear();
 
     }
 
-    @Test
-    public void testSize() throws Exception
+    @Test(timeout = TEST_TIMEOUT)
+    public void testRelaxedOfferPollObservedSize() throws Exception
     {
-        assumeThat(spec.isBounded(), is(true));
+        final int capacity = spec.capacity == 0 ? Integer.MAX_VALUE : spec.capacity;
         final AtomicBoolean stop = new AtomicBoolean();
         final MessagePassingQueue<Integer> q = queue;
         final Val fail = new Val();
-        Thread t1 = new Thread(new Runnable()
+        final Runnable runnable = new Runnable()
         {
             @Override
             public void run()
@@ -549,16 +571,31 @@ public abstract class MpqSanityTest
                     q.relaxedPoll();
                 }
             }
-        });
-        Thread t2 = new Thread(new Runnable()
+        };
+        final Thread[] producersConsumers;
+        if (!spec.isMpmc())
+        {
+            producersConsumers = new Thread[1];
+        }
+        else
+        {
+            producersConsumers = new Thread[Runtime.getRuntime().availableProcessors() - 1];
+        }
+        for (int i = 0; i < producersConsumers.length; i++)
+        {
+            producersConsumers[i] = new Thread(runnable);
+        }
+
+        Thread observer = new Thread(new Runnable()
         {
             @Override
             public void run()
             {
+                final int max = Math.min(producersConsumers.length, capacity);
                 while (!stop.get())
                 {
                     int size = q.size();
-                    if (size != 0 && size != 1)
+                    if (size < 0 && size > max)
                     {
                         fail.value++;
                     }
@@ -566,14 +603,37 @@ public abstract class MpqSanityTest
             }
         });
 
-        t1.start();
-        t2.start();
-        Thread.sleep(CONCURRENT_TEST_DURATION);
-        stop.set(true);
-        t1.join();
-        t2.join();
+        stopAll(stop, producersConsumers, observer);
         assertEquals("Unexpected size observed", 0, fail.value);
 
+    }
+
+    private void stopAll(AtomicBoolean stop, Thread[] producers, Thread consumer) throws InterruptedException
+    {
+        for (Thread t : producers) t.start();
+        consumer.start();
+        Thread.sleep(CONCURRENT_TEST_DURATION);
+        stop.set(true);
+        for (Thread t : producers)  t.join();
+        consumer.join();
+    }
+
+    private Thread[] producers(Runnable runnable)
+    {
+        Thread[] producers;
+        if (spec.producers == 1)
+        {
+            producers = new Thread[1];
+        }
+        else
+        {
+            producers = new Thread[Runtime.getRuntime().availableProcessors() - 1];
+        }
+        for (int i = 0; i < producers.length; i++)
+        {
+            producers[i] = new Thread(runnable);
+        }
+        return producers;
     }
 
     static final class Val

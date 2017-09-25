@@ -170,6 +170,10 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
     // No post padding here, subclasses must add
 
     private final static Object JUMP = new Object();
+    public static final int CONTINUE_TO_P_INDEX_CAS = 0;
+    public static final int RETRY = 1;
+    public static final int QUEUE_FULL = 2;
+    public static final int QUEUE_RESIZE = 3;
 
 
     /**
@@ -276,7 +280,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
             // mask/buffer may get changed by resizing -> only use for array access after successful CAS.
             mask = this.producerMask;
             buffer = this.producerBuffer;
-            // a successful CAS ties the ordering, lv(pIndex)-[mask/buffer]->cas(pIndex)
+            // a successful CAS ties the ordering, lv(pIndex) - [mask/buffer] -> cas(pIndex)
 
             // assumption behind this optimization is that queue is almost always empty or near empty
             if (producerLimit <= pIndex)
@@ -284,13 +288,13 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
                 int result = offerSlowPath(mask, pIndex, producerLimit);
                 switch (result)
                 {
-                    case 0:
+                    case CONTINUE_TO_P_INDEX_CAS:
                         break;
-                    case 1:
+                    case RETRY:
                         continue;
-                    case 2:
+                    case QUEUE_FULL:
                         return false;
-                    case 3:
+                    case QUEUE_RESIZE:
                         resize(mask, buffer, pIndex, e);
                         return true;
                 }
@@ -301,9 +305,9 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
                 break;
             }
         }
-        // INDEX visible before ELEMENT, consistent with consumer expectation
+        // INDEX visible before ELEMENT
         final long offset = modifiedCalcElementOffset(pIndex, mask);
-        soElement(buffer, offset, e);
+        soElement(buffer, offset, e); // release element e
         return true;
     }
 
@@ -340,13 +344,15 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
                 return null;
             }
         }
+
         if (e == JUMP)
         {
             final E[] nextBuffer = getNextBuffer(buffer, mask);
             return newBufferPoll(nextBuffer, index);
         }
-        soElement(buffer, offset, null);
-        soConsumerIndex(index + 2);
+
+        soElement(buffer, offset, null); // release element null
+        soConsumerIndex(index + 2); // release cIndex
         return (E) e;
     }
 
@@ -385,32 +391,39 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
      */
     private int offerSlowPath(long mask, long pIndex, long producerLimit)
     {
-        int result;
         final long cIndex = lvConsumerIndex();
         long bufferCapacity = getCurrentBufferCapacity(mask);
-        result = 0;// 0 - goto pIndex CAS
+
         if (cIndex + bufferCapacity > pIndex)
         {
             if (!casProducerLimit(producerLimit, cIndex + bufferCapacity))
             {
-                result = 1;// retry from top
+                // retry from top
+                return RETRY;
+            }
+            else
+            {
+                // continue to pIndex CAS
+                return CONTINUE_TO_P_INDEX_CAS;
             }
         }
         // full and cannot grow
         else if (availableInQueue(pIndex, cIndex) <= 0)
         {
-            result = 2;// -> return false;
+            // offer should return false;
+            return QUEUE_FULL;
         }
         // grab index for resize -> set lower bit
         else if (casProducerIndex(pIndex, pIndex + 1))
         {
-            result = 3;// -> resize
+            // trigger a resize
+            return QUEUE_RESIZE;
         }
         else
         {
-            result = 1;// failed resize attempt, retry from top
+            // failed resize attempt, retry from top
+            return RETRY;
         }
-        return result;
     }
 
     /**
@@ -563,25 +576,27 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
             // pIndex is even (lower bit is 0) -> actual index is (pIndex >> 1)
 
             // NOTE: mask/buffer may get changed by resizing -> only use for array access after successful CAS.
-            // Only by virtue ofloading them between the lvProcducerIndex and a successful casProducerIndex are they
+            // Only by virtue offloading them between the lvProducerIndex and a successful casProducerIndex are they
             // safe to use.
             mask = this.producerMask;
             buffer = this.producerBuffer;
-            // a successful CAS ties the ordering, lv(pIndex)->[mask/buffer]->cas(pIndex)
+            // a successful CAS ties the ordering, lv(pIndex) -> [mask/buffer] -> cas(pIndex)
 
             // we want 'limit' slots, but will settle for whatever is visible to 'producerLimit'
             long batchIndex = Math.min(producerLimit, pIndex + 2 * batchSize);
 
-            if (pIndex == producerLimit || producerLimit < batchIndex)
+            if (pIndex >= producerLimit || producerLimit < batchIndex)
             {
                 int result = offerSlowPath(mask, pIndex, producerLimit);
                 switch (result)
                 {
-                    case 1:
+                    case CONTINUE_TO_P_INDEX_CAS:
+                        // offer slow path verifies only one slot ahead, we cannot rely on indication here
+                    case RETRY:
                         continue;
-                    case 2:
+                    case QUEUE_FULL:
                         return 0;
-                    case 3:
+                    case QUEUE_RESIZE:
                         resize(mask, buffer, pIndex, s.get());
                         return 1;
                 }
@@ -595,8 +610,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
             }
         }
 
-        int i = 0;
-        for (i = 0; i < claimedSlots; i++)
+        for (int i = 0; i < claimedSlots; i++)
         {
             final long offset = modifiedCalcElementOffset(pIndex + 2 * i, mask);
             soElement(buffer, offset, s.get());
