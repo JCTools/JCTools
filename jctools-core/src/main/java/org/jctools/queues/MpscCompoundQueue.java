@@ -13,6 +13,7 @@
  */
 package org.jctools.queues;
 
+import org.jctools.util.PortableJvmInfo;
 import org.jctools.util.RangeUtil;
 
 import java.util.AbstractQueue;
@@ -274,7 +275,19 @@ public class MpscCompoundQueue<E> extends MpscCompoundQueueConsumerQueueIndex<E>
     @Override
     public int fill(Supplier<E> s)
     {
-        throw new UnsupportedOperationException();
+        long result = 0;// result is a long because we want to have a safepoint check at regular intervals
+        final int capacity = capacity();
+        do
+        {
+            final int filled = fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH);
+            if (filled == 0)
+            {
+                return (int) result;
+            }
+            result += filled;
+        }
+        while (result <= capacity);
+        return (int) result;
     }
 
     @Override
@@ -295,7 +308,28 @@ public class MpscCompoundQueue<E> extends MpscCompoundQueueConsumerQueueIndex<E>
     @Override
     public int fill(Supplier<E> s, int limit)
     {
-        throw new UnsupportedOperationException();
+        final int parallelQueuesMask = this.parallelQueuesMask;
+        int start = (int) (Thread.currentThread().getId() & parallelQueuesMask);
+        final MpscArrayQueue<E>[] queues = this.queues;
+        int filled = queues[start].fill(s, limit);
+        if (filled == limit)
+        {
+            return limit;
+        }
+        else
+        {
+            // we already offered to first queue, try the rest
+            for (int i = start + 1; i < start + parallelQueuesMask + 1; i++)
+            {
+                filled += queues[i & parallelQueuesMask].fill(s, limit - filled);
+                if (filled == limit)
+                {
+                    return limit;
+                }
+            }
+            // this is a relaxed offer, we can fail for any reason we like
+            return filled;
+        }
     }
 
     @Override
@@ -319,18 +353,14 @@ public class MpscCompoundQueue<E> extends MpscCompoundQueueConsumerQueueIndex<E>
     }
 
     @Override
-    public void fill(
-        Supplier<E> s,
-        WaitStrategy wait,
-        ExitCondition exit)
+    public void fill(Supplier<E> s, WaitStrategy w, ExitCondition exit)
     {
         int idleCounter = 0;
         while (exit.keepRunning())
         {
-            E e = s.get();
-            while (!relaxedOffer(e))
+            if (fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH) == 0)
             {
-                idleCounter = wait.idle(idleCounter);
+                idleCounter = w.idle(idleCounter);
                 continue;
             }
             idleCounter = 0;

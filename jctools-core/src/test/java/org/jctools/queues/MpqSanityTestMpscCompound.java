@@ -12,7 +12,6 @@ import java.util.Collection;
 import static org.jctools.util.PortableJvmInfo.CPUs;
 
 @RunWith(Parameterized.class)
-@Ignore
 public class MpqSanityTestMpscCompound extends MpqSanityTest
 {
     public MpqSanityTestMpscCompound(ConcurrentQueueSpec spec, MessagePassingQueue<Integer> queue)

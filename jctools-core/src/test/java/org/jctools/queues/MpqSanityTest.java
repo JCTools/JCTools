@@ -106,27 +106,28 @@ public abstract class MpqSanityTest
         }
     }
 
+    int sum;
     @Test
     public void sanityDrainBatch()
     {
-        assumeThat(spec.ordering, not(Ordering.NONE));
-
         assertEquals(0, queue.drain(e ->
         {
         }, SIZE));
         assertTrue(queue.isEmpty());
         assertTrue(queue.size() == 0);
         count = 0;
+        sum = 0;
         int i = queue.fill(() ->
         {
-            return count++;
+            final int val = count++;
+            sum += val;
+            return val;
         }, SIZE);
         final int size = i;
         assertEquals(size, queue.size());
         if (spec.ordering == Ordering.FIFO)
         {
             // expect FIFO
-            p = queue.relaxedPeek();
             count = 0;
             int drainCount = 0;
             i = 0;
@@ -134,19 +135,10 @@ public abstract class MpqSanityTest
             {
                 i += drainCount = queue.drain(e ->
                 {
-                    // batch consumption can cause size to differ from following expectation
-                    // this is because elements are 'claimed' in a batch and their consumption lags
-                    if (spec.consumers == 1)
-                    {
-                        assertEquals(p, e); // peek will return the post claim peek
-                        assertEquals(size - (count + 1), queue.size()); // size will return the post claim size
-                    }
                     assertEquals(count++, e.intValue());
-                    p = queue.relaxedPeek();
                 });
             }
             while (drainCount != 0);
-            p = null;
             assertEquals(size, i);
 
             assertTrue(queue.isEmpty());
@@ -154,6 +146,21 @@ public abstract class MpqSanityTest
         }
         else
         {
+            int drainCount = 0;
+            i = 0;
+            do
+            {
+                i += drainCount = queue.drain(e ->
+                {
+                    sum -= e.intValue();
+                });
+            }
+            while (drainCount != 0);
+            assertEquals(size, i);
+
+            assertTrue(queue.isEmpty());
+            assertTrue(queue.size() == 0);
+            assertEquals(0, sum);
         }
     }
 
@@ -181,7 +188,6 @@ public abstract class MpqSanityTest
     public void supplyMessageUntilFull()
     {
         assumeThat(spec.isBounded(), is(Boolean.TRUE));
-        assumeThat(spec.ordering, not(Ordering.NONE));
         final Val instances = new Val();
         instances.value = 0;
         final MessagePassingQueue.Supplier<Integer> messageFactory = () -> instances.value++;
