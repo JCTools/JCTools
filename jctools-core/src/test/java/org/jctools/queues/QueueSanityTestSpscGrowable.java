@@ -22,8 +22,8 @@ public class QueueSanityTestSpscGrowable extends QueueSanityTest
     public static Collection<Object[]> parameters()
     {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
-        list.add(makeQueue(0, 1, 16, Ordering.FIFO, new SpscGrowableArrayQueue<>(8, 16)));
-        list.add(makeQueue(0, 1, SIZE, Ordering.FIFO, new SpscGrowableArrayQueue<>(8, SIZE)));
+        list.add(makeQueue(1, 1, 16, Ordering.FIFO, new SpscGrowableArrayQueue<>(8, 16)));
+        list.add(makeQueue(1, 1, SIZE, Ordering.FIFO, new SpscGrowableArrayQueue<>(8, SIZE)));
         return list;
     }
 

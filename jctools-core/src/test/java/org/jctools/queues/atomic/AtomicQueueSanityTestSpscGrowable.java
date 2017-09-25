@@ -23,8 +23,8 @@ public class AtomicQueueSanityTestSpscGrowable extends QueueSanityTestSpscGrowab
     public static Collection<Object[]> parameters()
     {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
-        list.add(makeAtomic(0, 1, 16, Ordering.FIFO, new SpscGrowableAtomicArrayQueue<>(8, 16)));
-        list.add(makeAtomic(0, 1, SIZE, Ordering.FIFO, new SpscGrowableAtomicArrayQueue<>(8, SIZE)));
+        list.add(makeAtomic(1, 1, 16, Ordering.FIFO, new SpscGrowableAtomicArrayQueue<>(8, 16)));
+        list.add(makeAtomic(1, 1, SIZE, Ordering.FIFO, new SpscGrowableAtomicArrayQueue<>(8, SIZE)));
         return list;
     }
 
