@@ -136,7 +136,7 @@ abstract class BaseMpscLinkedArrayQueueColdProducerFields<E> extends BaseMpscLin
         }
     }
 
-    protected volatile long producerLimit;
+    private volatile long producerLimit;
     protected long producerMask;
     protected E[] producerBuffer;
 
@@ -168,12 +168,11 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
     implements MessagePassingQueue<E>, QueueProgressIndicators
 {
     // No post padding here, subclasses must add
-
-    private final static Object JUMP = new Object();
-    public static final int CONTINUE_TO_P_INDEX_CAS = 0;
-    public static final int RETRY = 1;
-    public static final int QUEUE_FULL = 2;
-    public static final int QUEUE_RESIZE = 3;
+    private static final Object JUMP = new Object();
+    private static final int CONTINUE_TO_P_INDEX_CAS = 0;
+    private static final int RETRY = 1;
+    private static final int QUEUE_FULL = 2;
+    private static final int QUEUE_RESIZE = 3;
 
 
     /**
@@ -375,9 +374,11 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
         {
             // peek() == null iff queue is empty, null element is not strong enough indicator, so we must
             // check the producer index. If the queue is indeed not empty we spin until element is visible.
-            while ((e = lvElement(buffer, offset)) == null)
+            do
             {
+                e = lvElement(buffer, offset);
             }
+            while (e == null);
         }
         if (e == JUMP)
         {
@@ -473,8 +474,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
     {
         consumerBuffer = nextBuffer;
         consumerMask = (length(nextBuffer) - 2) << 1;
-        final long offsetInNew = modifiedCalcElementOffset(index, consumerMask);
-        return offsetInNew;
+        return modifiedCalcElementOffset(index, consumerMask);
     }
 
     @Override
@@ -627,16 +627,14 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
 
         while (exit.keepRunning())
         {
-            while (fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH) != 0 && exit.keepRunning())
+            if (fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH) == 0)
             {
-                continue;
+                int idleCounter = 0;
+                while (exit.keepRunning() && fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH) == 0)
+                {
+                    idleCounter = w.idle(idleCounter);
+                }
             }
-            int idleCounter = 0;
-            while (exit.keepRunning() && fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH) == 0)
-            {
-                idleCounter = w.idle(idleCounter);
-            }
-
         }
     }
 
