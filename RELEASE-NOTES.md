@@ -1,3 +1,10 @@
+2.1.1
+=========
+PR #193 : Fix API break on release in MpscLinkedAtomicQueue
+Issue #194 : Fix MpscCompoundQueue::relaxedOffer bug
+Issue #196 : Fix MpscLinkedArray::fill bug
+Issue #197 : Fix MpscChunkedQueue:fill bug
+
 2.1.0
 ==========
 Bug fixes:
