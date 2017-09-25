@@ -22,6 +22,8 @@ import org.objectweb.asm.util.TraceClassVisitor;
 import sun.misc.Unsafe;
 
 public class ProxyChannelFactory {
+    private static final int START_TYPE_ID = 10;
+
     /**
      * The index of the 'this' object in instance methods
      */
@@ -181,7 +183,7 @@ public class ProxyChannelFactory {
     }
 
     private static void implementUserMethods(ClassWriter classWriter, List<Method> relevantMethods, String generatedName, Class<?extends ProxyChannelRingBuffer> backendType) {
-        int type = 1;
+        int type = START_TYPE_ID;
         for (Method method : relevantMethods) {
             implementUserMethod(method, classWriter, type++, generatedName, backendType);
         }
@@ -234,6 +236,11 @@ public class ProxyChannelFactory {
         int localIndexOfLimit = locals.newLocal(int.class);
         int localIndexOfLoopIndex = locals.newLocal(int.class);
         int localIndexOfROffset = locals.newLocal(long.class);
+        int localIndexOfTypeId = locals.newLocal(int.class);
+        
+        // Label the start of scope for all locals
+        Label localScopeStart = new Label();
+        methodVisitor.visitLabel(localScopeStart);
         
         //int i = 0;
         methodVisitor.visitInsn(Opcodes.ICONST_0);
@@ -271,7 +278,12 @@ public class ProxyChannelFactory {
 
         // switch(UnsafeAccess.UNSAFE.getInt(rOffset)) // start with case 1, increment by 1; represents "type"
         getUnsafe(methodVisitor, int.class, localIndexOfROffset, 0);
-        methodVisitor.visitTableSwitchInsn(1, cases.length, endOfSwitch, cases);
+        methodVisitor.visitVarInsn(Opcodes.ISTORE, localIndexOfTypeId);
+        methodVisitor.visitVarInsn(Opcodes.ILOAD, localIndexOfTypeId);
+        
+        int low = START_TYPE_ID;
+        int high = low + (cases.length - 1);
+        methodVisitor.visitTableSwitchInsn(low, high, endOfSwitch, cases);
 
         // add case statement for each method
         for (int index = 0; index < cases.length; index++) {
@@ -286,8 +298,9 @@ public class ProxyChannelFactory {
             int localIndexOfArrayReferenceBaseIndex = Integer.MIN_VALUE;
             for (Class<?> parameterType : method.getParameterTypes()) {
                 if (!parameterType.isPrimitive()) {
-                    // long referenceArrayIndex = this.consumerReferenceArrayIndex();
-                    consumerReferenceArrayIndex(methodVisitor, backendType);
+                    // long referenceArrayIndex = this.consumerReferenceArrayIndex(rOffset);
+                    consumerReferenceArrayIndex(methodVisitor, localIndexOfROffset, backendType);
+                    // TODO: Should reuse local indices or when an iFace grows too big we might have problems here
                     localIndexOfArrayReferenceBaseIndex = locals.newLocal(long.class);
                     methodVisitor.visitVarInsn(Opcodes.LSTORE, localIndexOfArrayReferenceBaseIndex);
                     break;
@@ -342,7 +355,20 @@ public class ProxyChannelFactory {
         // return i;
         methodVisitor.visitVarInsn(Opcodes.ILOAD, localIndexOfLoopIndex);
         methodVisitor.visitInsn(Opcodes.IRETURN);
+        
 
+        // Label the end of scope for all locals
+        Label localScopeEnd = new Label();
+        methodVisitor.visitLabel(localScopeEnd);
+
+        // Declare local variables to aid in debugging
+        methodVisitor.visitLocalVariable("this", "L" + generatedName + ";", null, localScopeStart, localScopeEnd, 0);
+        methodVisitor.visitLocalVariable("impl", Type.getType(iFace).getDescriptor(), null, localScopeStart, localScopeEnd, localIndexOfImpl);
+        methodVisitor.visitLocalVariable("limit", Type.getType(int.class).getDescriptor(), null, localScopeStart, localScopeEnd, localIndexOfLimit);
+        methodVisitor.visitLocalVariable("loopIndex", Type.getType(int.class).getDescriptor(), null, localScopeStart, localScopeEnd, localIndexOfLoopIndex);
+        methodVisitor.visitLocalVariable("rOffset", Type.getType(long.class).getDescriptor(), null, localScopeStart, localScopeEnd, localIndexOfROffset);
+        methodVisitor.visitLocalVariable("typeId", Type.getType(int.class).getDescriptor(), null, localScopeStart, localScopeEnd, localIndexOfTypeId);
+        
         // size requirement is computed by ASM; complete method.
         methodVisitor.visitMaxs(-1, -1);
         methodVisitor.visitEnd();
@@ -523,8 +549,8 @@ public class ProxyChannelFactory {
 
         int localIndexOfArrayReferenceBaseIndex = Integer.MIN_VALUE;
         if (containsReferences) {
-            // long arrayReferenceBaseIndex = this.producerReferenceArrayIndex();x
-            producerReferenceArrayIndex(methodVisitor, backendType);
+            // long arrayReferenceBaseIndex = this.producerReferenceArrayIndex(wOffset);
+            producerReferenceArrayIndex(methodVisitor, localIndexOfWOffset, backendType);
             localIndexOfArrayReferenceBaseIndex = locals.newLocal(long.class);
             methodVisitor.visitVarInsn(Opcodes.LSTORE, localIndexOfArrayReferenceBaseIndex);
         }
@@ -574,14 +600,16 @@ public class ProxyChannelFactory {
         methodVisitor.visitEnd();
     }
 
-    private static void producerReferenceArrayIndex(MethodVisitor methodVisitor, Class<? extends ProxyChannelRingBuffer> backendType) {
+    private static void producerReferenceArrayIndex(MethodVisitor methodVisitor, int localIndexOfWOffset, Class<? extends ProxyChannelRingBuffer> backendType) {
         methodVisitor.visitVarInsn(Opcodes.ALOAD, LOCALS_INDEX_THIS);
-        methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL, Type.getInternalName(backendType), "producerReferenceArrayIndex", "()J", false);
+        methodVisitor.visitVarInsn(Opcodes.LLOAD, localIndexOfWOffset);
+        methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL, Type.getInternalName(backendType), "producerReferenceArrayIndex", "(J)J", false);
     }
 
-    private static void consumerReferenceArrayIndex(MethodVisitor methodVisitor, Class<? extends ProxyChannelRingBuffer> backendType) {
+    private static void consumerReferenceArrayIndex(MethodVisitor methodVisitor, int localIndexOfROffset, Class<? extends ProxyChannelRingBuffer> backendType) {
         methodVisitor.visitVarInsn(Opcodes.ALOAD, LOCALS_INDEX_THIS);
-        methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL, Type.getInternalName(backendType), "consumerReferenceArrayIndex", "()J", false);
+        methodVisitor.visitVarInsn(Opcodes.LLOAD, localIndexOfROffset);
+        methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL, Type.getInternalName(backendType), "consumerReferenceArrayIndex", "(J)J", false);
     }
 
     private static void writeAcquireWithWaitStrategy(MethodVisitor methodVisitor, String generatedName, Class<? extends ProxyChannelRingBuffer> backendType) {

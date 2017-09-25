@@ -42,16 +42,18 @@ public abstract class ProxyChannelRingBuffer {
     /**
      * Get the position index of the consumer in the reference array
      * 
+     * @param offset the current offset of the consumer returned from {@link #readAcquire()}
      * @return the consumer index
      */
-    protected abstract long consumerReferenceArrayIndex();
+    protected abstract long consumerReferenceArrayIndex(long offset);
 
     /**
      * Get the position index of the producer in the reference array
      * 
+     * @param offset the current offset of the producer returned from {@link #writeAcquire()}
      * @return the producer index
      */
-    protected abstract long producerReferenceArrayIndex();
+    protected abstract long producerReferenceArrayIndex(long offset);
 
     /**
      * Write a reference into the index of the reference array.
