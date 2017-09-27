@@ -26,10 +26,11 @@ import java.util.concurrent.TimeUnit;
 @Warmup(iterations = 5, time = 3, timeUnit = TimeUnit.SECONDS)
 @Measurement(iterations = 5, time = 3, timeUnit = TimeUnit.SECONDS)
 public class QueueThroughputBackoffNone {
-    private static final long DELAY_PRODUCER = Long.getLong("delay.p", 0L);
-    private static final long DELAY_CONSUMER = Long.getLong("delay.c", 0L);
-    Integer ONE = 777;
-    private Integer escape;
+    static final long DELAY_PRODUCER = Long.getLong("delay.p", 0L);
+    static final long DELAY_CONSUMER = Long.getLong("delay.c", 0L);
+    static final Integer TEST_ELEMENT = 1;
+    Integer element = TEST_ELEMENT;
+    Integer escape;
     @Param(value = { "SpscArrayQueue", "MpscArrayQueue", "SpmcArrayQueue", "MpmcArrayQueue" })
     String qType;
 
@@ -44,7 +45,7 @@ public class QueueThroughputBackoffNone {
         q = QueueByTypeFactory.createQueue(qType, 128);
         // stretch the queue to the limit, working through resizing and full
         for (int i = 0; i < 128+100; i++) {
-            q.offer(ONE);
+            q.offer(element);
         }
         for (int i = 0; i < 128+100; i++) {
             q.poll();
@@ -52,7 +53,7 @@ public class QueueThroughputBackoffNone {
         }
         // make sure the important common case is exercised
         for (int i = 0; i < 20000; i++) {
-            q.offer(ONE);
+            q.offer(element);
             q.poll();
         }
         final String qCapacity = this.qCapacity;
@@ -96,7 +97,7 @@ public class QueueThroughputBackoffNone {
     @Benchmark
     @Group("tpt")
     public void offer(OfferCounters counters) {
-        if (!q.offer(ONE)) {
+        if (!q.offer(element)) {
             counters.offersFailed++;
             backoff();
         } else {
@@ -117,7 +118,7 @@ public class QueueThroughputBackoffNone {
         if (e == null) {
             counters.pollsFailed++;
             backoff();
-        } else if (e == ONE) {
+        } else if (e == TEST_ELEMENT) {
             counters.pollsMade++;
         } else {
             escape = e;

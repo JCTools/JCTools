@@ -41,7 +41,8 @@ import org.openjdk.jmh.infra.Blackhole;
 public class MpqThroughputBackoffNone {
     private static final long DELAY_PRODUCER = Long.getLong("delay.p", 0L);
     private static final long DELAY_CONSUMER = Long.getLong("delay.c", 0L);
-    Integer ONE = 777;
+    static final Integer TEST_ELEMENT = 1;
+    Integer element = TEST_ELEMENT;
     MessagePassingQueue<Integer> q;
     private Integer escape;
     @Param(value = { "SpscArrayQueue", "MpscArrayQueue", "SpmcArrayQueue", "MpmcArrayQueue" })
@@ -55,23 +56,23 @@ public class MpqThroughputBackoffNone {
 
         // stretch the queue to the limit, working through resizing and full
         for (int i = 0; i < 128 + 100; i++) {
-            q.offer(ONE);
+            q.offer(element);
         }
         for (int i = 0; i < 128 + 100; i++) {
             q.poll();
         }
         // stretch the queue to the limit, working through resizing and full
         for (int i = 0; i < 128 + 100; i++) {
-            q.relaxedOffer(ONE);
+            q.relaxedOffer(element);
         }
         for (int i = 0; i < 128 + 100; i++) {
             q.relaxedPoll();
         }
         // make sure the important common case is exercised
         for (int i = 0; i < 20000; i++) {
-            q.offer(ONE);
+            q.offer(element);
             q.poll();
-            q.relaxedOffer(ONE);
+            q.relaxedOffer(element);
             q.relaxedPoll();
         }
         q = MessagePassingQueueByTypeFactory.createQueue(qType, qCapacity);
@@ -113,7 +114,7 @@ public class MpqThroughputBackoffNone {
     @Benchmark
     @Group("nor")
     public void offerNoR(OfferCounters counters) {
-        if (!q.offer(ONE)) {
+        if (!q.offer(element)) {
             counters.offersFailed++;
             backoff();
         } else {
@@ -131,7 +132,7 @@ public class MpqThroughputBackoffNone {
         if (e == null) {
             counters.pollsFailed++;
             backoff();
-        } else if (e == ONE) {
+        } else if (e == TEST_ELEMENT) {
             counters.pollsMade++;
         } else {
             escape = e;
@@ -144,7 +145,7 @@ public class MpqThroughputBackoffNone {
     @Benchmark
     @Group("bothr")
     public void offerBothR(OfferCounters counters) {
-        if (!q.relaxedOffer(ONE)) {
+        if (!q.relaxedOffer(element)) {
             counters.offersFailed++;
             backoff();
         } else {
@@ -162,7 +163,7 @@ public class MpqThroughputBackoffNone {
         if (e == null) {
             counters.pollsFailed++;
             backoff();
-        } else if (e == ONE) {
+        } else if (e == TEST_ELEMENT) {
             counters.pollsMade++;
         } else {
             escape = e;
@@ -175,7 +176,7 @@ public class MpqThroughputBackoffNone {
     @Benchmark
     @Group("pr")
     public void offerPR(OfferCounters counters) {
-        if (!q.relaxedOffer(ONE)) {
+        if (!q.relaxedOffer(element)) {
             counters.offersFailed++;
             backoff();
         } else {
@@ -193,7 +194,7 @@ public class MpqThroughputBackoffNone {
         if (e == null) {
             counters.pollsFailed++;
             backoff();
-        } else if (e == ONE) {
+        } else if (e == TEST_ELEMENT) {
             counters.pollsMade++;
         } else {
             escape = e;
@@ -206,7 +207,7 @@ public class MpqThroughputBackoffNone {
     @Benchmark
     @Group("cr")
     public void offerCR(OfferCounters counters) {
-        if (!q.offer(ONE)) {
+        if (!q.offer(element)) {
             counters.offersFailed++;
             backoff();
         } else {
@@ -224,7 +225,7 @@ public class MpqThroughputBackoffNone {
         if (e == null) {
             counters.pollsFailed++;
             backoff();
-        } else if (e == ONE) {
+        } else if (e == TEST_ELEMENT) {
             counters.pollsMade++;
         } else {
             escape = e;

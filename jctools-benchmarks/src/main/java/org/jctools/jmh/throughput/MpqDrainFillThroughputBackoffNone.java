@@ -39,8 +39,8 @@ import org.openjdk.jmh.annotations.Warmup;
 @Warmup(iterations = 5, time = 3, timeUnit = TimeUnit.SECONDS)
 @Measurement(iterations = 5, time = 3, timeUnit = TimeUnit.SECONDS)
 public class MpqDrainFillThroughputBackoffNone {
-    private static final Integer ONE = 777;
-    MessagePassingQueue<Integer> q;
+    static final Integer TEST_ELEMENT = 1;
+    Integer element = TEST_ELEMENT;MessagePassingQueue<Integer> q;
     private Integer escape;
     
     @Param(value = { "SpscArrayQueue", "MpscArrayQueue", "SpmcArrayQueue", "MpmcArrayQueue" })
@@ -93,7 +93,7 @@ public class MpqDrainFillThroughputBackoffNone {
         long filled = q.fill(new MessagePassingQueue.Supplier<Integer>() {
             public Integer get() {
                 counters.offersMade++;
-                return ONE;
+                return element;
             }
         });
         if (filled == 0) {
@@ -107,7 +107,7 @@ public class MpqDrainFillThroughputBackoffNone {
     public void drain(final PollCounters counters, ConsumerMarker cm) {
         long drained = q.drain(new MessagePassingQueue.Consumer<Integer>() {
             public void accept(Integer e) {
-                if (e == ONE) {
+                if (e == TEST_ELEMENT) {
                     counters.pollsMade++;
                 } else {
                     escape = e;
@@ -137,7 +137,7 @@ public class MpqDrainFillThroughputBackoffNone {
 //        q.fill(new MessagePassingQueue.Supplier<Integer>() {
 //            public Integer get() {
 //                counters.offersMade++;
-//                return ONE;
+//                return element;
 //            }
 //        }, w, e);
 //    }
@@ -158,7 +158,7 @@ public class MpqDrainFillThroughputBackoffNone {
 //        };
 //        q.drain(new MessagePassingQueue.Consumer<Integer>() {
 //            public void accept(Integer e) {
-//                if (e == ONE) {
+//                if (e == element) {
 //                    counters.pollsMade++;
 //                } else {
 //                    escape = e;
