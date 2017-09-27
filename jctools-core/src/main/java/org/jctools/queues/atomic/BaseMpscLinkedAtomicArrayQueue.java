@@ -122,7 +122,7 @@ abstract class BaseMpscLinkedAtomicArrayQueueColdProducerFields<E> extends BaseM
 
     private static final AtomicLongFieldUpdater<BaseMpscLinkedAtomicArrayQueueColdProducerFields> P_LIMIT_UPDATER = AtomicLongFieldUpdater.newUpdater(BaseMpscLinkedAtomicArrayQueueColdProducerFields.class, "producerLimit");
 
-    protected volatile long producerLimit;
+    private volatile long producerLimit;
 
     protected long producerMask;
 
@@ -155,6 +155,14 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
 
     // No post padding here, subclasses must add
     private static final Object JUMP = new Object();
+
+    private static final int CONTINUE_TO_P_INDEX_CAS = 0;
+
+    private static final int RETRY = 1;
+
+    private static final int QUEUE_FULL = 2;
+
+    private static final int QUEUE_RESIZE = 3;
 
     /**
      * @param initialCapacity the queue initial capacity. If chunk size is fixed this will be the chunk size.
@@ -242,13 +250,13 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
             if (producerLimit <= pIndex) {
                 int result = offerSlowPath(mask, pIndex, producerLimit);
                 switch(result) {
-                    case 0:
+                    case CONTINUE_TO_P_INDEX_CAS:
                         break;
-                    case 1:
+                    case RETRY:
                         continue;
-                    case 2:
+                    case QUEUE_FULL:
                         return false;
-                    case 3:
+                    case QUEUE_RESIZE:
                         resize(mask, buffer, pIndex, e);
                         return true;
                 }
@@ -257,8 +265,9 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
                 break;
             }
         }
-        // INDEX visible before ELEMENT, consistent with consumer expectation
+        // INDEX visible before ELEMENT
         final int offset = modifiedCalcElementOffset(pIndex, mask);
+        // release element e
         soElement(buffer, offset, e);
         return true;
     }
@@ -291,7 +300,9 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
             final AtomicReferenceArray<E> nextBuffer = getNextBuffer(buffer, mask);
             return newBufferPoll(nextBuffer, index);
         }
+        // release element null
         soElement(buffer, offset, null);
+        // release cIndex
         soConsumerIndex(index + 2);
         return (E) e;
     }
@@ -312,8 +323,9 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
         Object e = lvElement(buffer, offset);
         if (e == null && index != lvProducerIndex()) {
             // check the producer index. If the queue is indeed not empty we spin until element is visible.
-            while ((e = lvElement(buffer, offset)) == null) {
-            }
+            do {
+                e = lvElement(buffer, offset);
+            } while (e == null);
         }
         if (e == JUMP) {
             return newBufferPeek(getNextBuffer(buffer, mask), index);
@@ -325,29 +337,28 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
      * We do not inline resize into this method because we do not resize on fill.
      */
     private int offerSlowPath(long mask, long pIndex, long producerLimit) {
-        int result;
         final long cIndex = lvConsumerIndex();
         long bufferCapacity = getCurrentBufferCapacity(mask);
-        // 0 - goto pIndex CAS
-        result = 0;
         if (cIndex + bufferCapacity > pIndex) {
             if (!casProducerLimit(producerLimit, cIndex + bufferCapacity)) {
                 // retry from top
-                result = 1;
+                return RETRY;
+            } else {
+                // continue to pIndex CAS
+                return CONTINUE_TO_P_INDEX_CAS;
             }
         } else // full and cannot grow
         if (availableInQueue(pIndex, cIndex) <= 0) {
-            // -> return false;
-            result = 2;
+            // offer should return false;
+            return QUEUE_FULL;
         } else // grab index for resize -> set lower bit
         if (casProducerIndex(pIndex, pIndex + 1)) {
-            // -> resize
-            result = 3;
+            // trigger a resize
+            return QUEUE_RESIZE;
         } else {
             // failed resize attempt, retry from top
-            result = 1;
+            return RETRY;
         }
-        return result;
     }
 
     /**
@@ -393,8 +404,7 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
     private int newBufferAndOffset(AtomicReferenceArray<E> nextBuffer, long index) {
         consumerBuffer = nextBuffer;
         consumerMask = (length(nextBuffer) - 2) << 1;
-        final int offsetInNew = modifiedCalcElementOffset(index, consumerMask);
-        return offsetInNew;
+        return modifiedCalcElementOffset(index, consumerMask);
     }
 
     @Override
@@ -481,21 +491,23 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
             }
             // pIndex is even (lower bit is 0) -> actual index is (pIndex >> 1)
             // NOTE: mask/buffer may get changed by resizing -> only use for array access after successful CAS.
-            // Only by virtue ofloading them between the lvProcducerIndex and a successful casProducerIndex are they
+            // Only by virtue offloading them between the lvProducerIndex and a successful casProducerIndex are they
             // safe to use.
             mask = this.producerMask;
             buffer = this.producerBuffer;
-            // a successful CAS ties the ordering, lv(pIndex)->[mask/buffer]->cas(pIndex)
+            // a successful CAS ties the ordering, lv(pIndex) -> [mask/buffer] -> cas(pIndex)
             // we want 'limit' slots, but will settle for whatever is visible to 'producerLimit'
             long batchIndex = Math.min(producerLimit, pIndex + 2 * batchSize);
-            if (pIndex == producerLimit || producerLimit < batchIndex) {
+            if (pIndex >= producerLimit || producerLimit < batchIndex) {
                 int result = offerSlowPath(mask, pIndex, producerLimit);
                 switch(result) {
-                    case 1:
+                    case CONTINUE_TO_P_INDEX_CAS:
+                    // offer slow path verifies only one slot ahead, we cannot rely on indication here
+                    case RETRY:
                         continue;
-                    case 2:
+                    case QUEUE_FULL:
                         return 0;
-                    case 3:
+                    case QUEUE_RESIZE:
                         resize(mask, buffer, pIndex, s.get());
                         return 1;
                 }
@@ -506,8 +518,7 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
                 break;
             }
         }
-        int i = 0;
-        for (i = 0; i < claimedSlots; i++) {
+        for (int i = 0; i < claimedSlots; i++) {
             final int offset = modifiedCalcElementOffset(pIndex + 2 * i, mask);
             soElement(buffer, offset, s.get());
         }
@@ -517,12 +528,11 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
     @Override
     public void fill(Supplier<E> s, WaitStrategy w, ExitCondition exit) {
         while (exit.keepRunning()) {
-            while (fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH) != 0 && exit.keepRunning()) {
-                continue;
-            }
-            int idleCounter = 0;
-            while (exit.keepRunning() && fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH) == 0) {
-                idleCounter = w.idle(idleCounter);
+            if (fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH) == 0) {
+                int idleCounter = 0;
+                while (exit.keepRunning() && fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH) == 0) {
+                    idleCounter = w.idle(idleCounter);
+                }
             }
         }
     }
