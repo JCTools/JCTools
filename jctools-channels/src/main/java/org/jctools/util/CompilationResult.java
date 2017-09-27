@@ -13,11 +13,10 @@
  */
 package org.jctools.util;
 
-import static java.util.Collections.unmodifiableList;
-
+import javax.tools.Diagnostic;
 import java.util.List;
 
-import javax.tools.Diagnostic;
+import static java.util.Collections.unmodifiableList;
 
 
 public final class CompilationResult {

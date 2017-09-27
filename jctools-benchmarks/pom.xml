@@ -12,13 +12,18 @@
     <name>Benchmarks</name>
 
     <properties>
-        <jmh-core.version>1.14</jmh-core.version>
+        <jmh-core.version>1.19</jmh-core.version>
     </properties>
 
     <dependencies>
         <dependency>
             <groupId>org.jctools</groupId>
             <artifactId>jctools-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jctools</groupId>
+            <artifactId>jctools-channels</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

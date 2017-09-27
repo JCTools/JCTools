@@ -3,7 +3,8 @@ package org.jctools.util;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 
-public class UnsafeDirectByteBuffer {
+public class UnsafeDirectByteBuffer
+{
 	private static final long addressOffset;
 	static {
 		try {
@@ -16,20 +17,6 @@ public class UnsafeDirectByteBuffer {
 
 	public static long getAddress(ByteBuffer buffy) {
 		return UnsafeAccess.UNSAFE.getLong(buffy, addressOffset);
-	}
-
-	/**
-	 * put byte and skip position update and boundary checks
-	 * 
-	 * @param buffy
-	 * @param b
-	 */
-	public static void putByte(long address, int position, byte b) {
-		UnsafeAccess.UNSAFE.putByte(address + position, b);
-	}
-
-	public static void putByte(long address, byte b) {
-		UnsafeAccess.UNSAFE.putByte(address, b);
 	}
 
 	public static ByteBuffer allocateAlignedByteBuffer(int capacity, long align) {
@@ -59,34 +46,5 @@ public class UnsafeDirectByteBuffer {
 			buffy.position(oldPosition);
 			return slice;
 		}
-	}
-
-	public static boolean isPageAligned(ByteBuffer buffy) {
-		return isPageAligned(getAddress(buffy));
-	}
-
-	/**
-	 * This assumes cache line is 64b
-	 */
-	public static boolean isCacheAligned(ByteBuffer buffy) {
-		return isCacheAligned(getAddress(buffy));
-	}
-
-	public static boolean isPageAligned(long address) {
-		return (address & (UnsafeJvmInfo.PAGE_SIZE - 1)) == 0;
-	}
-
-	/**
-	 * This assumes cache line is 64b
-	 */
-	public static boolean isCacheAligned(long address) {
-		return (address & (PortableJvmInfo.CACHE_LINE_SIZE - 1)) == 0;
-	}
-
-	public static boolean isAligned(long address, long align) {
-		if (Long.bitCount(align) != 1) {
-			throw new IllegalArgumentException("Alignment must be a power of 2");
-		}
-		return (address & (align - 1)) == 0;
 	}
 }

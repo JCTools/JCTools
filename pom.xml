@@ -59,6 +59,7 @@
     <modules>
         <module>jctools-core</module>
         <module>jctools-experimental</module>
+        <module>jctools-channels</module>
         <module>jctools-benchmarks</module>
         <module>jctools-concurrency-test</module>
         <module>jctools-build</module>

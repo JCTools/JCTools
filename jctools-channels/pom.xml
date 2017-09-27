@@ -7,8 +7,8 @@
         <version>2.2-SNAPSHOT</version>
     </parent>
 
-    <artifactId>jctools-experimental</artifactId>
-    <name>Experimental implementations</name>
+    <artifactId>jctools-channels</artifactId>
+    <name>Channel implementations</name>
     <packaging>jar</packaging>
 
     <dependencies>
@@ -16,16 +16,6 @@
             <groupId>org.jctools</groupId>
             <artifactId>jctools-core</artifactId>
             <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.jctools</groupId>
-            <artifactId>jctools-channels</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-			<groupId>com.google.guava</groupId>
-			<artifactId>guava-testlib</artifactId>
-			<version>19.0</version>
         </dependency>
         <dependency>
             <groupId>junit</groupId>

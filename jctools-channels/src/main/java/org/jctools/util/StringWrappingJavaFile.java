@@ -13,9 +13,8 @@
  */
 package org.jctools.util;
 
-import java.net.URI;
-
 import javax.tools.SimpleJavaFileObject;
+import java.net.URI;
 
 /**
  * A Java file object which is used to represent the Java source code coming from a string.

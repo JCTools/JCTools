@@ -13,15 +13,15 @@
  */
 package org.jctools.util;
 
-import static java.util.Collections.emptyList;
-import static java.util.Collections.singletonList;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
+
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
 
 /**
  * A single class templating library for doing runtime code-gen.
