@@ -48,6 +48,11 @@ public class MessagePassingQueueByTypeFactory {
             return Class.forName("org.jctools.queues."+queueType);
         } catch (ClassNotFoundException e) {
         }
+
+        try {
+            return Class.forName("org.jctools.queues.atomic."+queueType);
+        } catch (ClassNotFoundException e) {
+        }
         
         try {
             return Class.forName(queueType);
