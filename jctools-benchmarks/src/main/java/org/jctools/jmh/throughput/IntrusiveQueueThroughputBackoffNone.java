@@ -36,8 +36,8 @@ import java.util.concurrent.TimeUnit;
 @State(Scope.Group)
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
-@Warmup(iterations = 5, time = 3, timeUnit = TimeUnit.SECONDS)
-@Measurement(iterations = 5, time = 3, timeUnit = TimeUnit.SECONDS)
+@Warmup(iterations = 10, time = 1)
+@Measurement(iterations = 10, time = 1)
 public class IntrusiveQueueThroughputBackoffNone {
     private static final long DELAY_PRODUCER = Long.getLong("delay.p", 0L);
     private static final long DELAY_CONSUMER = Long.getLong("delay.c", 0L);
@@ -73,15 +73,6 @@ public class IntrusiveQueueThroughputBackoffNone {
         }
     }
 
-    private static ThreadLocal<Object> marker = new ThreadLocal<Object>();
-
-    @State(Scope.Thread)
-    public static class ConsumerMarker {
-        public ConsumerMarker() {
-            marker.set(this);
-        }
-    }
-
     @Benchmark
     @Group("tpt")
     public void offer(OfferCounters counters) {
@@ -98,7 +89,7 @@ public class IntrusiveQueueThroughputBackoffNone {
 
     @Benchmark
     @Group("tpt")
-    public void poll(PollCounters counters, ConsumerMarker cm) {
+    public void poll(PollCounters counters) {
         Node n = q.poll();
         if (n == null) {
             counters.pollsFailed++;
@@ -117,9 +108,9 @@ public class IntrusiveQueueThroughputBackoffNone {
     // iteration tear down is performed for each thread, only consumer should clear queue
     @TearDown(Level.Iteration)
     public void consumerClearQueue() {
-        if (marker.get() == null) {
-            return;
+        synchronized (q)
+        {
+            q.clear();
         }
-        q.clear();
     }
 }

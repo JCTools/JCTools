@@ -36,17 +36,19 @@ import org.openjdk.jmh.infra.Blackhole;
 @State(Scope.Group)
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
-@Warmup(iterations = 5, time = 3, timeUnit = TimeUnit.SECONDS)
-@Measurement(iterations = 5, time = 3, timeUnit = TimeUnit.SECONDS)
+@Warmup(iterations = 10, time = 1)
+@Measurement(iterations = 10, time = 1)
 public class MpqThroughputBackoffNone {
     private static final long DELAY_PRODUCER = Long.getLong("delay.p", 0L);
     private static final long DELAY_CONSUMER = Long.getLong("delay.c", 0L);
     static final Integer TEST_ELEMENT = 1;
     Integer element = TEST_ELEMENT;
+    Integer escape;
     MessagePassingQueue<Integer> q;
-    private Integer escape;
+
     @Param(value = { "SpscArrayQueue", "MpscArrayQueue", "SpmcArrayQueue", "MpmcArrayQueue" })
     String qType;
+
     @Param(value = { "132000" })
     int qCapacity;
 
@@ -102,15 +104,6 @@ public class MpqThroughputBackoffNone {
         }
     }
 
-    private static ThreadLocal<Object> marker = new ThreadLocal<Object>();
-
-    @State(Scope.Thread)
-    public static class ConsumerMarker {
-        public ConsumerMarker() {
-            marker.set(this);
-        }
-    }
-
     @Benchmark
     @Group("nor")
     public void offerNoR(OfferCounters counters) {
@@ -127,7 +120,7 @@ public class MpqThroughputBackoffNone {
 
     @Benchmark
     @Group("nor")
-    public void pollNoR(PollCounters counters, ConsumerMarker cm) {
+    public void pollNoR(PollCounters counters) {
         Integer e = q.poll();
         if (e == null) {
             counters.pollsFailed++;
@@ -158,7 +151,7 @@ public class MpqThroughputBackoffNone {
 
     @Benchmark
     @Group("bothr")
-    public void pollBothR(PollCounters counters, ConsumerMarker cm) {
+    public void pollBothR(PollCounters counters) {
         Integer e = q.relaxedPoll();
         if (e == null) {
             counters.pollsFailed++;
@@ -189,7 +182,7 @@ public class MpqThroughputBackoffNone {
 
     @Benchmark
     @Group("pr")
-    public void pollPR(PollCounters counters, ConsumerMarker cm) {
+    public void pollPR(PollCounters counters) {
         Integer e = q.poll();
         if (e == null) {
             counters.pollsFailed++;
@@ -220,7 +213,7 @@ public class MpqThroughputBackoffNone {
 
     @Benchmark
     @Group("cr")
-    public void pollCR(PollCounters counters, ConsumerMarker cm) {
+    public void pollCR(PollCounters counters) {
         Integer e = q.relaxedPoll();
         if (e == null) {
             counters.pollsFailed++;
@@ -237,13 +230,11 @@ public class MpqThroughputBackoffNone {
 
     @TearDown(Level.Iteration)
     public void emptyQ() {
-        if (marker.get() == null)
-            return;
-        // sadly the iteration tear down is performed from each participating
-        // thread, so we need to guess
-        // which is which (can't have concurrent access to poll).
-        while (q.poll() != null)
-            ;
+        synchronized (q)
+        {
+            while (q.poll() != null)
+                ;
+        }
     }
 
     protected void backoff() {

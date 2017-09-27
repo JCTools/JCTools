@@ -36,13 +36,14 @@ import org.openjdk.jmh.annotations.Warmup;
 @State(Scope.Group)
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
-@Warmup(iterations = 5, time = 3, timeUnit = TimeUnit.SECONDS)
-@Measurement(iterations = 5, time = 3, timeUnit = TimeUnit.SECONDS)
+@Warmup(iterations = 10, time = 1)
+@Measurement(iterations = 10, time = 1)
 public class MpqDrainFillThroughputBackoffNone {
     static final Integer TEST_ELEMENT = 1;
-    Integer element = TEST_ELEMENT;MessagePassingQueue<Integer> q;
-    private Integer escape;
-    
+    Integer element = TEST_ELEMENT;
+    Integer escape;
+    MessagePassingQueue<Integer> q;
+
     @Param(value = { "SpscArrayQueue", "MpscArrayQueue", "SpmcArrayQueue", "MpmcArrayQueue" })
     String qType;
     
@@ -78,15 +79,6 @@ public class MpqDrainFillThroughputBackoffNone {
         }
     }
 
-    private static ThreadLocal<Object> marker = new ThreadLocal<Object>();
-
-    @State(Scope.Thread)
-    public static class ConsumerMarker {
-        public ConsumerMarker() {
-            marker.set(this);
-        }
-    }
-
     @Benchmark
     @Group("normal")
     public void fill(final OfferCounters counters) {
@@ -104,7 +96,7 @@ public class MpqDrainFillThroughputBackoffNone {
 
     @Benchmark
     @Group("normal")
-    public void drain(final PollCounters counters, ConsumerMarker cm) {
+    public void drain(final PollCounters counters) {
         long drained = q.drain(new MessagePassingQueue.Consumer<Integer>() {
             public void accept(Integer e) {
                 if (e == TEST_ELEMENT) {
@@ -144,7 +136,7 @@ public class MpqDrainFillThroughputBackoffNone {
 //
 //    @Benchmark
 //    @Group("prepetual")
-//    public void drain(final PollCounters counters, ConsumerMarker cm, final Control ctl) {
+//    public void drain(final PollCounters counters, final Control ctl) {
 //        WaitStrategy w = new WaitStrategy(){
 //            public int idle(int idleCounter) {
 //                backoff();
@@ -169,13 +161,11 @@ public class MpqDrainFillThroughputBackoffNone {
     
     @TearDown(Level.Iteration)
     public void emptyQ() {
-        if (marker.get() == null)
-            return;
-        // sadly the iteration tear down is performed from each participating
-        // thread, so we need to guess
-        // which is which (can't have concurrent access to poll).
-        while (q.poll() != null)
-            ;
+        synchronized (q)
+        {
+            while (q.poll() != null)
+                ;
+        }
     }
 
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
