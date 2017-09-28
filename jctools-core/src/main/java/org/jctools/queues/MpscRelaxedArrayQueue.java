@@ -13,14 +13,19 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * This is a port of the algorithm used here:
+ * https://github.com/real-logic/aeron/blob/c715c19852c8455c92e73c3167e7d43021d9a384/aeron-client/src/main/java/io/aeron/Publication.java
  */
 
 package org.jctools.queues;
 
 import org.jctools.util.PortableJvmInfo;
 import org.jctools.util.Pow2;
+import org.jctools.util.RangeUtil;
 import org.jctools.util.UnsafeRefArrayAccess;
 
+import java.lang.reflect.Field;
 import java.util.AbstractQueue;
 import java.util.Iterator;
 
@@ -29,25 +34,20 @@ import static org.jctools.util.UnsafeRefArrayAccess.*;
 
 abstract class MpscRelaxedArrayQueueL0Pad<E> extends AbstractQueue<E>
 {
-
     long p00, p01, p02, p03, p04, p05, p06, p07;
-
     long p10, p11, p12, p13, p14, p15, p16;
-
 }
 
 abstract class MpscRelaxedArrayQueueActiveCycleIdField<E> extends MpscRelaxedArrayQueueL0Pad<E>
 {
-
     private static final long ACTIVE_CYCLE_ID_OFFSET;
-
 
     static
     {
         try
         {
-            ACTIVE_CYCLE_ID_OFFSET = UNSAFE
-                .objectFieldOffset(MpscRelaxedArrayQueueActiveCycleIdField.class.getDeclaredField("activeCycleId"));
+            final Field field = MpscRelaxedArrayQueueActiveCycleIdField.class.getDeclaredField("activeCycleId");
+            ACTIVE_CYCLE_ID_OFFSET = UNSAFE.objectFieldOffset(field);
         }
         catch (NoSuchFieldException e)
         {
@@ -81,31 +81,25 @@ abstract class MpscRelaxedArrayQueueActiveCycleIdField<E> extends MpscRelaxedArr
 
 abstract class MpscRelaxedArrayQueueMidPad<E> extends MpscRelaxedArrayQueueActiveCycleIdField<E>
 {
-
     long p01, p02, p03, p04, p05, p06, p07;
-
     long p10, p11, p12, p13, p14, p15, p16, p17;
-
 }
 
 abstract class MpscRelaxedArrayQueueProducerLimitField<E> extends MpscRelaxedArrayQueueMidPad<E>
 {
-
     private static final long P_LIMIT_OFFSET;
-
     static
     {
         try
         {
-            P_LIMIT_OFFSET = UNSAFE
-                .objectFieldOffset(MpscRelaxedArrayQueueProducerLimitField.class.getDeclaredField("producerLimit"));
+            final Field field = MpscRelaxedArrayQueueProducerLimitField.class.getDeclaredField("producerLimit");
+            P_LIMIT_OFFSET = UNSAFE.objectFieldOffset(field);
         }
         catch (NoSuchFieldException e)
         {
             throw new RuntimeException(e);
         }
     }
-
     private volatile long producerLimit;
 
     protected final long lvProducerLimit()
@@ -121,25 +115,19 @@ abstract class MpscRelaxedArrayQueueProducerLimitField<E> extends MpscRelaxedArr
 
 abstract class MpscRelaxedArrayQueueL2Pad<E> extends MpscRelaxedArrayQueueProducerLimitField<E>
 {
-
     long p00, p01, p02, p03, p04, p05, p06, p07;
-
     long p10, p11, p12, p13, p14, p15, p16;
-
 }
 
 abstract class MpscRelaxedArrayQueueConsumerPositionField<E> extends MpscRelaxedArrayQueueL2Pad<E>
 {
-
     private static final long C_POS_OFFSET;
-
-
     static
     {
         try
         {
-            C_POS_OFFSET = UNSAFE
-                .objectFieldOffset(MpscRelaxedArrayQueueConsumerPositionField.class.getDeclaredField("consumerPosition"));
+            final Field field = MpscRelaxedArrayQueueConsumerPositionField.class.getDeclaredField("consumerPosition");
+            C_POS_OFFSET = UNSAFE.objectFieldOffset(field);
         }
         catch (NoSuchFieldException e)
         {
@@ -159,7 +147,6 @@ abstract class MpscRelaxedArrayQueueConsumerPositionField<E> extends MpscRelaxed
         return UNSAFE.getLong(this, C_POS_OFFSET);
     }
 
-
     protected void soConsumerPosition(long newValue)
     {
         UNSAFE.putOrderedLong(this, C_POS_OFFSET, newValue);
@@ -168,29 +155,23 @@ abstract class MpscRelaxedArrayQueueConsumerPositionField<E> extends MpscRelaxed
 
 abstract class MpscRelaxedArrayQueueL3Pad<E> extends MpscRelaxedArrayQueueConsumerPositionField<E>
 {
-
     long p01, p02, p03, p04, p05, p06, p07;
-
     long p10, p11, p12, p13, p14, p15, p16, p17;
-
 }
 
 abstract class MpscRelaxedArrayQueueProducerCycleClaimFields<E> extends MpscRelaxedArrayQueueL3Pad<E>
 {
-
     private static final long P_CYCLE_CLAIM_BASE;
     private static final long ELEMENT_SHIFT;
-
     static
     {
         try
         {
-            final long pClaim1 = UNSAFE
-                .objectFieldOffset(MpscRelaxedArrayQueueProducerCycleClaimFields.class.getDeclaredField(
-                    "producerFirstCycleClaim"));
-            final long pClaim2 = UNSAFE
-                .objectFieldOffset(MpscRelaxedArrayQueueProducerCycleClaimFields.class.getDeclaredField(
-                    "producerSecondCycleClaim"));
+            final Field field1 = MpscRelaxedArrayQueueProducerCycleClaimFields.class.getDeclaredField("producerFirstCycleClaim");
+            final long pClaim1 = UNSAFE.objectFieldOffset(field1);
+            final Field field2 = MpscRelaxedArrayQueueProducerCycleClaimFields.class.getDeclaredField("producerSecondCycleClaim");
+            final long pClaim2 = UNSAFE.objectFieldOffset(field2);
+
             P_CYCLE_CLAIM_BASE = Math.min(pClaim1, pClaim2);
             ELEMENT_SHIFT = Integer.numberOfTrailingZeros(Long.SIZE / Byte.SIZE);
             if (Math.max(pClaim1, pClaim2) != calcProducerCycleClaimOffset(1))
@@ -203,9 +184,8 @@ abstract class MpscRelaxedArrayQueueProducerCycleClaimFields<E> extends MpscRela
             throw new RuntimeException(e);
         }
     }
-
+    // these are treated as an array, just inlined
     protected volatile long producerFirstCycleClaim;
-
     protected volatile long producerSecondCycleClaim;
 
     private static long calcProducerCycleClaimOffset(int index)
@@ -227,46 +207,60 @@ abstract class MpscRelaxedArrayQueueProducerCycleClaimFields<E> extends MpscRela
     {
         return UNSAFE.getAndAddLong(this, calcProducerCycleClaimOffset(cycleIndex), 1);
     }
-
 }
 
 abstract class MpscRelaxedArrayQueueL4Pad<E> extends MpscRelaxedArrayQueueProducerCycleClaimFields<E>
 {
-
     long p01, p02, p03, p04, p05, p06;
-
     long p10, p11, p12, p13, p14, p15, p16, p17;
-
 }
 
-public final class MpscRelaxedArrayQueue<E> extends MpscRelaxedArrayQueueL4Pad<E> implements MessagePassingQueue<E>
+/**
+ *This class is still work in progress, please do not pick up for production use just yet.
+ */
+public class MpscRelaxedArrayQueue<E> extends MpscRelaxedArrayQueueL4Pad<E> implements MessagePassingQueue<E>
 {
+    /**
+     * Note on terminology:
+     *  - position/id: overall progress indicator, not an array index or offset at which to lookup/write.
+     *  - index: for looking up within an array (including the inlined producerCycleClaim array)
+     *  - offset: for pointer like access using Unsafe
+     *
+     * The producer in this queue operates on cycleId and the producerCycleClaim array:
+     *  - The cycleId grow monotonically, and the parity bit (cycleIndex) indicated which claim to use
+     *  - The producerCycleClaim indicate position in a cycle as well as the originating cycleId. From a claim we can
+     *    calculate the producer overall position as well as the position within a cycle.
+     *
+     * The buffer is split into 2 cycles (matching cycleIndex 0 and 1), allowing the above indicators to control
+     * producer progress on separate counters while maintaining the appearance of a contiguous buffer to the consumer.
+     *
+     */
 
     private final long mask;
-    private final int capacity;
     private final int cycleLength;
     private final int cycleLengthLog2;
     private final E[] buffer;
-    private final int positionOnCycleMask;
+    private final int positionWithinCycleMask;
     private final int cycleIdBitShift;
     private final long maxCycleId;
 
     public MpscRelaxedArrayQueue(int capacity)
     {
-        this.buffer = CircularArrayOffsetCalculator.allocate(Pow2.roundToPowerOfTwo(capacity) * 2);
+        RangeUtil.checkGreaterThanOrEqual(capacity, 2, "capacity");
+        capacity = Pow2.roundToPowerOfTwo(capacity * 2);
+        this.buffer = CircularArrayOffsetCalculator.allocate(capacity);
         this.soConsumerPosition(0);
         this.soActiveCycleId(0);
-        this.capacity = this.buffer.length;
-        this.mask = this.capacity - 1;
-        this.cycleLength = this.capacity / 2;
+        this.mask = capacity - 1;
+        this.cycleLength = capacity / 2;
         this.soProducerLimit(this.cycleLength);
         this.cycleLengthLog2 = Integer.numberOfTrailingZeros(this.cycleLength);
-        //it allows at least 1L << 28 = 268435456 overclaims of the position within a cycle while waiting a rotation to complete:
-        //this would help to increase the cycleId domain with small capacity
+        // it allows at least 1L << 28 = 268435456 overclaims of the position within a cycle while waiting a rotation
+        // to complete: this would help to increase the cycleId domain with small capacity
         this.cycleIdBitShift =
             Math.min(32, Integer.numberOfTrailingZeros(Pow2.roundToPowerOfTwo(this.cycleLength + (1 << 28))));
-        //it is the max position on cycle too
-        this.positionOnCycleMask = (int) ((1L << this.cycleIdBitShift) - 1);
+        // it is the max position on cycle too
+        this.positionWithinCycleMask = (int) ((1L << this.cycleIdBitShift) - 1);
         this.maxCycleId = (1L << (Long.SIZE - this.cycleIdBitShift)) - 1;
     }
 
@@ -276,34 +270,94 @@ public final class MpscRelaxedArrayQueue<E> extends MpscRelaxedArrayQueueL4Pad<E
         throw new UnsupportedOperationException();
     }
 
-    private static int positionOnCycle(long producerCycleClaim, int positionOnCycleMask)
+    @Override
+    public boolean offer(final E e)
     {
-        return (int) (producerCycleClaim & positionOnCycleMask);
+        if (null == e)
+        {
+            throw new NullPointerException();
+        }
+        // offer can fail only when queue is full, otherwise it retries
+        final int positionOnCycleMask = this.positionWithinCycleMask;
+        final int cycleLengthLog2 = this.cycleLengthLog2;
+        final int cycleLength = this.cycleLength;
+        final int cycleIdBitShift = this.cycleIdBitShift;
+
+        while (true)
+        {
+            final long activeCycleId = lvActiveCycleId(); // acquire activeCycleId
+            final int activeCycleIndex = activeCycleIndex(activeCycleId);
+
+            // this is a non-committed view of the producer position, but may be out of date when we XADD
+            final long tempCycleClaim = lvProducerCycleClaim(activeCycleIndex);
+
+            final int tempPositionWithinCycle = positionWithinCycle(tempCycleClaim, positionOnCycleMask);
+            final long tempCycleId = producerClaimCycleId(tempCycleClaim, cycleIdBitShift);
+
+            if (activeCycleId != tempCycleId || tempPositionWithinCycle > cycleLength)
+            {
+                // this covers the case of either being mid rotation or by some freak scheduling accident missing 2
+                // rotations between activeCycleId load and lvProducerCycleClaim
+                continue;
+            }
+
+            final long tempPosition = producerPosition(tempPositionWithinCycle, tempCycleId, cycleLengthLog2);
+
+            // pre-checks are only valid for the temp values, so best effort...
+            if (tempPosition >= lvProducerLimit())
+            {
+                if (isFull(tempPosition))
+                {
+                    return false;
+                }
+            }
+
+            // try to claim on the active cycle (though the activeCycleIndex might be outdated)
+            final long producerCycleClaim = getAndIncrementProducerCycleClaim(activeCycleIndex); // release producerCycleClaim[activeCycleIndex]
+
+            final int positionWithinCycle = positionWithinCycle(producerCycleClaim, positionOnCycleMask);
+
+            if (positionWithinCycle == positionOnCycleMask)
+            {
+                // This is an extreme rare case which requires very large numbers of getAndAdd operations to occur while
+                // waiting for rotation, this is also mitigated by the full queue check above and the mid rotation guard
+                // above it.
+                throw new IllegalStateException(
+                    "Too many over-claims: please enlarge the capacity or reduce the number of producers!\n" +
+                        " positionWithinCycle=" + positionWithinCycle);
+            }
+
+            if (positionWithinCycle < cycleLength)
+            {
+                final long cycleId = producerClaimCycleId(producerCycleClaim, cycleIdBitShift);
+                if (cycleId != activeCycleId)
+                {
+                    // this can happen through rapid rotation, induced by a small capacity
+                    validateSlowProducerClaim(cycleId, positionWithinCycle, cycleLengthLog2);
+                }
+                soCycleElement(buffer, e, activeCycleIndex, positionWithinCycle, cycleLengthLog2);
+                return true;
+            }
+            else if (positionWithinCycle == cycleLength)
+            {
+                // only one producer rotates cycle: the other producers will be forced to wait until rotation is
+                // completed to perform a valid offer
+                rotateCycle(activeCycleIndex, producerCycleClaim, cycleIdBitShift, maxCycleId);
+            }
+        }
     }
 
-    private static long cycleId(long producerCycleClaim, int cycleIdBitShift)
-    {
-        return (producerCycleClaim >>> cycleIdBitShift);
-    }
-
-    private static long producerPosition(long cycleId, int positionWithinCycle, int cycleLengthLog2)
-    {
-        return (cycleId << cycleLengthLog2) + positionWithinCycle;
-    }
-
-    private static int calcElementOffset(int cycle, int positionWithinCycle, int cycleLengthLog2)
-    {
-        return (cycle << cycleLengthLog2) + positionWithinCycle;
-    }
-
-    private boolean isBackPressured(long producerPosition)
+    /**
+     * Given the nature of getAndAdd progress on producerPosition and given the potential risk for over claiming it is
+     * quite possible for this method to report a queue which is not full as full.
+     */
+    private boolean isFull(final long producerPosition)
     {
         final long consumerPosition = lvConsumerPosition();
-        final long claimLimit = consumerPosition + this.cycleLength;
-        if (producerPosition < claimLimit)
+        final long producerLimit = consumerPosition + this.cycleLength;
+        if (producerPosition < producerLimit)
         {
-            //update the cached value: no backpressure
-            soProducerLimit(claimLimit);
+            soProducerLimit(producerLimit);
             return false;
         }
         else
@@ -312,205 +366,173 @@ public final class MpscRelaxedArrayQueue<E> extends MpscRelaxedArrayQueueL4Pad<E
         }
     }
 
-    private void rotateCycle(int activeCycle, long producerCycleClaim, int cycleIdBitShift, long maxCycleId)
+    private void rotateCycle(
+        final int activeCycleIndex,
+        final long producerCycleClaim,
+        final int cycleIdBitShift,
+        final long maxCycleId)
     {
-        final long cycleId = cycleId(producerCycleClaim, cycleIdBitShift);
-        if (cycleId >= maxCycleId)
+        final long pCycleId = producerClaimCycleId(producerCycleClaim, cycleIdBitShift);
+        if (pCycleId >= maxCycleId)
         {
-            throw new IllegalStateException("exhausted cycle id space!");
+            throw new IllegalStateException("Exhausted cycle id space!");
         }
-        final long nextCycleId = cycleId + 1;
-        //it points at the beginning of the next cycle
+
+        final long nextCycleId = pCycleId + 1;
+
+        // it points at the beginning of the next cycle
         final long nextProducerCycleClaim = nextCycleId << cycleIdBitShift;
-        final int nextActiveCycle = (activeCycle + 1) & 1;
-        //it needs to be atomic: a producer fallen behind could claim it concurrently
-        soProducerCycleClaim(nextActiveCycle, nextProducerCycleClaim);
-        //from now on a slow producer could move the claim and lead to another rotation: a cas is needed to detect it
-        if (!casActiveCycleId(cycleId, nextCycleId))
+        final int nextActiveCycleIndex = (activeCycleIndex + 1) & 1;
+        // it needs to be atomic: a producer fallen behind could claim it concurrently
+        soProducerCycleClaim(nextActiveCycleIndex, nextProducerCycleClaim);
+        // from now on a slow producer could move the claim and lead to another rotation: a cas is needed to detect it
+        if (!casActiveCycleId(pCycleId, nextCycleId)) // release activeCycleId
         {
-            throw new IllegalStateException("slow rotation due to producer thread starvation!");
+            // This will happen if between the load of activeCycleId and the CAS the producerCycleClaim has progressed
+            // sufficiently to overflow into the cycleId portion. This is highly unlikely.
+            throw new IllegalStateException("Slow rotation due to producer thread starvation!");
         }
     }
 
-    private void validateSlowProducerClaim(final long cycleId, int positionOnCycle, int cycleLengthLog2)
+    private void validateSlowProducerClaim(final long cycleId, final int positionOnCycle, final int cycleLengthLog2)
     {
-        final long producerPosition = producerPosition(cycleId, positionOnCycle, cycleLengthLog2);
+        final long producerPosition = producerPosition(positionOnCycle, cycleId, cycleLengthLog2);
         final long claimLimit = lvProducerLimit();
         if (producerPosition >= claimLimit)
         {
-            //it is really backpressured?
-            if (isBackPressured(producerPosition))
+            // it is really full?
+            if (isFull(producerPosition))
             {
                 throw new IllegalStateException(
-                    "the producer has fallen behind: please enlarge the capacity or reduce the number of producers!");
+                    "The producer has fallen behind: please enlarge the capacity or reduce the number of producers! \n" +
+                        " producerPosition="+producerPosition +"\n" +
+                        " cycleId="+cycleId+"\n" +
+                        " positionOnCycle="+positionOnCycle);
             }
         }
     }
 
-    @Override
-    public boolean offer(E e)
+    private void soCycleElement(E[] buffer, E e, int activeCycleIndex, int positionWithinCycle, int cycleLengthLog2)
     {
-        if (null == e)
-        {
-            throw new NullPointerException();
-        }
-        //offer can fail only when backpressured, otherwise it retries
-        final int positionOnCycleMask = this.positionOnCycleMask;
-        final int cycleLengthLog2 = this.cycleLengthLog2;
-        final int cycleLength = this.cycleLength;
-        final int cycleIdBitShift = this.cycleIdBitShift;
-        final E[] buffer = this.buffer;
-        final long maxCycleId = this.maxCycleId;
-        final long maxPositionOnCycle = positionOnCycleMask;
-
-        while (true)
-        {
-            final int activeCycle = activeCycleIndex(lvActiveCycleId());
-            final long producerActiveCycleClaim = lvProducerCycleClaim(activeCycle);
-            final int positionOnActiveCycle = positionOnCycle(producerActiveCycleClaim, positionOnCycleMask);
-            final long activeCycleId = cycleId(producerActiveCycleClaim, cycleIdBitShift);
-            final long producerPosition = producerPosition(activeCycleId, positionOnActiveCycle, cycleLengthLog2);
-            final long claimLimit = lvProducerLimit();
-            if (producerPosition >= claimLimit)
-            {
-                //it is really backpressured?
-                if (isBackPressured(producerPosition))
-                {
-                    return false;
-                }
-            }
-            //try to claim on the active cycle
-            final long producerCycleClaim = getAndIncrementProducerCycleClaim(activeCycle);
-            final int positionOnCycle = positionOnCycle(producerCycleClaim, positionOnCycleMask);
-            if (positionOnCycle >= maxPositionOnCycle)
-            {
-                throw new IllegalStateException(
-                    "too many over-claims: please enlarge the capacity or reduce the number of producers!");
-            }
-            if (positionOnCycle < cycleLength)
-            {
-                final long cycleId = cycleId(producerCycleClaim, cycleIdBitShift);
-                if (cycleId != activeCycleId)
-                {
-                    validateSlowProducerClaim(cycleId, positionOnCycle, cycleLengthLog2);
-                }
-                //simplified operation to calculate the offset in the array: activeCycle hasn't changed from the beginning of the offer!
-                final int producerOffset = calcElementOffset(activeCycle, positionOnCycle, cycleLengthLog2);
-                final long producerElementOffset = UnsafeRefArrayAccess.calcElementOffset(producerOffset);
-                soElement(buffer, producerElementOffset, e);
-                return true;
-            }
-            else if (positionOnCycle == cycleLength)
-            {
-                //is the only one responsible to rotate cycle: the other producers will be forced to wait until rotation got completed to perform a valid offer
-                rotateCycle(activeCycle, producerCycleClaim, cycleIdBitShift, maxCycleId);
-            }
-        }
+        final int indexInBuffer = calcElementIndexInBuffer(positionWithinCycle, activeCycleIndex, cycleLengthLog2);
+        final long offset = UnsafeRefArrayAccess.calcElementOffset(indexInBuffer);
+        soElement(buffer, offset, e);
     }
 
     @Override
     public E poll()
     {
         final long consumerPosition = lpConsumerPosition();
-        final long offset = CircularArrayOffsetCalculator.calcElementOffset(consumerPosition, this.mask);
+        final long offset = circularArrayOffset(consumerPosition, this.mask);
         final E[] buffer = this.buffer;
-        E e;
-        if ((e = lvElement(buffer, offset)) != null)
+        final E e = lvElement(buffer, offset);
+        if (null == e)
         {
-            //can be used a memory_order_relaxed set here, because the consumer position write release the buffer value
-            spElement(buffer, offset, null);
-            //consumer position allows the producers to move the claim limit (aka reduce backpressure)
-            //hence can be set only after the buffer slot release
-            soConsumerPosition(consumerPosition + 1);
-            return e;
+            return pollSlowPath(buffer, offset, consumerPosition);
         }
-        else
-        {
-            return pollMaybeEmpty(buffer, offset, consumerPosition);
-        }
+        signalConsumerProgress(consumerPosition, buffer, offset);
+        return e;
     }
 
-    private E pollMaybeEmpty(E[] buffer, final long offset, final long consumerPosition)
+    private void signalConsumerProgress(long consumerPosition, E[] buffer, long offset)
+    {
+        spElement(buffer, offset, null);
+        soConsumerPosition(consumerPosition + 1);
+    }
+
+    private E pollSlowPath(final E[] buffer, final long offset, final long consumerPosition)
     {
         final int activeCycleIndex = activeCycleIndex(lvActiveCycleId());
         final long producerCycleClaim = lvProducerCycleClaim(activeCycleIndex);
-        final long producerPosition = producerPosition(
-            cycleId(producerCycleClaim, this.cycleIdBitShift),
-            positionOnCycle(producerCycleClaim, this.positionOnCycleMask),
+        final long producerPosition = producerPositionFromClaim(
+            producerCycleClaim,
+            this.positionWithinCycleMask,
+            this.cycleIdBitShift,
             this.cycleLengthLog2);
+
         if (producerPosition == consumerPosition)
         {
             return null;
         }
-        else
-        {
-            E e;
-            while ((e = lvElement(buffer, offset)) == null)
-            {
 
-            }
-            //can be used a memory_order_relaxed set here, because the consumer position write release the buffer value
-            spElement(buffer, offset, null);
-            //consumer position allows the producers to move the claim limit (aka reduce backpressure)
-            //hence can be set only after the buffer slot release
-            soConsumerPosition(consumerPosition + 1);
-            return e;
-        }
+        final E e = spinForElement(buffer, offset);
+        signalConsumerProgress(consumerPosition, buffer, offset);
+        return e;
     }
 
     @Override
     public E peek()
     {
+        final E[] buffer = this.buffer;
         final long consumerPosition = lpConsumerPosition();
-        final long offset = CircularArrayOffsetCalculator.calcElementOffset(consumerPosition, this.mask);
-        E e = lvElement(this.buffer, offset);
-        if (e != null)
+        final long offset = circularArrayOffset(consumerPosition, this.mask);
+        E e = lvElement(buffer, offset);
+        if (null == e)
         {
-            return e;
+            return peekSlowPath(buffer, consumerPosition, offset);
         }
+        return e;
+    }
+
+    private E peekSlowPath(final E[] buffer, long consumerPosition, long offset)
+    {
         final int activeCycleIndex = activeCycleIndex(lvActiveCycleId());
         final long producerCycleClaim = lvProducerCycleClaim(activeCycleIndex);
-        final long producerPosition = producerPosition(
-            cycleId(producerCycleClaim, this.cycleIdBitShift),
-            positionOnCycle(producerCycleClaim, this.positionOnCycleMask),
+
+        final long producerPosition = producerPositionFromClaim(
+            producerCycleClaim,
+            this.positionWithinCycleMask,
+            this.cycleIdBitShift,
             this.cycleLengthLog2);
+
         if (producerPosition == consumerPosition)
         {
             return null;
         }
-        else
-        {
-            while ((e = lvElement(buffer, offset)) == null)
-            {
 
-            }
-            return e;
+        return spinForElement(buffer, offset);
+    }
+
+    private E spinForElement(final E[] buffer, long offset)
+    {
+        E e;
+        do
+        {
+            e = lvElement(buffer, offset);
         }
+        while (e == null);
+        return e;
     }
 
     @Override
     public int size()
     {
+        final int cycleIdBitShift = this.cycleIdBitShift;
+
         long after = lvConsumerPosition();
-        int positionOnCycle;
-        long producerClaim;
+        long producerClaimCycleId;
         long before;
+        long activeCycleId;
+
+        int positionWithinCycle;
+        long producerClaim;
+
         do
         {
             before = after;
-            final int activeClaim = activeCycleIndex(lvActiveCycleId());
-            producerClaim = lvProducerCycleClaim(activeClaim);
+            activeCycleId = lvActiveCycleId();
+            producerClaim = lvProducerCycleClaim(activeCycleIndex(activeCycleId));
             after = lvConsumerPosition();
-            positionOnCycle = positionOnCycle(producerClaim, this.positionOnCycleMask);
+            producerClaimCycleId = producerClaimCycleId(producerClaim, cycleIdBitShift);
+            positionWithinCycle = positionWithinCycle(producerClaim, this.positionWithinCycleMask);
         }
-        while (positionOnCycle > this.cycleLength || before != after);
-        //need to have a stable consumer and a valid claim (into the cycle)
-        final long size =
-            producerPosition(cycleId(producerClaim, this.cycleIdBitShift), positionOnCycle, this.cycleLengthLog2) -
-                after;
-        if (size > Integer.MAX_VALUE)
+        while (positionWithinCycle > this.cycleLength || before != after || activeCycleId != producerClaimCycleId);
+
+        // need to have a stable consumer and a valid claim
+        final long size = producerPosition(positionWithinCycle, producerClaimCycleId, this.cycleLengthLog2) - after;
+        if (size > mask + 1)
         {
-            return Integer.MAX_VALUE;
+            return (int) (mask + 1);
         }
         else
         {
@@ -536,7 +558,7 @@ public final class MpscRelaxedArrayQueue<E> extends MpscRelaxedArrayQueueL4Pad<E
     @Override
     public int capacity()
     {
-        return this.cycleLength;
+        return (int) (this.mask + 1);
     }
 
     @Override
@@ -549,16 +571,12 @@ public final class MpscRelaxedArrayQueue<E> extends MpscRelaxedArrayQueueL4Pad<E
     public E relaxedPoll()
     {
         final long consumerPosition = lpConsumerPosition();
-        final long offset = CircularArrayOffsetCalculator.calcElementOffset(consumerPosition, this.mask);
+        final long offset = circularArrayOffset(consumerPosition, this.mask);
         final E[] buffer = this.buffer;
-        E e;
-        if ((e = lvElement(buffer, offset)) != null)
+        final E e = lvElement(buffer, offset);
+        if (e != null)
         {
-            //can be used a memory_order_relaxed set here, because the consumer position write release the buffer value
-            spElement(buffer, offset, null);
-            //consumer position allows the producers to move the claim limit (aka reduce backpressure)
-            //hence can be set only after the buffer slot release
-            soConsumerPosition(consumerPosition + 1);
+            signalConsumerProgress(consumerPosition, buffer, offset);
         }
         return e;
     }
@@ -567,9 +585,11 @@ public final class MpscRelaxedArrayQueue<E> extends MpscRelaxedArrayQueueL4Pad<E
     public E relaxedPeek()
     {
         final long consumerPosition = lpConsumerPosition();
-        final long offset = CircularArrayOffsetCalculator.calcElementOffset(consumerPosition, this.mask);
+        final long mask = this.mask;
+        final long offset = circularArrayOffset(consumerPosition, mask);
         return lvElement(this.buffer, offset);
     }
+
 
     @Override
     public int drain(Consumer<E> c)
@@ -603,16 +623,12 @@ public final class MpscRelaxedArrayQueue<E> extends MpscRelaxedArrayQueueL4Pad<E
         for (int i = 0; i < limit; i++)
         {
             final long consumerPosition = lpConsumerPosition();
-            final long offset = CircularArrayOffsetCalculator.calcElementOffset(consumerPosition, mask);
+            final long offset = circularArrayOffset(consumerPosition, mask);
 
             E e;
             if ((e = lvElement(buffer, offset)) != null)
             {
-                //can be used a memory_order_relaxed set here, because the consumer position write release the buffer value
-                spElement(buffer, offset, null);
-                //consumer position allows the producers to move the claim limit (aka reduce backpressure)
-                //hence can be set only after the buffer slot release
-                soConsumerPosition(consumerPosition + 1);
+                signalConsumerProgress(consumerPosition, buffer, offset);
                 c.accept(e);
             }
             else
@@ -626,7 +642,7 @@ public final class MpscRelaxedArrayQueue<E> extends MpscRelaxedArrayQueueL4Pad<E
     @Override
     public int fill(Supplier<E> s, int limit)
     {
-        final int positionOnCycleMask = this.positionOnCycleMask;
+        final int positionOnCycleMask = this.positionWithinCycleMask;
         final int cycleLengthLog2 = this.cycleLengthLog2;
         final int cycleLength = this.cycleLength;
         final int cycleIdBitShift = this.cycleIdBitShift;
@@ -639,21 +655,21 @@ public final class MpscRelaxedArrayQueue<E> extends MpscRelaxedArrayQueueL4Pad<E
         {
             final int activeCycle = activeCycleIndex(lvActiveCycleId());
             final long producerActiveCycleClaim = lvProducerCycleClaim(activeCycle);
-            final int positionOnActiveCycle = positionOnCycle(producerActiveCycleClaim, positionOnCycleMask);
-            final long activeCycleId = cycleId(producerActiveCycleClaim, cycleIdBitShift);
-            final long producerPosition = producerPosition(activeCycleId, positionOnActiveCycle, cycleLengthLog2);
+            final int positionOnActiveCycle = positionWithinCycle(producerActiveCycleClaim, positionOnCycleMask);
+            final long activeCycleId = producerClaimCycleId(producerActiveCycleClaim, cycleIdBitShift);
+            final long producerPosition = producerPosition(positionOnActiveCycle, activeCycleId, cycleLengthLog2);
             final long claimLimit = lvProducerLimit();
             if (producerPosition >= claimLimit)
             {
-                //it is really backpressured?
-                if (isBackPressured(producerPosition))
+                //it is really full?
+                if (isFull(producerPosition))
                 {
                     return i;
                 }
             }
             //try to claim on the active cycle
             final long producerCycleClaim = getAndIncrementProducerCycleClaim(activeCycle);
-            final int positionOnCycle = positionOnCycle(producerCycleClaim, positionOnCycleMask);
+            final int positionOnCycle = positionWithinCycle(producerCycleClaim, positionOnCycleMask);
             if (positionOnCycle >= maxPositionOnCycle)
             {
                 throw new IllegalStateException(
@@ -661,14 +677,12 @@ public final class MpscRelaxedArrayQueue<E> extends MpscRelaxedArrayQueueL4Pad<E
             }
             if (positionOnCycle < cycleLength)
             {
-                final long cycleId = cycleId(producerCycleClaim, cycleIdBitShift);
+                final long cycleId = producerClaimCycleId(producerCycleClaim, cycleIdBitShift);
                 if (cycleId != activeCycleId)
                 {
                     validateSlowProducerClaim(cycleId, positionOnCycle, cycleLengthLog2);
                 }
-                //simplified operation to calculate the offset in the array: activeCycle hasn't changed from the beginning of the offer!
-                final int producerOffset = calcElementOffset(activeCycle, positionOnCycle, cycleLengthLog2);
-                soElement(buffer, UnsafeRefArrayAccess.calcElementOffset(producerOffset), s.get());
+                soCycleElement(buffer, s.get(), activeCycle, positionOnCycle, cycleLengthLog2);
                 i++;
             }
             else if (positionOnCycle == cycleLength)
@@ -692,18 +706,16 @@ public final class MpscRelaxedArrayQueue<E> extends MpscRelaxedArrayQueueL4Pad<E
         {
             for (int i = 0; i < 4096; i++)
             {
-                final long offset = CircularArrayOffsetCalculator.calcElementOffset(consumerPosition, mask);
+                final long offset = circularArrayOffset(consumerPosition, mask);
                 final E e = lvElement(buffer, offset);// LoadLoad
                 if (null == e)
                 {
                     counter = w.idle(counter);
                     continue;
                 }
-                consumerPosition++;
                 counter = 0;
-                //a plain store would be enough
-                spElement(buffer, offset, null);
-                soConsumerPosition(consumerPosition); // ordered store -> atomic and ordered for size()
+                signalConsumerProgress(consumerPosition, buffer, offset);
+                consumerPosition++;
                 c.accept(e);
             }
         }
@@ -722,6 +734,61 @@ public final class MpscRelaxedArrayQueue<E> extends MpscRelaxedArrayQueueL4Pad<E
             }
             idleCounter = 0;
         }
+    }
+
+    private static int positionWithinCycle(long producerCycleClaim, int positionOnCycleMask)
+    {
+        return (int) (producerCycleClaim & positionOnCycleMask);
+    }
+
+    private static long producerClaimCycleId(long producerCycleClaim, int cycleIdBitShift)
+    {
+        return (producerCycleClaim >>> cycleIdBitShift);
+    }
+
+    private static long producerPositionFromClaim(
+        long producerCycleClaim,
+        int positionOnCycleMask,
+        int cycleIdBitShift,
+        int cycleLengthLog2)
+    {
+        final int positionWithinCycle = positionWithinCycle(producerCycleClaim, positionOnCycleMask);
+        final long producerClaimCycleId = producerClaimCycleId(producerCycleClaim, cycleIdBitShift);
+        return producerPosition(
+            positionWithinCycle,
+            producerClaimCycleId,
+            cycleLengthLog2);
+    }
+
+    /**
+     * Convert position in cycle and cycleId into a producer position (monotonically increasing reflection of offers
+     * that is comparable with the consumerPosition to determine size/empty/full)
+     */
+    private static long producerPosition(
+        int positionWithinCycle,
+        long cycleId,
+        int cycleLengthLog2)
+    {
+        return (cycleId << cycleLengthLog2) + positionWithinCycle;
+    }
+
+    /**
+     * Convert [position within cycle, cycleIndex] to index in buffer.
+     */
+    private static int calcElementIndexInBuffer(
+        int positionWithinCycle,
+        int cycleIndex,
+        int cycleLengthLog2)
+    {
+        return (cycleIndex << cycleLengthLog2) + positionWithinCycle;
+    }
+
+    /**
+     * Used by the consumer only to compute offset in bytes, within the full circular buffer, for the given position.
+     */
+    private static long circularArrayOffset(long consumerPosition, long mask)
+    {
+        return CircularArrayOffsetCalculator.calcElementOffset(consumerPosition, mask);
     }
 
     @Override
