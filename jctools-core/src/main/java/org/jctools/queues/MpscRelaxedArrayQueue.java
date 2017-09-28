@@ -558,7 +558,7 @@ public class MpscRelaxedArrayQueue<E> extends MpscRelaxedArrayQueueL4Pad<E> impl
     @Override
     public int capacity()
     {
-        return (int) (this.mask + 1);
+        return cycleLength;
     }
 
     @Override
