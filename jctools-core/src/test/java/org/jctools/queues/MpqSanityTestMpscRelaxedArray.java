@@ -37,8 +37,8 @@ public class MpqSanityTestMpscRelaxedArray extends MpqSanityTest
     public static Collection<Object[]> parameters()
     {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
-        list.add(makeMpq(0, 1, 2, Ordering.FIFO, new MpscRelaxedArrayQueue<>(2)));// MPSC size 2
-        list.add(makeMpq(0, 1, SIZE, Ordering.FIFO, new MpscRelaxedArrayQueue<>(SIZE)));// MPSC size SIZE
+        list.add(makeMpq(1, 1, 2, Ordering.FIFO, new MpscRelaxedArrayQueue<>(2)));// MPSC size 2
+        list.add(makeMpq(1, 1, SIZE, Ordering.FIFO, new MpscRelaxedArrayQueue<>(SIZE)));// MPSC size SIZE
         return list;
     }
 }

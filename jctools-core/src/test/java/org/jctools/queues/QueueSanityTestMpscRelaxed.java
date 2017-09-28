@@ -36,8 +36,8 @@ public class QueueSanityTestMpscRelaxed extends QueueSanityTestMpscArray
     public static Collection<Object[]> parameters()
     {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
-        list.add(makeQueue(0, 1, 2, Ordering.FIFO, new MpscRelaxedArrayQueue<Integer>(2)));// MPSC size 1
-        list.add(makeQueue(0, 1, SIZE, Ordering.FIFO, new MpscRelaxedArrayQueue<Integer>(SIZE)));// MPSC size SIZE
+        list.add(makeQueue(1, 1, 2, Ordering.FIFO, new MpscRelaxedArrayQueue<Integer>(2)));// MPSC size 1
+        list.add(makeQueue(1, 1, SIZE, Ordering.FIFO, new MpscRelaxedArrayQueue<Integer>(SIZE)));// MPSC size SIZE
         return list;
     }
 
