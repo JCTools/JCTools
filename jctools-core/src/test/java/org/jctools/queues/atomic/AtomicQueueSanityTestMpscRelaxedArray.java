@@ -40,8 +40,8 @@ public class AtomicQueueSanityTestMpscRelaxedArray extends QueueSanityTestMpscAr
     {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
         // need at least size 2 for this test
-        list.add(makeQueue(0, 1, 2, Ordering.FIFO, new MpscRelaxedAtomicArrayQueue<>(2)));
-        list.add(makeQueue(0, 1, SIZE, Ordering.FIFO, new MpscRelaxedAtomicArrayQueue<>(SIZE)));
+        list.add(makeQueue(1, 1, 2, Ordering.FIFO, new MpscRelaxedAtomicArrayQueue<>(2)));
+        list.add(makeQueue(1, 1, SIZE, Ordering.FIFO, new MpscRelaxedAtomicArrayQueue<>(SIZE)));
         return list;
     }
 }
