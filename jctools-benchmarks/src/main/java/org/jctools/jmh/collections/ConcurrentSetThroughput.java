@@ -47,11 +47,11 @@ public class ConcurrentSetThroughput {
 
     private void createImplementation(ThreadParams threads) {
         if ("ConcurrentHashSet".equalsIgnoreCase(implementation)) {
-            set = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>(16, 0.75f, 16));
+            set = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
         } else if ("NonBlockingHashSet".equalsIgnoreCase(implementation)) {
             set = new NonBlockingHashSet<String>();
         } else if ("SingleWriterHashSet".equalsIgnoreCase(implementation)) {
-            if (threads.getGroupIndex() == 0 && threads.getGroupThreadCount() != 1) {
+            if (threads.getGroupIndex() == 0 && threads.getSubgroupIndex() == 0 && threads.getSubgroupThreadCount() != 1) {
                 throw new IllegalArgumentException("Trying to benchmark SingleWriterHashSet with multiple writer threads");
             }
             set = new SingleWriterHashSet<String>(16);
@@ -122,7 +122,7 @@ public class ConcurrentSetThroughput {
     }
 
     @Benchmark
-    @Threads(1)
+    @Group("rw")
     public boolean randomContainsAddRemove(ThreadState state) {
         String key = testData[state.next() & (testData.length - 1)];
         int x = state.next() & ((1 << 20) - 1);
@@ -136,6 +136,7 @@ public class ConcurrentSetThroughput {
     }
 
     @Benchmark
+    @Group("rw")
     public boolean randomGet(ThreadState state) {
         String key = testData[state.next() & (testData.length - 1)];
         return set.contains(key);
