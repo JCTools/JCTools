@@ -1,22 +1,26 @@
 package org.jctools.queues;
 
-import static org.jctools.util.UnsafeRefArrayAccess.*;
+import org.jctools.util.InternalAPI;
 
-public final class CircularArrayOffsetCalculator {
+import static org.jctools.util.UnsafeRefArrayAccess.REF_ARRAY_BASE;
+import static org.jctools.util.UnsafeRefArrayAccess.REF_ELEMENT_SHIFT;
 
-    private CircularArrayOffsetCalculator() {
-    }
+@InternalAPI
+public final class CircularArrayOffsetCalculator
+{
     @SuppressWarnings("unchecked")
-    public static <E> E[] allocate(int capacity) {
+    public static <E> E[] allocate(int capacity)
+    {
         return (E[]) new Object[capacity];
     }
 
     /**
      * @param index desirable element index
-     * @param mask
+     * @param mask (length - 1)
      * @return the offset in bytes within the array for a given index.
      */
-    public static long calcElementOffset(long index, long mask) {
+    public static long calcElementOffset(long index, long mask)
+    {
         return REF_ARRAY_BASE + ((index & mask) << REF_ELEMENT_SHIFT);
     }
 }

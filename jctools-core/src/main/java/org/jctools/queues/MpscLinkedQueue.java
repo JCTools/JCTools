@@ -30,27 +30,32 @@ import org.jctools.util.UnsafeAccess;
  * @param <E> the type of elements in this queue
  * @author nitsanw
  */
-public abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E> {
-
+public abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E>
+{
     /**
      * Construct the implementation based on availability of getAndSet intrinsic.
      *
      * @return the right queue for you!
      */
-    public static <E> MpscLinkedQueue<E> newMpscLinkedQueue() {
-        if (UnsafeAccess.SUPPORTS_GET_AND_SET) {
+    // $gen:ignore
+    public static <E> MpscLinkedQueue<E> newMpscLinkedQueue()
+    {
+        if (UnsafeAccess.SUPPORTS_GET_AND_SET)
+        {
             return new MpscLinkedQueue8<E>();
         }
-        else {
+        else
+        {
             return new MpscLinkedQueue7<E>();
         }
     }
-    protected MpscLinkedQueue() {
-        consumerNode = new LinkedQueueNode<E>();
-        xchgProducerNode(consumerNode);// this ensures correct construction: StoreLoad
-    }
 
-    protected abstract LinkedQueueNode<E> xchgProducerNode(LinkedQueueNode<E> nextNode);
+    protected MpscLinkedQueue()
+    {
+        LinkedQueueNode<E> node = newNode();
+        spConsumerNode(node);
+        xchgProducerNode(node);
+    }
 
     /**
      * {@inheritDoc} <br>
@@ -69,11 +74,13 @@ public abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E> {
      * @see java.util.Queue#offer(java.lang.Object)
      */
     @Override
-    public final boolean offer(final E e) {
-        if (null == e) {
+    public final boolean offer(final E e)
+    {
+        if (null == e)
+        {
             throw new NullPointerException();
         }
-        final LinkedQueueNode<E> nextNode = new LinkedQueueNode<E>(e);
+        final LinkedQueueNode<E> nextNode = newNode(e);
         final LinkedQueueNode<E> prevProducerNode = xchgProducerNode(nextNode);
         // Should a producer thread get interrupted here the chain WILL be broken until that thread is resumed
         // and completes the store in prev.next.
@@ -99,57 +106,123 @@ public abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E> {
      * @see java.util.Queue#poll()
      */
     @Override
-    public final E poll() {
+    public final E poll()
+    {
         LinkedQueueNode<E> currConsumerNode = lpConsumerNode(); // don't load twice, it's alright
         LinkedQueueNode<E> nextNode = currConsumerNode.lvNext();
-        if (nextNode != null) {
+        if (nextNode != null)
+        {
             return getSingleConsumerNodeValue(currConsumerNode, nextNode);
         }
-        else if (currConsumerNode != lvProducerNode()) {
-            // spin, we are no longer wait free
-            while ((nextNode = currConsumerNode.lvNext()) == null)
-                ;
+        else if (currConsumerNode != lvProducerNode())
+        {
+            nextNode = spinWaitForNextNode(currConsumerNode);
             // got the next node...
-
             return getSingleConsumerNodeValue(currConsumerNode, nextNode);
         }
         return null;
     }
 
     @Override
-    public final E peek() {
-        LinkedQueueNode<E> currConsumerNode = consumerNode; // don't load twice, it's alright
+    public final E peek()
+    {
+        LinkedQueueNode<E> currConsumerNode = lpConsumerNode(); // don't load twice, it's alright
         LinkedQueueNode<E> nextNode = currConsumerNode.lvNext();
-        if (nextNode != null) {
+        if (nextNode != null)
+        {
             return nextNode.lpValue();
         }
-        else if (currConsumerNode != lvProducerNode()) {
-            // spin, we are no longer wait free
-            while ((nextNode = currConsumerNode.lvNext()) == null)
-                ;
+        else if (currConsumerNode != lvProducerNode())
+        {
+            nextNode = spinWaitForNextNode(currConsumerNode);
             // got the next node...
             return nextNode.lpValue();
         }
         return null;
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * This method is only safe to call from the (single) consumer thread, and is subject to best effort when racing
+     * with producers.
+     */
     @Override
-    public int fill(Supplier<E> s) {
+    public final boolean remove(Object o)
+    {
+        if (null == o)
+        {
+            return false; // Null elements are not permitted, so null will never be removed.
+        }
+
+        final LinkedQueueNode<E> originalConsumerNode = lpConsumerNode();
+        LinkedQueueNode<E> prevConsumerNode = originalConsumerNode;
+        LinkedQueueNode<E> currConsumerNode = getNextConsumerNode(originalConsumerNode);
+        while (currConsumerNode != null)
+        {
+            if (o.equals(currConsumerNode.lpValue()))
+            {
+                LinkedQueueNode<E> nextNode = getNextConsumerNode(currConsumerNode);
+                // e.g.: consumerNode -> node0 -> node1(o==v) -> node2 ... => consumerNode -> node0 -> node2
+                if (nextNode != null)
+                {
+                    // We are removing an interior node.
+                    prevConsumerNode.soNext(nextNode);
+
+                }
+                // This case reflects: prevConsumerNode != originalConsumerNode && nextNode == null
+                // At rest, this would be the producerNode, but we must contend with racing. Changes to subclassed
+                // queues need to consider remove() when implementing offer().
+                else
+                {
+                    // producerNode is currConsumerNode, try to atomically update the reference to move it to the
+                    // previous node.
+                    prevConsumerNode.soNext(null);
+                    if (!casProducerNode(currConsumerNode, prevConsumerNode))
+                    {
+                        // If the producer(s) have offered more items we need to remove the currConsumerNode link.
+                        nextNode = spinWaitForNextNode(currConsumerNode);
+                        prevConsumerNode.soNext(nextNode);
+                    }
+                }
+
+                // Avoid GC nepotism because we are discarding the current node.
+                currConsumerNode.soNext(null);
+                currConsumerNode.spValue(null);
+
+                return true;
+            }
+            prevConsumerNode = currConsumerNode;
+            currConsumerNode = getNextConsumerNode(currConsumerNode);
+        }
+        return false;
+    }
+
+    @Override
+    public int fill(Supplier<E> s)
+    {
         long result = 0;// result is a long because we want to have a safepoint check at regular intervals
-        do {
+        do
+        {
             fill(s, 4096);
             result += 4096;
-        } while (result <= Integer.MAX_VALUE - 4096);
+        }
+        while (result <= Integer.MAX_VALUE - 4096);
         return (int) result;
     }
 
     @Override
-    public int fill(Supplier<E> s, int limit) {
-        if (limit == 0) return 0;
-        LinkedQueueNode<E> tail = new LinkedQueueNode<E>(s.get());
+    public int fill(Supplier<E> s, int limit)
+    {
+        if (limit == 0)
+        {
+            return 0;
+        }
+        LinkedQueueNode<E> tail = newNode(s.get());
         final LinkedQueueNode<E> head = tail;
-        for (int i = 1; i < limit; i++) {
-            final LinkedQueueNode<E> temp = new LinkedQueueNode<E>(s.get());
+        for (int i = 1; i < limit; i++)
+        {
+            final LinkedQueueNode<E> temp = newNode(s.get());
             tail.soNext(temp);
             tail = temp;
         }
@@ -159,9 +232,34 @@ public abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E> {
     }
 
     @Override
-    public void fill(Supplier<E> s, WaitStrategy wait, ExitCondition exit) {
-        while (exit.keepRunning()) {
+    public void fill(Supplier<E> s, WaitStrategy wait, ExitCondition exit)
+    {
+        while (exit.keepRunning())
+        {
             fill(s, 4096);
         }
+    }
+
+    // $gen:ignore
+    protected abstract LinkedQueueNode<E> xchgProducerNode(LinkedQueueNode<E> nextNode);
+
+    private LinkedQueueNode<E> getNextConsumerNode(LinkedQueueNode<E> currConsumerNode)
+    {
+        LinkedQueueNode<E> nextNode = currConsumerNode.lvNext();
+        if (nextNode == null && currConsumerNode != lvProducerNode())
+        {
+            nextNode = spinWaitForNextNode(currConsumerNode);
+        }
+        return nextNode;
+    }
+
+    private LinkedQueueNode<E> spinWaitForNextNode(LinkedQueueNode<E> currNode)
+    {
+        LinkedQueueNode<E> nextNode;
+        while ((nextNode = currNode.lvNext()) == null)
+        {
+            // spin, we are no longer wait free
+        }
+        return nextNode;
     }
 }

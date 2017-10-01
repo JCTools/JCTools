@@ -8,10 +8,7 @@
 /jctools-benchmarks/target
 /jctools-experimental/target/
 /.project
-jctools-parent.iml
-/jctools-core/jctools-core.iml
-/jctools-benchmarks/jctools-benchmarks.iml
-/jctools-experimental/jctools-experimental.iml
+*.iml
 .idea
 
 

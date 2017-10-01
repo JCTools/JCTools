@@ -5,7 +5,7 @@
     <groupId>org.jctools</groupId>
     <artifactId>jctools-parent</artifactId>
     <packaging>pom</packaging>
-    <version>2.1-SNAPSHOT</version>
+    <version>2.2-SNAPSHOT</version>
     <name>JCTools Parent</name>
     <organization>
         <url>https://github.com/JCTools</url>
@@ -59,8 +59,10 @@
     <modules>
         <module>jctools-core</module>
         <module>jctools-experimental</module>
+        <module>jctools-channels</module>
         <module>jctools-benchmarks</module>
         <module>jctools-concurrency-test</module>
+        <module>jctools-build</module>
     </modules>
 
     <build>
@@ -79,7 +81,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
-                <version>1.4.1</version>
+                <version>3.0.0-M1</version>
                 <executions>
                     <execution>
                         <id>enforce-java</id>

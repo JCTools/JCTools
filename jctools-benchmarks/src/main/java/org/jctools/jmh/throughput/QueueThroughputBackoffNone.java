@@ -23,19 +23,21 @@ import java.util.concurrent.TimeUnit;
 @State(Scope.Group)
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
-@Warmup(iterations = 5, time = 3, timeUnit = TimeUnit.SECONDS)
-@Measurement(iterations = 5, time = 3, timeUnit = TimeUnit.SECONDS)
+@Warmup(iterations = 10, time = 1)
+@Measurement(iterations = 10, time = 1)
 public class QueueThroughputBackoffNone {
-    private static final long DELAY_PRODUCER = Long.getLong("delay.p", 0L);
-    private static final long DELAY_CONSUMER = Long.getLong("delay.c", 0L);
-    Integer ONE = 777;
-    private Integer escape;
+    static final long DELAY_PRODUCER = Long.getLong("delay.p", 0L);
+    static final long DELAY_CONSUMER = Long.getLong("delay.c", 0L);
+    static final Integer TEST_ELEMENT = 1;
+    Integer element = TEST_ELEMENT;
+    Integer escape;
+    Queue<Integer> q;
+
     @Param(value = { "SpscArrayQueue", "MpscArrayQueue", "SpmcArrayQueue", "MpmcArrayQueue" })
     String qType;
 
     @Param(value = { "132000" })
     String qCapacity;
-    Queue<Integer> q;
 
     @Setup()
     public void createQandPrimeCompilation() {
@@ -44,7 +46,7 @@ public class QueueThroughputBackoffNone {
         q = QueueByTypeFactory.createQueue(qType, 128);
         // stretch the queue to the limit, working through resizing and full
         for (int i = 0; i < 128+100; i++) {
-            q.offer(ONE);
+            q.offer(element);
         }
         for (int i = 0; i < 128+100; i++) {
             q.poll();
@@ -52,7 +54,7 @@ public class QueueThroughputBackoffNone {
         }
         // make sure the important common case is exercised
         for (int i = 0; i < 20000; i++) {
-            q.offer(ONE);
+            q.offer(element);
             q.poll();
         }
         final String qCapacity = this.qCapacity;
@@ -84,19 +86,10 @@ public class QueueThroughputBackoffNone {
         }
     }
 
-    private static ThreadLocal<Object> marker = new ThreadLocal<Object>();
-
-    @State(Scope.Thread)
-    public static class ConsumerMarker {
-        public ConsumerMarker() {
-            marker.set(this);
-        }
-    }
-
     @Benchmark
     @Group("tpt")
     public void offer(OfferCounters counters) {
-        if (!q.offer(ONE)) {
+        if (!q.offer(element)) {
             counters.offersFailed++;
             backoff();
         } else {
@@ -112,12 +105,12 @@ public class QueueThroughputBackoffNone {
 
     @Benchmark
     @Group("tpt")
-    public void poll(PollCounters counters, ConsumerMarker cm) {
+    public void poll(PollCounters counters) {
         Integer e = q.poll();
         if (e == null) {
             counters.pollsFailed++;
             backoff();
-        } else if (e == ONE) {
+        } else if (e == TEST_ELEMENT) {
             counters.pollsMade++;
         } else {
             escape = e;
@@ -129,10 +122,9 @@ public class QueueThroughputBackoffNone {
 
     @TearDown(Level.Iteration)
     public void emptyQ() {
-        if (marker.get() == null)
-            return;
-        // sadly the iteration tear down is performed from each participating thread, so we need to guess
-        // which is which (can't have concurrent access to poll).
-        q.clear();
+        synchronized (q)
+        {
+            q.clear();
+        }
     }
 }

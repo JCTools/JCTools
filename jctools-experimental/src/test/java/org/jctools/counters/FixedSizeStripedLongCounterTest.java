@@ -8,7 +8,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.jctools.util.JvmInfo;
+import org.jctools.util.PortableJvmInfo;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -21,7 +21,7 @@ public class FixedSizeStripedLongCounterTest {
 
     @Parameterized.Parameters
     public static Collection<Object[]> parameters() {
-        int stripesCount = JvmInfo.CPUs * 2;
+        int stripesCount = PortableJvmInfo.CPUs * 2;
         ArrayList<Object[]> list = new ArrayList<>();
         list.add(new Counter[]{new FixedSizeStripedLongCounterV6(stripesCount)});
         list.add(new Counter[]{new FixedSizeStripedLongCounterV8(stripesCount)});
@@ -46,7 +46,7 @@ public class FixedSizeStripedLongCounterTest {
 
     @Test
     public void testMultipleThreadsCounterSanity() throws Exception {
-        int threadsCount = JvmInfo.CPUs;
+        int threadsCount = PortableJvmInfo.CPUs;
         AtomicLong summary = new AtomicLong();
         AtomicBoolean running = new AtomicBoolean(true);
         CountDownLatch startLatch = new CountDownLatch(1);

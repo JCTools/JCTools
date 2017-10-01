@@ -13,23 +13,16 @@
  */
 package org.jctools.jmh.latency;
 
+import org.jctools.queues.QueueByTypeFactory;
+import org.openjdk.jmh.annotations.*;
+import org.openjdk.jmh.infra.Blackhole;
+
 import java.util.Queue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import org.jctools.queues.QueueByTypeFactory;
-import org.openjdk.jmh.annotations.Benchmark;
-import org.openjdk.jmh.annotations.BenchmarkMode;
-import org.openjdk.jmh.annotations.Level;
-import org.openjdk.jmh.annotations.Measurement;
-import org.openjdk.jmh.annotations.Mode;
-import org.openjdk.jmh.annotations.OutputTimeUnit;
-import org.openjdk.jmh.annotations.Param;
-import org.openjdk.jmh.annotations.Scope;
-import org.openjdk.jmh.annotations.Setup;
-import org.openjdk.jmh.annotations.State;
-import org.openjdk.jmh.annotations.TearDown;
-import org.openjdk.jmh.annotations.Warmup;
 
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
@@ -37,112 +30,193 @@ import org.openjdk.jmh.annotations.Warmup;
 @Warmup(iterations = 10, time = 1, timeUnit = TimeUnit.SECONDS)
 @Measurement(iterations = 10, time = 1, timeUnit = TimeUnit.SECONDS)
 @SuppressWarnings("serial")
-public class QueueBurstCost {
-    abstract static class AbstractEvent extends AtomicBoolean {
+public class QueueBurstCost
+{
+    private static final long DELAY_PRODUCER = Long.getLong("delay.p", 0L);
+    private static final long DELAY_CONSUMER = Long.getLong("delay.c", 0L);
+    Go GO = new Go();
+    @Param( {"SpscArrayQueue", "MpscArrayQueue", "SpmcArrayQueue", "MpmcArrayQueue"})
+    String qType;
+    @Param( {"100"})
+    int burstSize;
+    @Param("1")
+    int consumerCount;
+    @Param("true")
+    boolean warmup;
+    @Param(value = {"132000"})
+    String qCapacity;
+    Queue<AbstractEvent> q;
+    private ExecutorService consumerExecutor;
+    private Consumer consumer;
+
+    @Setup(Level.Trial)
+    public void setupQueue()
+    {
+        if (warmup)
+        {
+            q = QueueByTypeFactory.createQueue(qType, 128);
+
+            // stretch the queue to the limit, working through resizing and full
+            for (int i = 0; i < 128 + 100; i++)
+            {
+                q.offer(GO);
+            }
+            for (int i = 0; i < 128 + 100; i++)
+            {
+                q.poll();
+            }
+            // make sure the important common case is exercised
+            for (int i = 0; i < 20000; i++)
+            {
+                q.offer(GO);
+                q.poll();
+            }
+        }
+        q = QueueByTypeFactory.buildQ(qType, qCapacity);
+        consumer = new Consumer(q);
+        consumerExecutor = Executors.newFixedThreadPool(consumerCount);
+    }
+
+    @Setup(Level.Iteration)
+    public void startConsumers()
+    {
+        consumer.isRunning = true;
+        consumer.stopped = new CountDownLatch(consumerCount);
+        for (int i = 0; i < consumerCount; i++)
+        {
+            consumerExecutor.execute(consumer);
+        }
+
+    }
+
+    @TearDown(Level.Iteration)
+    public void stopConsumers() throws InterruptedException
+    {
+        consumer.isRunning = false;
+        consumer.stopped.await();
+    }
+
+    @TearDown(Level.Trial)
+    public void stopExecutor() throws InterruptedException
+    {
+        consumerExecutor.shutdown();
+    }
+
+    @Benchmark
+    @CompilerControl(CompilerControl.Mode.DONT_INLINE)
+    public void burstCost(Stop stop)
+    {
+        final int burst = burstSize;
+        final Queue<AbstractEvent> q = this.q;
+        final Go go = GO;
+        stop.lazySet(false);
+        sendBurst(q, burst, go, stop);
+
+        waitForIt(stop);
+    }
+
+    private void waitForIt(Stop stop)
+    {
+        while (!stop.get())
+        {
+            ;
+        }
+    }
+
+    private void sendBurst(Queue<AbstractEvent> q, int burst, Go go, Stop stop)
+    {
+        for (int i = 0; i < burst - 1; i++)
+        {
+            while (!q.offer(go))
+            {
+                ;
+            }
+            if (DELAY_PRODUCER != 0)
+            {
+                Blackhole.consumeCPU(DELAY_PRODUCER);
+            }
+        }
+
+        while (!q.offer(stop))
+        {
+            ;
+        }
+    }
+
+    abstract static class AbstractEvent extends AtomicBoolean
+    {
         abstract void handle();
     }
 
-    static class Go extends AbstractEvent {
+    static class Go extends AbstractEvent
+    {
         @Override
-        void handle() {
+        void handle()
+        {
             // do nothing
         }
     }
 
     @State(Scope.Thread)
-    public static class Stop extends AbstractEvent {
+    public static class Stop extends AbstractEvent
+    {
         @Override
-        void handle() {
+        void handle()
+        {
             lazySet(true);
         }
     }
 
-    static class Consumer implements Runnable {
-        final Queue<AbstractEvent> q;
-        volatile boolean isRunning = true;
+    static class ConsumerPad
+    {
+        public long p40, p41, p42, p43, p44, p45, p46;
+        public long p30, p31, p32, p33, p34, p35, p36, p37;
+    }
 
-        public Consumer(Queue<AbstractEvent> q) {
+    static class ConsumerFields extends ConsumerPad
+    {
+        Queue<AbstractEvent> q;
+        volatile boolean isRunning = true;
+        CountDownLatch stopped;
+    }
+
+    static class Consumer extends ConsumerFields implements Runnable
+    {
+        public long p40, p41, p42, p43, p44, p45, p46;
+        public long p30, p31, p32, p33, p34, p35, p36, p37;
+
+        public Consumer(Queue<AbstractEvent> q)
+        {
             this.q = q;
         }
 
         @Override
-        public void run() {
+        public void run()
+        {
             final Queue<AbstractEvent> q = this.q;
-            while (isRunning) {
-                AbstractEvent e = null;
-                if ((e = q.poll()) == null) {
-                    continue;
-                }
-                e.handle();
+            while (isRunning)
+            {
+                consume(q);
             }
+            stopped.countDown();
+        }
+
+        @CompilerControl(CompilerControl.Mode.DONT_INLINE)
+        private void consume(Queue<AbstractEvent> q)
+        {
+            AbstractEvent e = null;
+            if ((e = q.poll()) == null)
+            {
+                return;
+            }
+            if (DELAY_CONSUMER != 0)
+            {
+                Blackhole.consumeCPU(DELAY_CONSUMER);
+            }
+            e.handle();
         }
 
     }
 
-    Go GO = new Go();
 
-    @Param({ "SpscArrayQueue", "MpscArrayQueue", "SpmcArrayQueue", "MpmcArrayQueue" })
-    String qType;
-
-    @Param({ "100" })
-    int burstSize;
-
-    @Param("1")
-    int consumerCount;
-
-    @Param(value = { "132000" })
-    String qCapacity;
-
-    Queue<AbstractEvent> q;
-
-    private Thread[] consumerThreads;
-    private Consumer consumer;
-
-    @Setup(Level.Trial)
-    public void setupQueueAndConsumers() {
-        q = QueueByTypeFactory.createQueue(qType, 128);
-
-        // stretch the queue to the limit, working through resizing and full
-        for (int i = 0; i < 128 + 100; i++) {
-            q.offer(GO);
-        }
-        for (int i = 0; i < 128 + 100; i++) {
-            q.poll();
-        }
-        // make sure the important common case is exercised
-        for (int i = 0; i < 20000; i++) {
-            q.offer(GO);
-            q.poll();
-        }
-        q = QueueByTypeFactory.buildQ(qType, qCapacity);
-        consumer = new Consumer(q);
-        consumerThreads = new Thread[consumerCount];
-        for (int i = 0; i < consumerCount; i++) {
-            consumerThreads[i] = new Thread(consumer);
-            consumerThreads[i].start();
-        }
-    }
-
-    @Benchmark
-    public void burstCost(Stop stop) {
-        final int burst = burstSize;
-        final Queue<AbstractEvent> q = this.q;
-        final Go go = GO;
-        stop.lazySet(false);
-        for (int i = 0; i < burst - 1; i++) {
-            while (!q.offer(go));
-        }
-
-        while (!q.offer(stop));
-
-        while (!stop.get());
-    }
-
-    @TearDown
-    public void killConsumers() throws InterruptedException {
-        consumer.isRunning = false;
-        for (int i = 0; i < consumerCount; i++) {
-            consumerThreads[i].join();
-        }
-    }
 }

@@ -12,6 +12,8 @@
  * limitations under the License.
  */
 package org.jctools.maps;
+import static org.jctools.util.UnsafeAccess.UNSAFE;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.Field;
@@ -19,7 +21,7 @@ import java.util.AbstractSet;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicInteger;
-import static org.jctools.util.UnsafeAccess.UNSAFE;
+import org.jctools.util.RangeUtil;
 
 /**
  * A multi-threaded bit-vector set, implemented as an array of primitive
@@ -110,7 +112,7 @@ public class NonBlockingSetInt extends AbstractSet<Integer> implements Serializa
    * @return <tt>true</tt> if i was added to the set.
    */
   public boolean add( final int i ) {
-    if( i < 0 ) throw new IllegalArgumentException(""+i);
+    RangeUtil.checkPositiveOrZero(i, "i");
     return _nbsi.add(i);
   }
   /** 

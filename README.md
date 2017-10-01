@@ -29,7 +29,7 @@ Add the latest version as a dependency using Maven:
         <dependency>
             <groupId>org.jctools</groupId>
             <artifactId>jctools-core</artifactId>
-            <version>2.0.1</version>
+            <version>2.1.1</version>
         </dependency>
 ```
 
@@ -46,11 +46,11 @@ And setup the following dependency:
         <dependency>
             <groupId>com.github.JCTools.JCTools</groupId>
             <artifactId>jctools-core</artifactId>
-            <version>v2.0.1</version>
+            <version>v2.1.1</version>
         </dependency>
 ```
 
-You can also depend on latest snapshot from this repository (live on the edge) by setting the version to '2.1-SNAPSHOT'.
+You can also depend on latest snapshot from this repository (live on the edge) by setting the version to '2.2-SNAPSHOT'.
 
 
 Build it from source
@@ -75,10 +75,11 @@ found in the jctools-benchmarks module README. Go wild and please let us know ho
 
 Concurrency Testing
 ===========
+```
 mvn package
 cd jctools-concurrency-test
 java -jar target/concurrency-test.jar -v
-
+```
 Come up to the lab...
 ==========
 Experimental work is available under the jctools-experimental module. Most of the stuff is developed with an eye to
@@ -88,3 +89,9 @@ Have Questions? Suggestions?
 ==========
 The best way to discuss JCTools is on the GitHub issues system. Any question is good, and GitHub provides a better
 platform for knowledge sharing than twitter/mailing-list/gitter (or at least that's what we think).
+
+Thanks!!!
+=====
+We have kindly been awarded [IntelliJ IDEA](https://www.jetbrains.com/idea/) licences by [JetBrains](https://www.jetbrains.com/) to aid in the development of JCTools. It's an great suite of tools which has benefited the developers and ultimately the community. It's an awesome and inspiring company, **BUY THEIR PRODUCTS NOW!!!**
+
+JCTools has enjoyed a steady stream of PRs, suggestions and user feedback. It's a community! Thank you all for getting involved!

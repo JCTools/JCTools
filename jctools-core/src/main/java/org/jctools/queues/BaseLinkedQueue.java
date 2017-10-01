@@ -13,100 +13,142 @@
  */
 package org.jctools.queues;
 
-import static org.jctools.util.UnsafeAccess.UNSAFE;
-
+import java.lang.reflect.Field;
 import java.util.AbstractQueue;
 import java.util.Iterator;
 
-abstract class BaseLinkedQueuePad0<E> extends AbstractQueue<E>implements MessagePassingQueue<E> {
+import static org.jctools.util.UnsafeAccess.UNSAFE;
+
+abstract class BaseLinkedQueuePad0<E> extends AbstractQueue<E> implements MessagePassingQueue<E>
+{
     long p00, p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16;
 }
 
-abstract class BaseLinkedQueueProducerNodeRef<E> extends BaseLinkedQueuePad0<E> {
+// $gen:ordered-fields
+abstract class BaseLinkedQueueProducerNodeRef<E> extends BaseLinkedQueuePad0<E>
+{
     protected final static long P_NODE_OFFSET;
 
-    static {
-        try {
-            P_NODE_OFFSET = UNSAFE
-                    .objectFieldOffset(BaseLinkedQueueProducerNodeRef.class.getDeclaredField("producerNode"));
+    static
+    {
+        try
+        {
+            final Field pNodeField = BaseLinkedQueueProducerNodeRef.class.getDeclaredField("producerNode");
+            P_NODE_OFFSET = UNSAFE.objectFieldOffset(pNodeField);
         }
-        catch (NoSuchFieldException e) {
+        catch (NoSuchFieldException e)
+        {
             throw new RuntimeException(e);
         }
     }
 
     protected LinkedQueueNode<E> producerNode;
 
-    protected final void spProducerNode(LinkedQueueNode<E> node) {
-        producerNode = node;
+    protected final void spProducerNode(LinkedQueueNode<E> newValue)
+    {
+        producerNode = newValue;
     }
 
     @SuppressWarnings("unchecked")
-    protected final LinkedQueueNode<E> lvProducerNode() {
+    protected final LinkedQueueNode<E> lvProducerNode()
+    {
         return (LinkedQueueNode<E>) UNSAFE.getObjectVolatile(this, P_NODE_OFFSET);
     }
 
-    protected final LinkedQueueNode<E> lpProducerNode() {
+    @SuppressWarnings("unchecked")
+    protected final boolean casProducerNode(LinkedQueueNode<E> expect, LinkedQueueNode<E> newValue)
+    {
+        return UNSAFE.compareAndSwapObject(this, P_NODE_OFFSET, expect, newValue);
+    }
+
+    protected final LinkedQueueNode<E> lpProducerNode()
+    {
         return producerNode;
     }
 }
 
-abstract class BaseLinkedQueuePad1<E> extends BaseLinkedQueueProducerNodeRef<E> {
+abstract class BaseLinkedQueuePad1<E> extends BaseLinkedQueueProducerNodeRef<E>
+{
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 }
 
-abstract class BaseLinkedQueueConsumerNodeRef<E> extends BaseLinkedQueuePad1<E> {
+//$gen:ordered-fields
+abstract class BaseLinkedQueueConsumerNodeRef<E> extends BaseLinkedQueuePad1<E>
+{
     protected final static long C_NODE_OFFSET;
 
-    static {
-        try {
-            C_NODE_OFFSET = UNSAFE
-                    .objectFieldOffset(BaseLinkedQueueConsumerNodeRef.class.getDeclaredField("consumerNode"));
+    static
+    {
+        try
+        {
+            final Field cNodeField = BaseLinkedQueueConsumerNodeRef.class.getDeclaredField("consumerNode");
+            C_NODE_OFFSET = UNSAFE.objectFieldOffset(cNodeField);
         }
-        catch (NoSuchFieldException e) {
+        catch (NoSuchFieldException e)
+        {
             throw new RuntimeException(e);
         }
     }
 
     protected LinkedQueueNode<E> consumerNode;
 
-    protected final void spConsumerNode(LinkedQueueNode<E> node) {
-        consumerNode = node;
+    protected final void spConsumerNode(LinkedQueueNode<E> newValue)
+    {
+        consumerNode = newValue;
     }
 
     @SuppressWarnings("unchecked")
-    protected final LinkedQueueNode<E> lvConsumerNode() {
+    protected final LinkedQueueNode<E> lvConsumerNode()
+    {
         return (LinkedQueueNode<E>) UNSAFE.getObjectVolatile(this, C_NODE_OFFSET);
     }
 
-    protected final LinkedQueueNode<E> lpConsumerNode() {
+    protected final LinkedQueueNode<E> lpConsumerNode()
+    {
         return consumerNode;
     }
+}
+
+abstract class BaseLinkedQueuePad2<E> extends BaseLinkedQueueConsumerNodeRef<E>
+{
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
 }
 
 /**
  * A base data structure for concurrent linked queues. For convenience also pulled in common single consumer
  * methods since at this time there's no plan to implement MC.
  *
- * @author nitsanw
- *
  * @param <E>
+ * @author nitsanw
  */
-abstract class BaseLinkedQueue<E> extends BaseLinkedQueueConsumerNodeRef<E> {
-    long p01, p02, p03, p04, p05, p06, p07;
-    long p10, p11, p12, p13, p14, p15, p16, p17;
+abstract class BaseLinkedQueue<E> extends BaseLinkedQueuePad2<E>
+{
 
     @Override
-    public final Iterator<E> iterator() {
+    public final Iterator<E> iterator()
+    {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public String toString() {
+    public String toString()
+    {
         return this.getClass().getName();
     }
+
+    protected final LinkedQueueNode<E> newNode()
+    {
+        return new LinkedQueueNode<E>();
+    }
+
+    protected final LinkedQueueNode<E> newNode(E e)
+    {
+        return new LinkedQueueNode<E>(e);
+    }
+
     /**
      * {@inheritDoc} <br>
      * <p>
@@ -118,7 +160,8 @@ abstract class BaseLinkedQueue<E> extends BaseLinkedQueueConsumerNodeRef<E> {
      * @see java.util.Queue#size()
      */
     @Override
-    public final int size() {
+    public final int size()
+    {
         // Read consumer first, this is important because if the producer is node is 'older' than the consumer
         // the consumer may overtake it (consume past it) invalidating the 'snapshot' notion of size.
         LinkedQueueNode<E> chaserNode = lvConsumerNode();
@@ -126,13 +169,14 @@ abstract class BaseLinkedQueue<E> extends BaseLinkedQueueConsumerNodeRef<E> {
         int size = 0;
         // must chase the nodes all the way to the producer node, but there's no need to count beyond expected head.
         while (chaserNode != producerNode && // don't go passed producer node
-               chaserNode != null && // stop at last node
-               size < Integer.MAX_VALUE) // stop at max int
+            chaserNode != null && // stop at last node
+            size < Integer.MAX_VALUE) // stop at max int
         {
             LinkedQueueNode<E> next;
             next = chaserNode.lvNext();
             // check if this node has been consumed, if so return what we have
-            if (next == chaserNode) {
+            if (next == chaserNode)
+            {
                 return size;
             }
             chaserNode = next;
@@ -152,20 +196,17 @@ abstract class BaseLinkedQueue<E> extends BaseLinkedQueueConsumerNodeRef<E> {
      * @see MessagePassingQueue#isEmpty()
      */
     @Override
-    public final boolean isEmpty() {
+    public final boolean isEmpty()
+    {
         return lvConsumerNode() == lvProducerNode();
     }
 
-    @Override
-    public int capacity() {
-        return UNBOUNDED_CAPACITY;
-    }
-
-    protected E getSingleConsumerNodeValue(LinkedQueueNode<E> currConsumerNode, LinkedQueueNode<E> nextNode) {
+    protected E getSingleConsumerNodeValue(LinkedQueueNode<E> currConsumerNode, LinkedQueueNode<E> nextNode)
+    {
         // we have to null out the value because we are going to hang on to the node
         final E nextValue = nextNode.getAndNullValue();
 
-        // Fix up the next ref of currConsumerNode to prevent promoted nodes from keep new ones alive.
+        // Fix up the next ref of currConsumerNode to prevent promoted nodes from keeping new ones alive.
         // We use a reference to self instead of null because null is already a meaningful value (the next of
         // producer node is null).
         currConsumerNode.soNext(currConsumerNode);
@@ -175,33 +216,58 @@ abstract class BaseLinkedQueue<E> extends BaseLinkedQueueConsumerNodeRef<E> {
     }
 
     @Override
-    public E relaxedPoll() {
-        LinkedQueueNode<E> currConsumerNode = lpConsumerNode(); // don't load twice, it's alright
-        LinkedQueueNode<E> nextNode = currConsumerNode.lvNext();
-        if (nextNode != null) {
+    public E relaxedPoll()
+    {
+        final LinkedQueueNode<E> currConsumerNode = lpConsumerNode();
+        final LinkedQueueNode<E> nextNode = currConsumerNode.lvNext();
+        if (nextNode != null)
+        {
             return getSingleConsumerNodeValue(currConsumerNode, nextNode);
         }
         return null;
     }
 
     @Override
-    public int drain(Consumer<E> c) {
+    public E relaxedPeek()
+    {
+        final LinkedQueueNode<E> nextNode = lpConsumerNode().lvNext();
+        if (nextNode != null)
+        {
+            return nextNode.lpValue();
+        }
+        return null;
+    }
+
+    @Override
+    public boolean relaxedOffer(E e)
+    {
+        return offer(e);
+    }
+
+    @Override
+    public int drain(Consumer<E> c)
+    {
         long result = 0;// use long to force safepoint into loop below
         int drained;
-        do {
+        do
+        {
             drained = drain(c, 4096);
             result += drained;
-        } while (drained == 4096 && result <= Integer.MAX_VALUE - 4096);
+        }
+        while (drained == 4096 && result <= Integer.MAX_VALUE - 4096);
         return (int) result;
     }
 
     @Override
-    public int drain(Consumer<E> c, int limit) {
+    public int drain(Consumer<E> c, int limit)
+    {
         LinkedQueueNode<E> chaserNode = this.consumerNode;
-        for (int i = 0; i < limit; i++) {
+        for (int i = 0; i < limit; i++)
+        {
             final LinkedQueueNode<E> nextNode = chaserNode.lvNext();
 
-            if (nextNode == null) {
+            if (nextNode == null)
+            {
                 return i;
             }
             // we have to null out the value because we are going to hang on to the node
@@ -213,13 +279,17 @@ abstract class BaseLinkedQueue<E> extends BaseLinkedQueueConsumerNodeRef<E> {
     }
 
     @Override
-    public void drain(Consumer<E> c, WaitStrategy wait, ExitCondition exit) {
+    public void drain(Consumer<E> c, WaitStrategy wait, ExitCondition exit)
+    {
         LinkedQueueNode<E> chaserNode = this.consumerNode;
         int idleCounter = 0;
-        while (exit.keepRunning()) {
-            for (int i = 0; i < 4096; i++) {
+        while (exit.keepRunning())
+        {
+            for (int i = 0; i < 4096; i++)
+            {
                 final LinkedQueueNode<E> nextNode = chaserNode.lvNext();
-                if (nextNode == null) {
+                if (nextNode == null)
+                {
                     idleCounter = wait.idle(idleCounter);
                     continue;
                 }
@@ -234,18 +304,9 @@ abstract class BaseLinkedQueue<E> extends BaseLinkedQueueConsumerNodeRef<E> {
     }
 
     @Override
-    public E relaxedPeek() {
-        LinkedQueueNode<E> currConsumerNode = consumerNode; // don't load twice, it's alright
-        LinkedQueueNode<E> nextNode = currConsumerNode.lvNext();
-        if (nextNode != null) {
-            return nextNode.lpValue();
-        }
-        return null;
-    }
-
-    @Override
-    public boolean relaxedOffer(E e) {
-        return offer(e);
+    public int capacity()
+    {
+        return UNBOUNDED_CAPACITY;
     }
 
 }

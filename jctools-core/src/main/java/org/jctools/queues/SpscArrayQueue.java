@@ -17,65 +17,121 @@ import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
 import static org.jctools.util.UnsafeRefArrayAccess.soElement;
 
-import org.jctools.util.Pow2;
-import org.jctools.util.UnsafeRefArrayAccess;
-
-abstract class SpscArrayQueueColdField<E> extends ConcurrentCircularArrayQueue<E> {
-    static final int MAX_LOOK_AHEAD_STEP = Integer.getInteger("jctools.spsc.max.lookahead.step", 4096);
+abstract class SpscArrayQueueColdField<E> extends ConcurrentCircularArrayQueue<E>
+{
+    public static final int MAX_LOOK_AHEAD_STEP = Integer.getInteger("jctools.spsc.max.lookahead.step", 4096);
     protected final int lookAheadStep;
-    public SpscArrayQueueColdField(int capacity) {
+
+    public SpscArrayQueueColdField(int capacity)
+    {
         super(capacity);
-        lookAheadStep = Math.min(capacity/4, MAX_LOOK_AHEAD_STEP);
+        lookAheadStep = Math.min(capacity() / 4, MAX_LOOK_AHEAD_STEP);
     }
 }
-abstract class SpscArrayQueueL1Pad<E> extends SpscArrayQueueColdField<E> {
+
+abstract class SpscArrayQueueL1Pad<E> extends SpscArrayQueueColdField<E>
+{
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
-    public SpscArrayQueueL1Pad(int capacity) {
+    public SpscArrayQueueL1Pad(int capacity)
+    {
         super(capacity);
     }
 }
 
-abstract class SpscArrayQueueProducerFields<E> extends SpscArrayQueueL1Pad<E> {
+// $gen:ordered-fields
+abstract class SpscArrayQueueProducerIndexFields<E> extends SpscArrayQueueL1Pad<E>
+{
     protected final static long P_INDEX_OFFSET;
-    static {
-        try {
+
+    static
+    {
+        try
+        {
             P_INDEX_OFFSET =
-                UNSAFE.objectFieldOffset(SpscArrayQueueProducerFields.class.getDeclaredField("producerIndex"));
-        } catch (NoSuchFieldException e) {
+                UNSAFE.objectFieldOffset(SpscArrayQueueProducerIndexFields.class.getDeclaredField("producerIndex"));
+        }
+        catch (NoSuchFieldException e)
+        {
             throw new RuntimeException(e);
         }
     }
+
     protected long producerIndex;
     protected long producerLimit;
 
-    public SpscArrayQueueProducerFields(int capacity) {
+    public SpscArrayQueueProducerIndexFields(int capacity)
+    {
         super(capacity);
     }
+
+    @Override
+    public final long lvProducerIndex()
+    {
+        return UNSAFE.getLongVolatile(this, P_INDEX_OFFSET);
+    }
+
+    protected final void soProducerIndex(final long newValue)
+    {
+        UNSAFE.putOrderedLong(this, P_INDEX_OFFSET, newValue);
+    }
+
 }
 
-abstract class SpscArrayQueueL2Pad<E> extends SpscArrayQueueProducerFields<E> {
+abstract class SpscArrayQueueL2Pad<E> extends SpscArrayQueueProducerIndexFields<E>
+{
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
-    public SpscArrayQueueL2Pad(int capacity) {
+    public SpscArrayQueueL2Pad(int capacity)
+    {
         super(capacity);
     }
 }
 
-abstract class SpscArrayQueueConsumerField<E> extends SpscArrayQueueL2Pad<E> {
+//$gen:ordered-fields
+abstract class SpscArrayQueueConsumerIndexField<E> extends SpscArrayQueueL2Pad<E>
+{
     protected long consumerIndex;
     protected final static long C_INDEX_OFFSET;
-    static {
-        try {
+
+    static
+    {
+        try
+        {
             C_INDEX_OFFSET =
-                UNSAFE.objectFieldOffset(SpscArrayQueueConsumerField.class.getDeclaredField("consumerIndex"));
-        } catch (NoSuchFieldException e) {
+                UNSAFE.objectFieldOffset(SpscArrayQueueConsumerIndexField.class.getDeclaredField("consumerIndex"));
+        }
+        catch (NoSuchFieldException e)
+        {
             throw new RuntimeException(e);
         }
     }
-    public SpscArrayQueueConsumerField(int capacity) {
+
+    public SpscArrayQueueConsumerIndexField(int capacity)
+    {
+        super(capacity);
+    }
+
+    public final long lvConsumerIndex()
+    {
+        return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
+    }
+
+    protected final void soConsumerIndex(final long newValue)
+    {
+        UNSAFE.putOrderedLong(this, C_INDEX_OFFSET, newValue);
+    }
+}
+
+abstract class SpscArrayQueueL3Pad<E> extends SpscArrayQueueConsumerIndexField<E>
+{
+    long p01, p02, p03, p04, p05, p06, p07;
+    long p10, p11, p12, p13, p14, p15, p16, p17;
+
+    public SpscArrayQueueL3Pad(int capacity)
+    {
         super(capacity);
     }
 }
@@ -93,15 +149,15 @@ abstract class SpscArrayQueueConsumerField<E> extends SpscArrayQueueL2Pad<E> {
  * 2012 - Junchang- BQueue- Efﬁcient and Practical Queuing.pdf <br>
  * </i> This implementation is wait free.
  *
- * @author nitsanw
- *
  * @param <E>
+ * @author nitsanw
  */
-public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E>  implements QueueProgressIndicators {
-    long p01, p02, p03, p04, p05, p06, p07;
-    long p10, p11, p12, p13, p14, p15, p16, p17;
-    public SpscArrayQueue(final int capacity) {
-        super(Math.max(Pow2.roundToPowerOfTwo(capacity), 4));
+public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>
+{
+
+    public SpscArrayQueue(final int capacity)
+    {
+        super(Math.max(capacity, 4));
     }
 
     /**
@@ -110,8 +166,10 @@ public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E>  implement
      * This implementation is correct for single producer thread use only.
      */
     @Override
-    public boolean offer(final E e) {
-        if (null == e) {
+    public boolean offer(final E e)
+    {
+        if (null == e)
+        {
             throw new NullPointerException();
         }
         // local load of field to avoid repeated loads after volatile reads
@@ -120,7 +178,8 @@ public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E>  implement
         final long producerIndex = this.producerIndex;
 
         if (producerIndex >= producerLimit &&
-                !offerSlowPath(buffer, mask, producerIndex)) {
+            !offerSlowPath(buffer, mask, producerIndex))
+        {
             return false;
         }
         final long offset = calcElementOffset(producerIndex, mask);
@@ -130,14 +189,18 @@ public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E>  implement
         return true;
     }
 
-    private boolean offerSlowPath(final E[] buffer, final long mask, final long producerIndex) {
+    private boolean offerSlowPath(final E[] buffer, final long mask, final long producerIndex)
+    {
         final int lookAheadStep = this.lookAheadStep;
-        if (null == lvElement(buffer, calcElementOffset(producerIndex + lookAheadStep, mask))) {// LoadLoad
+        if (null == lvElement(buffer, calcElementOffset(producerIndex + lookAheadStep, mask)))
+        {// LoadLoad
             producerLimit = producerIndex + lookAheadStep;
         }
-        else{
+        else
+        {
             final long offset = calcElementOffset(producerIndex, mask);
-            if (null != lvElement(buffer, offset)){
+            if (null != lvElement(buffer, offset))
+            {
                 return false;
             }
         }
@@ -150,13 +213,15 @@ public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E>  implement
      * This implementation is correct for single consumer thread use only.
      */
     @Override
-    public E poll() {
+    public E poll()
+    {
         final long consumerIndex = this.consumerIndex;
         final long offset = calcElementOffset(consumerIndex);
         // local load of field to avoid repeated loads after volatile reads
         final E[] buffer = this.buffer;
         final E e = lvElement(buffer, offset);// LoadLoad
-        if (null == e) {
+        if (null == e)
+        {
             return null;
         }
         soElement(buffer, offset, null);// StoreStore
@@ -170,62 +235,55 @@ public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E>  implement
      * This implementation is correct for single consumer thread use only.
      */
     @Override
-    public E peek() {
-        return UnsafeRefArrayAccess.lvElement(buffer, calcElementOffset(consumerIndex));
-    }
-
-    private void soProducerIndex(long v) {
-        UNSAFE.putOrderedLong(this, P_INDEX_OFFSET, v);
-    }
-
-    private void soConsumerIndex(long v) {
-        UNSAFE.putOrderedLong(this, C_INDEX_OFFSET, v);
-    }
-
-    public final long lvProducerIndex() {
-        return UNSAFE.getLongVolatile(this, P_INDEX_OFFSET);
-    }
-
-    public final long lvConsumerIndex() {
-        return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
+    public E peek()
+    {
+        return lvElement(buffer, calcElementOffset(consumerIndex));
     }
 
     @Override
-    public boolean relaxedOffer(final E message) {
+    public boolean relaxedOffer(final E message)
+    {
         return offer(message);
     }
 
     @Override
-    public E relaxedPoll() {
+    public E relaxedPoll()
+    {
         return poll();
     }
 
     @Override
-    public E relaxedPeek() {
+    public E relaxedPeek()
+    {
         return peek();
     }
 
     @Override
-    public int drain(final Consumer<E> c) {
+    public int drain(final Consumer<E> c)
+    {
         return drain(c, capacity());
     }
 
     @Override
-    public int fill(final Supplier<E> s) {
+    public int fill(final Supplier<E> s)
+    {
         return fill(s, capacity());
     }
 
     @Override
-    public int drain(final Consumer<E> c, final int limit) {
+    public int drain(final Consumer<E> c, final int limit)
+    {
         final E[] buffer = this.buffer;
         final long mask = this.mask;
         final long consumerIndex = this.consumerIndex;
 
-        for (int i = 0; i < limit; i++) {
+        for (int i = 0; i < limit; i++)
+        {
             final long index = consumerIndex + i;
             final long offset = calcElementOffset(index, mask);
             final E e = lvElement(buffer, offset);// LoadLoad
-            if (null == e) {
+            if (null == e)
+            {
                 return i;
             }
             soElement(buffer, offset, null);// StoreStore
@@ -236,27 +294,33 @@ public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E>  implement
     }
 
     @Override
-    public int fill(final Supplier<E> s, final int limit) {
+    public int fill(final Supplier<E> s, final int limit)
+    {
         final E[] buffer = this.buffer;
         final long mask = this.mask;
         final int lookAheadStep = this.lookAheadStep;
         final long producerIndex = this.producerIndex;
 
-        for (int i = 0; i < limit; i++) {
+        for (int i = 0; i < limit; i++)
+        {
             final long index = producerIndex + i;
             final long lookAheadElementOffset = calcElementOffset(index + lookAheadStep, mask);
-            if (null == lvElement(buffer, lookAheadElementOffset)) {// LoadLoad
+            if (null == lvElement(buffer, lookAheadElementOffset))
+            {// LoadLoad
                 int lookAheadLimit = Math.min(lookAheadStep, limit - i);
-                for (int j = 0; j < lookAheadLimit; j++) {
+                for (int j = 0; j < lookAheadLimit; j++)
+                {
                     final long offset = calcElementOffset(index + j, mask);
                     soElement(buffer, offset, s.get()); // StoreStore
                     soProducerIndex(index + j + 1); // ordered store -> atomic and ordered for size()
                 }
                 i += lookAheadLimit - 1;
             }
-            else {
+            else
+            {
                 final long offset = calcElementOffset(index, mask);
-                if (null != lvElement(buffer, offset)){
+                if (null != lvElement(buffer, offset))
+                {
                     return i;
                 }
                 soElement(buffer, offset, s.get()); // StoreStore
@@ -268,17 +332,21 @@ public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E>  implement
     }
 
     @Override
-    public void drain(final Consumer<E> c, final WaitStrategy w, final ExitCondition exit) {
+    public void drain(final Consumer<E> c, final WaitStrategy w, final ExitCondition exit)
+    {
         final E[] buffer = this.buffer;
         final long mask = this.mask;
         long consumerIndex = this.consumerIndex;
 
         int counter = 0;
-        while (exit.keepRunning()) {
-            for (int i = 0; i < 4096; i++) {
+        while (exit.keepRunning())
+        {
+            for (int i = 0; i < 4096; i++)
+            {
                 final long offset = calcElementOffset(consumerIndex, mask);
                 final E e = lvElement(buffer, offset);// LoadLoad
-                if (null == e) {
+                if (null == e)
+                {
                     counter = w.idle(counter);
                     continue;
                 }
@@ -292,30 +360,36 @@ public class SpscArrayQueue<E> extends SpscArrayQueueConsumerField<E>  implement
     }
 
     @Override
-    public void fill(final Supplier<E> s, final WaitStrategy w, final ExitCondition e) {
+    public void fill(final Supplier<E> s, final WaitStrategy w, final ExitCondition e)
+    {
         final E[] buffer = this.buffer;
         final long mask = this.mask;
         final int lookAheadStep = this.lookAheadStep;
         long producerIndex = this.producerIndex;
         int counter = 0;
-        while (e.keepRunning()) {
+        while (e.keepRunning())
+        {
             final long lookAheadElementOffset = calcElementOffset(producerIndex + lookAheadStep, mask);
-            if (null == lvElement(buffer, lookAheadElementOffset)) {// LoadLoad
-                for (int j = 0; j < lookAheadStep; j++) {
+            if (null == lvElement(buffer, lookAheadElementOffset))
+            {// LoadLoad
+                for (int j = 0; j < lookAheadStep; j++)
+                {
                     final long offset = calcElementOffset(producerIndex, mask);
                     producerIndex++;
                     soElement(buffer, offset, s.get()); // StoreStore
                     soProducerIndex(producerIndex); // ordered store -> atomic and ordered for size()
                 }
             }
-            else {
+            else
+            {
                 final long offset = calcElementOffset(producerIndex, mask);
-                if (null != lvElement(buffer, offset)){// LoadLoad
+                if (null != lvElement(buffer, offset))
+                {// LoadLoad
                     counter = w.idle(counter);
                     continue;
                 }
                 producerIndex++;
-                counter=0;
+                counter = 0;
                 soElement(buffer, offset, s.get()); // StoreStore
                 soProducerIndex(producerIndex); // ordered store -> atomic and ordered for size()
             }

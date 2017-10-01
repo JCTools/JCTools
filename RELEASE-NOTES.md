@@ -1,3 +1,33 @@
+2.1.1
+=========
+PR #193 : Fix API break on release in MpscLinkedAtomicQueue
+Issue #194 : Fix MpscCompoundQueue::relaxedOffer bug
+Issue #196 : Fix MpscLinkedArray::fill bug
+Issue #197 : Fix MpscChunkedQueue:fill bug
+
+2.1.0
+==========
+Bug fixes:
+- PR #188 JvmInfo called from Atomic queues invokes Unsafe methods (thanks @kay )
+
+Features:
+- PR #187 + #186 + #185  Atomic queues are now generated from source (thanks @kay )
+- PR #184 + #190 MpscLinked supports a remove method (thanks @Scottmitch )
+- PR #183   Make SpscLinkedArray queues support the MPQ interface (thanks @franz1981 )
+- PR #181 Testing was expanded for NBHM, and minor issue fixed (thanks @qwwdfsad )
+
+Some further improvements to formatting, javadoc and testing and general tending to the garden by @nitsanw
+
+2.0.2
+==========
+- PR #168 from @maseev - unifying the approach to queue size range checks and exceptions
+- PR #173 #174 #176 from @neomatrix369 - porting the SPSC linked array queues to non-unsafe versions
+- PR #172 #175 from @chbatey - porting the MPSC linked array queues to non-unsafe versions
+- Fix #179 - bug in MpmcArrayQueue and MpmcAtomicArrayQueue leading to false reporting of queue full on offer which races with a poll, reported by Sharath Gururaj (I think that is @flipsha)
+- JCStress testing support added by @victorparmar 
+- Code tidy up by @avalanche123 
+- Experimental support for MPSC proxy channels by @kay 
+
 2.0.1
 ==========
 BUG: #143 - toString() didn't work for many of the queues because the default implemetation relied on iterators.

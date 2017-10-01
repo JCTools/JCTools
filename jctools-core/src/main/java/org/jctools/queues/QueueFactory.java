@@ -13,12 +13,11 @@
  */
 package org.jctools.queues;
 
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
-
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
-import org.jctools.util.UnsafeAccess;
+
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * The queue factory produces {@link java.util.Queue} instances based on a best fit to the {@link ConcurrentQueueSpec}.
@@ -26,39 +25,52 @@ import org.jctools.util.UnsafeAccess;
  * their requirements on a higher level.
  *
  * @author nitsanw
- *
  */
-public class QueueFactory {
+public class QueueFactory
+{
 
-    public static <E> Queue<E> newQueue(ConcurrentQueueSpec qs) {
-        if (qs.isBounded()) {
+    public static <E> Queue<E> newQueue(ConcurrentQueueSpec qs)
+    {
+        if (qs.isBounded())
+        {
             // SPSC
-            if (qs.isSpsc()) {
+            if (qs.isSpsc())
+            {
                 return new SpscArrayQueue<E>(qs.capacity);
             }
             // MPSC
-            else if (qs.isMpsc()) {
-                if (qs.ordering != Ordering.NONE) {
+            else if (qs.isMpsc())
+            {
+                if (qs.ordering != Ordering.NONE)
+                {
                     return new MpscArrayQueue<E>(qs.capacity);
-                } else {
+                }
+                else
+                {
                     return new MpscCompoundQueue<E>(qs.capacity);
                 }
             }
             // SPMC
-            else if (qs.isSpmc()) {
+            else if (qs.isSpmc())
+            {
                 return new SpmcArrayQueue<E>(qs.capacity);
             }
             // MPMC
-            else {
+            else
+            {
                 return new MpmcArrayQueue<E>(qs.capacity);
             }
-        } else {
+        }
+        else
+        {
             // SPSC
-            if (qs.isSpsc()) {
+            if (qs.isSpsc())
+            {
                 return new SpscLinkedQueue<E>();
             }
             // MPSC
-            else if (qs.isMpsc()) {
+            else if (qs.isMpsc())
+            {
                 return MpscLinkedQueue.newMpscLinkedQueue();
             }
         }

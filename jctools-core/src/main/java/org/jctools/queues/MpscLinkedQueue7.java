@@ -16,19 +16,21 @@ package org.jctools.queues;
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 
 /**
- * @see MpscLinkedQueue
- *  
- * @author nitsanw
- * 
  * @param <E>
+ * @author nitsanw
+ * @see MpscLinkedQueue
  */
-public class MpscLinkedQueue7<E> extends MpscLinkedQueue<E> {
+public class MpscLinkedQueue7<E> extends MpscLinkedQueue<E>
+{
     @SuppressWarnings("unchecked")
-    protected final LinkedQueueNode<E> xchgProducerNode(LinkedQueueNode<E> newVal) {
+    protected final LinkedQueueNode<E> xchgProducerNode(LinkedQueueNode<E> newVal)
+    {
         Object oldVal;
-        do {
+        do
+        {
             oldVal = producerNode;
-        } while(!UNSAFE.compareAndSwapObject(this, P_NODE_OFFSET, oldVal, newVal));
+        }
+        while (!UNSAFE.compareAndSwapObject(this, P_NODE_OFFSET, oldVal, newVal));
         return (LinkedQueueNode<E>) oldVal;
     }
 }
