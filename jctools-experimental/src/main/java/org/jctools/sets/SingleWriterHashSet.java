@@ -1,21 +1,21 @@
 package org.jctools.sets;
 
-import static org.jctools.queues.CircularArrayOffsetCalculator.calcElementOffset;
-import static org.jctools.util.UnsafeRefArrayAccess.lpElement;
-import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
-import static org.jctools.util.UnsafeRefArrayAccess.soElement;
+import org.jctools.util.Pow2;
+import org.jctools.util.UnsafeAccess;
 
 import java.util.AbstractSet;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-import org.jctools.util.Pow2;
-import org.jctools.util.UnsafeAccess;
+import static org.jctools.queues.CircularArrayOffsetCalculator.calcElementOffset;
+import static org.jctools.util.UnsafeRefArrayAccess.*;
 
 public class SingleWriterHashSet<E> extends AbstractSet<E> {
     /* current element count */
     private int size;
+    private long modCount;
+
     /* buffer.length is a power of 2 */
     private E[] buffer;
     private int resizeThreshold;
@@ -155,9 +155,11 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
      * implemented as per wiki suggested algo with minor adjustments.
      */
     private void compactAndRemove(final E[] buffer, final long mask, int removeHashIndex) {
-        // remove(9a): [9a,9b,10a,9c,10b,11a,null] -> [9b,9c,10a,10b,null,11a,null]
+        // remove(9a): [9a,9b,10a,9c,10b,11a,null] -> [9b,10a,9c,10b,11a,null,null]
         removeHashIndex = (int) (removeHashIndex & mask);
         int j = removeHashIndex;
+        // every compaction is guarded by two mod count increments: one before and one after actual compaction
+        UnsafeAccess.UNSAFE.putOrderedLong(this, MC_OFFSET, modCount + 1);
         while (true) {
             int k;
             E slotJ;
@@ -170,6 +172,7 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
                 if (slotJ == null) {
                     // delete last duplicate slot
                     soElement(buffer, calcElementOffset(removeHashIndex, mask), null);
+                    UnsafeAccess.UNSAFE.putOrderedLong(this, MC_OFFSET, modCount + 1);
                     return;
                 }
 
@@ -201,6 +204,17 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
 
     @Override
     public boolean contains(Object needle) {
+        while (true) {
+            long mc = UnsafeAccess.UNSAFE.getLongVolatile(this, MC_OFFSET);
+            boolean result = containsImpl(needle);
+            long newMc = UnsafeAccess.UNSAFE.getLongVolatile(this, MC_OFFSET);
+            if ((newMc & 1) == 0 && mc == newMc) {
+                return result;
+            }
+        }
+    }
+
+    private boolean containsImpl(Object needle) {
         // contains takes a snapshot of the buffer.
         final E[] buffer = this.buffer;
         final long mask = buffer.length - 1;
@@ -294,6 +308,7 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
 
     private final static long BUFFER_OFFSET;
     private final static long SIZE_OFFSET;
+    private final static long MC_OFFSET;
 
     static {
         try {
@@ -301,6 +316,8 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
                     .objectFieldOffset(SingleWriterHashSet.class.getDeclaredField("buffer"));
             SIZE_OFFSET = UnsafeAccess.UNSAFE
                     .objectFieldOffset(SingleWriterHashSet.class.getDeclaredField("size"));
+            MC_OFFSET = UnsafeAccess.UNSAFE
+                    .objectFieldOffset(SingleWriterHashSet.class.getDeclaredField("modCount"));
         }
         catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
