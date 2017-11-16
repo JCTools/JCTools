@@ -483,6 +483,26 @@ public class NBHM_Tester2
         assertEquals("values().iterator() count", itemCount, iteratorCount);
     }
 
+    // --- Tests on equality of values
+    @Test
+    public void replaceResultIsBasedOnEquality() {
+        NonBlockingHashMap<Integer, Integer> map = new NonBlockingHashMap<>();
+        Integer initialValue = new Integer(10);
+        map.put(1, initialValue);
+        assertTrue(map.replace(1,  initialValue, 20));
+        assertTrue(map.replace(1,  new Integer(20), 30));
+    }
+
+    @Test
+    public void removeResultIsBasedOnEquality() {
+        NonBlockingHashMap<Integer, Integer> map = new NonBlockingHashMap<>();
+        Integer initialValue = new Integer(10);
+        map.put(1, initialValue);
+        assertTrue(map.remove(1,  initialValue));
+        map.put(1, initialValue);
+        assertTrue(map.remove(1,  new Integer(10)));
+    }
+
     // Throw a ClassCastException if I see a tombstone during key-compares
     private static class KeyBonk
     {
