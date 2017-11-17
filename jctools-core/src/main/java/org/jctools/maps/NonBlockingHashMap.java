@@ -340,7 +340,9 @@ public class NonBlockingHashMap<TypeK, TypeV>
   /** Atomically do a {@link #remove(Object)} if-and-only-if the key is mapped
    *  to a value which is <code>equals</code> to the given value.
    *  @throws NullPointerException if the specified key or value is null */
-  public boolean remove     ( Object key,Object val ) { return putIfMatch( key,TOMBSTONE, val ) == val; }
+  public boolean remove     ( Object key,Object val ) {
+    return Objects.equals(putIfMatch( key,TOMBSTONE, val ), val);
+  }
 
   /** Atomically do a <code>put(key,val)</code> if-and-only-if the key is
    *  mapped to some value already.
@@ -353,7 +355,7 @@ public class NonBlockingHashMap<TypeK, TypeV>
    *  @throws NullPointerException if the specified key or value is null */
   @Override
   public boolean replace    ( TypeK  key, TypeV  oldValue, TypeV newValue ) {
-    return putIfMatch( key, newValue, oldValue ) == oldValue;
+    return Objects.equals(putIfMatch( key, newValue, oldValue ), oldValue);
   }
 
 
