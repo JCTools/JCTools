@@ -210,22 +210,12 @@ public class SpscProxyChannelBenchmark {
     public static class ProcessorCounters {
         public long processed;
         public long processFailed;
-
-        @Setup(Level.Iteration)
-        public void clean() {
-            this.processed = this.processFailed = 0;
-        }
     }
 
     @AuxCounters
     @State(Scope.Thread)
     public static class CallerCounters {
         public long callsFailed;
-
-        @Setup(Level.Iteration)
-        public void clean() {
-            this.callsFailed = 0;
-        }
     }
 
     public static final class StoppedException extends RuntimeException {

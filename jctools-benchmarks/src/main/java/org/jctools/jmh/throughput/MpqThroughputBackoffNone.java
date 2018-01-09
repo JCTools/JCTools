@@ -83,25 +83,15 @@ public class MpqThroughputBackoffNone {
     @AuxCounters
     @State(Scope.Thread)
     public static class PollCounters {
-        public int pollsFailed;
-        public int pollsMade;
-
-        @Setup(Level.Iteration)
-        public void clean() {
-            pollsFailed = pollsMade = 0;
-        }
+        public long pollsFailed;
+        public long pollsMade;
     }
 
     @AuxCounters
     @State(Scope.Thread)
     public static class OfferCounters {
-        public int offersFailed;
-        public int offersMade;
-
-        @Setup(Level.Iteration)
-        public void clean() {
-            offersFailed = offersMade = 0;
-        }
+        public long offersFailed;
+        public long offersMade;
     }
 
     @Benchmark
