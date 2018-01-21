@@ -19,16 +19,15 @@ package org.jctools.queues;
 
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
-import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Queue;
 
-@RunWith(Parameterized.class)
-public class MpqSanityTestMpscRelaxedArray extends MpqSanityTest
+public class QueueSanityTestMpscRelaxed extends QueueSanityTestMpscArray
 {
-    public MpqSanityTestMpscRelaxedArray(ConcurrentQueueSpec spec, MessagePassingQueue<Integer> queue)
+    public QueueSanityTestMpscRelaxed(ConcurrentQueueSpec spec, Queue<Integer> queue)
     {
         super(spec, queue);
     }
@@ -37,8 +36,10 @@ public class MpqSanityTestMpscRelaxedArray extends MpqSanityTest
     public static Collection<Object[]> parameters()
     {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
-        list.add(makeMpq(1, 1, 2, Ordering.FIFO, new MpscRelaxedArrayQueue<>(2)));// MPSC size 2
-        list.add(makeMpq(1, 1, SIZE, Ordering.FIFO, new MpscRelaxedArrayQueue<>(SIZE)));// MPSC size SIZE
+        list.add(QueueSanityTest.makeQueue(1, 1, 2, Ordering.FIFO, new MpscRelaxedArrayQueue<Integer>(2)));// MPSC size 1
+        list.add(QueueSanityTest.makeQueue(1, 1, QueueSanityTest.SIZE, Ordering.FIFO, new MpscRelaxedArrayQueue<Integer>(
+            QueueSanityTest.SIZE)));// MPSC size SIZE
         return list;
     }
+
 }
