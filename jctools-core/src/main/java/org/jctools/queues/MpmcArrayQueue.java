@@ -25,7 +25,7 @@ abstract class MpmcArrayQueueL1Pad<E> extends ConcurrentSequencedCircularArrayQu
     long p00, p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16;
 
-    public MpmcArrayQueueL1Pad(int capacity)
+    MpmcArrayQueueL1Pad(int capacity)
     {
         super(capacity);
     }
@@ -51,7 +51,7 @@ abstract class MpmcArrayQueueProducerIndexField<E> extends MpmcArrayQueueL1Pad<E
 
     private volatile long producerIndex;
 
-    public MpmcArrayQueueProducerIndexField(int capacity)
+    MpmcArrayQueueProducerIndexField(int capacity)
     {
         super(capacity);
     }
@@ -73,7 +73,7 @@ abstract class MpmcArrayQueueL2Pad<E> extends MpmcArrayQueueProducerIndexField<E
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
-    public MpmcArrayQueueL2Pad(int capacity)
+    MpmcArrayQueueL2Pad(int capacity)
     {
         super(capacity);
     }
@@ -99,7 +99,7 @@ abstract class MpmcArrayQueueConsumerIndexField<E> extends MpmcArrayQueueL2Pad<E
 
     private volatile long consumerIndex;
 
-    public MpmcArrayQueueConsumerIndexField(int capacity)
+    MpmcArrayQueueConsumerIndexField(int capacity)
     {
         super(capacity);
     }
@@ -121,7 +121,7 @@ abstract class MpmcArrayQueueL3Pad<E> extends MpmcArrayQueueConsumerIndexField<E
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
-    public MpmcArrayQueueL3Pad(int capacity)
+    MpmcArrayQueueL3Pad(int capacity)
     {
         super(capacity);
     }

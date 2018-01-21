@@ -23,7 +23,7 @@ abstract class MpscArrayQueueL1Pad<E> extends ConcurrentCircularArrayQueue<E>
     long p00, p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16;
 
-    public MpscArrayQueueL1Pad(int capacity)
+    MpscArrayQueueL1Pad(int capacity)
     {
         super(capacity);
     }
@@ -49,7 +49,7 @@ abstract class MpscArrayQueueProducerIndexField<E> extends MpscArrayQueueL1Pad<E
 
     private volatile long producerIndex;
 
-    public MpscArrayQueueProducerIndexField(int capacity)
+    MpscArrayQueueProducerIndexField(int capacity)
     {
         super(capacity);
     }
@@ -71,7 +71,7 @@ abstract class MpscArrayQueueMidPad<E> extends MpscArrayQueueProducerIndexField<
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
-    public MpscArrayQueueMidPad(int capacity)
+    MpscArrayQueueMidPad(int capacity)
     {
         super(capacity);
     }
@@ -98,7 +98,7 @@ abstract class MpscArrayQueueProducerLimitField<E> extends MpscArrayQueueMidPad<
     // First unavailable index the producer may claim up to before rereading the consumer index
     private volatile long producerLimit;
 
-    public MpscArrayQueueProducerLimitField(int capacity)
+    MpscArrayQueueProducerLimitField(int capacity)
     {
         super(capacity);
         this.producerLimit = capacity;
@@ -120,7 +120,7 @@ abstract class MpscArrayQueueL2Pad<E> extends MpscArrayQueueProducerLimitField<E
     long p00, p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16;
 
-    public MpscArrayQueueL2Pad(int capacity)
+    MpscArrayQueueL2Pad(int capacity)
     {
         super(capacity);
     }
@@ -146,7 +146,7 @@ abstract class MpscArrayQueueConsumerIndexField<E> extends MpscArrayQueueL2Pad<E
 
     protected long consumerIndex;
 
-    public MpscArrayQueueConsumerIndexField(int capacity)
+    MpscArrayQueueConsumerIndexField(int capacity)
     {
         super(capacity);
     }
@@ -173,7 +173,7 @@ abstract class MpscArrayQueueL3Pad<E> extends MpscArrayQueueConsumerIndexField<E
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
-    public MpscArrayQueueL3Pad(int capacity)
+    MpscArrayQueueL3Pad(int capacity)
     {
         super(capacity);
     }

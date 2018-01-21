@@ -40,7 +40,7 @@ abstract class MpscCompoundQueueColdFields<E> extends MpscCompoundQueueL0Pad<E>
     protected final MpscArrayQueue<E>[] queues;
 
     @SuppressWarnings("unchecked")
-    public MpscCompoundQueueColdFields(int capacity, int queueParallelism)
+    MpscCompoundQueueColdFields(int capacity, int queueParallelism)
     {
         parallelQueues = isPowerOfTwo(queueParallelism) ? queueParallelism
             : roundToPowerOfTwo(queueParallelism) / 2;
@@ -70,7 +70,7 @@ abstract class MpscCompoundQueueConsumerQueueIndex<E> extends MpscCompoundQueueM
 {
     int consumerQueueIndex;
 
-    public MpscCompoundQueueConsumerQueueIndex(int capacity, int queueParallelism)
+    MpscCompoundQueueConsumerQueueIndex(int capacity, int queueParallelism)
     {
         super(capacity, queueParallelism);
     }

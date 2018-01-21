@@ -22,7 +22,7 @@ abstract class SpscArrayQueueColdField<E> extends ConcurrentCircularArrayQueue<E
     public static final int MAX_LOOK_AHEAD_STEP = Integer.getInteger("jctools.spsc.max.lookahead.step", 4096);
     protected final int lookAheadStep;
 
-    public SpscArrayQueueColdField(int capacity)
+    SpscArrayQueueColdField(int capacity)
     {
         super(capacity);
         lookAheadStep = Math.min(capacity() / 4, MAX_LOOK_AHEAD_STEP);
@@ -34,7 +34,7 @@ abstract class SpscArrayQueueL1Pad<E> extends SpscArrayQueueColdField<E>
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
-    public SpscArrayQueueL1Pad(int capacity)
+    SpscArrayQueueL1Pad(int capacity)
     {
         super(capacity);
     }
@@ -61,7 +61,7 @@ abstract class SpscArrayQueueProducerIndexFields<E> extends SpscArrayQueueL1Pad<
     protected long producerIndex;
     protected long producerLimit;
 
-    public SpscArrayQueueProducerIndexFields(int capacity)
+    SpscArrayQueueProducerIndexFields(int capacity)
     {
         super(capacity);
     }
@@ -84,7 +84,7 @@ abstract class SpscArrayQueueL2Pad<E> extends SpscArrayQueueProducerIndexFields<
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
-    public SpscArrayQueueL2Pad(int capacity)
+    SpscArrayQueueL2Pad(int capacity)
     {
         super(capacity);
     }
@@ -109,7 +109,7 @@ abstract class SpscArrayQueueConsumerIndexField<E> extends SpscArrayQueueL2Pad<E
         }
     }
 
-    public SpscArrayQueueConsumerIndexField(int capacity)
+    SpscArrayQueueConsumerIndexField(int capacity)
     {
         super(capacity);
     }
@@ -130,7 +130,7 @@ abstract class SpscArrayQueueL3Pad<E> extends SpscArrayQueueConsumerIndexField<E
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
-    public SpscArrayQueueL3Pad(int capacity)
+    SpscArrayQueueL3Pad(int capacity)
     {
         super(capacity);
     }

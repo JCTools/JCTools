@@ -28,7 +28,7 @@ abstract class MpscAtomicArrayQueueL1Pad<E> extends AtomicReferenceArrayQueue<E>
 
     long p10, p11, p12, p13, p14, p15, p16;
 
-    public MpscAtomicArrayQueueL1Pad(int capacity) {
+    MpscAtomicArrayQueueL1Pad(int capacity) {
         super(capacity);
     }
 }
@@ -43,7 +43,7 @@ abstract class MpscAtomicArrayQueueProducerIndexField<E> extends MpscAtomicArray
 
     private volatile long producerIndex;
 
-    public MpscAtomicArrayQueueProducerIndexField(int capacity) {
+    MpscAtomicArrayQueueProducerIndexField(int capacity) {
         super(capacity);
     }
 
@@ -67,7 +67,7 @@ abstract class MpscAtomicArrayQueueMidPad<E> extends MpscAtomicArrayQueueProduce
 
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
-    public MpscAtomicArrayQueueMidPad(int capacity) {
+    MpscAtomicArrayQueueMidPad(int capacity) {
         super(capacity);
     }
 }
@@ -83,7 +83,7 @@ abstract class MpscAtomicArrayQueueProducerLimitField<E> extends MpscAtomicArray
     // First unavailable index the producer may claim up to before rereading the consumer index
     private volatile long producerLimit;
 
-    public MpscAtomicArrayQueueProducerLimitField(int capacity) {
+    MpscAtomicArrayQueueProducerLimitField(int capacity) {
         super(capacity);
         this.producerLimit = capacity;
     }
@@ -107,7 +107,7 @@ abstract class MpscAtomicArrayQueueL2Pad<E> extends MpscAtomicArrayQueueProducer
 
     long p10, p11, p12, p13, p14, p15, p16;
 
-    public MpscAtomicArrayQueueL2Pad(int capacity) {
+    MpscAtomicArrayQueueL2Pad(int capacity) {
         super(capacity);
     }
 }
@@ -122,7 +122,7 @@ abstract class MpscAtomicArrayQueueConsumerIndexField<E> extends MpscAtomicArray
 
     protected volatile long consumerIndex;
 
-    public MpscAtomicArrayQueueConsumerIndexField(int capacity) {
+    MpscAtomicArrayQueueConsumerIndexField(int capacity) {
         super(capacity);
     }
 
@@ -150,7 +150,7 @@ abstract class MpscAtomicArrayQueueL3Pad<E> extends MpscAtomicArrayQueueConsumer
 
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
-    public MpscAtomicArrayQueueL3Pad(int capacity) {
+    MpscAtomicArrayQueueL3Pad(int capacity) {
         super(capacity);
     }
 }

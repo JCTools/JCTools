@@ -38,7 +38,7 @@ abstract class MpscChunkedAtomicArrayQueueColdProducerFields<E> extends BaseMpsc
 
     protected final long maxQueueCapacity;
 
-    public MpscChunkedAtomicArrayQueueColdProducerFields(int initialCapacity, int maxCapacity) {
+    MpscChunkedAtomicArrayQueueColdProducerFields(int initialCapacity, int maxCapacity) {
         super(initialCapacity);
         RangeUtil.checkGreaterThanOrEqual(maxCapacity, 4, "maxCapacity");
         RangeUtil.checkLessThan(roundToPowerOfTwo(initialCapacity), roundToPowerOfTwo(maxCapacity), "initialCapacity");

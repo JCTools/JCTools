@@ -28,7 +28,7 @@ abstract class SpmcAtomicArrayQueueL1Pad<E> extends AtomicReferenceArrayQueue<E>
 
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
-    public SpmcAtomicArrayQueueL1Pad(int capacity) {
+    SpmcAtomicArrayQueueL1Pad(int capacity) {
         super(capacity);
     }
 }
@@ -51,7 +51,7 @@ abstract class SpmcAtomicArrayQueueProducerIndexField<E> extends SpmcAtomicArray
         P_INDEX_UPDATER.lazySet(this, newValue);
     }
 
-    public SpmcAtomicArrayQueueProducerIndexField(int capacity) {
+    SpmcAtomicArrayQueueProducerIndexField(int capacity) {
         super(capacity);
     }
 }
@@ -66,7 +66,7 @@ abstract class SpmcAtomicArrayQueueL2Pad<E> extends SpmcAtomicArrayQueueProducer
 
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
-    public SpmcAtomicArrayQueueL2Pad(int capacity) {
+    SpmcAtomicArrayQueueL2Pad(int capacity) {
         super(capacity);
     }
 }
@@ -81,7 +81,7 @@ abstract class SpmcAtomicArrayQueueConsumerIndexField<E> extends SpmcAtomicArray
 
     private volatile long consumerIndex;
 
-    public SpmcAtomicArrayQueueConsumerIndexField(int capacity) {
+    SpmcAtomicArrayQueueConsumerIndexField(int capacity) {
         super(capacity);
     }
 
@@ -104,7 +104,7 @@ abstract class SpmcAtomicArrayQueueMidPad<E> extends SpmcAtomicArrayQueueConsume
 
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
-    public SpmcAtomicArrayQueueMidPad(int capacity) {
+    SpmcAtomicArrayQueueMidPad(int capacity) {
         super(capacity);
     }
 }
@@ -119,7 +119,7 @@ abstract class SpmcAtomicArrayQueueProducerIndexCacheField<E> extends SpmcAtomic
     // of it's time in a cache line that is Shared(and rarely invalidated)
     private volatile long producerIndexCache;
 
-    public SpmcAtomicArrayQueueProducerIndexCacheField(int capacity) {
+    SpmcAtomicArrayQueueProducerIndexCacheField(int capacity) {
         super(capacity);
     }
 
@@ -142,7 +142,7 @@ abstract class SpmcAtomicArrayQueueL3Pad<E> extends SpmcAtomicArrayQueueProducer
 
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
-    public SpmcAtomicArrayQueueL3Pad(int capacity) {
+    SpmcAtomicArrayQueueL3Pad(int capacity) {
         super(capacity);
     }
 }

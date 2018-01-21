@@ -29,7 +29,7 @@ abstract class MpmcAtomicArrayQueueL1Pad<E> extends SequencedAtomicReferenceArra
 
     long p10, p11, p12, p13, p14, p15, p16;
 
-    public MpmcAtomicArrayQueueL1Pad(int capacity) {
+    MpmcAtomicArrayQueueL1Pad(int capacity) {
         super(capacity);
     }
 }
@@ -44,7 +44,7 @@ abstract class MpmcAtomicArrayQueueProducerIndexField<E> extends MpmcAtomicArray
 
     private volatile long producerIndex;
 
-    public MpmcAtomicArrayQueueProducerIndexField(int capacity) {
+    MpmcAtomicArrayQueueProducerIndexField(int capacity) {
         super(capacity);
     }
 
@@ -68,7 +68,7 @@ abstract class MpmcAtomicArrayQueueL2Pad<E> extends MpmcAtomicArrayQueueProducer
 
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
-    public MpmcAtomicArrayQueueL2Pad(int capacity) {
+    MpmcAtomicArrayQueueL2Pad(int capacity) {
         super(capacity);
     }
 }
@@ -83,7 +83,7 @@ abstract class MpmcAtomicArrayQueueConsumerIndexField<E> extends MpmcAtomicArray
 
     private volatile long consumerIndex;
 
-    public MpmcAtomicArrayQueueConsumerIndexField(int capacity) {
+    MpmcAtomicArrayQueueConsumerIndexField(int capacity) {
         super(capacity);
     }
 
@@ -107,7 +107,7 @@ abstract class MpmcAtomicArrayQueueL3Pad<E> extends MpmcAtomicArrayQueueConsumer
 
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
-    public MpmcAtomicArrayQueueL3Pad(int capacity) {
+    MpmcAtomicArrayQueueL3Pad(int capacity) {
         super(capacity);
     }
 }

@@ -23,7 +23,7 @@ abstract class SpmcArrayQueueL1Pad<E> extends ConcurrentCircularArrayQueue<E>
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
-    public SpmcArrayQueueL1Pad(int capacity)
+    SpmcArrayQueueL1Pad(int capacity)
     {
         super(capacity);
     }
@@ -59,7 +59,7 @@ abstract class SpmcArrayQueueProducerIndexField<E> extends SpmcArrayQueueL1Pad<E
         UNSAFE.putOrderedLong(this, P_INDEX_OFFSET, newValue);
     }
 
-    public SpmcArrayQueueProducerIndexField(int capacity)
+    SpmcArrayQueueProducerIndexField(int capacity)
     {
         super(capacity);
     }
@@ -70,7 +70,7 @@ abstract class SpmcArrayQueueL2Pad<E> extends SpmcArrayQueueProducerIndexField<E
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
-    public SpmcArrayQueueL2Pad(int capacity)
+    SpmcArrayQueueL2Pad(int capacity)
     {
         super(capacity);
     }
@@ -96,7 +96,7 @@ abstract class SpmcArrayQueueConsumerIndexField<E> extends SpmcArrayQueueL2Pad<E
 
     private volatile long consumerIndex;
 
-    public SpmcArrayQueueConsumerIndexField(int capacity)
+    SpmcArrayQueueConsumerIndexField(int capacity)
     {
         super(capacity);
     }
@@ -117,7 +117,7 @@ abstract class SpmcArrayQueueMidPad<E> extends SpmcArrayQueueConsumerIndexField<
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
-    public SpmcArrayQueueMidPad(int capacity)
+    SpmcArrayQueueMidPad(int capacity)
     {
         super(capacity);
     }
@@ -130,7 +130,7 @@ abstract class SpmcArrayQueueProducerIndexCacheField<E> extends SpmcArrayQueueMi
     // of it's time in a cache line that is Shared(and rarely invalidated)
     private volatile long producerIndexCache;
 
-    public SpmcArrayQueueProducerIndexCacheField(int capacity)
+    SpmcArrayQueueProducerIndexCacheField(int capacity)
     {
         super(capacity);
     }
@@ -151,7 +151,7 @@ abstract class SpmcArrayQueueL3Pad<E> extends SpmcArrayQueueProducerIndexCacheFi
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
-    public SpmcArrayQueueL3Pad(int capacity)
+    SpmcArrayQueueL3Pad(int capacity)
     {
         super(capacity);
     }

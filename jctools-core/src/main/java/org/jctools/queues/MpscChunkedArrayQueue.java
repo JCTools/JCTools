@@ -25,7 +25,7 @@ abstract class MpscChunkedArrayQueueColdProducerFields<E> extends BaseMpscLinked
 {
     protected final long maxQueueCapacity;
 
-    public MpscChunkedArrayQueueColdProducerFields(int initialCapacity, int maxCapacity)
+    MpscChunkedArrayQueueColdProducerFields(int initialCapacity, int maxCapacity)
     {
         super(initialCapacity);
         RangeUtil.checkGreaterThanOrEqual(maxCapacity, 4, "maxCapacity");

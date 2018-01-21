@@ -27,7 +27,7 @@ abstract class SpscAtomicArrayQueueColdField<E> extends AtomicReferenceArrayQueu
 
     protected final int lookAheadStep;
 
-    public SpscAtomicArrayQueueColdField(int capacity) {
+    SpscAtomicArrayQueueColdField(int capacity) {
         super(capacity);
         lookAheadStep = Math.min(capacity() / 4, MAX_LOOK_AHEAD_STEP);
     }
@@ -43,7 +43,7 @@ abstract class SpscAtomicArrayQueueL1Pad<E> extends SpscAtomicArrayQueueColdFiel
 
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
-    public SpscAtomicArrayQueueL1Pad(int capacity) {
+    SpscAtomicArrayQueueL1Pad(int capacity) {
         super(capacity);
     }
 }
@@ -60,7 +60,7 @@ abstract class SpscAtomicArrayQueueProducerIndexFields<E> extends SpscAtomicArra
 
     protected long producerLimit;
 
-    public SpscAtomicArrayQueueProducerIndexFields(int capacity) {
+    SpscAtomicArrayQueueProducerIndexFields(int capacity) {
         super(capacity);
     }
 
@@ -84,7 +84,7 @@ abstract class SpscAtomicArrayQueueL2Pad<E> extends SpscAtomicArrayQueueProducer
 
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
-    public SpscAtomicArrayQueueL2Pad(int capacity) {
+    SpscAtomicArrayQueueL2Pad(int capacity) {
         super(capacity);
     }
 }
@@ -99,7 +99,7 @@ abstract class SpscAtomicArrayQueueConsumerIndexField<E> extends SpscAtomicArray
 
     protected volatile long consumerIndex;
 
-    public SpscAtomicArrayQueueConsumerIndexField(int capacity) {
+    SpscAtomicArrayQueueConsumerIndexField(int capacity) {
         super(capacity);
     }
 
@@ -122,7 +122,7 @@ abstract class SpscAtomicArrayQueueL3Pad<E> extends SpscAtomicArrayQueueConsumer
 
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
-    public SpscAtomicArrayQueueL3Pad(int capacity) {
+    SpscAtomicArrayQueueL3Pad(int capacity) {
         super(capacity);
     }
 }
