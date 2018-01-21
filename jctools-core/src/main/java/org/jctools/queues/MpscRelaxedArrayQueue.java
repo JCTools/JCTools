@@ -207,6 +207,11 @@ abstract class MpscRelaxedArrayQueueProducerCycleClaimFields<E> extends MpscRela
     {
         return UNSAFE.getAndAddLong(this, calcProducerCycleClaimOffset(cycleIndex), 1);
     }
+
+    protected final boolean casProducerCycleClaim(int cycleIndex, long expectedValue, long newValue)
+    {
+        return UNSAFE.compareAndSwapLong(this, calcProducerCycleClaimOffset(cycleIndex), expectedValue, newValue);
+    }
 }
 
 abstract class MpscRelaxedArrayQueueL4Pad<E> extends MpscRelaxedArrayQueueProducerCycleClaimFields<E>
@@ -216,7 +221,7 @@ abstract class MpscRelaxedArrayQueueL4Pad<E> extends MpscRelaxedArrayQueueProduc
 }
 
 /**
- *This class is still work in progress, please do not pick up for production use just yet.
+ * This class is still work in progress, please do not pick up for production use just yet.
  */
 public class MpscRelaxedArrayQueue<E> extends MpscRelaxedArrayQueueL4Pad<E> implements MessagePassingQueue<E>
 {
@@ -262,6 +267,8 @@ public class MpscRelaxedArrayQueue<E> extends MpscRelaxedArrayQueueL4Pad<E> impl
         // it is the max position on cycle too
         this.positionWithinCycleMask = (int) ((1L << this.cycleIdBitShift) - 1);
         this.maxCycleId = (1L << (Long.SIZE - this.cycleIdBitShift)) - 1;
+        this.soProducerCycleClaim(0, 0);
+        this.soProducerCycleClaim(1, this.cycleLength + 1);
     }
 
     @Override
@@ -326,23 +333,28 @@ public class MpscRelaxedArrayQueue<E> extends MpscRelaxedArrayQueueL4Pad<E> impl
                     "Too many over-claims: please enlarge the capacity or reduce the number of producers!\n" +
                         " positionWithinCycle=" + positionWithinCycle);
             }
-
             if (positionWithinCycle < cycleLength)
             {
                 final long cycleId = producerClaimCycleId(producerCycleClaim, cycleIdBitShift);
-                if (cycleId != activeCycleId)
+                final boolean slowProducer = cycleId != activeCycleId;
+                //it should fail with a slow producer
+                if (!validateProducerClaim(
+                    activeCycleIndex,
+                    producerCycleClaim,
+                    cycleId,
+                    positionWithinCycle,
+                    cycleLengthLog2, slowProducer))
                 {
-                    // this can happen through rapid rotation, induced by a small capacity
-                    validateSlowProducerClaim(cycleId, positionWithinCycle, cycleLengthLog2);
+                    //the claim has been rollbacked and can be retried
+                    continue;
                 }
                 soCycleElement(buffer, e, activeCycleIndex, positionWithinCycle, cycleLengthLog2);
                 return true;
             }
             else if (positionWithinCycle == cycleLength)
             {
-                // only one producer rotates cycle: the other producers will be forced to wait until rotation is
-                // completed to perform a valid offer
-                rotateCycle(activeCycleIndex, producerCycleClaim, cycleIdBitShift, maxCycleId);
+                final long cycleId = producerClaimCycleId(producerCycleClaim, cycleIdBitShift);
+                rotateCycle(cycleId, cycleIdBitShift, maxCycleId);
             }
         }
     }
@@ -367,34 +379,56 @@ public class MpscRelaxedArrayQueue<E> extends MpscRelaxedArrayQueueL4Pad<E> impl
     }
 
     private void rotateCycle(
-        final int activeCycleIndex,
-        final long producerCycleClaim,
+        final long claimCycleId,
         final int cycleIdBitShift,
         final long maxCycleId)
     {
-        final long pCycleId = producerClaimCycleId(producerCycleClaim, cycleIdBitShift);
-        if (pCycleId >= maxCycleId)
+        if (claimCycleId >= maxCycleId)
         {
             throw new IllegalStateException("Exhausted cycle id space!");
         }
-
-        final long nextCycleId = pCycleId + 1;
-
+        final long nextCycleId = claimCycleId + 1;
+        final int nextActiveCycleIndex = activeCycleIndex(nextCycleId);
         // it points at the beginning of the next cycle
-        final long nextProducerCycleClaim = nextCycleId << cycleIdBitShift;
-        final int nextActiveCycleIndex = (activeCycleIndex + 1) & 1;
-        // it needs to be atomic: a producer fallen behind could claim it concurrently
-        soProducerCycleClaim(nextActiveCycleIndex, nextProducerCycleClaim);
-        // from now on a slow producer could move the claim and lead to another rotation: a cas is needed to detect it
-        if (!casActiveCycleId(pCycleId, nextCycleId)) // release activeCycleId
+        soProducerCycleClaim(nextActiveCycleIndex, nextCycleId << cycleIdBitShift);
+        //Following this initialisation, a sequence of slow producers claims could trigger several new cycle rotations
+        //before having changed the activeCycleId from claimCycleId to nextCycleId:
+        //detect (and warn) a slow rotation, but enabling the faster ones to make progress, allows the q to not being blocked
+        long cycleId = claimCycleId;
+        //the rotation claimCycleId -> nextCycleId is unique between producers
+        while (!casActiveCycleId(cycleId, nextCycleId))
         {
-            // This will happen if between the load of activeCycleId and the CAS the producerCycleClaim has progressed
-            // sufficiently to overflow into the cycleId portion. This is highly unlikely.
-            throw new IllegalStateException("Slow rotation due to producer thread starvation!");
+            cycleId = detectSlowRotation(claimCycleId, nextCycleId);
         }
     }
 
-    private void validateSlowProducerClaim(final long cycleId, final int positionOnCycle, final int cycleLengthLog2)
+    private long detectSlowRotation(final long claimCycleId, final long nextCycleId)
+    {
+        final long cycleId = lvActiveCycleId();
+        //Another producer has managed to perform a rotation to an higher cycleId?
+        assert cycleId != nextCycleId : "Duplicate rotation!";
+        if (cycleId > nextCycleId)
+        {
+            throw new IllegalStateException(
+                "Slow rotation due to producer thread starvation detected: please enlarge the capacity or reduce the number of producers!\n" +
+                    "found activeCycleId=" + cycleId + "\n" +
+                    "expected activeCycleId=" + claimCycleId + "\n");
+        }
+        return cycleId;
+    }
+
+    /**
+     * Validate a producer claim to find out if is an overclaim (beyond the producer limit).
+     *
+     * @return {@code true} if the claim is valid, {@code false} otherwise.
+     */
+    private boolean validateProducerClaim(
+        final int activeCycleIndex,
+        final long producerCycleClaim,
+        final long cycleId,
+        final int positionOnCycle,
+        final int cycleLengthLog2,
+        final boolean slowProducer)
     {
         final long producerPosition = producerPosition(positionOnCycle, cycleId, cycleLengthLog2);
         final long claimLimit = lvProducerLimit();
@@ -403,13 +437,76 @@ public class MpscRelaxedArrayQueue<E> extends MpscRelaxedArrayQueueL4Pad<E> impl
             // it is really full?
             if (isFull(producerPosition))
             {
-                throw new IllegalStateException(
-                    "The producer has fallen behind: please enlarge the capacity or reduce the number of producers! \n" +
-                        " producerPosition="+producerPosition +"\n" +
-                        " cycleId="+cycleId+"\n" +
-                        " positionOnCycle="+positionOnCycle);
+                return fixProducerOverClaim(activeCycleIndex, producerCycleClaim, slowProducer);
             }
         }
+        return true;
+    }
+
+    /**
+     * It tries to fix a producer overclaim.
+     *
+     * @return {@code true} if the claim is now safe to be used,{@code false} otherwise and is needed to retry the claim.
+     */
+    private boolean fixProducerOverClaim(
+        final int activeCycleIndex,
+        final long producerCycleClaim,
+        final boolean slowProducer)
+    {
+        final long expectedProducerCycleClaim = producerCycleClaim + 1;
+        //try to fix the overclaim bringing it back to a lower or a safe position
+        if (!casProducerCycleClaim(activeCycleIndex, expectedProducerCycleClaim, producerCycleClaim))
+        {
+            final long currentProducerCycleClaim = lvProducerCycleClaim(activeCycleIndex);
+            //another producer has managed to fix the claim
+            if (currentProducerCycleClaim <= producerCycleClaim)
+            {
+                return false;
+            }
+            if (slowProducer)
+            {
+                validateSlowProducerOverClaim(activeCycleIndex, producerCycleClaim);
+                return true;
+            }
+            else
+            {
+                //the claim cannot be rolled back so It must be used as it is
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Validates a slow producer over-claim throwing {@link IllegalStateException} if the offer on it can't continue.
+     */
+    private void validateSlowProducerOverClaim(final int activeCycleIndex, final long producerCycleClaim)
+    {
+        //the cycle claim is now ok?
+        final long producerPosition = producerPositionFromClaim(
+            producerCycleClaim,
+            positionWithinCycleMask,
+            cycleIdBitShift,
+            cycleLengthLog2);
+        if (isFull(producerPosition))
+        {
+            //a definitive fail could be declared only if the claim is trying to overwrite something not consumed yet:
+            //isFull is not considering the real occupation of the slot
+            final long consumerPosition = lvConsumerPosition();
+            final long effectiveProducerLimit = consumerPosition + (this.cycleLength * 2);
+            if (producerPosition >= effectiveProducerLimit)
+            {
+                throw new IllegalStateException(
+                    "The producer has fallen behind: please enlarge the capacity or reduce the number of producers! \n" +
+                        " producerPosition=" + producerPosition + "\n" +
+                        " consumerPosition=" + consumerPosition + "\n" +
+                        " activeCycleIndex=" + activeCycleIndex + "\n" +
+                        " cycleId=" + producerClaimCycleId(producerCycleClaim, cycleIdBitShift) + "\n" +
+                        " positionOnCycle=" + positionWithinCycle(producerCycleClaim, positionWithinCycleMask));
+            }
+            //the slot is not occupied: we can write into it
+        }
+        //the claim now is ok: consumers have gone forward enough
     }
 
     private void soCycleElement(E[] buffer, E e, int activeCycleIndex, int positionWithinCycle, int cycleLengthLog2)
@@ -678,17 +775,25 @@ public class MpscRelaxedArrayQueue<E> extends MpscRelaxedArrayQueueL4Pad<E> impl
             if (positionOnCycle < cycleLength)
             {
                 final long cycleId = producerClaimCycleId(producerCycleClaim, cycleIdBitShift);
-                if (cycleId != activeCycleId)
+                //it is a slow producer?
+                final boolean slowProducer = cycleId != activeCycleId;
+                if (!validateProducerClaim(
+                    activeCycle,
+                    producerCycleClaim,
+                    cycleId,
+                    positionOnCycle,
+                    cycleLengthLog2,
+                    slowProducer))
                 {
-                    validateSlowProducerClaim(cycleId, positionOnCycle, cycleLengthLog2);
+                    continue;
                 }
                 soCycleElement(buffer, s.get(), activeCycle, positionOnCycle, cycleLengthLog2);
                 i++;
             }
             else if (positionOnCycle == cycleLength)
             {
-                //is the only one responsible to rotate cycle: the other producers will be forced to wait until rotation got completed to perform a valid offer
-                rotateCycle(activeCycle, producerCycleClaim, cycleIdBitShift, maxCycleId);
+                final long cycleId = producerClaimCycleId(producerCycleClaim, cycleIdBitShift);
+                rotateCycle(cycleId, cycleIdBitShift, maxCycleId);
             }
         }
         return i;
