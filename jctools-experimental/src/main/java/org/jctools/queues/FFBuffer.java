@@ -18,6 +18,8 @@ import org.jctools.util.UnsafeRefArrayAccess;
 
 import java.util.Queue;
 
+import static org.jctools.util.UnsafeAccess.fieldOffset;
+
 abstract class FFBufferL1Pad<E> extends ConcurrentCircularArrayQueue<E>
 {
     long p10, p11, p12, p13, p14, p15, p16;
@@ -73,23 +75,8 @@ abstract class FFBufferL3Pad<E> extends FFBufferConsumerField<E>
 
 public final class FFBuffer<E> extends FFBufferL3Pad<E> implements Queue<E>
 {
-    private final static long P_INDEX_OFFSET;
-    private final static long C_INDEX_OFFSET;
-
-    static
-    {
-        try
-        {
-            P_INDEX_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(FFBufferConsumerField.class
-                .getDeclaredField("pIndex"));
-            C_INDEX_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(FFBufferProducerField.class
-                .getDeclaredField("cIndex"));
-        }
-        catch (NoSuchFieldException e)
-        {
-            throw new RuntimeException(e);
-        }
-    }
+    private final static long P_INDEX_OFFSET = fieldOffset(FFBufferProducerField.class, "pIndex");
+    private final static long C_INDEX_OFFSET = fieldOffset(FFBufferConsumerField.class, "cIndex");
 
     public FFBuffer(final int capacity)
     {

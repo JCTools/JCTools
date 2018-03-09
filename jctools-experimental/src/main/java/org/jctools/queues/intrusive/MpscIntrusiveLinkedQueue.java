@@ -14,6 +14,7 @@
 package org.jctools.queues.intrusive;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
+import static org.jctools.util.UnsafeAccess.fieldOffset;
 
 /**
  * Intrusive MPSC queue implementation based on <a href="http://www.1024cores.net/home/lock-free-algorithms/queues/intrusive-mpsc-node-based-queue">Intrusive
@@ -27,16 +28,8 @@ abstract class MpscIntrusiveLinkedQueuePad0 {
 }
 
 abstract class MpscIntrusiveLinkedQueueProducerNodeRef extends MpscIntrusiveLinkedQueuePad0 {
-    private final static long P_NODE_OFFSET;
-    static {
-        try {
-            P_NODE_OFFSET = UNSAFE
-                    .objectFieldOffset(MpscIntrusiveLinkedQueueProducerNodeRef.class.getDeclaredField("producerNode"));
-        }
-        catch (NoSuchFieldException e) {
-            throw new RuntimeException(e);
-        }
-    }
+    private final static long P_NODE_OFFSET = fieldOffset(MpscIntrusiveLinkedQueueProducerNodeRef.class, "producerNode");
+
     private volatile Node producerNode;
 
     protected final Node lvProducerNode() {
@@ -54,16 +47,8 @@ abstract class MpscIntrusiveLinkedQueuePad1 extends MpscIntrusiveLinkedQueueProd
 }
 
 abstract class MpscIntrusiveLinkedQueueConsumerNodeRef extends MpscIntrusiveLinkedQueuePad1 {
-    private final static long C_NODE_OFFSET;
-    static {
-        try {
-            C_NODE_OFFSET = UNSAFE
-                    .objectFieldOffset(MpscIntrusiveLinkedQueueConsumerNodeRef.class.getDeclaredField("consumerNode"));
-        }
-        catch (NoSuchFieldException e) {
-            throw new RuntimeException(e);
-        }
-    }
+    private final static long C_NODE_OFFSET = fieldOffset(MpscIntrusiveLinkedQueueConsumerNodeRef.class, "consumerNode");
+
     private Node consumerNode;
 
     protected final Node stub = new NodeImpl();

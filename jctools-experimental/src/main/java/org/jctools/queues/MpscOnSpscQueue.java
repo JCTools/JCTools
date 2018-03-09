@@ -14,6 +14,7 @@
 package org.jctools.queues;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
+import static org.jctools.util.UnsafeAccess.fieldOffset;
 
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
@@ -34,15 +35,7 @@ abstract class MpscOnSpscL0Pad<E> extends AbstractQueue<E> {
 }
 
 abstract class MpscOnSpscFields<E> extends MpscOnSpscL0Pad<E> {
-	private final static long QUEUES_OFFSET;
-
-	static {
-		try {
-			QUEUES_OFFSET = UNSAFE.objectFieldOffset(MpscOnSpscFields.class.getDeclaredField("queues"));
-		} catch (NoSuchFieldException e) {
-			throw new RuntimeException(e);
-		}
-	}
+	private final static long QUEUES_OFFSET = fieldOffset(MpscOnSpscFields.class, "queues");
 
 	protected final ThreadLocal<Queue<E>> producerQueue;
 	ReferenceQueue<Thread> refQ = new ReferenceQueue<Thread>();

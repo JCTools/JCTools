@@ -3,20 +3,14 @@ package org.jctools.util;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 
+import static org.jctools.util.UnsafeAccess.UNSAFE;
+
 public class UnsafeDirectByteBuffer
 {
-	private static final long addressOffset;
-	static {
-		try {
-			addressOffset = UnsafeAccess.UNSAFE.objectFieldOffset(Buffer.class
-			        .getDeclaredField("address"));
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
-	}
+	private static final long addressOffset = UnsafeAccess.fieldOffset(Buffer.class, "address");
 
 	public static long getAddress(ByteBuffer buffy) {
-		return UnsafeAccess.UNSAFE.getLong(buffy, addressOffset);
+		return UNSAFE.getLong(buffy, addressOffset);
 	}
 
 	public static ByteBuffer allocateAlignedByteBuffer(int capacity, long align) {

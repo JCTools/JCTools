@@ -1,21 +1,13 @@
 package org.jctools.maps.cat_test;
-import java.lang.reflect.Field;
-import sun.misc.Unsafe;
+
+import org.jctools.util.UnsafeAccess;
+
+import static org.jctools.util.UnsafeAccess.fieldOffset;
 
 public final class UnsafeCounter extends Counter {
   public String name() { return "Unsafe"; }
-  private static final Unsafe _unsafe = UtilUnsafe.getUnsafe();
-  private static final long CNT_OFFSET;
-  static { {			// <clinit>
-    Field f = null;
-    try { 
-      f = UnsafeCounter.class.getDeclaredField("_cnt"); 
-    } catch( java.lang.NoSuchFieldException e ) {
-      throw new Error(e);
-    } 
-    CNT_OFFSET = _unsafe.objectFieldOffset(f);
-    }
-  }
+
+  private static final long CNT_OFFSET = fieldOffset(UnsafeCounter.class, "_cnt");
 
   private long _cnt;
   public long get(){ return _cnt; }
@@ -23,24 +15,6 @@ public final class UnsafeCounter extends Counter {
     long cnt=0;
     do { 
       cnt = _cnt;
-    } while( !_unsafe.compareAndSwapLong(this,CNT_OFFSET,cnt,cnt+x) );
+    } while( !UnsafeAccess.UNSAFE.compareAndSwapLong(this,CNT_OFFSET,cnt,cnt+x) );
   }
-
-
-  private static class UtilUnsafe {
-    private UtilUnsafe() { } // dummy private constructor
-    public static Unsafe getUnsafe() {
-      // Not on bootclasspath
-      if( UtilUnsafe.class.getClassLoader() == null )
-        return Unsafe.getUnsafe();
-      try {
-        final Field fld = Unsafe.class.getDeclaredField("theUnsafe");
-        fld.setAccessible(true);
-        return (Unsafe) fld.get(UtilUnsafe.class);
-      } catch (Exception e) {
-        throw new RuntimeException("Could not obtain access to sun.misc.Unsafe", e);
-      }
-    }
-  }
-
 }

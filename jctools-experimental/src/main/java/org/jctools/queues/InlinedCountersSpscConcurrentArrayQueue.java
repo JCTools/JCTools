@@ -14,12 +14,14 @@
 package org.jctools.queues;
 
 import org.jctools.util.Pow2;
-import org.jctools.util.UnsafeAccess;
 
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Queue;
+
+import static org.jctools.util.UnsafeAccess.UNSAFE;
+import static org.jctools.util.UnsafeAccess.fieldOffset;
 
 abstract class InlinedRingBufferL0Pad {
     protected long p00, p01, p02, p03, p04, p05, p06, p07;
@@ -96,23 +98,20 @@ public final class InlinedCountersSpscConcurrentArrayQueue<E> extends InlinedRin
     private static final long ARRAY_BASE;
     private static final int ELEMENT_SHIFT;
     static {
-        try {
-            TAIL_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(InlinedRingBufferOfferFields.class.getDeclaredField("tail"));
-            HEAD_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(InlinedRingBufferPollFields.class.getDeclaredField("head"));
-            final int scale = UnsafeAccess.UNSAFE.arrayIndexScale(Object[].class);
+        TAIL_OFFSET = fieldOffset(InlinedRingBufferOfferFields.class,"tail");
+        HEAD_OFFSET = fieldOffset(InlinedRingBufferPollFields.class, "head");
 
-            if (4 == scale) {
-                ELEMENT_SHIFT = 2 + SPARSE_SHIFT;
-            } else if (8 == scale) {
-                ELEMENT_SHIFT = 3 + SPARSE_SHIFT;
-            } else {
-                throw new IllegalStateException("Unknown pointer size");
-            }
-            ARRAY_BASE = UnsafeAccess.UNSAFE.arrayBaseOffset(Object[].class)
-                    + (BUFFER_PAD << (ELEMENT_SHIFT - SPARSE_SHIFT));
-        } catch (NoSuchFieldException e) {
-            throw new RuntimeException(e);
+        final int scale = UNSAFE.arrayIndexScale(Object[].class);
+
+        if (4 == scale) {
+            ELEMENT_SHIFT = 2 + SPARSE_SHIFT;
+        } else if (8 == scale) {
+            ELEMENT_SHIFT = 3 + SPARSE_SHIFT;
+        } else {
+            throw new IllegalStateException("Unknown pointer size");
         }
+        ARRAY_BASE = UNSAFE.arrayBaseOffset(Object[].class)
+                + (BUFFER_PAD << (ELEMENT_SHIFT - SPARSE_SHIFT));
     }
 
     public InlinedCountersSpscConcurrentArrayQueue(final int capacity) {
@@ -120,7 +119,7 @@ public final class InlinedCountersSpscConcurrentArrayQueue<E> extends InlinedRin
     }
 
     private void headLazySet(long v) {
-        UnsafeAccess.UNSAFE.putOrderedLong(this, HEAD_OFFSET, v);
+        UNSAFE.putOrderedLong(this, HEAD_OFFSET, v);
     }
 
     private long getHead() {
@@ -128,7 +127,7 @@ public final class InlinedCountersSpscConcurrentArrayQueue<E> extends InlinedRin
     }
 
     private void tailLazySet(long v) {
-        UnsafeAccess.UNSAFE.putOrderedLong(this, TAIL_OFFSET, v);
+        UNSAFE.putOrderedLong(this, TAIL_OFFSET, v);
     }
 
     private long getTail() {
@@ -159,7 +158,7 @@ public final class InlinedCountersSpscConcurrentArrayQueue<E> extends InlinedRin
                 return false;
             }
         }
-        UnsafeAccess.UNSAFE.putObject(buffer, offset(currentTail), e);
+        UNSAFE.putObject(buffer, offset(currentTail), e);
         tailLazySet(currentTail + 1);
 
         return true;
@@ -176,8 +175,8 @@ public final class InlinedCountersSpscConcurrentArrayQueue<E> extends InlinedRin
 
         final long offset = offset(currentHead);
         @SuppressWarnings("unchecked")
-        final E e = (E) UnsafeAccess.UNSAFE.getObject(buffer, offset);
-        UnsafeAccess.UNSAFE.putObject(buffer, offset, null);
+        final E e = (E) UNSAFE.getObject(buffer, offset);
+        UNSAFE.putObject(buffer, offset, null);
 
         headLazySet(currentHead + 1);
 
@@ -210,7 +209,7 @@ public final class InlinedCountersSpscConcurrentArrayQueue<E> extends InlinedRin
     @SuppressWarnings("unchecked")
     private E getElement(long index) {
         final long offset = offset(index);
-        return (E) UnsafeAccess.UNSAFE.getObject(buffer, offset);
+        return (E) UNSAFE.getObject(buffer, offset);
     }
 
     public int size() {

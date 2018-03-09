@@ -13,11 +13,14 @@
  */
 package org.jctools.queues;
 
+import org.jctools.util.UnsafeAccess;
+
 import java.lang.reflect.Field;
 import java.util.AbstractQueue;
 import java.util.Iterator;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
+import static org.jctools.util.UnsafeAccess.fieldOffset;
 
 abstract class BaseLinkedQueuePad0<E> extends AbstractQueue<E> implements MessagePassingQueue<E>
 {
@@ -28,20 +31,7 @@ abstract class BaseLinkedQueuePad0<E> extends AbstractQueue<E> implements Messag
 // $gen:ordered-fields
 abstract class BaseLinkedQueueProducerNodeRef<E> extends BaseLinkedQueuePad0<E>
 {
-    protected final static long P_NODE_OFFSET;
-
-    static
-    {
-        try
-        {
-            final Field pNodeField = BaseLinkedQueueProducerNodeRef.class.getDeclaredField("producerNode");
-            P_NODE_OFFSET = UNSAFE.objectFieldOffset(pNodeField);
-        }
-        catch (NoSuchFieldException e)
-        {
-            throw new RuntimeException(e);
-        }
-    }
+    protected final static long P_NODE_OFFSET = fieldOffset(BaseLinkedQueueProducerNodeRef.class, "producerNode");
 
     protected LinkedQueueNode<E> producerNode;
 
@@ -77,20 +67,7 @@ abstract class BaseLinkedQueuePad1<E> extends BaseLinkedQueueProducerNodeRef<E>
 //$gen:ordered-fields
 abstract class BaseLinkedQueueConsumerNodeRef<E> extends BaseLinkedQueuePad1<E>
 {
-    protected final static long C_NODE_OFFSET;
-
-    static
-    {
-        try
-        {
-            final Field cNodeField = BaseLinkedQueueConsumerNodeRef.class.getDeclaredField("consumerNode");
-            C_NODE_OFFSET = UNSAFE.objectFieldOffset(cNodeField);
-        }
-        catch (NoSuchFieldException e)
-        {
-            throw new RuntimeException(e);
-        }
-    }
+    protected final static long C_NODE_OFFSET = fieldOffset(BaseLinkedQueueConsumerNodeRef.class,"consumerNode");
 
     protected LinkedQueueNode<E> consumerNode;
 

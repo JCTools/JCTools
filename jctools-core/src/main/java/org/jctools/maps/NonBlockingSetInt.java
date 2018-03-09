@@ -13,6 +13,7 @@
  */
 package org.jctools.maps;
 import static org.jctools.util.UnsafeAccess.UNSAFE;
+import static org.jctools.util.UnsafeAccess.fieldOffset;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -50,15 +51,8 @@ public class NonBlockingSetInt extends AbstractSet<Integer> implements Serializa
   private static final long serialVersionUID = 1234123412341234123L;
 
   // --- Bits to allow atomic update of the NBSI
-  private static final long _nbsi_offset;
-  static {                      // <clinit>
-    Field f = null;
-    try { 
-      f = NonBlockingSetInt.class.getDeclaredField("_nbsi"); 
-    } catch( java.lang.NoSuchFieldException e ) {
-    } 
-    _nbsi_offset = UNSAFE.objectFieldOffset(f);
-  }
+  private static final long _nbsi_offset = fieldOffset(NonBlockingSetInt.class, "_nbsi");
+
   private final boolean CAS_nbsi( NBSI old, NBSI nnn ) {
     return UNSAFE.compareAndSwapObject(this, _nbsi_offset, old, nnn );
   }
@@ -232,15 +226,8 @@ public class NonBlockingSetInt extends AbstractSet<Integer> implements Serializa
     // The New Table, only set once to non-zero during a resize.
     // Must be atomically set.
     private NBSI _new;
-    private static final long _new_offset;
-    static {                      // <clinit>
-      Field f = null;
-      try { 
-        f = NBSI.class.getDeclaredField("_new"); 
-      } catch( java.lang.NoSuchFieldException e ) {
-      } 
-      _new_offset = UNSAFE.objectFieldOffset(f);
-    }
+    private static final long _new_offset = fieldOffset(NBSI.class, "_new");
+
     private final boolean CAS_new( NBSI nnn ) {
       return UNSAFE.compareAndSwapObject(this, _new_offset, null, nnn );
     }

@@ -15,19 +15,13 @@ package org.jctools.queues.alt;
 
 import static org.jctools.queues.alt.SpscArrayConcurrentQueue.OFFER_BATCH_SIZE;
 import static org.jctools.util.UnsafeAccess.UNSAFE;
+import static org.jctools.util.UnsafeAccess.fieldOffset;
 
 import org.jctools.util.UnsafeAccess;
 
 abstract class ProducerFields<E> extends ConcurrentCircularArray<E> {
-    protected static final long TAIL_OFFSET;
-    static {
-        try {
-            TAIL_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(ProducerFields.class
-                    .getDeclaredField("producerIndex"));
-        } catch (NoSuchFieldException e) {
-            throw new RuntimeException(e);
-        }
-    }
+    protected static final long TAIL_OFFSET = fieldOffset(ProducerFields.class,"producerIndex");
+
     protected long producerIndex;
     protected long batchTail;
 
@@ -112,15 +106,8 @@ final class Producer<E> extends ProducerFields<E> implements ConcurrentQueueProd
 }
 
 abstract class ConsumerFields<E> extends ConcurrentCircularArray<E> {
-    protected static final long HEAD_OFFSET;
-    static {
-        try {
-            HEAD_OFFSET = UnsafeAccess.UNSAFE
-                    .objectFieldOffset(ConsumerFields.class.getDeclaredField("head"));
-        } catch (NoSuchFieldException e) {
-            throw new RuntimeException(e);
-        }
-    }
+    protected static final long HEAD_OFFSET = fieldOffset(ConsumerFields.class, "head");
+
     protected long head = 0;
 
     public ConsumerFields(ConcurrentCircularArray<E> c) {

@@ -13,27 +13,17 @@
  */
 package org.jctools.maps;
 
-import static org.jctools.util.UnsafeAccess.UNSAFE;
+import org.jctools.util.RangeUtil;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.lang.reflect.Field;
-import java.util.AbstractCollection;
-import java.util.AbstractMap;
-import java.util.AbstractSet;
-import java.util.Collection;
-import java.util.ConcurrentModificationException;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.Hashtable;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-import org.jctools.util.RangeUtil;
+
+import static org.jctools.util.UnsafeAccess.UNSAFE;
+import static org.jctools.util.UnsafeAccess.fieldOffset;
 
 
 /**
@@ -125,18 +115,9 @@ public class NonBlockingHashMapLong<TypeV>
   }
 
   // --- Bits to allow Unsafe CAS'ing of the CHM field
-  private static final long _chm_offset;
-  private static final long _val_1_offset;
-  static {                      // <clinit>
-    Field f;
-    try { f = NonBlockingHashMapLong.class.getDeclaredField("_chm"); }
-    catch( java.lang.NoSuchFieldException e ) { throw new RuntimeException(e); }
-    _chm_offset = UNSAFE.objectFieldOffset(f);
+  private static final long _chm_offset = fieldOffset(NonBlockingHashMapLong.class, "_chm");
+  private static final long _val_1_offset = fieldOffset(NonBlockingHashMapLong.class, "_val_1");
 
-    try { f = NonBlockingHashMapLong.class.getDeclaredField("_val_1"); }
-    catch( java.lang.NoSuchFieldException e ) { throw new RuntimeException(e); }
-    _val_1_offset = UNSAFE.objectFieldOffset(f);
-  }
   private final boolean CAS( final long offset, final Object old, final Object nnn ) {
     return UNSAFE.compareAndSwapObject(this, offset, old, nnn );
   }

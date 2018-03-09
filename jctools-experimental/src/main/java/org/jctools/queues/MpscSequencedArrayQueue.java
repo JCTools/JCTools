@@ -14,6 +14,7 @@
 package org.jctools.queues;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
+import static org.jctools.util.UnsafeAccess.fieldOffset;
 
 import org.jctools.queues.MessagePassingQueue.Consumer;
 import org.jctools.queues.MessagePassingQueue.ExitCondition;
@@ -31,15 +32,8 @@ abstract class MpscSequencedArrayQueueL1Pad<E> extends ConcurrentSequencedCircul
 }
 
 abstract class MpscSequencedArrayQueueProducerField<E> extends MpscSequencedArrayQueueL1Pad<E> {
-    private final static long P_INDEX_OFFSET;
-    static {
-        try {
-            P_INDEX_OFFSET =
-                UNSAFE.objectFieldOffset(MpscSequencedArrayQueueProducerField.class.getDeclaredField("producerIndex"));
-        } catch (NoSuchFieldException e) {
-            throw new RuntimeException(e);
-        }
-    }
+    private final static long P_INDEX_OFFSET = fieldOffset(MpscSequencedArrayQueueProducerField.class, "producerIndex");
+
     private volatile long producerIndex;
 
     public MpscSequencedArrayQueueProducerField(int capacity) {
@@ -65,15 +59,8 @@ abstract class MpscSequencedArrayQueueL2Pad<E> extends MpscSequencedArrayQueuePr
 }
 
 abstract class MpscSequencedArrayQueueConsumerField<E> extends MpscSequencedArrayQueueL2Pad<E> {
-    private final static long C_INDEX_OFFSET;
-    static {
-        try {
-            C_INDEX_OFFSET =
-                UNSAFE.objectFieldOffset(MpscSequencedArrayQueueConsumerField.class.getDeclaredField("consumerIndex"));
-        } catch (NoSuchFieldException e) {
-            throw new RuntimeException(e);
-        }
-    }
+    private final static long C_INDEX_OFFSET = fieldOffset(MpscSequencedArrayQueueConsumerField.class, "consumerIndex");
+
     protected long consumerIndex;
 
     public MpscSequencedArrayQueueConsumerField(int capacity) {

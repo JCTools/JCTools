@@ -14,22 +14,11 @@
 package org.jctools.queues;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
+import static org.jctools.util.UnsafeAccess.fieldOffset;
 
 final class LinkedQueueNode<E>
 {
-    private final static long NEXT_OFFSET;
-
-    static
-    {
-        try
-        {
-            NEXT_OFFSET = UNSAFE.objectFieldOffset(LinkedQueueNode.class.getDeclaredField("next"));
-        }
-        catch (NoSuchFieldException e)
-        {
-            throw new RuntimeException(e);
-        }
-    }
+    private final static long NEXT_OFFSET = fieldOffset(LinkedQueueNode.class,"next");
 
     private E value;
     private volatile LinkedQueueNode<E> next;

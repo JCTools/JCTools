@@ -25,11 +25,11 @@ import org.jctools.util.Pow2;
 import org.jctools.util.RangeUtil;
 import org.jctools.util.UnsafeRefArrayAccess;
 
-import java.lang.reflect.Field;
 import java.util.AbstractQueue;
 import java.util.Iterator;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
+import static org.jctools.util.UnsafeAccess.fieldOffset;
 import static org.jctools.util.UnsafeRefArrayAccess.*;
 
 abstract class MpscRelaxedArrayQueueL0Pad<E> extends AbstractQueue<E>
@@ -40,20 +40,7 @@ abstract class MpscRelaxedArrayQueueL0Pad<E> extends AbstractQueue<E>
 
 abstract class MpscRelaxedArrayQueueActiveCycleIdField<E> extends MpscRelaxedArrayQueueL0Pad<E>
 {
-    private static final long ACTIVE_CYCLE_ID_OFFSET;
-
-    static
-    {
-        try
-        {
-            final Field field = MpscRelaxedArrayQueueActiveCycleIdField.class.getDeclaredField("activeCycleId");
-            ACTIVE_CYCLE_ID_OFFSET = UNSAFE.objectFieldOffset(field);
-        }
-        catch (NoSuchFieldException e)
-        {
-            throw new RuntimeException(e);
-        }
-    }
+    private static final long ACTIVE_CYCLE_ID_OFFSET = fieldOffset(MpscRelaxedArrayQueueActiveCycleIdField.class, "activeCycleId");
 
     private volatile long activeCycleId;
 
@@ -87,19 +74,8 @@ abstract class MpscRelaxedArrayQueueMidPad<E> extends MpscRelaxedArrayQueueActiv
 
 abstract class MpscRelaxedArrayQueueProducerLimitField<E> extends MpscRelaxedArrayQueueMidPad<E>
 {
-    private static final long P_LIMIT_OFFSET;
-    static
-    {
-        try
-        {
-            final Field field = MpscRelaxedArrayQueueProducerLimitField.class.getDeclaredField("producerLimit");
-            P_LIMIT_OFFSET = UNSAFE.objectFieldOffset(field);
-        }
-        catch (NoSuchFieldException e)
-        {
-            throw new RuntimeException(e);
-        }
-    }
+    private static final long P_LIMIT_OFFSET = fieldOffset(MpscRelaxedArrayQueueProducerLimitField.class, "producerLimit");
+
     private volatile long producerLimit;
 
     protected final long lvProducerLimit()
@@ -121,19 +97,7 @@ abstract class MpscRelaxedArrayQueueL2Pad<E> extends MpscRelaxedArrayQueueProduc
 
 abstract class MpscRelaxedArrayQueueConsumerPositionField<E> extends MpscRelaxedArrayQueueL2Pad<E>
 {
-    private static final long C_POS_OFFSET;
-    static
-    {
-        try
-        {
-            final Field field = MpscRelaxedArrayQueueConsumerPositionField.class.getDeclaredField("consumerPosition");
-            C_POS_OFFSET = UNSAFE.objectFieldOffset(field);
-        }
-        catch (NoSuchFieldException e)
-        {
-            throw new RuntimeException(e);
-        }
-    }
+    private static final long C_POS_OFFSET = fieldOffset(MpscRelaxedArrayQueueConsumerPositionField.class, "consumerPosition");
 
     protected volatile long consumerPosition;
 
@@ -165,23 +129,14 @@ abstract class MpscRelaxedArrayQueueProducerCycleClaimFields<E> extends MpscRela
     private static final long ELEMENT_SHIFT;
     static
     {
-        try
-        {
-            final Field field1 = MpscRelaxedArrayQueueProducerCycleClaimFields.class.getDeclaredField("producerFirstCycleClaim");
-            final long pClaim1 = UNSAFE.objectFieldOffset(field1);
-            final Field field2 = MpscRelaxedArrayQueueProducerCycleClaimFields.class.getDeclaredField("producerSecondCycleClaim");
-            final long pClaim2 = UNSAFE.objectFieldOffset(field2);
+        final long pClaim1 = fieldOffset(MpscRelaxedArrayQueueProducerCycleClaimFields.class, "producerFirstCycleClaim");
+        final long pClaim2 = fieldOffset(MpscRelaxedArrayQueueProducerCycleClaimFields.class, "producerSecondCycleClaim");
 
-            P_CYCLE_CLAIM_BASE = Math.min(pClaim1, pClaim2);
-            ELEMENT_SHIFT = Integer.numberOfTrailingZeros(Long.SIZE / Byte.SIZE);
-            if (Math.max(pClaim1, pClaim2) != calcProducerCycleClaimOffset(1))
-            {
-                throw new RuntimeException("The JVM is not packing long fields as expected!");
-            }
-        }
-        catch (NoSuchFieldException e)
+        P_CYCLE_CLAIM_BASE = Math.min(pClaim1, pClaim2);
+        ELEMENT_SHIFT = Integer.numberOfTrailingZeros(Long.SIZE / Byte.SIZE);
+        if (Math.max(pClaim1, pClaim2) != calcProducerCycleClaimOffset(1))
         {
-            throw new RuntimeException(e);
+            throw new RuntimeException("The JVM is not packing long fields as expected!");
         }
     }
     // these are treated as an array, just inlined

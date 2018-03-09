@@ -16,6 +16,7 @@ package org.jctools.queues;
 import org.jctools.util.PortableJvmInfo;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
+import static org.jctools.util.UnsafeAccess.fieldOffset;
 import static org.jctools.util.UnsafeRefArrayAccess.*;
 
 abstract class MpscArrayQueueL1Pad<E> extends ConcurrentCircularArrayQueue<E>
@@ -32,20 +33,7 @@ abstract class MpscArrayQueueL1Pad<E> extends ConcurrentCircularArrayQueue<E>
 //$gen:ordered-fields
 abstract class MpscArrayQueueProducerIndexField<E> extends MpscArrayQueueL1Pad<E>
 {
-    private final static long P_INDEX_OFFSET;
-
-    static
-    {
-        try
-        {
-            P_INDEX_OFFSET = UNSAFE
-                .objectFieldOffset(MpscArrayQueueProducerIndexField.class.getDeclaredField("producerIndex"));
-        }
-        catch (NoSuchFieldException e)
-        {
-            throw new RuntimeException(e);
-        }
-    }
+    private final static long P_INDEX_OFFSET = fieldOffset(MpscArrayQueueProducerIndexField.class, "producerIndex");
 
     private volatile long producerIndex;
 
@@ -80,20 +68,7 @@ abstract class MpscArrayQueueMidPad<E> extends MpscArrayQueueProducerIndexField<
 //$gen:ordered-fields
 abstract class MpscArrayQueueProducerLimitField<E> extends MpscArrayQueueMidPad<E>
 {
-    private final static long P_LIMIT_OFFSET;
-
-    static
-    {
-        try
-        {
-            P_LIMIT_OFFSET = UNSAFE
-                .objectFieldOffset(MpscArrayQueueProducerLimitField.class.getDeclaredField("producerLimit"));
-        }
-        catch (NoSuchFieldException e)
-        {
-            throw new RuntimeException(e);
-        }
-    }
+    private final static long P_LIMIT_OFFSET = fieldOffset(MpscArrayQueueProducerLimitField.class, "producerLimit");
 
     // First unavailable index the producer may claim up to before rereading the consumer index
     private volatile long producerLimit;
@@ -129,20 +104,7 @@ abstract class MpscArrayQueueL2Pad<E> extends MpscArrayQueueProducerLimitField<E
 //$gen:ordered-fields
 abstract class MpscArrayQueueConsumerIndexField<E> extends MpscArrayQueueL2Pad<E>
 {
-    private final static long C_INDEX_OFFSET;
-
-    static
-    {
-        try
-        {
-            C_INDEX_OFFSET = UNSAFE
-                .objectFieldOffset(MpscArrayQueueConsumerIndexField.class.getDeclaredField("consumerIndex"));
-        }
-        catch (NoSuchFieldException e)
-        {
-            throw new RuntimeException(e);
-        }
-    }
+    private final static long C_INDEX_OFFSET = fieldOffset(MpscArrayQueueConsumerIndexField.class, "consumerIndex");
 
     protected long consumerIndex;
 

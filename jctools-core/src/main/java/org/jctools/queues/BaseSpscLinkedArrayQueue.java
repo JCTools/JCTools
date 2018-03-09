@@ -24,6 +24,7 @@ import static org.jctools.queues.CircularArrayOffsetCalculator.calcElementOffset
 import static org.jctools.queues.LinkedArrayQueueUtil.length;
 import static org.jctools.queues.LinkedArrayQueueUtil.nextArrayOffset;
 import static org.jctools.util.UnsafeAccess.UNSAFE;
+import static org.jctools.util.UnsafeAccess.fieldOffset;
 import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
 import static org.jctools.util.UnsafeRefArrayAccess.soElement;
 
@@ -43,20 +44,7 @@ abstract class BaseSpscLinkedArrayQueueConsumerColdFields<E> extends BaseSpscLin
 // $gen:ordered-fields
 abstract class BaseSpscLinkedArrayQueueConsumerField<E> extends BaseSpscLinkedArrayQueueConsumerColdFields<E>
 {
-    private final static long C_INDEX_OFFSET;
-
-    static
-    {
-        try
-        {
-            Field iField = BaseSpscLinkedArrayQueueConsumerField.class.getDeclaredField("consumerIndex");
-            C_INDEX_OFFSET = UNSAFE.objectFieldOffset(iField);
-        }
-        catch (NoSuchFieldException e)
-        {
-            throw new RuntimeException(e);
-        }
-    }
+    private final static long C_INDEX_OFFSET = fieldOffset(BaseSpscLinkedArrayQueueConsumerField.class, "consumerIndex");
 
     protected long consumerIndex;
 
@@ -81,20 +69,7 @@ abstract class BaseSpscLinkedArrayQueueL2Pad<E> extends BaseSpscLinkedArrayQueue
 // $gen:ordered-fields
 abstract class BaseSpscLinkedArrayQueueProducerFields<E> extends BaseSpscLinkedArrayQueueL2Pad<E>
 {
-    private final static long P_INDEX_OFFSET;
-
-    static
-    {
-        try
-        {
-            Field iField = BaseSpscLinkedArrayQueueProducerFields.class.getDeclaredField("producerIndex");
-            P_INDEX_OFFSET = UNSAFE.objectFieldOffset(iField);
-        }
-        catch (NoSuchFieldException e)
-        {
-            throw new RuntimeException(e);
-        }
-    }
+    private final static long P_INDEX_OFFSET = fieldOffset(BaseSpscLinkedArrayQueueProducerFields.class,"producerIndex");
 
     protected long producerIndex;
 

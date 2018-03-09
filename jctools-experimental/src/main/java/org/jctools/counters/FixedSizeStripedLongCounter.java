@@ -45,8 +45,7 @@ public abstract class FixedSizeStripedLongCounter extends FixedSizeStripedLongCo
 
     private static long getProbeOffset() {
         try {
-            Class<?> tk = Thread.class;
-            return UNSAFE.objectFieldOffset(tk.getDeclaredField("threadLocalRandomProbe"));
+            return UNSAFE.objectFieldOffset(Thread.class.getDeclaredField("threadLocalRandomProbe"));
 
         } catch (NoSuchFieldException e) {
             return -1L;

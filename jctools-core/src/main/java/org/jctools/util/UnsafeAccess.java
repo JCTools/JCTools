@@ -79,4 +79,16 @@ public class UnsafeAccess
         UNSAFE = instance;
         SUPPORTS_GET_AND_SET = getAndSetSupport;
     }
+
+    public static long fieldOffset(Class clz, String fieldName) throws RuntimeException
+    {
+        try
+        {
+            return UNSAFE.objectFieldOffset(clz.getDeclaredField(fieldName));
+        }
+        catch (NoSuchFieldException e)
+        {
+            throw new RuntimeException(e);
+        }
+    }
 }

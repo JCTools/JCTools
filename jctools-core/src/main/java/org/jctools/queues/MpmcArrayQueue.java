@@ -17,6 +17,7 @@ import org.jctools.util.PortableJvmInfo;
 import org.jctools.util.RangeUtil;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
+import static org.jctools.util.UnsafeAccess.fieldOffset;
 import static org.jctools.util.UnsafeRefArrayAccess.lpElement;
 import static org.jctools.util.UnsafeRefArrayAccess.soElement;
 
@@ -34,20 +35,7 @@ abstract class MpmcArrayQueueL1Pad<E> extends ConcurrentSequencedCircularArrayQu
 //$gen:ordered-fields
 abstract class MpmcArrayQueueProducerIndexField<E> extends MpmcArrayQueueL1Pad<E>
 {
-    private final static long P_INDEX_OFFSET;
-
-    static
-    {
-        try
-        {
-            P_INDEX_OFFSET = UNSAFE.objectFieldOffset(MpmcArrayQueueProducerIndexField.class
-                .getDeclaredField("producerIndex"));
-        }
-        catch (NoSuchFieldException e)
-        {
-            throw new RuntimeException(e);
-        }
-    }
+    private final static long P_INDEX_OFFSET = fieldOffset(MpmcArrayQueueProducerIndexField.class, "producerIndex");
 
     private volatile long producerIndex;
 
@@ -82,20 +70,7 @@ abstract class MpmcArrayQueueL2Pad<E> extends MpmcArrayQueueProducerIndexField<E
 //$gen:ordered-fields
 abstract class MpmcArrayQueueConsumerIndexField<E> extends MpmcArrayQueueL2Pad<E>
 {
-    private final static long C_INDEX_OFFSET;
-
-    static
-    {
-        try
-        {
-            C_INDEX_OFFSET = UNSAFE.objectFieldOffset(MpmcArrayQueueConsumerIndexField.class
-                .getDeclaredField("consumerIndex"));
-        }
-        catch (NoSuchFieldException e)
-        {
-            throw new RuntimeException(e);
-        }
-    }
+    private final static long C_INDEX_OFFSET = fieldOffset(MpmcArrayQueueConsumerIndexField.class, "consumerIndex");
 
     private volatile long consumerIndex;
 

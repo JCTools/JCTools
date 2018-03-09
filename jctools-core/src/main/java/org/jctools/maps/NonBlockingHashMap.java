@@ -17,13 +17,13 @@ import org.jctools.util.RangeUtil;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.lang.reflect.Field;
 import java.util.*;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
+import static org.jctools.util.UnsafeAccess.fieldOffset;
 
 /**
  * A lock-free alternate implementation of {@link java.util.concurrent.ConcurrentHashMap}
@@ -100,13 +100,8 @@ public class NonBlockingHashMap<TypeK, TypeV>
   }
 
   // --- Setup to use Unsafe
-  private static final long _kvs_offset;
-  static {                      // <clinit>
-    Field f = null;
-    try { f = NonBlockingHashMap.class.getDeclaredField("_kvs"); }
-    catch( java.lang.NoSuchFieldException e ) { throw new RuntimeException(e); }
-    _kvs_offset = UNSAFE.objectFieldOffset(f);
-  }
+  private static final long _kvs_offset = fieldOffset(NonBlockingHashMap.class, "_kvs");
+
   private final boolean CAS_kvs( final Object[] oldkvs, final Object[] newkvs ) {
     return UNSAFE.compareAndSwapObject(this, _kvs_offset, oldkvs, newkvs );
   }

@@ -1,7 +1,6 @@
 package org.jctools.sets;
 
 import org.jctools.util.Pow2;
-import org.jctools.util.UnsafeAccess;
 
 import java.util.AbstractSet;
 import java.util.Arrays;
@@ -9,6 +8,8 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 import static org.jctools.queues.CircularArrayOffsetCalculator.calcElementOffset;
+import static org.jctools.util.UnsafeAccess.UNSAFE;
+import static org.jctools.util.UnsafeAccess.fieldOffset;
 import static org.jctools.util.UnsafeRefArrayAccess.*;
 
 public class SingleWriterHashSet<E> extends AbstractSet<E> {
@@ -31,7 +32,7 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
     @Override
     public int size() {
         // size read needs to by volatile so that changes are visible
-        return UnsafeAccess.UNSAFE.getIntVolatile(this, SIZE_OFFSET);
+        return UNSAFE.getIntVolatile(this, SIZE_OFFSET);
     }
 
     @Override
@@ -159,7 +160,7 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
         removeHashIndex = (int) (removeHashIndex & mask);
         int j = removeHashIndex;
         // every compaction is guarded by two mod count increments: one before and one after actual compaction
-        UnsafeAccess.UNSAFE.putOrderedLong(this, MC_OFFSET, modCount + 1);
+        UNSAFE.putOrderedLong(this, MC_OFFSET, modCount + 1);
         while (true) {
             int k;
             E slotJ;
@@ -172,7 +173,7 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
                 if (slotJ == null) {
                     // delete last duplicate slot
                     soElement(buffer, calcElementOffset(removeHashIndex, mask), null);
-                    UnsafeAccess.UNSAFE.putOrderedLong(this, MC_OFFSET, modCount + 1);
+                    UNSAFE.putOrderedLong(this, MC_OFFSET, modCount + 1);
                     return;
                 }
 
@@ -205,9 +206,9 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
     @Override
     public boolean contains(Object needle) {
         while (true) {
-            long mc = UnsafeAccess.UNSAFE.getLongVolatile(this, MC_OFFSET);
+            long mc = UNSAFE.getLongVolatile(this, MC_OFFSET);
             boolean result = containsImpl(needle);
-            long newMc = UnsafeAccess.UNSAFE.getLongVolatile(this, MC_OFFSET);
+            long newMc = UNSAFE.getLongVolatile(this, MC_OFFSET);
             if ((newMc & 1) == 0 && mc == newMc) {
                 return result;
             }
@@ -306,30 +307,16 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
         }
     }
 
-    private final static long BUFFER_OFFSET;
-    private final static long SIZE_OFFSET;
-    private final static long MC_OFFSET;
-
-    static {
-        try {
-            BUFFER_OFFSET = UnsafeAccess.UNSAFE
-                    .objectFieldOffset(SingleWriterHashSet.class.getDeclaredField("buffer"));
-            SIZE_OFFSET = UnsafeAccess.UNSAFE
-                    .objectFieldOffset(SingleWriterHashSet.class.getDeclaredField("size"));
-            MC_OFFSET = UnsafeAccess.UNSAFE
-                    .objectFieldOffset(SingleWriterHashSet.class.getDeclaredField("modCount"));
-        }
-        catch (NoSuchFieldException e) {
-            throw new RuntimeException(e);
-        }
-    }
+    private final static long BUFFER_OFFSET = fieldOffset(SingleWriterHashSet.class, "buffer");
+    private final static long SIZE_OFFSET = fieldOffset(SingleWriterHashSet.class,"size");
+    private final static long MC_OFFSET = fieldOffset(SingleWriterHashSet.class, "modCount");
 
     private void soBuffer(final E[] buffer) {
-        UnsafeAccess.UNSAFE.putOrderedObject(this, BUFFER_OFFSET, buffer);
+        UNSAFE.putOrderedObject(this, BUFFER_OFFSET, buffer);
     }
 
     @SuppressWarnings("unchecked")
     private E[] lvBuffer() {
-        return (E[]) UnsafeAccess.UNSAFE.getObjectVolatile(this, BUFFER_OFFSET);
+        return (E[]) UNSAFE.getObjectVolatile(this, BUFFER_OFFSET);
     }
 }

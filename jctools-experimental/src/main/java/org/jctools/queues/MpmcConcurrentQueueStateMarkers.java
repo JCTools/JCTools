@@ -14,6 +14,7 @@
 package org.jctools.queues;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
+import static org.jctools.util.UnsafeAccess.fieldOffset;
 
 import java.util.Collection;
 import java.util.Iterator;
@@ -101,15 +102,8 @@ abstract class MpmcConcurrentQueueSML1Pad<E> extends MpmcConcurrentQueueSMBuffer
 }
 
 abstract class MpmcConcurrentQueueSMTailField<E> extends MpmcConcurrentQueueSML1Pad<E> {
-    private final static long TAIL_OFFSET;
-    static {
-        try {
-            TAIL_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(MpmcConcurrentQueueSMTailField.class
-                    .getDeclaredField("tail"));
-        } catch (NoSuchFieldException e) {
-            throw new RuntimeException(e);
-        }
-    }
+    private final static long TAIL_OFFSET = fieldOffset(MpmcConcurrentQueueSMTailField.class, "tail");
+
     private volatile long tail;
 
     public MpmcConcurrentQueueSMTailField(int capacity) {
@@ -135,15 +129,8 @@ abstract class MpmcConcurrentQueueSML2Pad<E> extends MpmcConcurrentQueueSMTailFi
 }
 
 abstract class MpmcConcurrentQueueSMHeadField<E> extends MpmcConcurrentQueueSML2Pad<E> {
-    private final static long HEAD_OFFSET;
-    static {
-        try {
-            HEAD_OFFSET = UnsafeAccess.UNSAFE.objectFieldOffset(MpmcConcurrentQueueSMHeadField.class
-                    .getDeclaredField("head"));
-        } catch (NoSuchFieldException e) {
-            throw new RuntimeException(e);
-        }
-    }
+    private final static long HEAD_OFFSET = fieldOffset(MpmcConcurrentQueueSMHeadField.class, "head");
+
     private volatile long head;
 
     public MpmcConcurrentQueueSMHeadField(int capacity) {

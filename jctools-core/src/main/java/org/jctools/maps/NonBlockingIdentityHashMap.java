@@ -12,27 +12,18 @@
  * limitations under the License.
  */
 package org.jctools.maps;
-import static org.jctools.util.UnsafeAccess.UNSAFE;
+
+import org.jctools.util.RangeUtil;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.lang.reflect.Field;
-import java.util.AbstractCollection;
-import java.util.AbstractMap;
-import java.util.AbstractSet;
-import java.util.Collection;
-import java.util.ConcurrentModificationException;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.Hashtable;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-import org.jctools.util.RangeUtil;
+
+import static org.jctools.util.UnsafeAccess.UNSAFE;
+import static org.jctools.util.UnsafeAccess.fieldOffset;
 
 /**
  * A lock-free alternate implementation of {@link java.util.concurrent.ConcurrentHashMap}
@@ -110,13 +101,8 @@ public class NonBlockingIdentityHashMap<TypeK, TypeV>
   }
 
   // --- Setup to use Unsafe
-  private static final long _kvs_offset;
-  static {                      // <clinit>
-    Field f = null;
-    try { f = NonBlockingHashMap.class.getDeclaredField("_kvs"); }
-    catch( java.lang.NoSuchFieldException e ) { throw new RuntimeException(e); }
-    _kvs_offset = UNSAFE.objectFieldOffset(f);
-  }
+  private static final long _kvs_offset = fieldOffset(NonBlockingHashMap.class, "_kvs");
+
   private final boolean CAS_kvs( final Object[] oldkvs, final Object[] newkvs ) {
     return UNSAFE.compareAndSwapObject(this, _kvs_offset, oldkvs, newkvs );
   }

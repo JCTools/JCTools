@@ -14,6 +14,7 @@
 package org.jctools.queues;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
+import static org.jctools.util.UnsafeAccess.fieldOffset;
 import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
 import static org.jctools.util.UnsafeRefArrayAccess.soElement;
 
@@ -43,20 +44,7 @@ abstract class SpscArrayQueueL1Pad<E> extends SpscArrayQueueColdField<E>
 // $gen:ordered-fields
 abstract class SpscArrayQueueProducerIndexFields<E> extends SpscArrayQueueL1Pad<E>
 {
-    protected final static long P_INDEX_OFFSET;
-
-    static
-    {
-        try
-        {
-            P_INDEX_OFFSET =
-                UNSAFE.objectFieldOffset(SpscArrayQueueProducerIndexFields.class.getDeclaredField("producerIndex"));
-        }
-        catch (NoSuchFieldException e)
-        {
-            throw new RuntimeException(e);
-        }
-    }
+    protected final static long P_INDEX_OFFSET = fieldOffset(SpscArrayQueueProducerIndexFields.class, "producerIndex");
 
     protected long producerIndex;
     protected long producerLimit;
@@ -94,20 +82,7 @@ abstract class SpscArrayQueueL2Pad<E> extends SpscArrayQueueProducerIndexFields<
 abstract class SpscArrayQueueConsumerIndexField<E> extends SpscArrayQueueL2Pad<E>
 {
     protected long consumerIndex;
-    protected final static long C_INDEX_OFFSET;
-
-    static
-    {
-        try
-        {
-            C_INDEX_OFFSET =
-                UNSAFE.objectFieldOffset(SpscArrayQueueConsumerIndexField.class.getDeclaredField("consumerIndex"));
-        }
-        catch (NoSuchFieldException e)
-        {
-            throw new RuntimeException(e);
-        }
-    }
+    protected final static long C_INDEX_OFFSET = fieldOffset(SpscArrayQueueConsumerIndexField.class, "consumerIndex");
 
     SpscArrayQueueConsumerIndexField(int capacity)
     {

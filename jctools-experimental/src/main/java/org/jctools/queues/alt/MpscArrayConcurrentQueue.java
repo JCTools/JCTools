@@ -14,19 +14,13 @@
 package org.jctools.queues.alt;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
+import static org.jctools.util.UnsafeAccess.fieldOffset;
 
 abstract class MpscArrayConcurrentQueueColdFields<E> extends ConcurrentSequencedCircularArray<E> {
 
     private static abstract class ProducerFields<E> extends ConcurrentSequencedCircularArray<E> {
-        protected static final long P_INDEX_OFFSET;
-        static {
-            try {
-                P_INDEX_OFFSET = UNSAFE.objectFieldOffset(ProducerFields.class
-                        .getDeclaredField("producerIndex"));
-            } catch (NoSuchFieldException e) {
-                throw new RuntimeException(e);
-            }
-        }
+        protected static final long P_INDEX_OFFSET = fieldOffset(ProducerFields.class, "producerIndex");
+
         protected Consumer<E> consumer;
         private volatile long producerIndex;
 
@@ -185,15 +179,8 @@ abstract class MpscArrayConcurrentQueueColdFields<E> extends ConcurrentSequenced
     }
 
     private static abstract class ConsumerFields<E> extends ConcurrentSequencedCircularArray<E> {
-        protected static final long C_INDEX_OFFSET;
-        static {
-            try {
-                C_INDEX_OFFSET = UNSAFE.objectFieldOffset(ConsumerFields.class
-                        .getDeclaredField("consumerIndex"));
-            } catch (NoSuchFieldException e) {
-                throw new RuntimeException(e);
-            }
-        }
+        protected static final long C_INDEX_OFFSET = fieldOffset(ConsumerFields.class, "consumerIndex");
+
         private long consumerIndex = 0;
         protected Producer<E> producer;
 
