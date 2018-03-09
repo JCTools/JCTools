@@ -1,5 +1,6 @@
 package org.jctools.queues;
 
+import org.jctools.queues.atomic.AtomicQueueFactory;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
 import org.jctools.queues.spec.Preference;
@@ -19,7 +20,7 @@ import static org.junit.Assume.assumeThat;
 public abstract class MpqSanityTest
 {
 
-    static final int SIZE = 8192 * 2;
+    public static final int SIZE = 8192 * 2;
     static final int CONCURRENT_TEST_DURATION = 500;
     static final int TEST_TIMEOUT = 30000;
 
@@ -34,7 +35,7 @@ public abstract class MpqSanityTest
         this.spec = spec;
     }
 
-    static Object[] makeMpq(int producers, int consumers, int capacity, Ordering ordering, Queue<Integer> q)
+    public static Object[] makeMpq(int producers, int consumers, int capacity, Ordering ordering, Queue<Integer> q)
     {
         ConcurrentQueueSpec spec = new ConcurrentQueueSpec(producers, consumers, capacity, ordering,
             Preference.NONE);
@@ -45,6 +46,16 @@ public abstract class MpqSanityTest
         return new Object[] {spec, q};
     }
 
+    public static Object[] makeAtomic(int producers, int consumers, int capacity, Ordering ordering, Queue<Integer> q)
+    {
+        ConcurrentQueueSpec spec = new ConcurrentQueueSpec(producers, consumers, capacity, ordering,
+            Preference.NONE);
+        if (q == null)
+        {
+            q = AtomicQueueFactory.newQueue(spec);
+        }
+        return new Object[] {spec, q};
+    }
     @After
     public void clear() throws InterruptedException
     {
