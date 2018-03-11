@@ -1,9 +1,21 @@
+2.1.2
+=========
+- PR #202 : Fix NBHM bug in remove/replace where ref equality was used to report val match instead of equals (thanks @henri-tremblay)
+- PR #206 : Improved javadoc (thanks @franz1981)
+- Issue #205 : NBHM remove/put getAndSet semantics issue (thanks @fvlad for reporting and @cliffclick for review)
+- Issue #208 : no need for queues to be final
+
+Further improvements to testing and code style.
+
+Not included in the release, but very much appreciated, are contributions from @franz1981 and @qwwdfsad to the experimental part of JCTools, which may one day get merged into core, and @maseev contribution to integrate build with Coveralls.io.
+
+
 2.1.1
 =========
-PR #193 : Fix API break on release in MpscLinkedAtomicQueue
-Issue #194 : Fix MpscCompoundQueue::relaxedOffer bug
-Issue #196 : Fix MpscLinkedArray::fill bug
-Issue #197 : Fix MpscChunkedQueue:fill bug
+- PR #193 : Fix API break on release in MpscLinkedAtomicQueue
+- Issue #194 : Fix MpscCompoundQueue::relaxedOffer bug
+- Issue #196 : Fix MpscLinkedArray::fill bug
+- Issue #197 : Fix MpscChunkedQueue:fill bug
 
 2.1.0
 ==========
