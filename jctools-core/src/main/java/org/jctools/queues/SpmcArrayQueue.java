@@ -35,22 +35,29 @@ abstract class SpmcArrayQueueProducerIndexField<E> extends SpmcArrayQueueL1Pad<E
 {
     protected final static long P_INDEX_OFFSET = fieldOffset(SpmcArrayQueueProducerIndexField.class,"producerIndex");
 
-    protected long producerIndex;
-
-    public final long lvProducerIndex()
-    {
-        return UNSAFE.getLongVolatile(this, P_INDEX_OFFSET);
-    }
-
-    protected final void soProducerIndex(long newValue)
-    {
-        UNSAFE.putOrderedLong(this, P_INDEX_OFFSET, newValue);
-    }
+    private volatile long producerIndex;
 
     SpmcArrayQueueProducerIndexField(int capacity)
     {
         super(capacity);
     }
+
+    @Override
+    public final long lvProducerIndex()
+    {
+        return producerIndex;
+    }
+    
+    final long lpProducerIndex()
+    {
+        return UNSAFE.getLong(this, P_INDEX_OFFSET);
+    }
+
+    final void soProducerIndex(long newValue)
+    {
+        UNSAFE.putOrderedLong(this, P_INDEX_OFFSET, newValue);
+    }
+
 }
 
 abstract class SpmcArrayQueueL2Pad<E> extends SpmcArrayQueueProducerIndexField<E>
@@ -76,12 +83,13 @@ abstract class SpmcArrayQueueConsumerIndexField<E> extends SpmcArrayQueueL2Pad<E
         super(capacity);
     }
 
+    @Override
     public final long lvConsumerIndex()
     {
         return consumerIndex;
     }
 
-    protected final boolean casConsumerIndex(long expect, long newValue)
+    final boolean casConsumerIndex(long expect, long newValue)
     {
         return UNSAFE.compareAndSwapLong(this, C_INDEX_OFFSET, expect, newValue);
     }
@@ -164,7 +172,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E>
                 // spin wait for slot to clear, buggers wait freedom
                 while (null != lvElement(buffer, offset))
                 {
-                    ;
+                    // BURN
                 }
             }
         }
@@ -249,7 +257,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E>
         }
         final E[] buffer = this.buffer;
         final long mask = this.mask;
-        final long producerIndex = lvProducerIndex();
+        final long producerIndex = lpProducerIndex();
         final long offset = calcElementOffset(producerIndex, mask);
         if (null != lvElement(buffer, offset))
         {
@@ -344,7 +352,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E>
     {
         final E[] buffer = this.buffer;
         final long mask = this.mask;
-        long producerIndex = this.producerIndex;
+        long producerIndex = this.lpProducerIndex();
 
         for (int i = 0; i < limit; i++)
         {
@@ -380,7 +388,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E>
     {
         final E[] buffer = this.buffer;
         final long mask = this.mask;
-        long producerIndex = this.producerIndex;
+        long producerIndex = this.lpProducerIndex();
         int counter = 0;
         while (e.keepRunning())
         {

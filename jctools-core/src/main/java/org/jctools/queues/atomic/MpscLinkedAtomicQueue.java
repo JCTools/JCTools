@@ -42,7 +42,7 @@ import org.jctools.queues.MpmcArrayQueue;
  * @param <E> the type of elements in this queue
  * @author nitsanw
  */
-public class MpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
+public final class MpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
 
     public MpscLinkedAtomicQueue() {
         LinkedQueueAtomicNode<E> node = newNode();

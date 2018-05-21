@@ -17,7 +17,6 @@ import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
 import org.jctools.util.PortableJvmInfo;
 import org.jctools.util.Pow2;
 import org.jctools.util.RangeUtil;
-import java.lang.reflect.Field;
 import java.util.AbstractQueue;
 import java.util.Iterator;
 import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.length;
@@ -52,7 +51,7 @@ abstract class BaseMpscLinkedAtomicArrayQueueProducerFields<E> extends BaseMpscL
 
     private static final AtomicLongFieldUpdater<BaseMpscLinkedAtomicArrayQueueProducerFields> P_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(BaseMpscLinkedAtomicArrayQueueProducerFields.class, "producerIndex");
 
-    protected volatile long producerIndex;
+    private volatile long producerIndex;
 
     @Override
     public final long lvProducerIndex() {
@@ -87,14 +86,18 @@ abstract class BaseMpscLinkedAtomicArrayQueueConsumerFields<E> extends BaseMpscL
 
     private static final AtomicLongFieldUpdater<BaseMpscLinkedAtomicArrayQueueConsumerFields> C_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(BaseMpscLinkedAtomicArrayQueueConsumerFields.class, "consumerIndex");
 
+    private volatile long consumerIndex;
+
     protected long consumerMask;
 
     protected AtomicReferenceArray<E> consumerBuffer;
 
-    protected volatile long consumerIndex;
-
     @Override
     public final long lvConsumerIndex() {
+        return consumerIndex;
+    }
+
+    final long lpConsumerIndex() {
         return consumerIndex;
     }
 
@@ -281,7 +284,7 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
     @Override
     public E poll() {
         final AtomicReferenceArray<E> buffer = consumerBuffer;
-        final long index = consumerIndex;
+        final long index = lpConsumerIndex();
         final long mask = consumerMask;
         final int offset = modifiedCalcElementOffset(index, mask);
         // LoadLoad
@@ -316,7 +319,7 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
     @Override
     public E peek() {
         final AtomicReferenceArray<E> buffer = consumerBuffer;
-        final long index = consumerIndex;
+        final long index = lpConsumerIndex();
         final long mask = consumerMask;
         final int offset = modifiedCalcElementOffset(index, mask);
         // LoadLoad
@@ -429,7 +432,7 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
     @Override
     public E relaxedPoll() {
         final AtomicReferenceArray<E> buffer = consumerBuffer;
-        final long index = consumerIndex;
+        final long index = lpConsumerIndex();
         final long mask = consumerMask;
         final int offset = modifiedCalcElementOffset(index, mask);
         // LoadLoad
@@ -450,7 +453,7 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
     @Override
     public E relaxedPeek() {
         final AtomicReferenceArray<E> buffer = consumerBuffer;
-        final long index = consumerIndex;
+        final long index = lpConsumerIndex();
         final long mask = consumerMask;
         final int offset = modifiedCalcElementOffset(index, mask);
         // LoadLoad

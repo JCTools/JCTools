@@ -13,7 +13,6 @@
  */
 package org.jctools.queues.atomic;
 
-import java.lang.reflect.Field;
 import java.util.AbstractQueue;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
@@ -46,23 +45,23 @@ abstract class BaseLinkedAtomicQueueProducerNodeRef<E> extends BaseLinkedAtomicQ
 
     private static final AtomicReferenceFieldUpdater<BaseLinkedAtomicQueueProducerNodeRef, LinkedQueueAtomicNode> P_NODE_UPDATER = AtomicReferenceFieldUpdater.newUpdater(BaseLinkedAtomicQueueProducerNodeRef.class, LinkedQueueAtomicNode.class, "producerNode");
 
-    protected volatile LinkedQueueAtomicNode<E> producerNode;
+    private volatile LinkedQueueAtomicNode<E> producerNode;
 
-    protected final void spProducerNode(LinkedQueueAtomicNode<E> newValue) {
+    final void spProducerNode(LinkedQueueAtomicNode<E> newValue) {
         P_NODE_UPDATER.lazySet(this, newValue);
     }
 
     @SuppressWarnings("unchecked")
-    protected final LinkedQueueAtomicNode<E> lvProducerNode() {
+    final LinkedQueueAtomicNode<E> lvProducerNode() {
         return producerNode;
     }
 
     @SuppressWarnings("unchecked")
-    protected final boolean casProducerNode(LinkedQueueAtomicNode<E> expect, LinkedQueueAtomicNode<E> newValue) {
+    final boolean casProducerNode(LinkedQueueAtomicNode<E> expect, LinkedQueueAtomicNode<E> newValue) {
         return P_NODE_UPDATER.compareAndSet(this, expect, newValue);
     }
 
-    protected final LinkedQueueAtomicNode<E> lpProducerNode() {
+    final LinkedQueueAtomicNode<E> lpProducerNode() {
         return producerNode;
     }
 
@@ -90,18 +89,18 @@ abstract class BaseLinkedAtomicQueueConsumerNodeRef<E> extends BaseLinkedAtomicQ
 
     private static final AtomicReferenceFieldUpdater<BaseLinkedAtomicQueueConsumerNodeRef, LinkedQueueAtomicNode> C_NODE_UPDATER = AtomicReferenceFieldUpdater.newUpdater(BaseLinkedAtomicQueueConsumerNodeRef.class, LinkedQueueAtomicNode.class, "consumerNode");
 
-    protected volatile LinkedQueueAtomicNode<E> consumerNode;
+    private volatile LinkedQueueAtomicNode<E> consumerNode;
 
-    protected final void spConsumerNode(LinkedQueueAtomicNode<E> newValue) {
+    final void spConsumerNode(LinkedQueueAtomicNode<E> newValue) {
         C_NODE_UPDATER.lazySet(this, newValue);
     }
 
     @SuppressWarnings("unchecked")
-    protected final LinkedQueueAtomicNode<E> lvConsumerNode() {
+    final LinkedQueueAtomicNode<E> lvConsumerNode() {
         return consumerNode;
     }
 
-    protected final LinkedQueueAtomicNode<E> lpConsumerNode() {
+    final LinkedQueueAtomicNode<E> lpConsumerNode() {
         return consumerNode;
     }
 }
@@ -246,7 +245,7 @@ abstract class BaseLinkedAtomicQueue<E> extends BaseLinkedAtomicQueuePad2<E> {
 
     @Override
     public int drain(Consumer<E> c, int limit) {
-        LinkedQueueAtomicNode<E> chaserNode = this.consumerNode;
+        LinkedQueueAtomicNode<E> chaserNode = this.lpConsumerNode();
         for (int i = 0; i < limit; i++) {
             final LinkedQueueAtomicNode<E> nextNode = chaserNode.lvNext();
             if (nextNode == null) {
@@ -262,7 +261,7 @@ abstract class BaseLinkedAtomicQueue<E> extends BaseLinkedAtomicQueuePad2<E> {
 
     @Override
     public void drain(Consumer<E> c, WaitStrategy wait, ExitCondition exit) {
-        LinkedQueueAtomicNode<E> chaserNode = this.consumerNode;
+        LinkedQueueAtomicNode<E> chaserNode = this.lpConsumerNode();
         int idleCounter = 0;
         while (exit.keepRunning()) {
             for (int i = 0; i < 4096; i++) {

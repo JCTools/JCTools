@@ -28,7 +28,7 @@ public class MpscLinkedQueue7<E> extends MpscLinkedQueue<E>
         Object oldVal;
         do
         {
-            oldVal = producerNode;
+            oldVal = lvProducerNode();
         }
         while (!UNSAFE.compareAndSwapObject(this, P_NODE_OFFSET, oldVal, newVal));
         return (LinkedQueueNode<E>) oldVal;

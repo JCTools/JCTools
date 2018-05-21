@@ -133,13 +133,13 @@ public class SpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
 
     @Override
     public void fill(Supplier<E> s, WaitStrategy wait, ExitCondition exit) {
-        LinkedQueueAtomicNode<E> chaserNode = producerNode;
+        LinkedQueueAtomicNode<E> chaserNode = lpProducerNode();
         while (exit.keepRunning()) {
             for (int i = 0; i < 4096; i++) {
                 final LinkedQueueAtomicNode<E> nextNode = newNode(s.get());
                 chaserNode.soNext(nextNode);
                 chaserNode = nextNode;
-                this.producerNode = chaserNode;
+                this.spProducerNode(chaserNode);
             }
         }
     }

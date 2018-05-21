@@ -21,7 +21,7 @@ import static org.jctools.util.UnsafeRefArrayAccess.soElement;
 abstract class SpscArrayQueueColdField<E> extends ConcurrentCircularArrayQueue<E>
 {
     public static final int MAX_LOOK_AHEAD_STEP = Integer.getInteger("jctools.spsc.max.lookahead.step", 4096);
-    protected final int lookAheadStep;
+    final int lookAheadStep;
 
     SpscArrayQueueColdField(int capacity)
     {
@@ -44,9 +44,9 @@ abstract class SpscArrayQueueL1Pad<E> extends SpscArrayQueueColdField<E>
 // $gen:ordered-fields
 abstract class SpscArrayQueueProducerIndexFields<E> extends SpscArrayQueueL1Pad<E>
 {
-    protected final static long P_INDEX_OFFSET = fieldOffset(SpscArrayQueueProducerIndexFields.class, "producerIndex");
+    private final static long P_INDEX_OFFSET = fieldOffset(SpscArrayQueueProducerIndexFields.class, "producerIndex");
 
-    protected long producerIndex;
+    private volatile long producerIndex;
     protected long producerLimit;
 
     SpscArrayQueueProducerIndexFields(int capacity)
@@ -57,10 +57,15 @@ abstract class SpscArrayQueueProducerIndexFields<E> extends SpscArrayQueueL1Pad<
     @Override
     public final long lvProducerIndex()
     {
-        return UNSAFE.getLongVolatile(this, P_INDEX_OFFSET);
+        return producerIndex;
+    }
+    
+    final long lpProducerIndex()
+    {
+        return UNSAFE.getLong(this, P_INDEX_OFFSET);
     }
 
-    protected final void soProducerIndex(final long newValue)
+    final void soProducerIndex(final long newValue)
     {
         UNSAFE.putOrderedLong(this, P_INDEX_OFFSET, newValue);
     }
@@ -81,8 +86,9 @@ abstract class SpscArrayQueueL2Pad<E> extends SpscArrayQueueProducerIndexFields<
 //$gen:ordered-fields
 abstract class SpscArrayQueueConsumerIndexField<E> extends SpscArrayQueueL2Pad<E>
 {
-    protected long consumerIndex;
-    protected final static long C_INDEX_OFFSET = fieldOffset(SpscArrayQueueConsumerIndexField.class, "consumerIndex");
+    private final static long C_INDEX_OFFSET = fieldOffset(SpscArrayQueueConsumerIndexField.class, "consumerIndex");
+
+    private volatile long consumerIndex;
 
     SpscArrayQueueConsumerIndexField(int capacity)
     {
@@ -93,8 +99,13 @@ abstract class SpscArrayQueueConsumerIndexField<E> extends SpscArrayQueueL2Pad<E
     {
         return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
     }
-
-    protected final void soConsumerIndex(final long newValue)
+    
+    final long lpConsumerIndex()
+    {
+        return UNSAFE.getLong(this, C_INDEX_OFFSET);
+    }
+    
+    final void soConsumerIndex(final long newValue)
     {
         UNSAFE.putOrderedLong(this, C_INDEX_OFFSET, newValue);
     }
@@ -150,7 +161,7 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>
         // local load of field to avoid repeated loads after volatile reads
         final E[] buffer = this.buffer;
         final long mask = this.mask;
-        final long producerIndex = this.producerIndex;
+        final long producerIndex = this.lpProducerIndex();
 
         if (producerIndex >= producerLimit &&
             !offerSlowPath(buffer, mask, producerIndex))
@@ -190,7 +201,7 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>
     @Override
     public E poll()
     {
-        final long consumerIndex = this.consumerIndex;
+        final long consumerIndex = this.lpConsumerIndex();
         final long offset = calcElementOffset(consumerIndex);
         // local load of field to avoid repeated loads after volatile reads
         final E[] buffer = this.buffer;
@@ -212,7 +223,7 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>
     @Override
     public E peek()
     {
-        return lvElement(buffer, calcElementOffset(consumerIndex));
+        return lvElement(buffer, calcElementOffset(lpConsumerIndex()));
     }
 
     @Override
@@ -250,7 +261,7 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>
     {
         final E[] buffer = this.buffer;
         final long mask = this.mask;
-        final long consumerIndex = this.consumerIndex;
+        final long consumerIndex = this.lpConsumerIndex();
 
         for (int i = 0; i < limit; i++)
         {
@@ -274,7 +285,7 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>
         final E[] buffer = this.buffer;
         final long mask = this.mask;
         final int lookAheadStep = this.lookAheadStep;
-        final long producerIndex = this.producerIndex;
+        final long producerIndex = this.lpProducerIndex();
 
         for (int i = 0; i < limit; i++)
         {
@@ -311,7 +322,7 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>
     {
         final E[] buffer = this.buffer;
         final long mask = this.mask;
-        long consumerIndex = this.consumerIndex;
+        long consumerIndex = this.lpConsumerIndex();
 
         int counter = 0;
         while (exit.keepRunning())
@@ -340,7 +351,7 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>
         final E[] buffer = this.buffer;
         final long mask = this.mask;
         final int lookAheadStep = this.lookAheadStep;
-        long producerIndex = this.producerIndex;
+        long producerIndex = this.lpProducerIndex();
         int counter = 0;
         while (e.keepRunning())
         {

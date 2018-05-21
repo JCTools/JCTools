@@ -41,18 +41,23 @@ abstract class SpmcAtomicArrayQueueProducerIndexField<E> extends SpmcAtomicArray
 
     private static final AtomicLongFieldUpdater<SpmcAtomicArrayQueueProducerIndexField> P_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(SpmcAtomicArrayQueueProducerIndexField.class, "producerIndex");
 
-    protected volatile long producerIndex;
+    private volatile long producerIndex;
 
+    SpmcAtomicArrayQueueProducerIndexField(int capacity) {
+        super(capacity);
+    }
+
+    @Override
     public final long lvProducerIndex() {
         return producerIndex;
     }
 
-    protected final void soProducerIndex(long newValue) {
-        P_INDEX_UPDATER.lazySet(this, newValue);
+    final long lpProducerIndex() {
+        return producerIndex;
     }
 
-    SpmcAtomicArrayQueueProducerIndexField(int capacity) {
-        super(capacity);
+    final void soProducerIndex(long newValue) {
+        P_INDEX_UPDATER.lazySet(this, newValue);
     }
 }
 
@@ -85,11 +90,12 @@ abstract class SpmcAtomicArrayQueueConsumerIndexField<E> extends SpmcAtomicArray
         super(capacity);
     }
 
+    @Override
     public final long lvConsumerIndex() {
         return consumerIndex;
     }
 
-    protected final boolean casConsumerIndex(long expect, long newValue) {
+    final boolean casConsumerIndex(long expect, long newValue) {
         return C_INDEX_UPDATER.compareAndSet(this, expect, newValue);
     }
 }
@@ -173,7 +179,7 @@ public class SpmcAtomicArrayQueue<E> extends SpmcAtomicArrayQueueL3Pad<E> {
             } else {
                 // spin wait for slot to clear, buggers wait freedom
                 while (null != lvElement(buffer, offset)) {
-                    ;
+                // BURN
                 }
             }
         }
@@ -240,7 +246,7 @@ public class SpmcAtomicArrayQueue<E> extends SpmcAtomicArrayQueueL3Pad<E> {
         }
         final AtomicReferenceArray<E> buffer = this.buffer;
         final int mask = this.mask;
-        final long producerIndex = lvProducerIndex();
+        final long producerIndex = lpProducerIndex();
         final int offset = calcElementOffset(producerIndex, mask);
         if (null != lvElement(buffer, offset)) {
             return false;
@@ -317,7 +323,7 @@ public class SpmcAtomicArrayQueue<E> extends SpmcAtomicArrayQueueL3Pad<E> {
     public int fill(final Supplier<E> s, final int limit) {
         final AtomicReferenceArray<E> buffer = this.buffer;
         final int mask = this.mask;
-        long producerIndex = this.producerIndex;
+        long producerIndex = this.lpProducerIndex();
         for (int i = 0; i < limit; i++) {
             final int offset = calcElementOffset(producerIndex, mask);
             if (null != lvElement(buffer, offset)) {
@@ -348,7 +354,7 @@ public class SpmcAtomicArrayQueue<E> extends SpmcAtomicArrayQueueL3Pad<E> {
     public void fill(final Supplier<E> s, final WaitStrategy w, final ExitCondition e) {
         final AtomicReferenceArray<E> buffer = this.buffer;
         final int mask = this.mask;
-        long producerIndex = this.producerIndex;
+        long producerIndex = this.lpProducerIndex();
         int counter = 0;
         while (e.keepRunning()) {
             for (int i = 0; i < 4096; i++) {

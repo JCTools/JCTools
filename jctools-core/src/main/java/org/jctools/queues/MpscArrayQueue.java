@@ -48,7 +48,7 @@ abstract class MpscArrayQueueProducerIndexField<E> extends MpscArrayQueueL1Pad<E
         return producerIndex;
     }
 
-    protected final boolean casProducerIndex(long expect, long newValue)
+    final boolean casProducerIndex(long expect, long newValue)
     {
         return UNSAFE.compareAndSwapLong(this, P_INDEX_OFFSET, expect, newValue);
     }
@@ -79,12 +79,12 @@ abstract class MpscArrayQueueProducerLimitField<E> extends MpscArrayQueueMidPad<
         this.producerLimit = capacity;
     }
 
-    protected final long lvProducerLimit()
+    final long lvProducerLimit()
     {
         return producerLimit;
     }
 
-    protected final void soProducerLimit(long newValue)
+    final void soProducerLimit(long newValue)
     {
         UNSAFE.putOrderedLong(this, P_LIMIT_OFFSET, newValue);
     }
@@ -106,25 +106,25 @@ abstract class MpscArrayQueueConsumerIndexField<E> extends MpscArrayQueueL2Pad<E
 {
     private final static long C_INDEX_OFFSET = fieldOffset(MpscArrayQueueConsumerIndexField.class, "consumerIndex");
 
-    protected long consumerIndex;
+    private volatile long consumerIndex;
 
     MpscArrayQueueConsumerIndexField(int capacity)
     {
         super(capacity);
     }
 
-    protected final long lpConsumerIndex()
+    @Override
+    public final long lvConsumerIndex()
     {
         return consumerIndex;
     }
 
-    @Override
-    public final long lvConsumerIndex()
+    final long lpConsumerIndex()
     {
-        return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
+        return UNSAFE.getLong(this, C_INDEX_OFFSET);
     }
 
-    protected void soConsumerIndex(long newValue)
+    final void soConsumerIndex(long newValue)
     {
         UNSAFE.putOrderedLong(this, C_INDEX_OFFSET, newValue);
     }

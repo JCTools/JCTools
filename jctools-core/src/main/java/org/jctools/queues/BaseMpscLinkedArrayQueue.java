@@ -18,7 +18,6 @@ import org.jctools.util.PortableJvmInfo;
 import org.jctools.util.Pow2;
 import org.jctools.util.RangeUtil;
 
-import java.lang.reflect.Field;
 import java.util.AbstractQueue;
 import java.util.Iterator;
 
@@ -41,14 +40,14 @@ abstract class BaseMpscLinkedArrayQueueProducerFields<E> extends BaseMpscLinkedA
 {
     private final static long P_INDEX_OFFSET = fieldOffset(BaseMpscLinkedArrayQueueProducerFields.class, "producerIndex");
 
-    protected long producerIndex;
+    private volatile long producerIndex;
 
     @Override
     public final long lvProducerIndex()
     {
-        return UNSAFE.getLongVolatile(this, P_INDEX_OFFSET);
+        return producerIndex;
     }
-
+    
     final void soProducerIndex(long newValue)
     {
         UNSAFE.putOrderedLong(this, P_INDEX_OFFSET, newValue);
@@ -71,14 +70,19 @@ abstract class BaseMpscLinkedArrayQueueConsumerFields<E> extends BaseMpscLinkedA
 {
     private final static long C_INDEX_OFFSET = fieldOffset(BaseMpscLinkedArrayQueueConsumerFields.class,"consumerIndex");
 
+    private volatile long consumerIndex;
     protected long consumerMask;
     protected E[] consumerBuffer;
-    protected long consumerIndex;
 
     @Override
     public final long lvConsumerIndex()
     {
-        return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
+        return consumerIndex;
+    }
+    
+    final long lpConsumerIndex()
+    {
+        return UNSAFE.getLong(this, C_INDEX_OFFSET);
     }
 
     final void soConsumerIndex(long newValue)
@@ -282,7 +286,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
     public E poll()
     {
         final E[] buffer = consumerBuffer;
-        final long index = consumerIndex;
+        final long index = lpConsumerIndex();
         final long mask = consumerMask;
 
         final long offset = modifiedCalcElementOffset(index, mask);
@@ -327,7 +331,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
     public E peek()
     {
         final E[] buffer = consumerBuffer;
-        final long index = consumerIndex;
+        final long index = lpConsumerIndex();
         final long mask = consumerMask;
 
         final long offset = modifiedCalcElementOffset(index, mask);
@@ -465,7 +469,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
     public E relaxedPoll()
     {
         final E[] buffer = consumerBuffer;
-        final long index = consumerIndex;
+        final long index = lpConsumerIndex();
         final long mask = consumerMask;
 
         final long offset = modifiedCalcElementOffset(index, mask);
@@ -489,7 +493,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
     public E relaxedPeek()
     {
         final E[] buffer = consumerBuffer;
-        final long index = consumerIndex;
+        final long index = lpConsumerIndex();
         final long mask = consumerMask;
 
         final long offset = modifiedCalcElementOffset(index, mask);

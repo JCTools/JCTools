@@ -15,8 +15,8 @@ public class SpscArrayQueueTest
         // Arrange
         final SpscArrayQueue<Object> q = new SpscArrayQueue<Object>(1024);
         // starting point for empty queue at max long, next offer will wrap the producerIndex
-        q.consumerIndex = Long.MAX_VALUE;
-        q.producerIndex = Long.MAX_VALUE;
+        q.soConsumerIndex(Long.MAX_VALUE);
+        q.soProducerIndex(Long.MAX_VALUE);
         q.producerLimit = Long.MAX_VALUE;
         // valid starting point
         assertThat(q, emptyAndZeroSize());

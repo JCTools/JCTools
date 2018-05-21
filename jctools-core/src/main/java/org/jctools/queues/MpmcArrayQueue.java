@@ -50,7 +50,7 @@ abstract class MpmcArrayQueueProducerIndexField<E> extends MpmcArrayQueueL1Pad<E
         return producerIndex;
     }
 
-    protected final boolean casProducerIndex(long expect, long newValue)
+    final boolean casProducerIndex(long expect, long newValue)
     {
         return UNSAFE.compareAndSwapLong(this, P_INDEX_OFFSET, expect, newValue);
     }
@@ -85,7 +85,7 @@ abstract class MpmcArrayQueueConsumerIndexField<E> extends MpmcArrayQueueL2Pad<E
         return consumerIndex;
     }
 
-    protected final boolean casConsumerIndex(long expect, long newValue)
+    final boolean casConsumerIndex(long expect, long newValue)
     {
         return UNSAFE.compareAndSwapLong(this, C_INDEX_OFFSET, expect, newValue);
     }

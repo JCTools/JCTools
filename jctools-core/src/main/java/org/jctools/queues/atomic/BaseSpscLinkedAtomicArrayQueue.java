@@ -15,7 +15,6 @@ package org.jctools.queues.atomic;
 
 import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
 import org.jctools.util.PortableJvmInfo;
-import java.lang.reflect.Field;
 import java.util.AbstractQueue;
 import java.util.Iterator;
 import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.length;
@@ -61,15 +60,19 @@ abstract class BaseSpscLinkedAtomicArrayQueueConsumerField<E> extends BaseSpscLi
 
     private static final AtomicLongFieldUpdater<BaseSpscLinkedAtomicArrayQueueConsumerField> C_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(BaseSpscLinkedAtomicArrayQueueConsumerField.class, "consumerIndex");
 
-    protected volatile long consumerIndex;
-
-    final void soConsumerIndex(long newValue) {
-        C_INDEX_UPDATER.lazySet(this, newValue);
-    }
+    private volatile long consumerIndex;
 
     @Override
     public final long lvConsumerIndex() {
         return consumerIndex;
+    }
+
+    final long lpConsumerIndex() {
+        return consumerIndex;
+    }
+
+    final void soConsumerIndex(long newValue) {
+        C_INDEX_UPDATER.lazySet(this, newValue);
     }
 }
 
@@ -92,14 +95,18 @@ abstract class BaseSpscLinkedAtomicArrayQueueProducerFields<E> extends BaseSpscL
 
     private static final AtomicLongFieldUpdater<BaseSpscLinkedAtomicArrayQueueProducerFields> P_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(BaseSpscLinkedAtomicArrayQueueProducerFields.class, "producerIndex");
 
-    protected volatile long producerIndex;
+    private volatile long producerIndex;
+
+    @Override
+    public final long lvProducerIndex() {
+        return producerIndex;
+    }
 
     final void soProducerIndex(long newValue) {
         P_INDEX_UPDATER.lazySet(this, newValue);
     }
 
-    @Override
-    public final long lvProducerIndex() {
+    final long lpProducerIndex() {
         return producerIndex;
     }
 }
@@ -215,7 +222,7 @@ abstract class BaseSpscLinkedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArr
         for (int i = 0; i < limit; i++) {
             // local load of field to avoid repeated loads after volatile reads
             final AtomicReferenceArray<E> buffer = producerBuffer;
-            final long index = producerIndex;
+            final long index = lpProducerIndex();
             final long mask = producerMask;
             final int offset = calcElementOffset(index, mask);
             // expected hot path
@@ -261,7 +268,7 @@ abstract class BaseSpscLinkedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArr
         }
         // local load of field to avoid repeated loads after volatile reads
         final AtomicReferenceArray<E> buffer = producerBuffer;
-        final long index = producerIndex;
+        final long index = lpProducerIndex();
         final long mask = producerMask;
         final int offset = calcElementOffset(index, mask);
         // expected hot path
@@ -284,7 +291,7 @@ abstract class BaseSpscLinkedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArr
     public E poll() {
         // local load of field to avoid repeated loads after volatile reads
         final AtomicReferenceArray<E> buffer = consumerBuffer;
-        final long index = consumerIndex;
+        final long index = lpConsumerIndex();
         final long mask = consumerMask;
         final int offset = calcElementOffset(index, mask);
         // LoadLoad
@@ -310,7 +317,7 @@ abstract class BaseSpscLinkedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArr
     @Override
     public E peek() {
         final AtomicReferenceArray<E> buffer = consumerBuffer;
-        final long index = consumerIndex;
+        final long index = lpConsumerIndex();
         final long mask = consumerMask;
         final int offset = calcElementOffset(index, mask);
         // LoadLoad

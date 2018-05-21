@@ -53,7 +53,7 @@ abstract class MpmcAtomicArrayQueueProducerIndexField<E> extends MpmcAtomicArray
         return producerIndex;
     }
 
-    protected final boolean casProducerIndex(long expect, long newValue) {
+    final boolean casProducerIndex(long expect, long newValue) {
         return P_INDEX_UPDATER.compareAndSet(this, expect, newValue);
     }
 }
@@ -92,7 +92,7 @@ abstract class MpmcAtomicArrayQueueConsumerIndexField<E> extends MpmcAtomicArray
         return consumerIndex;
     }
 
-    protected final boolean casConsumerIndex(long expect, long newValue) {
+    final boolean casConsumerIndex(long expect, long newValue) {
         return C_INDEX_UPDATER.compareAndSet(this, expect, newValue);
     }
 }

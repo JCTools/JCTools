@@ -25,7 +25,7 @@ abstract class SpscAtomicArrayQueueColdField<E> extends AtomicReferenceArrayQueu
 
     public static final int MAX_LOOK_AHEAD_STEP = Integer.getInteger("jctools.spsc.max.lookahead.step", 4096);
 
-    protected final int lookAheadStep;
+    final int lookAheadStep;
 
     SpscAtomicArrayQueueColdField(int capacity) {
         super(capacity);
@@ -56,7 +56,7 @@ abstract class SpscAtomicArrayQueueProducerIndexFields<E> extends SpscAtomicArra
 
     private static final AtomicLongFieldUpdater<SpscAtomicArrayQueueProducerIndexFields> P_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(SpscAtomicArrayQueueProducerIndexFields.class, "producerIndex");
 
-    protected volatile long producerIndex;
+    private volatile long producerIndex;
 
     protected long producerLimit;
 
@@ -69,7 +69,11 @@ abstract class SpscAtomicArrayQueueProducerIndexFields<E> extends SpscAtomicArra
         return producerIndex;
     }
 
-    protected final void soProducerIndex(final long newValue) {
+    final long lpProducerIndex() {
+        return producerIndex;
+    }
+
+    final void soProducerIndex(final long newValue) {
         P_INDEX_UPDATER.lazySet(this, newValue);
     }
 }
@@ -97,7 +101,7 @@ abstract class SpscAtomicArrayQueueConsumerIndexField<E> extends SpscAtomicArray
 
     private static final AtomicLongFieldUpdater<SpscAtomicArrayQueueConsumerIndexField> C_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(SpscAtomicArrayQueueConsumerIndexField.class, "consumerIndex");
 
-    protected volatile long consumerIndex;
+    private volatile long consumerIndex;
 
     SpscAtomicArrayQueueConsumerIndexField(int capacity) {
         super(capacity);
@@ -107,7 +111,11 @@ abstract class SpscAtomicArrayQueueConsumerIndexField<E> extends SpscAtomicArray
         return consumerIndex;
     }
 
-    protected final void soConsumerIndex(final long newValue) {
+    final long lpConsumerIndex() {
+        return consumerIndex;
+    }
+
+    final void soConsumerIndex(final long newValue) {
         C_INDEX_UPDATER.lazySet(this, newValue);
     }
 }
@@ -164,7 +172,7 @@ public class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueL3Pad<E> {
         // local load of field to avoid repeated loads after volatile reads
         final AtomicReferenceArray<E> buffer = this.buffer;
         final int mask = this.mask;
-        final long producerIndex = this.producerIndex;
+        final long producerIndex = this.lpProducerIndex();
         if (producerIndex >= producerLimit && !offerSlowPath(buffer, mask, producerIndex)) {
             return false;
         }
@@ -197,7 +205,7 @@ public class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueL3Pad<E> {
      */
     @Override
     public E poll() {
-        final long consumerIndex = this.consumerIndex;
+        final long consumerIndex = this.lpConsumerIndex();
         final int offset = calcElementOffset(consumerIndex);
         // local load of field to avoid repeated loads after volatile reads
         final AtomicReferenceArray<E> buffer = this.buffer;
@@ -220,7 +228,7 @@ public class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueL3Pad<E> {
      */
     @Override
     public E peek() {
-        return lvElement(buffer, calcElementOffset(consumerIndex));
+        return lvElement(buffer, calcElementOffset(lpConsumerIndex()));
     }
 
     @Override
@@ -252,7 +260,7 @@ public class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueL3Pad<E> {
     public int drain(final Consumer<E> c, final int limit) {
         final AtomicReferenceArray<E> buffer = this.buffer;
         final int mask = this.mask;
-        final long consumerIndex = this.consumerIndex;
+        final long consumerIndex = this.lpConsumerIndex();
         for (int i = 0; i < limit; i++) {
             final long index = consumerIndex + i;
             final int offset = calcElementOffset(index, mask);
@@ -275,7 +283,7 @@ public class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueL3Pad<E> {
         final AtomicReferenceArray<E> buffer = this.buffer;
         final int mask = this.mask;
         final int lookAheadStep = this.lookAheadStep;
-        final long producerIndex = this.producerIndex;
+        final long producerIndex = this.lpProducerIndex();
         for (int i = 0; i < limit; i++) {
             final long index = producerIndex + i;
             final int lookAheadElementOffset = calcElementOffset(index + lookAheadStep, mask);
@@ -308,7 +316,7 @@ public class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueL3Pad<E> {
     public void drain(final Consumer<E> c, final WaitStrategy w, final ExitCondition exit) {
         final AtomicReferenceArray<E> buffer = this.buffer;
         final int mask = this.mask;
-        long consumerIndex = this.consumerIndex;
+        long consumerIndex = this.lpConsumerIndex();
         int counter = 0;
         while (exit.keepRunning()) {
             for (int i = 0; i < 4096; i++) {
@@ -335,7 +343,7 @@ public class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueL3Pad<E> {
         final AtomicReferenceArray<E> buffer = this.buffer;
         final int mask = this.mask;
         final int lookAheadStep = this.lookAheadStep;
-        long producerIndex = this.producerIndex;
+        long producerIndex = this.lpProducerIndex();
         int counter = 0;
         while (e.keepRunning()) {
             final int lookAheadElementOffset = calcElementOffset(producerIndex + lookAheadStep, mask);

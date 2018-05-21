@@ -130,7 +130,7 @@ public class SpscLinkedQueue<E> extends BaseLinkedQueue<E>
     @Override
     public void fill(Supplier<E> s, WaitStrategy wait, ExitCondition exit)
     {
-        LinkedQueueNode<E> chaserNode = producerNode;
+        LinkedQueueNode<E> chaserNode = lpProducerNode();
         while (exit.keepRunning())
         {
             for (int i = 0; i < 4096; i++)
@@ -138,7 +138,7 @@ public class SpscLinkedQueue<E> extends BaseLinkedQueue<E>
                 final LinkedQueueNode<E> nextNode = newNode(s.get());
                 chaserNode.soNext(nextNode);
                 chaserNode = nextNode;
-                this.producerNode = chaserNode;
+                this.spProducerNode(chaserNode);
             }
         }
     }

@@ -13,9 +13,6 @@
  */
 package org.jctools.queues;
 
-import org.jctools.util.UnsafeAccess;
-
-import java.lang.reflect.Field;
 import java.util.AbstractQueue;
 import java.util.Iterator;
 
@@ -31,28 +28,28 @@ abstract class BaseLinkedQueuePad0<E> extends AbstractQueue<E> implements Messag
 // $gen:ordered-fields
 abstract class BaseLinkedQueueProducerNodeRef<E> extends BaseLinkedQueuePad0<E>
 {
-    protected final static long P_NODE_OFFSET = fieldOffset(BaseLinkedQueueProducerNodeRef.class, "producerNode");
+    final static long P_NODE_OFFSET = fieldOffset(BaseLinkedQueueProducerNodeRef.class, "producerNode");
 
-    protected LinkedQueueNode<E> producerNode;
+    private LinkedQueueNode<E> producerNode;
 
-    protected final void spProducerNode(LinkedQueueNode<E> newValue)
+    final void spProducerNode(LinkedQueueNode<E> newValue)
     {
         producerNode = newValue;
     }
 
     @SuppressWarnings("unchecked")
-    protected final LinkedQueueNode<E> lvProducerNode()
+    final LinkedQueueNode<E> lvProducerNode()
     {
         return (LinkedQueueNode<E>) UNSAFE.getObjectVolatile(this, P_NODE_OFFSET);
     }
 
     @SuppressWarnings("unchecked")
-    protected final boolean casProducerNode(LinkedQueueNode<E> expect, LinkedQueueNode<E> newValue)
+    final boolean casProducerNode(LinkedQueueNode<E> expect, LinkedQueueNode<E> newValue)
     {
         return UNSAFE.compareAndSwapObject(this, P_NODE_OFFSET, expect, newValue);
     }
 
-    protected final LinkedQueueNode<E> lpProducerNode()
+    final LinkedQueueNode<E> lpProducerNode()
     {
         return producerNode;
     }
@@ -67,22 +64,22 @@ abstract class BaseLinkedQueuePad1<E> extends BaseLinkedQueueProducerNodeRef<E>
 //$gen:ordered-fields
 abstract class BaseLinkedQueueConsumerNodeRef<E> extends BaseLinkedQueuePad1<E>
 {
-    protected final static long C_NODE_OFFSET = fieldOffset(BaseLinkedQueueConsumerNodeRef.class,"consumerNode");
+    private final static long C_NODE_OFFSET = fieldOffset(BaseLinkedQueueConsumerNodeRef.class,"consumerNode");
 
-    protected LinkedQueueNode<E> consumerNode;
+    private LinkedQueueNode<E> consumerNode;
 
-    protected final void spConsumerNode(LinkedQueueNode<E> newValue)
+    final void spConsumerNode(LinkedQueueNode<E> newValue)
     {
         consumerNode = newValue;
     }
 
     @SuppressWarnings("unchecked")
-    protected final LinkedQueueNode<E> lvConsumerNode()
+    final LinkedQueueNode<E> lvConsumerNode()
     {
         return (LinkedQueueNode<E>) UNSAFE.getObjectVolatile(this, C_NODE_OFFSET);
     }
 
-    protected final LinkedQueueNode<E> lpConsumerNode()
+    final LinkedQueueNode<E> lpConsumerNode()
     {
         return consumerNode;
     }
@@ -238,7 +235,7 @@ abstract class BaseLinkedQueue<E> extends BaseLinkedQueuePad2<E>
     @Override
     public int drain(Consumer<E> c, int limit)
     {
-        LinkedQueueNode<E> chaserNode = this.consumerNode;
+        LinkedQueueNode<E> chaserNode = this.lpConsumerNode();
         for (int i = 0; i < limit; i++)
         {
             final LinkedQueueNode<E> nextNode = chaserNode.lvNext();
@@ -258,7 +255,7 @@ abstract class BaseLinkedQueue<E> extends BaseLinkedQueuePad2<E>
     @Override
     public void drain(Consumer<E> c, WaitStrategy wait, ExitCondition exit)
     {
-        LinkedQueueNode<E> chaserNode = this.consumerNode;
+        LinkedQueueNode<E> chaserNode = this.lpConsumerNode();
         int idleCounter = 0;
         while (exit.keepRunning())
         {

@@ -3,6 +3,9 @@ package org.jctools.queues;
 import static org.jctools.util.UnsafeRefArrayAccess.REF_ARRAY_BASE;
 import static org.jctools.util.UnsafeRefArrayAccess.REF_ELEMENT_SHIFT;
 
+/**
+ * This is used for method substitution in the LinkedArray classes code generation.
+ */
 final class LinkedArrayQueueUtil
 {
     private LinkedArrayQueueUtil()

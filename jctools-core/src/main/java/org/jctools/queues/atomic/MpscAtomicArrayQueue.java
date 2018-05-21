@@ -52,7 +52,7 @@ abstract class MpscAtomicArrayQueueProducerIndexField<E> extends MpscAtomicArray
         return producerIndex;
     }
 
-    protected final boolean casProducerIndex(long expect, long newValue) {
+    final boolean casProducerIndex(long expect, long newValue) {
         return P_INDEX_UPDATER.compareAndSet(this, expect, newValue);
     }
 }
@@ -88,11 +88,11 @@ abstract class MpscAtomicArrayQueueProducerLimitField<E> extends MpscAtomicArray
         this.producerLimit = capacity;
     }
 
-    protected final long lvProducerLimit() {
+    final long lvProducerLimit() {
         return producerLimit;
     }
 
-    protected final void soProducerLimit(long newValue) {
+    final void soProducerLimit(long newValue) {
         P_LIMIT_UPDATER.lazySet(this, newValue);
     }
 }
@@ -120,14 +120,10 @@ abstract class MpscAtomicArrayQueueConsumerIndexField<E> extends MpscAtomicArray
 
     private static final AtomicLongFieldUpdater<MpscAtomicArrayQueueConsumerIndexField> C_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(MpscAtomicArrayQueueConsumerIndexField.class, "consumerIndex");
 
-    protected volatile long consumerIndex;
+    private volatile long consumerIndex;
 
     MpscAtomicArrayQueueConsumerIndexField(int capacity) {
         super(capacity);
-    }
-
-    protected final long lpConsumerIndex() {
-        return consumerIndex;
     }
 
     @Override
@@ -135,7 +131,11 @@ abstract class MpscAtomicArrayQueueConsumerIndexField<E> extends MpscAtomicArray
         return consumerIndex;
     }
 
-    protected void soConsumerIndex(long newValue) {
+    final long lpConsumerIndex() {
+        return consumerIndex;
+    }
+
+    final void soConsumerIndex(long newValue) {
         C_INDEX_UPDATER.lazySet(this, newValue);
     }
 }

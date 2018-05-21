@@ -16,7 +16,6 @@ package org.jctools.queues;
 import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
 import org.jctools.util.PortableJvmInfo;
 
-import java.lang.reflect.Field;
 import java.util.AbstractQueue;
 import java.util.Iterator;
 
@@ -46,18 +45,24 @@ abstract class BaseSpscLinkedArrayQueueConsumerField<E> extends BaseSpscLinkedAr
 {
     private final static long C_INDEX_OFFSET = fieldOffset(BaseSpscLinkedArrayQueueConsumerField.class, "consumerIndex");
 
-    protected long consumerIndex;
+    private volatile long consumerIndex;
+
+    @Override
+    public final long lvConsumerIndex()
+    {
+        return consumerIndex;
+    }
+    
+    final long lpConsumerIndex()
+    {
+        return UNSAFE.getLong(this, C_INDEX_OFFSET);
+    }
 
     final void soConsumerIndex(long newValue)
     {
         UNSAFE.putOrderedLong(this, C_INDEX_OFFSET, newValue);
     }
 
-    @Override
-    public final long lvConsumerIndex()
-    {
-        return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
-    }
 }
 
 abstract class BaseSpscLinkedArrayQueueL2Pad<E> extends BaseSpscLinkedArrayQueueConsumerField<E>
@@ -71,18 +76,24 @@ abstract class BaseSpscLinkedArrayQueueProducerFields<E> extends BaseSpscLinkedA
 {
     private final static long P_INDEX_OFFSET = fieldOffset(BaseSpscLinkedArrayQueueProducerFields.class,"producerIndex");
 
-    protected long producerIndex;
+    private volatile long producerIndex;
+
+    @Override
+    public final long lvProducerIndex()
+    {
+        return producerIndex;
+    }
 
     final void soProducerIndex(long newValue)
     {
         UNSAFE.putOrderedLong(this, P_INDEX_OFFSET, newValue);
     }
 
-    @Override
-    public final long lvProducerIndex()
+    final long lpProducerIndex()
     {
-        return UNSAFE.getLongVolatile(this, P_INDEX_OFFSET);
+        return UNSAFE.getLong(this, P_INDEX_OFFSET);
     }
+    
 }
 
 abstract class BaseSpscLinkedArrayQueueProducerColdFields<E> extends BaseSpscLinkedArrayQueueProducerFields<E>
@@ -206,7 +217,7 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
         {
             // local load of field to avoid repeated loads after volatile reads
             final E[] buffer = producerBuffer;
-            final long index = producerIndex;
+            final long index = lpProducerIndex();
             final long mask = producerMask;
             final long offset = calcElementOffset(index, mask);
             // expected hot path
@@ -264,7 +275,7 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
         }
         // local load of field to avoid repeated loads after volatile reads
         final E[] buffer = producerBuffer;
-        final long index = producerIndex;
+        final long index = lpProducerIndex();
         final long mask = producerMask;
         final long offset = calcElementOffset(index, mask);
         // expected hot path
@@ -295,7 +306,7 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
     {
         // local load of field to avoid repeated loads after volatile reads
         final E[] buffer = consumerBuffer;
-        final long index = consumerIndex;
+        final long index = lpConsumerIndex();
         final long mask = consumerMask;
         final long offset = calcElementOffset(index, mask);
         final Object e = lvElement(buffer, offset);// LoadLoad
@@ -324,7 +335,7 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
     public E peek()
     {
         final E[] buffer = consumerBuffer;
-        final long index = consumerIndex;
+        final long index = lpConsumerIndex();
         final long mask = consumerMask;
         final long offset = calcElementOffset(index, mask);
         final Object e = lvElement(buffer, offset);// LoadLoad
