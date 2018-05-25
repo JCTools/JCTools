@@ -519,6 +519,7 @@ public final class JavaParsingAtomicArrayQueueGenerator extends VoidVisitorAdapt
             case "mask":
             case "offset":
             case "seqOffset":
+            case "lookAheadSeqOffset":
             case "lookAheadElementOffset":
                 node.setType(PrimitiveType.intType());
             }

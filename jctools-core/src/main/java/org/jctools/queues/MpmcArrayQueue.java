@@ -128,10 +128,13 @@ abstract class MpmcArrayQueueL3Pad<E> extends MpmcArrayQueueConsumerIndexField<E
  */
 public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E>
 {
+    public static final int MAX_LOOK_AHEAD_STEP = Integer.getInteger("jctools.mpmc.max.lookahead.step", 4096);
+    private final int lookAheadStep;
 
     public MpmcArrayQueue(final int capacity)
     {
         super(RangeUtil.checkGreaterThanOrEqual(capacity, 2, "capacity"));
+        lookAheadStep = Math.max(2, Math.min(capacity() / 4, MAX_LOOK_AHEAD_STEP));
     }
 
     @Override
@@ -351,6 +354,57 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E>
         final long[] sBuffer = sequenceBuffer;
         final long mask = this.mask;
         final E[] buffer = this.buffer;
+        final int maxLookAheadStep = Math.min(this.lookAheadStep, limit);
+        int consumed = 0;
+
+        while (consumed < limit)
+        {
+            final int remaining = limit - consumed;
+            final int lookAheadStep = Math.min(remaining, maxLookAheadStep);
+            final long cIndex = lvConsumerIndex();
+            final long lookAheadIndex = cIndex + lookAheadStep - 1;
+            final long lookAheadSeqOffset = calcSequenceOffset(lookAheadIndex, mask);
+            final long lookAheadSeq = lvSequence(sBuffer, lookAheadSeqOffset);
+            final long expectedLookAheadSeq = lookAheadIndex + 1;
+            if (lookAheadSeq == expectedLookAheadSeq && casConsumerIndex(cIndex, expectedLookAheadSeq))
+            {
+                for (int i = 0; i < lookAheadStep; i++)
+                {
+                    final long index = cIndex + i;
+                    final long seqOffset = calcSequenceOffset(index, mask);
+                    final long offset = calcElementOffset(index, mask);
+                    final long expectedSeq = index + 1;
+                    while (lvSequence(sBuffer, seqOffset) != expectedSeq)
+                    {
+
+                    }
+                    final E e = lpElement(buffer, offset);
+                    soElement(buffer, offset, null);
+                    soSequence(sBuffer, seqOffset, index + mask + 1);
+                    c.accept(e);
+                }
+                consumed += lookAheadStep;
+            }
+            else
+            {
+                if (lookAheadSeq < expectedLookAheadSeq)
+                {
+                    if (notAvailable(cIndex, mask, sBuffer, cIndex + 1))
+                    {
+                        return consumed;
+                    }
+                }
+                return consumed + drainOneByOne(c, remaining);
+            }
+        }
+        return limit;
+    }
+
+    private int drainOneByOne(Consumer<E> c, int limit)
+    {
+        final long[] sBuffer = sequenceBuffer;
+        final long mask = this.mask;
+        final E[] buffer = this.buffer;
 
         long cIndex;
         long seqOffset;
@@ -387,6 +441,65 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E>
         final long[] sBuffer = sequenceBuffer;
         final long mask = this.mask;
         final E[] buffer = this.buffer;
+        final int maxLookAheadStep = Math.min(this.lookAheadStep, limit);
+        int produced = 0;
+
+        while (produced < limit)
+        {
+            final int remaining = limit - produced;
+            final int lookAheadStep = Math.min(remaining, maxLookAheadStep);
+            final long pIndex = lvProducerIndex();
+            final long lookAheadIndex = pIndex + lookAheadStep - 1;
+            final long lookAheadSeqOffset = calcSequenceOffset(lookAheadIndex, mask);
+            final long lookAheadSeq = lvSequence(sBuffer, lookAheadSeqOffset);
+            final long expectedLookAheadSeq = lookAheadIndex;
+            if (lookAheadSeq == expectedLookAheadSeq && casProducerIndex(pIndex, expectedLookAheadSeq + 1))
+            {
+                for (int i = 0; i < lookAheadStep; i++)
+                {
+                    final long index = pIndex + i;
+                    final long seqOffset = calcSequenceOffset(index, mask);
+                    final long offset = calcElementOffset(index, mask);
+                    while (lvSequence(sBuffer, seqOffset) != index)
+                    {
+
+                    }
+                    soElement(buffer, offset, s.get());
+                    soSequence(sBuffer, seqOffset, index + 1);
+                }
+                produced += lookAheadStep;
+            }
+            else
+            {
+                if (lookAheadSeq < expectedLookAheadSeq)
+                {
+                    if (notAvailable(pIndex, mask, sBuffer, pIndex))
+                    {
+                        return produced;
+                    }
+                }
+                return produced + fillOneByOne(s, remaining);
+            }
+        }
+        return limit;
+    }
+
+    private boolean notAvailable(long index, long mask, long[] sBuffer, long expectedSeq)
+    {
+        final long seqOffset = calcSequenceOffset(index, mask);
+        final long seq = lvSequence(sBuffer, seqOffset);
+        if (seq < expectedSeq)
+        {
+            return true;
+        }
+        return false;
+    }
+
+    private int fillOneByOne(Supplier<E> s, int limit)
+    {
+        final long[] sBuffer = sequenceBuffer;
+        final long mask = this.mask;
+        final E[] buffer = this.buffer;
 
         long pIndex;
         long seqOffset;
@@ -405,7 +518,6 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E>
             }
             while (seq > pIndex || // another producer has moved the sequence
                 !casProducerIndex(pIndex, pIndex + 1)); // failed to increment
-
             soElement(buffer, calcElementOffset(pIndex, mask), s.get());
             soSequence(sBuffer, seqOffset, pIndex + 1);
         }
