@@ -363,7 +363,7 @@ public class MpmcAtomicArrayQueue<E> extends MpmcAtomicArrayQueueL3Pad<E> {
                 consumed += lookAheadStep;
             } else {
                 if (lookAheadSeq < expectedLookAheadSeq) {
-                    if (notAvailableYet(cIndex, mask, sBuffer, cIndex + 1)) {
+                    if (notAvailable(cIndex, mask, sBuffer, cIndex + 1)) {
                         return consumed;
                     }
                 }
@@ -430,7 +430,7 @@ public class MpmcAtomicArrayQueue<E> extends MpmcAtomicArrayQueueL3Pad<E> {
                 produced += lookAheadStep;
             } else {
                 if (lookAheadSeq < expectedLookAheadSeq) {
-                    if (notAvailableYet(pIndex, mask, sBuffer, pIndex)) {
+                    if (notAvailable(pIndex, mask, sBuffer, pIndex)) {
                         return produced;
                     }
                 }
@@ -440,7 +440,7 @@ public class MpmcAtomicArrayQueue<E> extends MpmcAtomicArrayQueueL3Pad<E> {
         return limit;
     }
 
-    private boolean notAvailableYet(long index, int mask, AtomicLongArray sBuffer, long expectedSeq) {
+    private boolean notAvailable(long index, int mask, AtomicLongArray sBuffer, long expectedSeq) {
         final int seqOffset = calcSequenceOffset(index, mask);
         final long seq = lvSequence(sBuffer, seqOffset);
         if (seq < expectedSeq) {
