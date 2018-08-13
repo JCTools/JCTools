@@ -41,8 +41,8 @@ import org.openjdk.jmh.infra.Blackhole;
 public class MpqThroughputBackoffNone {
     private static final long DELAY_PRODUCER = Long.getLong("delay.p", 0L);
     private static final long DELAY_CONSUMER = Long.getLong("delay.c", 0L);
-    static final Integer TEST_ELEMENT = 1;
-    Integer element = TEST_ELEMENT;
+    static final Object TEST_ELEMENT = 1;
+    Integer element = 1;
     Integer escape;
     MessagePassingQueue<Integer> q;
 

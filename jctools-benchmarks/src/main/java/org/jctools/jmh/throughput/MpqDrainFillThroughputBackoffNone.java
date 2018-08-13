@@ -39,8 +39,8 @@ import org.openjdk.jmh.annotations.Warmup;
 @Warmup(iterations = 10, time = 1)
 @Measurement(iterations = 10, time = 1)
 public class MpqDrainFillThroughputBackoffNone {
-    static final Integer TEST_ELEMENT = 1;
-    Integer element = TEST_ELEMENT;
+    static final Object TEST_ELEMENT = 1;
+    Integer element = 1;
     Integer escape;
     MessagePassingQueue<Integer> q;
 
