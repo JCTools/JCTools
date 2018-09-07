@@ -114,7 +114,7 @@ public class SpscGrowableArrayQueue<E> extends BaseSpscLinkedArrayQueue<E>
                     long currConsumerIndex = lvConsumerIndex();
                     // use lookAheadStep to store the consumer distance from final buffer
                     this.lookAheadStep = -(index - currConsumerIndex);
-                    producerBufferLimit = currConsumerIndex + maxCapacity - 1;
+                    producerBufferLimit = currConsumerIndex + maxCapacity;
                 }
                 else
                 {
