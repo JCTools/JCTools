@@ -2,12 +2,16 @@ package org.jctools.queues;
 
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
+import org.junit.Assert;
+import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Queue;
+
+import static org.hamcrest.Matchers.is;
 
 @RunWith(Parameterized.class)
 public class QueueSanityTestSpscGrowable extends QueueSanityTest
@@ -25,6 +29,32 @@ public class QueueSanityTestSpscGrowable extends QueueSanityTest
         list.add(makeQueue(1, 1, 16, Ordering.FIFO, new SpscGrowableArrayQueue<>(8, 16)));
         list.add(makeQueue(1, 1, SIZE, Ordering.FIFO, new SpscGrowableArrayQueue<>(8, SIZE)));
         return list;
+    }
+
+    @Test
+    public void testSizeNeverExceedCapacity()
+    {
+        final SpscGrowableArrayQueue<Integer> q = new SpscGrowableArrayQueue<>(8, 16);
+        final Integer v = 0;
+        final int capacity = q.capacity();
+        for (int i = 0; i < capacity; i++)
+        {
+            Assert.assertTrue(q.offer(v));
+        }
+        Assert.assertFalse(q.offer(v));
+        Assert.assertThat(q.size(), is(capacity));
+        for (int i = 0; i < 6; i++)
+        {
+            Assert.assertEquals(v, q.poll());
+        }
+        //the consumer is left in the chunk previous the last and biggest one
+        Assert.assertThat(q.size(), is(capacity - 6));
+        for (int i = 0; i < 6; i++)
+        {
+            q.offer(v);
+        }
+        Assert.assertThat(q.size(), is(capacity));
+        Assert.assertFalse(q.offer(v));
     }
 
 }
