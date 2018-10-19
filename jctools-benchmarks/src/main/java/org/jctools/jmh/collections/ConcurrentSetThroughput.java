@@ -1,7 +1,7 @@
 package org.jctools.jmh.collections;
 
 import org.jctools.maps.NonBlockingHashSet;
-import org.jctools.maps.nhbm_test.SimpleRandom;
+import org.jctools.maps.nbhm_test.SimpleRandom;
 import org.jctools.sets.SingleWriterHashSet;
 import org.jctools.util.Pow2;
 import org.openjdk.jmh.annotations.*;
