@@ -1,9 +1,10 @@
-package org.jctools.maps.nhbm_test;
+package org.jctools.maps.nbhm_test;
 
 import java.util.Random;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
-import org.jctools.maps.NonBlockingHashMapLong;
+import org.jctools.maps.NonBlockingHashMap;
 
 /*
  * Written by Cliff Click and released to the public domain, as explained at
@@ -11,11 +12,35 @@ import org.jctools.maps.NonBlockingHashMapLong;
  * Big Chunks of code shamelessly copied from Doug Lea's test harness which is also public domain.
  */
 
-public class perf_hashlong_test extends Thread {
+public class perf_hash_test extends Thread {
 
     static int _read_ratio, _gr, _pr;
     static int _thread_min, _thread_max, _thread_incr;
     static int _table_size;
+    static int _map_impl;
+
+    static ConcurrentMap<String, String> make_map(int impl) {
+        switch (impl) {
+        case 1:
+            return null; // new Hashtable<String,String>(0);
+        case 2:
+            return null; // new CliffWrapHerlihy(); // was a non-blocking HashSet implementation from Maurice
+                         // Herlihy
+        case 3:
+            return new ConcurrentHashMap<String, String>(16, 0.75f, 16); // force to 16 striping
+        case 4:
+            return new ConcurrentHashMap<String, String>(16, 0.75f, 256); // force to 256 striping
+        case 5:
+            return new ConcurrentHashMap<String, String>(16, 0.75f, 4096); // force to 4096 striping
+        case 6:
+            return new NonBlockingHashMap<String, String>();
+        default:
+            throw new Error("Bad imple");
+        }
+    }
+
+    static String names[] = { "ALL", "HashTable", "HerlihyHashSet", "CHM_16", "CHM_256", "CHM_4096",
+            "NBHashMap", };
 
     static String KEYS[];
     static volatile boolean _start;
@@ -33,7 +58,7 @@ public class perf_hashlong_test extends Thread {
 
     public static void main(String args[]) {
         if (args.length == 0) {
-            args = new String[] { "75", "2", "8", "2", "100000" };
+            args = new String[] { "50", "2", "8", "2", "100000", "-1" };
         }
         // Parse args
         try {
@@ -42,6 +67,7 @@ public class perf_hashlong_test extends Thread {
             _thread_max = check(args[2], "thread_max", 1, 100000);
             _thread_incr = check(args[3], "thread_incr", 1, 100000);
             _table_size = check(args[4], "table_size", 100, 100000000);
+            _map_impl = check(args[5], "implementation", -1, names.length);
 
             _gr = (_read_ratio << 20) / 100;
             _pr = (((1 << 20) - _gr) >> 1) + _gr;
@@ -60,7 +86,7 @@ public class perf_hashlong_test extends Thread {
                 + ((100 - _read_ratio) >> 1) + "% removes, " + "table_size=" + _table_size);
         if (_read_ratio == 0)
             System.out.print(" -- churn");
-        String name = "NonBlockingHashMapLong";
+        String name = _map_impl == -1 ? "Best" : names[_map_impl];
         System.out.println(" " + name);
         System.out.println("Threads from " + _thread_min + " to " + _thread_max + " by " + _thread_incr);
 
@@ -71,16 +97,20 @@ public class perf_hashlong_test extends Thread {
         if (_read_ratio == 0)
             keymax = 1024 * 1024; // The churn test uses a large key set
         KEYS = new String[keymax];
-        KEYS[0] = "Cliff0";
-        for (int i = 1; i < KEYS.length; i++) {
+        int[] histo = new int[64];
+        for (int i = 0; i < KEYS.length; i++) {
             KEYS[i] = String.valueOf(i) + "abc" + String.valueOf(i * 17 + 123);
+            histo[KEYS[i].hashCode() >>> (32 - 6)]++;
         }
+        // verify good key spread to help ConcurrentHashMap
+        // for( int i=0; i<histo.length; i++ )
+        // System.out.print(" "+histo[i]);
 
         System.out.println("Warmup -variance: ");
-        run_till_stable(Math.min(_thread_min, 2), 1);
+        run_till_stable(Math.min(_thread_min, 2), /* extra warmup round for churn */_read_ratio == 0 ? 2 : 1);
 
         // Now do the real thing
-        System.out.print("==== Counter  Threads   Trial: ");
+        System.out.print("==== HashMap  Threads   Trial: ");
         int num_trials = 7; // Number of Trials
         for (int i = 0; i < num_trials; i++)
             System.out.printf(" %3d       ", i);
@@ -90,15 +120,31 @@ public class perf_hashlong_test extends Thread {
     }
 
     static void run_till_stable(int num_threads, int num_trials) {
-        NonBlockingHashMapLong<String> HM = new NonBlockingHashMapLong<String>(true);
-        String name = "NonBlockingHashMapLong";
-        System.out.printf("=== %10.10s  %3d  cnts/sec=", name, num_threads);
+        if (_map_impl > 0) {
+            run_till_stable(num_threads, num_trials, _map_impl);
+        }
+        else if (_map_impl == 0) {
+            for (int i = 1; i < names.length; i++)
+                run_till_stable(num_threads, num_trials, i);
+        }
+        else {
+            run_till_stable(num_threads, num_trials, 3);
+            run_till_stable(num_threads, num_trials, 6);
+        }
+    }
+
+    static void run_till_stable(int num_threads, int num_trials, int impl) {
+        ConcurrentMap<String, String> HM = make_map(impl);
+        if (HM == null)
+            return;
+        String name = names[impl];
+        System.out.printf("=== %10.10s  %3d", name, num_threads);
 
         // Quicky sanity check
         for (int i = 0; i < 100; i++) {
-            HM.put(i, KEYS[i]);
+            HM.put(KEYS[i], KEYS[i]);
             for (int j = 0; j < i; j++) {
-                if (HM.get(j) != KEYS[j]) {
+                if (HM.get(KEYS[j]) != KEYS[j]) {
                     throw new Error("Broken table, put " + i + " but cannot find #" + j);
                 }
             }
@@ -111,20 +157,23 @@ public class perf_hashlong_test extends Thread {
             long[] ops = new long[num_threads];
             long[] nanos = new long[num_threads];
             long millis = run_once(num_threads, HM, ops, nanos);
-            long sum = 0;
-            for (int i = 0; i < num_threads; i++)
-                sum += ops[i];
-            long ops_per_sec = (sum * 1000L) / millis;
+            long sum_ops = 0;
+            for (long op : ops)
+                sum_ops += op;
+            long ops_per_sec = (sum_ops * 1000L) / millis;
             trials[j] = ops_per_sec;
             total += ops_per_sec;
+            if (j == 0)
+                System.out.printf("  cnts/sec=");
             System.out.printf(" %10d", ops_per_sec);
 
-            // for( int i=0; i<num_threads; i++ ) {
-            // if( nanos[i] < 1980000000 ||
-            // nanos[i] > 2010000000 ||
-            // ops[i] < 100000 )
-            // System.out.printf(" %d",ops[i]);
-            // }
+            // Note: sum of nanos does not mean much if there are more threads than cpus
+            // System.out.printf("+-%f%%",(ops_per_sec - ops_per_sec_n)*100.0/ops_per_sec);
+            if (HM instanceof NonBlockingHashMap) {
+                long reprobes = ((NonBlockingHashMap) HM).reprobes();
+                if (reprobes > 0)
+                    System.out.printf("(%5.2f)", (double) reprobes / (double) sum_ops);
+            }
 
         }
 
@@ -167,6 +216,8 @@ public class perf_hashlong_test extends Thread {
             System.out.printf(" %10d", avg);
             System.out.printf(" (+/-%2d%%)  %d", p, HM.size());
         }
+        if (HM instanceof NonBlockingHashMap)
+            System.out.printf(" size=%d", ((NonBlockingHashMap) HM).raw_array().length);
         System.out.println();
     }
 
@@ -185,38 +236,38 @@ public class perf_hashlong_test extends Thread {
 
     // Worker thread fields
     final int _tnum;
-    final NonBlockingHashMapLong<String> _hash; // Shared hashtable
+    final ConcurrentMap<String, String> _hash; // Shared hashtable
     final long[] _ops;
     final long[] _nanos;
 
-    public perf_hashlong_test() {
+    public perf_hash_test() {
         _tnum = 0;
         _hash = null;
-        _ops = null;
-        _nanos = null;
+        _ops = new long[0];
+        _nanos = new long[0];
     }
 
-    private perf_hashlong_test(int tnum, NonBlockingHashMapLong<String> HM, long[] ops, long[] nanos) {
+    private perf_hash_test(int tnum, ConcurrentMap<String, String> HM, long[] ops, long[] nanos) {
         _tnum = tnum;
         _hash = HM;
         _ops = ops;
         _nanos = nanos;
     }
 
-    static long run_once(int num_threads, NonBlockingHashMapLong<String> HM, long[] ops, long[] nanos) {
+    static long run_once(int num_threads, ConcurrentMap<String, String> HM, long[] ops, long[] nanos) {
         Random R = new Random();
         _start = false;
         _stop = false;
 
-        HM.put(0, "Cliff0");
-        HM.remove(0);
+        HM.put("Cliff", "Cliff");
+        HM.remove("Cliff");
 
         int sz = HM.size();
         while (sz + 1024 < _table_size) {
             int idx = R.nextInt();
             for (int i = 0; i < 1024; i++) {
-                int k = idx & (KEYS.length - 1);
-                HM.put(k, KEYS[k]);
+                String key = KEYS[idx & (KEYS.length - 1)];
+                HM.put(key, key);
                 idx++;
             }
             sz = HM.size();
@@ -226,16 +277,15 @@ public class perf_hashlong_test extends Thread {
             int trip = 0;
             int idx = R.nextInt();
             while (true) {
-                int k = idx & (KEYS.length - 1);
-                String key = KEYS[k];
+                String key = KEYS[idx & (KEYS.length - 1)];
                 if (sz < _table_size) {
-                    if (HM.put(k, key) == null) {
+                    if (HM.put(key, key) == null) {
                         sz++;
                         break;
                     }
                 }
                 else {
-                    if (HM.remove(k) != null) {
+                    if (HM.remove(key) != null) {
                         sz--;
                         break;
                     }
@@ -257,16 +307,12 @@ public class perf_hashlong_test extends Thread {
         }
 
         // Launch threads
-        // long nanoz = System.nanoTime();
-        // System.out.println(" "+nanoz+" Create-Threads");
-        perf_hashlong_test thrs[] = new perf_hashlong_test[num_threads];
+        perf_hash_test thrs[] = new perf_hash_test[num_threads];
         for (int i = 0; i < num_threads; i++)
-            thrs[i] = new perf_hashlong_test(i, HM, ops, nanos);
+            thrs[i] = new perf_hash_test(i, HM, ops, nanos);
         for (int i = 0; i < num_threads; i++)
             thrs[i].start();
         // Run threads
-        // long nano = System.nanoTime();
-        // System.out.println(" "+nano+" Start");
         long start = System.currentTimeMillis();
         _start = true;
         try {
@@ -276,9 +322,7 @@ public class perf_hashlong_test extends Thread {
             /* empty */}
         _stop = true;
         long stop = System.currentTimeMillis();
-        // long nanox = System.nanoTime();
         long millis = stop - start;
-        // System.out.println(" "+nanox+" Stop");
 
         for (int i = 0; i < num_threads; i++)
             try {
@@ -287,29 +331,11 @@ public class perf_hashlong_test extends Thread {
             catch (InterruptedException ie) {
                 throw new RuntimeException(ie);
             }
-        // long nanoy = System.nanoTime();
-        // System.out.println(" "+nanoy+" Join-Done");
         return millis;
     }
 
     // What a worker thread does
     public void run() {
-        if (_read_ratio == 0) {
-            run_churn();
-        }
-        else {
-            run_normal();
-        }
-    }
-
-    // Force a large turnover of live keys, while keeping the total live-set
-    // low. 10 keys kept alive per thread, out of a set of a million or so.
-    // constantly churned, so we constantly need to 'cleanse' the table to flush
-    // old entries.
-    public void run_churn() {
-        int reprobe = System.identityHashCode(Thread.currentThread());
-        int idx = reprobe;
-
         while (!_start) // Spin till Time To Go
             try {
                 Thread.sleep(1);
@@ -318,6 +344,34 @@ public class perf_hashlong_test extends Thread {
                 /* empty */}
 
         long nano1 = System.nanoTime();
+
+        int total;
+        if (_read_ratio == 0) {
+            total = run_churn();
+        }
+        else {
+            if (_hash instanceof NonBlockingHashMap) {
+                total = run_normal((NonBlockingHashMap) _hash);
+            }
+            else if (_hash instanceof ConcurrentHashMap)
+                total = run_normal((ConcurrentHashMap) _hash);
+            else
+                total = run_normal(_hash);
+        }
+
+        _ops[_tnum] = total;
+        long nano2 = System.nanoTime();
+        _nanos[_tnum] = (nano2 - nano1);
+    }
+
+    // Force a large turnover of live keys, while keeping the total live-set
+    // low. 10 keys kept alive per thread, out of a set of a million or so.
+    // constantly churned, so we constantly need to 'cleanse' the table to flush
+    // old entries.
+    public int run_churn() {
+        int reprobe = System.identityHashCode(Thread.currentThread());
+        int idx = reprobe;
+
         int get_ops = 0;
         int put_ops = 0;
         int del_ops = 0;
@@ -325,92 +379,104 @@ public class perf_hashlong_test extends Thread {
             // Insert a key 10 probes in the future,
             // remove a key 0 probes in the future,
             // Net result is the thread keeps 10 random keys in table
-            int k1 = (idx + reprobe * 10) & (KEYS.length - 1);
-            String key1 = KEYS[k1];
-            _hash.put(k1, key1);
+            String key1 = KEYS[(idx + reprobe * 10) & (KEYS.length - 1)];
+            _hash.put(key1, key1);
             put_ops++;
 
             // Remove a key 0 probes in the future
-            int k2 = idx & (KEYS.length - 1);
-            _hash.remove(k2);
+            String key2 = KEYS[idx & (KEYS.length - 1)];
+            _hash.remove(key2);
             del_ops++;
 
             idx += reprobe;
         }
 
         // We stopped; report results into shared result structure
-        long nano2 = System.nanoTime();
-        int total = get_ops + put_ops + del_ops;
-        _ops[_tnum] = total;
-        _nanos[_tnum] = (nano2 - nano1);
+        return get_ops + put_ops + del_ops;
     }
 
-    public void run_normal() {
+    public int run_normal(NonBlockingHashMap<String, String> hm) {
         SimpleRandom R = new SimpleRandom();
-        while (!_start) // Spin till Time To Go
-            try {
-                Thread.sleep(1);
-            }
-            catch (Exception e) {
-                /* empty */}
 
-        long nano1 = System.nanoTime();
         int get_ops = 0;
         int put_ops = 0;
         int del_ops = 0;
         while (!_stop) {
             int x = R.nextInt() & ((1 << 20) - 1);
-            int k = R.nextInt() & (KEYS.length - 1);
-            String key = KEYS[k];
+            String key = KEYS[R.nextInt() & (KEYS.length - 1)];
             if (x < _gr) {
                 get_ops++;
-                String val = _hash.get(k);
+                String val = hm.get(key);
                 if (val != null && !val.equals(key))
                     throw new IllegalArgumentException("Mismatched key=" + key + " and val=" + val);
             }
             else if (x < _pr) {
                 put_ops++;
-                _hash.putIfAbsent(k, key);
-                // An interesting version: testing get immediately after putIfAbsent.
-                // Of course in a multi-threaded context it immediately throws false-positives.
-                // if( _hash.putIfAbsent( key, key ) == null )
-                // if( _hash.get(key) == null )
-                // throw new Error("putIfAbsent failed to put key=" + key + " for put_ops=" + put_ops + "and
-                // getops=" +get_ops + " del_ops="+del_ops);
+                hm.putIfAbsent(key, key);
             }
             else {
                 del_ops++;
-                _hash.remove(k);
+                hm.remove(key);
             }
         }
         // We stopped; report results into shared result structure
-        long nano2 = System.nanoTime();
-        int total = get_ops + put_ops + del_ops;
-        _ops[_tnum] = total;
-        _nanos[_tnum] = (nano2 - nano1);
+        return get_ops + put_ops + del_ops;
     }
 
-    // Fairly fast random numbers
-    public static final class SimpleRandom {
-        private final static long multiplier = 0x5DEECE66DL;
-        private final static long addend = 0xBL;
-        private final static long mask = (1L << 48) - 1;
-        static final AtomicLong seq = new AtomicLong(-715159705);
-        private long seed;
+    public int run_normal(ConcurrentHashMap<String, String> hm) {
+        SimpleRandom R = new SimpleRandom();
 
-        SimpleRandom() {
-            seed = System.nanoTime() + seq.getAndAdd(129);
+        int get_ops = 0;
+        int put_ops = 0;
+        int del_ops = 0;
+        while (!_stop) {
+            int x = R.nextInt() & ((1 << 20) - 1);
+            String key = KEYS[R.nextInt() & (KEYS.length - 1)];
+            if (x < _gr) {
+                get_ops++;
+                String val = hm.get(key);
+                if (val != null && !val.equals(key))
+                    throw new IllegalArgumentException("Mismatched key=" + key + " and val=" + val);
+            }
+            else if (x < _pr) {
+                put_ops++;
+                hm.putIfAbsent(key, key);
+            }
+            else {
+                del_ops++;
+                hm.remove(key);
+            }
         }
+        // We stopped; report results into shared result structure
+        return get_ops + put_ops + del_ops;
+    }
 
-        public int nextInt() {
-            return next();
-        }
+    public int run_normal(ConcurrentMap<String, String> hm) {
+        SimpleRandom R = new SimpleRandom();
 
-        public int next() {
-            long nextseed = (seed * multiplier + addend) & mask;
-            seed = nextseed;
-            return ((int) (nextseed >>> 17)) & 0x7FFFFFFF;
+        int get_ops = 0;
+        int put_ops = 0;
+        int del_ops = 0;
+        while (!_stop) {
+            int x = R.nextInt() & ((1 << 20) - 1);
+            String key = KEYS[R.nextInt() & (KEYS.length - 1)];
+            if (x < _gr) {
+                get_ops++;
+                String val = hm.get(key);
+                if (val != null && !val.equals(key))
+                    throw new IllegalArgumentException("Mismatched key=" + key + " and val=" + val);
+            }
+            else if (x < _pr) {
+                put_ops++;
+                hm.putIfAbsent(key, key);
+            }
+            else {
+                del_ops++;
+                hm.remove(key);
+            }
         }
+        // We stopped; report results into shared result structure
+        return get_ops + put_ops + del_ops;
     }
 
 }

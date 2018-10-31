@@ -1,4 +1,4 @@
-package org.jctools.maps.nhbm_test;
+package org.jctools.maps.nbhm_test;
 
 import java.util.concurrent.atomic.AtomicLong;
 
