@@ -38,18 +38,11 @@ public final class UnsafeRefArrayAccess
     static
     {
         final int scale = UnsafeAccess.UNSAFE.arrayIndexScale(Object[].class);
-        if (4 == scale)
-        {
-            REF_ELEMENT_SHIFT = 2;
-        }
-        else if (8 == scale)
-        {
-            REF_ELEMENT_SHIFT = 3;
-        }
-        else
-        {
-            throw new IllegalStateException("Unknown pointer size");
-        }
+        if ((scale & (scale - 1)) != 0)
+        	throw new IllegalStateException("Unknown pointer size");
+
+        REF_ELEMENT_SHIFT = 31 - Integer.numberOfLeadingZeros(scale);
+        
         REF_ARRAY_BASE = UnsafeAccess.UNSAFE.arrayBaseOffset(Object[].class);
     }
 
