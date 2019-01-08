@@ -33,12 +33,12 @@ abstract class ConcurrentCircularArrayQueueL0Pad<E> extends AbstractQueue<E>
  * @param <E>
  * @author nitsanw
  */
-public abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircularArrayQueueL0Pad<E>
+abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircularArrayQueueL0Pad<E>
 {
     protected final long mask;
     protected final E[] buffer;
 
-    public ConcurrentCircularArrayQueue(int capacity)
+    ConcurrentCircularArrayQueue(int capacity)
     {
         int actualCapacity = Pow2.roundToPowerOfTwo(capacity);
         mask = actualCapacity - 1;
