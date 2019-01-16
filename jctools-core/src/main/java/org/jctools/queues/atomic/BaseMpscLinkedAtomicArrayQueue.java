@@ -21,6 +21,8 @@ import java.util.AbstractQueue;
 import java.util.Iterator;
 import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.length;
 import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.modifiedCalcElementOffset;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import org.jctools.queues.MessagePassingQueue;
@@ -92,9 +94,19 @@ abstract class BaseMpscLinkedAtomicArrayQueueConsumerFields<E> extends BaseMpscL
 
     protected AtomicReferenceArray<E> consumerBuffer;
 
+    private volatile AtomicReferenceArray<E> volatileConsumerBuffer;
+
     @Override
     public final long lvConsumerIndex() {
         return consumerIndex;
+    }
+
+    final AtomicReferenceArray<E> lvVolatileConsumerBuffer() {
+        return volatileConsumerBuffer;
+    }
+
+    final void svVolatileConsumerBuffer(AtomicReferenceArray<E> newValue) {
+        volatileConsumerBuffer = newValue;
     }
 
     final long lpConsumerIndex() {
@@ -181,6 +193,7 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
         producerBuffer = buffer;
         producerMask = mask;
         consumerBuffer = buffer;
+        svVolatileConsumerBuffer(buffer);
         consumerMask = mask;
         // we know it's all empty to start with
         soProducerLimit(mask);
@@ -373,7 +386,6 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
     private AtomicReferenceArray<E> getNextBuffer(final AtomicReferenceArray<E> buffer, final long mask) {
         final int offset = nextArrayOffset(mask);
         final AtomicReferenceArray<E> nextBuffer = (AtomicReferenceArray<E>) lvElement(buffer, offset);
-        soElement(buffer, offset, null);
         return nextBuffer;
     }
 
@@ -406,6 +418,7 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
 
     private int newBufferAndOffset(AtomicReferenceArray<E> nextBuffer, long index) {
         consumerBuffer = nextBuffer;
+        svVolatileConsumerBuffer(nextBuffer);
         consumerMask = (length(nextBuffer) - 2) << 1;
         return modifiedCalcElementOffset(index, consumerMask);
     }
@@ -569,6 +582,30 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
             idleCounter = 0;
             c.accept(e);
         }
+    }
+
+    public List<E> unorderedSnapshot() {
+        AtomicReferenceArray<E> currentBuffer = lvVolatileConsumerBuffer();
+        List<E> elements = new ArrayList<E>();
+        while (true) {
+            int length = length(currentBuffer);
+            for (int i = 0; i < length - 1; i++) {
+                int offset = calcElementOffset(i);
+                Object element = lvElement(currentBuffer, offset);
+                if (element == JUMP || element == null) {
+                    continue;
+                }
+                elements.add((E) element);
+            }
+            int offset = calcElementOffset((length - 1));
+            Object nextArray = lvElement(currentBuffer, offset);
+            if (nextArray != null) {
+                currentBuffer = (AtomicReferenceArray<E>) nextArray;
+            } else {
+                break;
+            }
+        }
+        return elements;
     }
 
     private void resize(long oldMask, AtomicReferenceArray<E> oldBuffer, long pIndex, E e) {

@@ -26,8 +26,12 @@ import static org.jctools.queues.LinkedArrayQueueUtil.length;
 import static org.jctools.queues.LinkedArrayQueueUtil.modifiedCalcElementOffset;
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeAccess.fieldOffset;
+import static org.jctools.util.UnsafeRefArrayAccess.calcElementOffset;
 import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
 import static org.jctools.util.UnsafeRefArrayAccess.soElement;
+
+import java.util.ArrayList;
+import java.util.List;
 
 abstract class BaseMpscLinkedArrayQueuePad1<E> extends AbstractQueue<E> implements IndexedQueue
 {
@@ -73,11 +77,20 @@ abstract class BaseMpscLinkedArrayQueueConsumerFields<E> extends BaseMpscLinkedA
     private volatile long consumerIndex;
     protected long consumerMask;
     protected E[] consumerBuffer;
+    private volatile E[] volatileConsumerBuffer;
 
     @Override
     public final long lvConsumerIndex()
     {
         return consumerIndex;
+    }
+    
+    final E[] lvVolatileConsumerBuffer() {
+        return volatileConsumerBuffer;
+    }
+    
+    final void svVolatileConsumerBuffer(E[] newValue) {
+        volatileConsumerBuffer = newValue;
     }
     
     final long lpConsumerIndex()
@@ -157,6 +170,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
         producerBuffer = buffer;
         producerMask = mask;
         consumerBuffer = buffer;
+        svVolatileConsumerBuffer(buffer);
         consumerMask = mask;
         soProducerLimit(mask); // we know it's all empty to start with
     }
@@ -403,7 +417,6 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
     {
         final long offset = nextArrayOffset(mask);
         final E[] nextBuffer = (E[]) lvElement(buffer, offset);
-        soElement(buffer, offset, null);
         return nextBuffer;
     }
 
@@ -439,6 +452,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
     private long newBufferAndOffset(E[] nextBuffer, long index)
     {
         consumerBuffer = nextBuffer;
+        svVolatileConsumerBuffer(nextBuffer);
         consumerMask = (length(nextBuffer) - 2) << 1;
         return modifiedCalcElementOffset(index, consumerMask);
     }
@@ -639,6 +653,30 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
             idleCounter = 0;
             c.accept(e);
         }
+    }
+    
+    public List<E> unorderedSnapshot() {
+        E[] currentBuffer = lvVolatileConsumerBuffer();
+        List<E> elements = new ArrayList<E>();
+        while (true) {
+            int length = length(currentBuffer);
+            for (int i = 0; i < length - 1; i++) {
+                long offset = calcElementOffset(i);
+                Object element = lvElement(currentBuffer, offset);
+                if (element == JUMP || element == null) {
+                    continue;
+                }
+                elements.add((E) element);
+            }
+            long offset = calcElementOffset((length - 1));
+            Object nextArray = lvElement(currentBuffer, offset);
+            if (nextArray != null) {
+                currentBuffer = (E[]) nextArray;
+            } else {
+                break;
+            }
+        }
+        return elements;
     }
 
     private void resize(long oldMask, E[] oldBuffer, long pIndex, E e)

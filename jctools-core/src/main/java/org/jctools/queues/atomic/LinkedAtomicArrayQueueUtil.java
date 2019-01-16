@@ -55,6 +55,11 @@ final class LinkedAtomicArrayQueueUtil
     {
         return (int) (index & mask) >> 1;
     }
+    
+    static int calcElementOffset(long index)
+    {
+        return (int) index;
+    }
 
     static int nextArrayOffset(AtomicReferenceArray<?> curr)
     {

@@ -19,6 +19,9 @@ import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeAccess.fieldOffset;
 import static org.jctools.util.UnsafeRefArrayAccess.*;
 
+import java.util.ArrayList;
+import java.util.List;
+
 abstract class MpscArrayQueueL1Pad<E> extends ConcurrentCircularArrayQueue<E>
 {
     long p00, p01, p02, p03, p04, p05, p06, p07;
@@ -561,5 +564,18 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
             }
             idleCounter = 0;
         }
+    }
+    
+    public List<E> unorderedSnapshot() {
+        int length = capacity();
+        List<E> elements = new ArrayList<E>();
+        for (int i = 0; i < length; i++) {
+            long offset = calcElementOffset(i);
+            E element = lvElement(buffer, offset);
+            if (element != null) {
+                elements.add(element);
+            }
+        }
+        return elements;
     }
 }

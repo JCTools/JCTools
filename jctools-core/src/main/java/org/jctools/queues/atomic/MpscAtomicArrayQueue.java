@@ -14,6 +14,8 @@
 package org.jctools.queues.atomic;
 
 import org.jctools.util.PortableJvmInfo;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.concurrent.atomic.AtomicLongArray;
@@ -531,6 +533,19 @@ public class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
             }
             idleCounter = 0;
         }
+    }
+
+    public List<E> unorderedSnapshot() {
+        int length = capacity();
+        List<E> elements = new ArrayList<E>();
+        for (int i = 0; i < length; i++) {
+            int offset = calcElementOffset(i);
+            E element = lvElement(buffer, offset);
+            if (element != null) {
+                elements.add(element);
+            }
+        }
+        return elements;
     }
 
     /**
