@@ -19,9 +19,7 @@ import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeAccess.fieldOffset;
 import static org.jctools.util.UnsafeRefArrayAccess.*;
 
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
 
 abstract class MpscArrayQueueL1Pad<E> extends ConcurrentCircularArrayQueue<E>
 {
@@ -569,10 +567,12 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
     
     /**
      * Get an iterator for this queue. This method is thread safe.
-     * 
+     * <p>
      * The iterator provides a best-effort snapshot of the elements in the queue.
      * The returned iterator is not guaranteed to return elements in queue order,
      * and races with the consumer thread may cause gaps in the sequence of returned elements.
+     * Like {link #relaxedPoll}, the iterator may not immediately return newly inserted elements.
+     * 
      * @return The iterator.
      */
     @Override

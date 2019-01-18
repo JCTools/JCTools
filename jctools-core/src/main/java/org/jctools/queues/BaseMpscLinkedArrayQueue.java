@@ -30,8 +30,6 @@ import static org.jctools.util.UnsafeRefArrayAccess.calcElementOffset;
 import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
 import static org.jctools.util.UnsafeRefArrayAccess.soElement;
 
-import java.util.ArrayList;
-import java.util.List;
 
 abstract class BaseMpscLinkedArrayQueuePad1<E> extends AbstractQueue<E> implements IndexedQueue
 {
@@ -311,7 +309,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
 
         if (e == JUMP)
         {
-            final E[] nextBuffer = getNextBuffer(buffer, mask);
+            final E[] nextBuffer = nextBuffer(buffer, mask);
             return newBufferPoll(nextBuffer, index);
         }
 
@@ -347,7 +345,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
         }
         if (e == JUMP)
         {
-            return newBufferPeek(getNextBuffer(buffer, mask), index);
+            return newBufferPeek(nextBuffer(buffer, mask), index);
         }
         return (E) e;
     }
@@ -398,10 +396,12 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
     protected abstract long availableInQueue(long pIndex, long cIndex);
 
     @SuppressWarnings("unchecked")
-    private E[] getNextBuffer(final E[] buffer, final long mask)
+    private E[] nextBuffer(final E[] buffer, final long mask)
     {
         final long offset = nextArrayOffset(mask);
         final E[] nextBuffer = (E[]) lvElement(buffer, offset);
+        consumerBuffer = nextBuffer;
+        consumerMask = (length(nextBuffer) - 2) << 1;
         soElement(buffer, offset, BUFFER_CONSUMED);
         return nextBuffer;
     }
@@ -413,7 +413,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
 
     private E newBufferPoll(E[] nextBuffer, long index)
     {
-        final long offset = newBufferAndOffset(nextBuffer, index);
+        final long offset = modifiedCalcElementOffset(index, consumerMask);
         final E n = lvElement(nextBuffer, offset);// LoadLoad
         if (n == null)
         {
@@ -426,20 +426,13 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
 
     private E newBufferPeek(E[] nextBuffer, long index)
     {
-        final long offset = newBufferAndOffset(nextBuffer, index);
+        final long offset = modifiedCalcElementOffset(index, consumerMask);
         final E n = lvElement(nextBuffer, offset);// LoadLoad
         if (null == n)
         {
             throw new IllegalStateException("new buffer must have at least one element");
         }
         return n;
-    }
-
-    private long newBufferAndOffset(E[] nextBuffer, long index)
-    {
-        consumerBuffer = nextBuffer;
-        consumerMask = (length(nextBuffer) - 2) << 1;
-        return modifiedCalcElementOffset(index, consumerMask);
     }
 
     @Override
@@ -479,7 +472,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
         }
         if (e == JUMP)
         {
-            final E[] nextBuffer = getNextBuffer(buffer, mask);
+            final E[] nextBuffer = nextBuffer(buffer, mask);
             return newBufferPoll(nextBuffer, index);
         }
         soElement(buffer, offset, null);
@@ -499,7 +492,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
         Object e = lvElement(buffer, offset);// LoadLoad
         if (e == JUMP)
         {
-            return newBufferPeek(getNextBuffer(buffer, mask), index);
+            return newBufferPeek(nextBuffer(buffer, mask), index);
         }
         return (E) e;
     }
@@ -642,10 +635,12 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
     
     /**
      * Get an iterator for this queue. This method is thread safe.
-     * 
+     * <p>
      * The iterator provides a best-effort snapshot of the elements in the queue.
      * The returned iterator is not guaranteed to return elements in queue order,
      * and races with the consumer thread may cause gaps in the sequence of returned elements.
+     * Like {link #relaxedPoll}, the iterator may not immediately return newly inserted elements.
+     * 
      * @return The iterator.
      */
     @Override

@@ -29,7 +29,7 @@
  * <br>
  * <b>Limited Queue methods support:</b><br>
  * The queues implement a subset of the {@link java.util.Queue} interface which is documented under the
- * {@link org.jctools.queues.MessagePassingQueue} interface. In particular {@link java.util.Queue#iterator()} is not
+ * {@link org.jctools.queues.MessagePassingQueue} interface. In particular {@link java.util.Queue#iterator()} is usually not
  * supported and dependent methods from {@link java.util.AbstractQueue} are also not supported such as:
  * <ol>
  * <li>{@link java.util.Queue#remove(Object)}
@@ -38,6 +38,7 @@
  * <li>{@link java.util.Queue#contains(Object)}
  * <li>{@link java.util.Queue#containsAll(java.util.Collection)}
  * </ol>
+ * A few queues do support a limited form of iteration. This support is documented in the Javadoc of the relevant queues.
  * <p>
  * <br>
  * <b>Memory layout controls and False Sharing:</b><br>
