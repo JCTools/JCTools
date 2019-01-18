@@ -20,6 +20,7 @@ import static org.jctools.util.UnsafeAccess.fieldOffset;
 import static org.jctools.util.UnsafeRefArrayAccess.*;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 abstract class MpscArrayQueueL1Pad<E> extends ConcurrentCircularArrayQueue<E>
@@ -566,16 +567,55 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
         }
     }
     
-    public List<E> unorderedSnapshot() {
-        int length = capacity();
-        List<E> elements = new ArrayList<E>();
-        for (int i = 0; i < length; i++) {
-            long offset = calcElementOffset(i);
-            E element = lvElement(buffer, offset);
-            if (element != null) {
-                elements.add(element);
-            }
+    /**
+     * Get an iterator for this queue. This method is thread safe.
+     * 
+     * The iterator provides a best-effort snapshot of the elements in the queue.
+     * The returned iterator is not guaranteed to return elements in queue order,
+     * and races with the consumer thread may cause gaps in the sequence of returned elements.
+     * @return The iterator.
+     */
+    @Override
+    public final Iterator<E> iterator() {
+        final long cIndex = lvConsumerIndex();
+        final long pIndex = lvProducerIndex();
+        
+        return new WeakIterator(cIndex, pIndex);
+    }
+    
+    private final class WeakIterator implements Iterator<E> {
+
+        private final long pIndex;
+        private long nextIndex;
+        private E nextElement;
+
+        WeakIterator(long cIndex, long pIndex) {
+            this.nextIndex = cIndex;
+            this.pIndex = pIndex;
+            nextElement = getNext();
         }
-        return elements;
+
+        @Override
+        public boolean hasNext() {
+            return nextElement != null;
+        }
+
+        @Override
+        public E next() {
+            E e = nextElement;
+            nextElement = getNext();
+            return e;
+        }
+
+        private E getNext() {
+            while (nextIndex < pIndex) {
+                long offset = calcElementOffset(nextIndex++);
+                E e = lvElement(buffer, offset);
+                if (e != null) {
+                    return e;
+                }
+            }
+            return null;
+        }
     }
 }

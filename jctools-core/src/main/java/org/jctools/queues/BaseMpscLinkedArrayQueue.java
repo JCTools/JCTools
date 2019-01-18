@@ -77,20 +77,11 @@ abstract class BaseMpscLinkedArrayQueueConsumerFields<E> extends BaseMpscLinkedA
     private volatile long consumerIndex;
     protected long consumerMask;
     protected E[] consumerBuffer;
-    private volatile E[] volatileConsumerBuffer;
 
     @Override
     public final long lvConsumerIndex()
     {
         return consumerIndex;
-    }
-    
-    final E[] lvVolatileConsumerBuffer() {
-        return volatileConsumerBuffer;
-    }
-    
-    final void svVolatileConsumerBuffer(E[] newValue) {
-        volatileConsumerBuffer = newValue;
     }
     
     final long lpConsumerIndex()
@@ -148,6 +139,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
 {
     // No post padding here, subclasses must add
     private static final Object JUMP = new Object();
+    private static final Object BUFFER_CONSUMED = new Object();
     private static final int CONTINUE_TO_P_INDEX_CAS = 0;
     private static final int RETRY = 1;
     private static final int QUEUE_FULL = 2;
@@ -170,15 +162,8 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
         producerBuffer = buffer;
         producerMask = mask;
         consumerBuffer = buffer;
-        svVolatileConsumerBuffer(buffer);
         consumerMask = mask;
         soProducerLimit(mask); // we know it's all empty to start with
-    }
-
-    @Override
-    public final Iterator<E> iterator()
-    {
-        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -417,6 +402,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
     {
         final long offset = nextArrayOffset(mask);
         final E[] nextBuffer = (E[]) lvElement(buffer, offset);
+        soElement(buffer, offset, BUFFER_CONSUMED);
         return nextBuffer;
     }
 
@@ -452,7 +438,6 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
     private long newBufferAndOffset(E[] nextBuffer, long index)
     {
         consumerBuffer = nextBuffer;
-        svVolatileConsumerBuffer(nextBuffer);
         consumerMask = (length(nextBuffer) - 2) << 1;
         return modifiedCalcElementOffset(index, consumerMask);
     }
@@ -655,28 +640,70 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
         }
     }
     
-    public List<E> unorderedSnapshot() {
-        E[] currentBuffer = lvVolatileConsumerBuffer();
-        List<E> elements = new ArrayList<E>();
-        while (true) {
-            int length = length(currentBuffer);
-            for (int i = 0; i < length - 1; i++) {
-                long offset = calcElementOffset(i);
-                Object element = lvElement(currentBuffer, offset);
-                if (element == JUMP || element == null) {
-                    continue;
+    /**
+     * Get an iterator for this queue. This method is thread safe.
+     * 
+     * The iterator provides a best-effort snapshot of the elements in the queue.
+     * The returned iterator is not guaranteed to return elements in queue order,
+     * and races with the consumer thread may cause gaps in the sequence of returned elements.
+     * @return The iterator.
+     */
+    @Override
+    public Iterator<E> iterator() {
+        return new WeakIterator();
+    }
+    
+    private final class WeakIterator implements Iterator<E> {
+
+        private long nextIndex;
+        private E nextElement;
+        private E[] currentBuffer;
+        private int currentBufferLength;
+
+        WeakIterator() {
+            setBuffer(consumerBuffer);
+            nextElement = getNext();
+        }
+
+        @Override
+        public boolean hasNext() {
+            return nextElement != null;
+        }
+
+        @Override
+        public E next() {
+            E e = nextElement;
+            nextElement = getNext();
+            return e;
+        }
+
+        private void setBuffer(E[] buffer) {
+            this.currentBuffer = buffer;
+            this.currentBufferLength = length(buffer);
+            this.nextIndex = 0;
+        }
+        
+        private E getNext() {
+            while (true) {
+                while (nextIndex < currentBufferLength - 1) {
+                    long offset = calcElementOffset(nextIndex++);
+                    E e = lvElement(currentBuffer, offset);
+                    if (e != null && e != JUMP) {
+                        return e;
+                    }
                 }
-                elements.add((E) element);
-            }
-            long offset = calcElementOffset((length - 1));
-            Object nextArray = lvElement(currentBuffer, offset);
-            if (nextArray != null) {
-                currentBuffer = (E[]) nextArray;
-            } else {
-                break;
+                long offset = calcElementOffset(currentBufferLength - 1);
+                Object nextArray = lvElement(currentBuffer, offset);
+                if (nextArray == BUFFER_CONSUMED) {
+                    //Consumer may have passed us, just jump to the current consumer buffer
+                    setBuffer(consumerBuffer);
+                } else if (nextArray != null) {
+                    setBuffer((E[]) nextArray);
+                } else {
+                    return null;
+                }
             }
         }
-        return elements;
     }
 
     private void resize(long oldMask, E[] oldBuffer, long pIndex, E e)

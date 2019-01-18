@@ -19,11 +19,14 @@
 
 package org.jctools.queues;
 
-import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -37,16 +40,40 @@ public class MpscArrayQueueSnapshotTest {
     }
 
     @Test
-    public void testSnapshot() {
+    public void testIterator() {
         queue.offer(0);
-        assertThat(queue.unorderedSnapshot(), contains(0));
+        assertThat(iteratorToList(), contains(0));
         for (int i = 1; i < queue.capacity(); i++) {
             queue.offer(i);
         }
-        assertThat(queue.unorderedSnapshot(), containsInAnyOrder(0, 1, 2, 3));
+        assertThat(iteratorToList(), containsInAnyOrder(0, 1, 2, 3));
         queue.poll();
         queue.offer(4);
-        assertThat(queue.unorderedSnapshot(), containsInAnyOrder(1, 2, 3, 4));
+        queue.poll();
+        assertThat(iteratorToList(), containsInAnyOrder(2, 3, 4));
+    }
+    
+    @Test
+    public void testIteratorHasNextConcurrentModification() {
+        //There may be gaps in the elements returned by the iterator,
+        //but hasNext needs to be reliable even if the elements are consumed between hasNext() and next().
+        queue.offer(0);
+        queue.offer(1);
+        Iterator<Integer> iter = queue.iterator();
+        assertThat(iter.hasNext(), is(true));
+        queue.poll();
+        queue.poll();
+        assertThat(queue.isEmpty(), is(true));
+        assertThat(iter.hasNext(), is(true));
+        assertThat(iter.next(), is(0));
+        assertThat(iter.hasNext(), is(false));
+    }
+    
+    private List<Integer> iteratorToList() {
+        List<Integer> list = new ArrayList<>();
+        Iterator<Integer> iter = queue.iterator();
+        iter.forEachRemaining(list::add);
+        return list;
     }
     
 }
