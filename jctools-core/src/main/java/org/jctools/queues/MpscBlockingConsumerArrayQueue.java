@@ -29,21 +29,21 @@ import static org.jctools.util.UnsafeAccess.fieldOffset;
 import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
 import static org.jctools.util.UnsafeRefArrayAccess.soElement;
 
-abstract class BaseMpscBlockingConsumerArrayQueuePad1<E> extends AbstractQueue<E> implements IndexedQueue
+abstract class MpscBlockingConsumerArrayQueuePad1<E> extends AbstractQueue<E> implements IndexedQueue
 {
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 }
 // $gen:ordered-fields
-abstract class BaseMpscBlockingConsumerArrayQueueColdProducerFields<E> extends BaseMpscBlockingConsumerArrayQueuePad1<E>
+abstract class MpscBlockingConsumerArrayQueueColdProducerFields<E> extends MpscBlockingConsumerArrayQueuePad1<E>
 {
-    private final static long P_LIMIT_OFFSET = fieldOffset(BaseMpscBlockingConsumerArrayQueueColdProducerFields.class,"producerLimit");
+    private final static long P_LIMIT_OFFSET = fieldOffset(MpscBlockingConsumerArrayQueueColdProducerFields.class,"producerLimit");
 
     private volatile long producerLimit;
     protected final long producerMask;
     protected final E[] producerBuffer;
 
-    protected BaseMpscBlockingConsumerArrayQueueColdProducerFields(long producerMask, E[] producerBuffer)
+    MpscBlockingConsumerArrayQueueColdProducerFields(long producerMask, E[] producerBuffer)
     {
         this.producerMask = producerMask;
         this.producerBuffer = producerBuffer;
@@ -65,24 +65,24 @@ abstract class BaseMpscBlockingConsumerArrayQueueColdProducerFields<E> extends B
     }
 }
 
-abstract class BaseMpscBlockingConsumerArrayQueuePad2<E> extends BaseMpscBlockingConsumerArrayQueueColdProducerFields<E>
+abstract class MpscBlockingConsumerArrayQueuePad2<E> extends MpscBlockingConsumerArrayQueueColdProducerFields<E>
 {
     long p0, p1, p2, p3, p4, p5, p6;
 
-    BaseMpscBlockingConsumerArrayQueuePad2(long mask, E[] buffer)
+    MpscBlockingConsumerArrayQueuePad2(long mask, E[] buffer)
     {
         super(mask, buffer);
     }
 }
 
 // $gen:ordered-fields
-abstract class BaseMpscBlockingConsumerArrayQueueProducerFields<E> extends BaseMpscBlockingConsumerArrayQueuePad2<E>
+abstract class MpscBlockingConsumerArrayQueueProducerFields<E> extends MpscBlockingConsumerArrayQueuePad2<E>
 {
-    private final static long P_INDEX_OFFSET = fieldOffset(BaseMpscBlockingConsumerArrayQueueProducerFields.class, "producerIndex");
+    private final static long P_INDEX_OFFSET = fieldOffset(MpscBlockingConsumerArrayQueueProducerFields.class, "producerIndex");
 
     private volatile long producerIndex;
 
-    BaseMpscBlockingConsumerArrayQueueProducerFields(long mask, E[] buffer)
+    MpscBlockingConsumerArrayQueueProducerFields(long mask, E[] buffer)
     {
         super(mask, buffer);
     }
@@ -104,27 +104,29 @@ abstract class BaseMpscBlockingConsumerArrayQueueProducerFields<E> extends BaseM
     }
 }
 
-abstract class BaseMpscBlockingConsumerArrayQueuePad3<E> extends BaseMpscBlockingConsumerArrayQueueProducerFields<E>
+abstract class MpscBlockingConsumerArrayQueuePad3<E> extends MpscBlockingConsumerArrayQueueProducerFields<E>
 {
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
 
-    BaseMpscBlockingConsumerArrayQueuePad3(long mask, E[] buffer)
+    MpscBlockingConsumerArrayQueuePad3(long mask, E[] buffer)
     {
         super(mask, buffer);
     }
 }
 
 // $gen:ordered-fields
-abstract class BaseMpscBlockingConsumerArrayQueueConsumerFields<E> extends BaseMpscBlockingConsumerArrayQueuePad3<E>
+abstract class MpscBlockingConsumerArrayQueueConsumerFields<E> extends MpscBlockingConsumerArrayQueuePad3<E>
 {
-    private final static long C_INDEX_OFFSET = fieldOffset(BaseMpscBlockingConsumerArrayQueueConsumerFields.class,"consumerIndex");
+    private final static long C_INDEX_OFFSET = fieldOffset(MpscBlockingConsumerArrayQueueConsumerFields.class,"consumerIndex");
+    private final static long BLOCKED_OFFSET = fieldOffset(MpscBlockingConsumerArrayQueueConsumerFields.class,"blocked");
 
     private volatile long consumerIndex;
     protected final long consumerMask;
+    private volatile Thread blocked;
     protected final E[] consumerBuffer;
 
-    BaseMpscBlockingConsumerArrayQueueConsumerFields(long mask, E[] buffer)
+    MpscBlockingConsumerArrayQueueConsumerFields(long mask, E[] buffer)
     {
         super(mask, buffer);
         consumerMask = mask;
@@ -146,6 +148,16 @@ abstract class BaseMpscBlockingConsumerArrayQueueConsumerFields<E> extends BaseM
     {
         UNSAFE.putOrderedLong(this, C_INDEX_OFFSET, newValue);
     }
+    
+    final Thread lvBlocked()
+    {
+        return blocked;
+    }
+    
+    final void soBlocked(Thread thread)
+    {
+        UNSAFE.putOrderedObject(this, BLOCKED_OFFSET, thread);
+    }
 }
 
 
@@ -154,7 +166,7 @@ abstract class BaseMpscBlockingConsumerArrayQueueConsumerFields<E> extends BaseM
  *
  * @param <E>
  */
-public class MpscBlockingConsumerArrayQueue<E> extends BaseMpscBlockingConsumerArrayQueueConsumerFields<E>
+public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArrayQueueConsumerFields<E>
     implements MessagePassingQueue<E>, QueueProgressIndicators
 {
     long p0, p1, p2, p3, p4, p5, p6, p7;
@@ -167,7 +179,9 @@ public class MpscBlockingConsumerArrayQueue<E> extends BaseMpscBlockingConsumerA
     public MpscBlockingConsumerArrayQueue(final int capacity)
     {
         // leave lower bit of mask clear
-        super((long) ((Pow2.roundToPowerOfTwo(capacity) - 1) << 1), (E[])allocate(Pow2.roundToPowerOfTwo(capacity)));
+        super((long) ((Pow2.roundToPowerOfTwo(capacity) - 1) << 1), 
+            (E[])allocate(Pow2.roundToPowerOfTwo(capacity)));
+        
         RangeUtil.checkGreaterThanOrEqual(capacity, 1, "capacity");
         soProducerLimit((long) ((Pow2.roundToPowerOfTwo(capacity) - 1) << 1)); // we know it's all empty to start with
     }
@@ -221,7 +235,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends BaseMpscBlockingConsumerA
         // Loading consumer before producer allows for producer increments after consumer index is read.
         // This ensures this method is conservative in it's estimate. Note that as this is an MPMC there is
         // nothing we can do to make this an exact method.
-        return (this.lvConsumerIndex() == this.lvProducerIndex());
+        return ((this.lvConsumerIndex()/2) == (this.lvProducerIndex()/2));
     }
 
     @Override
@@ -241,23 +255,18 @@ public class MpscBlockingConsumerArrayQueue<E> extends BaseMpscBlockingConsumerA
         final long mask = this.producerMask;
         final E[] buffer = this.producerBuffer;
         long pIndex;
-        boolean wakeup = false;
         while (true)
         {
             pIndex = lvProducerIndex();
             // lower bit is indicative of blocked consumer
             if ((pIndex & 1) == 1)
             {
-                if(!casProducerIndex(pIndex, pIndex + 1))
-                {
-                    continue;
-                }
-                // We've claimed pIndex, now we need to wake up consumer and set the element
-                wakeup = true;
-                break;
+                if (offerAndWakeup(buffer, mask, pIndex, e))
+                    return true;
+                continue;
             }
             // pIndex is even (lower bit is 0) -> actual index is (pIndex >> 1), consumer is awake
-            long producerLimit = lvProducerLimit();
+            final long producerLimit = lvProducerLimit();
 
             // Use producer limit to save a read of the more rapidly mutated consumer index.
             // Assumption: queue is usually empty or near empty
@@ -276,10 +285,32 @@ public class MpscBlockingConsumerArrayQueue<E> extends BaseMpscBlockingConsumerA
             }
         }
         final long offset = modifiedCalcElementOffset(pIndex, mask);
-        if (wakeup)
-            wakeupConsumer(buffer, offset);
         // INDEX visible before ELEMENT
         soElement(buffer, offset, e); // release element e
+        return true;
+    }
+
+    private boolean offerAndWakeup(E[] buffer, long mask, long pIndex, E e)
+    {
+        final long offset = modifiedCalcElementOffset(pIndex, mask);
+        final Thread consumerThread = lvBlocked();
+
+        // We could see a null here through a race with the consumer not yet storing the reference, or through a race
+        // with another producer. Just retry.
+        if (consumerThread == null)
+        {
+            return false;
+        }
+        
+        // Claim the slot and the responsibility of unparking
+        if(!casProducerIndex(pIndex, pIndex + 1))
+        {
+            return false;
+        }
+        
+        soElement(buffer, offset, e);
+        soBlocked(null); // releases the consumer from the park loop
+        LockSupport.unpark(consumerThread);
         return true;
     }
 
@@ -303,9 +334,14 @@ public class MpscBlockingConsumerArrayQueue<E> extends BaseMpscBlockingConsumerA
         return true;
     }
 
-    private void wakeupConsumer(E[] buffer, long offset)
+    private void wakeupConsumer()
     {
-        Thread consumerThread = (Thread) spinWaitForElement(buffer, offset);
+        Thread consumerThread;
+        do
+        {
+            consumerThread = lvBlocked();
+        } while (consumerThread == null);
+        soBlocked(null);
         LockSupport.unpark(consumerThread);
     }
 
@@ -318,17 +354,18 @@ public class MpscBlockingConsumerArrayQueue<E> extends BaseMpscBlockingConsumerA
     public E take() throws InterruptedException
     {
         final E[] buffer = consumerBuffer;
-        final long index = lpConsumerIndex();
         final long mask = consumerMask;
-
-        final long offset = modifiedCalcElementOffset(index, mask);
+        
+        final long cIndex = lpConsumerIndex();
+        final long offset = modifiedCalcElementOffset(cIndex, mask);
         Object e = lvElement(buffer, offset);// LoadLoad
         if (e == null)
         {
             long pIndex = lvProducerIndex();
-            if (index == pIndex && casProducerIndex(pIndex, pIndex + 1))
+            if (cIndex == pIndex && casProducerIndex(pIndex, pIndex + 1))
             {
-                soElement(buffer, offset, Thread.currentThread());
+                // producers only try a wakeup when both the index and the blocked thread are visible
+                soBlocked(Thread.currentThread());
                 do
                 {
                     LockSupport.park();
@@ -336,16 +373,16 @@ public class MpscBlockingConsumerArrayQueue<E> extends BaseMpscBlockingConsumerA
                     {
                         throw new InterruptedException();
                     }
-                        
                 }
-                while (index == lvProducerIndex());
+                while (lvBlocked() != null);
             }
-
+            // producer index is visible before element, so if we wake up between the index moving and the element
+            // store we could see a null.
             e = spinWaitForElement(buffer, offset);
         }
 
         soElement(buffer, offset, null); // release element null
-        soConsumerIndex(index + 2); // release cIndex
+        soConsumerIndex(cIndex + 2); // release cIndex
         
         return (E) e;
     }
@@ -360,9 +397,9 @@ public class MpscBlockingConsumerArrayQueue<E> extends BaseMpscBlockingConsumerA
     public E poll()
     {
         final E[] buffer = consumerBuffer;
-        final long index = lpConsumerIndex();
         final long mask = consumerMask;
 
+        final long index = lpConsumerIndex();
         final long offset = modifiedCalcElementOffset(index, mask);
         Object e = lvElement(buffer, offset);// LoadLoad
         if (e == null)
@@ -407,9 +444,9 @@ public class MpscBlockingConsumerArrayQueue<E> extends BaseMpscBlockingConsumerA
     public E peek()
     {
         final E[] buffer = consumerBuffer;
-        final long index = lpConsumerIndex();
         final long mask = consumerMask;
 
+        final long index = lpConsumerIndex();
         final long offset = modifiedCalcElementOffset(index, mask);
         Object e = lvElement(buffer, offset);// LoadLoad
         if (e == null && index != lvProducerIndex())
@@ -465,7 +502,6 @@ public class MpscBlockingConsumerArrayQueue<E> extends BaseMpscBlockingConsumerA
         return e;
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public E relaxedPeek()
     {
@@ -474,8 +510,8 @@ public class MpscBlockingConsumerArrayQueue<E> extends BaseMpscBlockingConsumerA
         final long mask = consumerMask;
 
         final long offset = modifiedCalcElementOffset(index, mask);
-        Object e = lvElement(buffer, offset);// LoadLoad
-        return (E) e;
+        E e = lvElement(buffer, offset);// LoadLoad
+        return e;
     }
 
     @Override
@@ -504,6 +540,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends BaseMpscBlockingConsumerA
         
         final long mask = this.producerMask;
         final E[] buffer = this.producerBuffer;
+        
         long pIndex;
         int claimedSlots;
         boolean wakeup = false;
@@ -551,17 +588,17 @@ public class MpscBlockingConsumerArrayQueue<E> extends BaseMpscBlockingConsumerA
         claimedSlots = (int) ((batchIndex - pIndex) / 2);
         
         // first element offset might be a wakeup, so peeled from loop
-        long offset = modifiedCalcElementOffset(pIndex, mask);
-        if (wakeup)
-            wakeupConsumer(buffer, offset);
-        soElement(buffer, offset, s.get());
-        
-        // rest of the slots
-        for (int i = 1; i < claimedSlots; i++)
+        for (int i = 0; i < claimedSlots; i++)
         {
-            offset = modifiedCalcElementOffset(pIndex + 2 * i, mask);
+            long offset = modifiedCalcElementOffset(pIndex + 2 * i, mask);
             soElement(buffer, offset, s.get());
         }
+        
+        if (wakeup)
+        {
+            wakeupConsumer();
+        }
+        
         return claimedSlots;
     }
 
