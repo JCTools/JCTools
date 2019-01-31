@@ -1,15 +1,15 @@
 package org.jctools.queues.atomic;
 
-import org.jctools.queues.MessagePassingQueue;
-import org.jctools.queues.MpqSanityTest;
-import org.jctools.queues.MpqSanityTestMpscArray;
-import org.jctools.queues.spec.ConcurrentQueueSpec;
-import org.jctools.queues.spec.Ordering;
+import java.util.ArrayList;
+import java.util.Collection;
+
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.util.ArrayList;
-import java.util.Collection;
+import org.jctools.queues.MessagePassingQueue;
+import org.jctools.queues.MpqSanityTestMpscArray;
+import org.jctools.queues.spec.ConcurrentQueueSpec;
+import org.jctools.queues.spec.Ordering;
 
 @RunWith(Parameterized.class)
 public class AtomicMpqSanityTestMpscArray extends MpqSanityTestMpscArray

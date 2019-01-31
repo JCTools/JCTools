@@ -1,14 +1,14 @@
 package org.jctools.queues;
 
-import org.jctools.queues.spec.ConcurrentQueueSpec;
-import org.jctools.queues.spec.Ordering;
-import org.jctools.util.Pow2;
-import org.junit.Ignore;
+import java.util.ArrayList;
+import java.util.Collection;
+
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.util.ArrayList;
-import java.util.Collection;
+import org.jctools.queues.spec.ConcurrentQueueSpec;
+import org.jctools.queues.spec.Ordering;
+import org.jctools.util.Pow2;
 
 import static org.jctools.util.PortableJvmInfo.CPUs;
 

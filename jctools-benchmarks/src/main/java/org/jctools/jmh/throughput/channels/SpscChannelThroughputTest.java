@@ -13,11 +13,11 @@
  */
 package org.jctools.jmh.throughput.channels;
 
-import org.jctools.channels.Channel;
-import org.jctools.channels.ChannelConsumer;
-import org.jctools.channels.ChannelProducer;
-import org.jctools.channels.ChannelReceiver;
+import org.jctools.channels.*;
 import org.jctools.channels.spsc.SpscChannel;
+import org.jctools.util.PortableJvmInfo;
+import org.jctools.util.Pow2;
+import org.jctools.util.UnsafeDirectByteBuffer;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 import org.openjdk.jmh.infra.Control;
@@ -37,8 +37,9 @@ import java.util.concurrent.locks.LockSupport;
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @Threads(2)
+@Fork(1)
 @Warmup(iterations = 10, time = 1, timeUnit = TimeUnit.SECONDS)
-@Measurement(iterations = 5, time = 5, timeUnit = TimeUnit.SECONDS)
+@Measurement(iterations = 10, time = 1, timeUnit = TimeUnit.SECONDS)
 public class SpscChannelThroughputTest {
 
 	@Param({"32000"})
@@ -61,7 +62,8 @@ public class SpscChannelThroughputTest {
                 blackhole.consume(element.getValue());
             }
         };
-        buffer = ByteBuffer.allocateDirect(capacity*(8+1)*3);
+        int requiredBufferSize = OffHeapFixedMessageSizeRingBuffer.getRequiredBufferSize(capacity, PortableJvmInfo.CACHE_LINE_SIZE);
+        buffer = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(requiredBufferSize, PortableJvmInfo.CACHE_LINE_SIZE);
         channel = new SpscChannel<Ping>(buffer, capacity, Ping.class);
         producer = channel.producer();
         consumer = channel.consumer(receiver);

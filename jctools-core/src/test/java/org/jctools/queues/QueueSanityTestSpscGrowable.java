@@ -1,15 +1,16 @@
 package org.jctools.queues;
 
-import org.jctools.queues.spec.ConcurrentQueueSpec;
-import org.jctools.queues.spec.Ordering;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Queue;
+
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Queue;
+import org.jctools.queues.spec.ConcurrentQueueSpec;
+import org.jctools.queues.spec.Ordering;
 
 import static org.hamcrest.Matchers.is;
 

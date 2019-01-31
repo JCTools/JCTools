@@ -1,12 +1,13 @@
 package org.jctools.maps.nbhs_test;
 
-import org.jctools.maps.NonBlockingSetInt;
+import java.io.*;
+import java.util.Iterator;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.io.*;
-import java.util.Iterator;
+import org.jctools.maps.NonBlockingSetInt;
 
 import static org.hamcrest.CoreMatchers.anyOf;
 import static org.hamcrest.CoreMatchers.is;

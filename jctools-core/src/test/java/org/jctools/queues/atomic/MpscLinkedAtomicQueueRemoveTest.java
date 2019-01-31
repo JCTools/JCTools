@@ -1,8 +1,8 @@
 package org.jctools.queues.atomic;
 
-import org.jctools.queues.ScQueueRemoveTest;
-
 import java.util.Queue;
+
+import org.jctools.queues.ScQueueRemoveTest;
 
 public class MpscLinkedAtomicQueueRemoveTest extends ScQueueRemoveTest {
     @Override

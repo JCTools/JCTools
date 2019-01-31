@@ -1,8 +1,8 @@
 package org.jctools.queues.matchers;
 
-import org.hamcrest.Matcher;
-
 import java.util.Collection;
+
+import org.hamcrest.Matcher;
 
 import static org.hamcrest.Matchers.*;
 

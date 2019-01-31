@@ -1,16 +1,16 @@
 package org.jctools.queues;
 
+import java.util.Queue;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import org.junit.After;
+import org.junit.Test;
+
 import org.jctools.queues.atomic.AtomicQueueFactory;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
 import org.jctools.queues.spec.Preference;
 import org.jctools.util.Pow2;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-
-import java.util.Queue;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.hamcrest.Matchers.*;
 import static org.jctools.queues.matchers.Matchers.emptyAndZeroSize;

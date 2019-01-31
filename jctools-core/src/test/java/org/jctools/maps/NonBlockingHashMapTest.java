@@ -1,18 +1,19 @@
 package org.jctools.maps;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
 import com.google.common.collect.testing.*;
 import com.google.common.collect.testing.features.CollectionFeature;
 import com.google.common.collect.testing.features.CollectionSize;
 import com.google.common.collect.testing.features.MapFeature;
 import com.google.common.collect.testing.testers.MapReplaceEntryTester;
 import com.google.common.collect.testing.testers.MapReplaceTester;
+
 import junit.framework.Test;
 import junit.framework.TestCase;
 import junit.framework.TestSuite;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 
 /**
  * @author Tolstopyatov Vsevolod

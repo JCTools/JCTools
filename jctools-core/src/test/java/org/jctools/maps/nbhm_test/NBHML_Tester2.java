@@ -13,14 +13,15 @@
  */
 package org.jctools.maps.nbhm_test;
 
-import org.jctools.maps.NonBlockingHashMapLong;
+import java.io.*;
+import java.util.*;
+import java.util.concurrent.*;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.io.*;
-import java.util.*;
-import java.util.concurrent.*;
+import org.jctools.maps.NonBlockingHashMapLong;
 
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
