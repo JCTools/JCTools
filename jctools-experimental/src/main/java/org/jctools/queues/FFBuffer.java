@@ -18,7 +18,10 @@ import org.jctools.util.UnsafeRefArrayAccess;
 
 import java.util.Queue;
 
+import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeAccess.fieldOffset;
+import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
+import static org.jctools.util.UnsafeRefArrayAccess.soElement;
 
 abstract class FFBufferL1Pad<E> extends ConcurrentCircularArrayQueue<E>
 {
@@ -86,13 +89,13 @@ public final class FFBuffer<E> extends FFBufferL3Pad<E> implements Queue<E>
     @Override
     public final long lvConsumerIndex()
     {
-        return UnsafeAccess.UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
+        return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
     }
 
     @Override
     public final long lvProducerIndex()
     {
-        return UnsafeAccess.UNSAFE.getLongVolatile(this, P_INDEX_OFFSET);
+        return UNSAFE.getLongVolatile(this, P_INDEX_OFFSET);
     }
 
     @Override
@@ -106,11 +109,11 @@ public final class FFBuffer<E> extends FFBufferL3Pad<E> implements Queue<E>
         final E[] lb = buffer;
         final long t = pIndex;
         final long offset = calcElementOffset(t);
-        if (null != UnsafeRefArrayAccess.lvElement(lb, offset))
+        if (null != lvElement(lb, offset))
         { // read acquire
             return false;
         }
-        UnsafeRefArrayAccess.soElement(lb, offset, e); // write release
+        soElement(lb, offset, e); // write release
         pIndex = t + 1;
         return true;
     }
@@ -121,12 +124,12 @@ public final class FFBuffer<E> extends FFBufferL3Pad<E> implements Queue<E>
         long cIndex = this.cIndex;
         final long offset = calcElementOffset(cIndex);
         final E[] lb = buffer;
-        final E e = UnsafeRefArrayAccess.lvElement(lb, offset); // write acquire
+        final E e = lvElement(lb, offset); // write acquire
         if (null == e)
         {
             return null;
         }
-        UnsafeRefArrayAccess.soElement(lb, offset, null); // read release
+        soElement(lb, offset, null); // read release
         this.cIndex = cIndex + 1;
         return e;
     }
@@ -135,7 +138,7 @@ public final class FFBuffer<E> extends FFBufferL3Pad<E> implements Queue<E>
     public E peek()
     {
         long currentHead = lvProducerIndex();
-        return UnsafeRefArrayAccess.lvElement(buffer, calcElementOffset(currentHead));
+        return lvElement(buffer, calcElementOffset(currentHead));
     }
 
     @Override
