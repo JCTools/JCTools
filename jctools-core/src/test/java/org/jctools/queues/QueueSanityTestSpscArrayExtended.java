@@ -7,7 +7,7 @@ import static org.jctools.queues.matchers.Matchers.emptyAndZeroSize;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-public class SpscArrayQueueTest
+public class QueueSanityTestSpscArrayExtended
 {
     @Test
     public void shouldWorkAfterWrap()

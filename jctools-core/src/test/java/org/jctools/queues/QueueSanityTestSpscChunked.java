@@ -26,14 +26,4 @@ public class QueueSanityTestSpscChunked extends QueueSanityTest
         list.add(makeQueue(1, 1, SIZE, Ordering.FIFO, new SpscChunkedArrayQueue<>(8, SIZE)));// MPSC size SIZE
         return list;
     }
-
-    @Test
-    public void testMaxSizeQueue()
-    {
-        SpscChunkedArrayQueue queue = new SpscChunkedArrayQueue<Object>(1024, 1000 * 1024 * 1024);
-        for (int i = 0; i < 400001; i++)
-        {
-            queue.offer(i);
-        }
-    }
 }
