@@ -551,14 +551,16 @@ public final class JavaParsingAtomicArrayQueueGenerator extends VoidVisitorAdapt
             }
             outputFileName += ".java";
 
+            File outputFile = new File(outputDirectory, outputFileName);
             try {
-                writer = new FileWriter(new File(outputDirectory, outputFileName));
+                writer = new FileWriter(outputFile);
                 writer.write(cu.toString());
             } finally {
                 if (writer != null) {
                     writer.close();
                 }
             }
+            System.out.println("Saved to " + outputFile);
         }
     }
 
