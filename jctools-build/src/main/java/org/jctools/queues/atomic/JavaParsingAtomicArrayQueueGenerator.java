@@ -541,24 +541,14 @@ public final class JavaParsingAtomicArrayQueueGenerator extends VoidVisitorAdapt
             new JavaParsingAtomicArrayQueueGenerator(file.getName()).visit(cu, null);
 
             organiseImports(cu);
-            FileWriter writer = null;
 
-            String outputFileName = file.getName();
-            if (outputFileName.endsWith(".java")) {
-                outputFileName = translateQueueName(outputFileName.replace(".java", ""));
-            } else {
-                outputFileName = translateQueueName(outputFileName);
-            }
-            outputFileName += ".java";
+            String outputFileName = translateQueueName(file.getName().replace(".java", "")) + ".java";
 
-            try {
-                writer = new FileWriter(new File(outputDirectory, outputFileName));
+            try (FileWriter writer = new FileWriter(new File(outputDirectory, outputFileName))) {
                 writer.write(cu.toString());
-            } finally {
-                if (writer != null) {
-                    writer.close();
-                }
             }
+
+            System.out.println("Saved to " + outputFileName); 
         }
     }
 
