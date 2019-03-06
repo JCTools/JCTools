@@ -89,7 +89,6 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends VoidVisitorAdap
              * Special case for MPSC
              */
             node.removeModifier(Modifier.ABSTRACT);
-            node.addModifier(Modifier.FINAL);
         }
 
         if (isCommentPresent(node, GEN_DIRECTIVE_CLASS_CONTAINS_ORDERED_FIELD_ACCESSORS)) {

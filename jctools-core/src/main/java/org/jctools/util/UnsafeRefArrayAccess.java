@@ -48,7 +48,7 @@ public final class UnsafeRefArrayAccess
         }
         else
         {
-            throw new IllegalStateException("Unknown pointer size");
+            throw new IllegalStateException("Unknown pointer size: " + scale);
         }
         REF_ARRAY_BASE = UnsafeAccess.UNSAFE.arrayBaseOffset(Object[].class);
     }
