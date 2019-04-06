@@ -159,6 +159,8 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
     // No post padding here, subclasses must add
     private static final Object JUMP = new Object();
 
+    private static final Object BUFFER_CONSUMED = new Object();
+
     private static final int CONTINUE_TO_P_INDEX_CAS = 0;
 
     private static final int RETRY = 1;
@@ -184,11 +186,6 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
         consumerMask = mask;
         // we know it's all empty to start with
         soProducerLimit(mask);
-    }
-
-    @Override
-    public final Iterator<E> iterator() {
-        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -300,7 +297,7 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
             }
         }
         if (e == JUMP) {
-            final AtomicReferenceArray<E> nextBuffer = getNextBuffer(buffer, mask);
+            final AtomicReferenceArray<E> nextBuffer = nextBuffer(buffer, mask);
             return newBufferPoll(nextBuffer, index);
         }
         // release element null
@@ -331,7 +328,7 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
             } while (e == null);
         }
         if (e == JUMP) {
-            return newBufferPeek(getNextBuffer(buffer, mask), index);
+            return newBufferPeek(nextBuffer(buffer, mask), index);
         }
         return (E) e;
     }
@@ -370,10 +367,12 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
     protected abstract long availableInQueue(long pIndex, long cIndex);
 
     @SuppressWarnings("unchecked")
-    private AtomicReferenceArray<E> getNextBuffer(final AtomicReferenceArray<E> buffer, final long mask) {
+    private AtomicReferenceArray<E> nextBuffer(final AtomicReferenceArray<E> buffer, final long mask) {
         final int offset = nextArrayOffset(mask);
         final AtomicReferenceArray<E> nextBuffer = (AtomicReferenceArray<E>) lvElement(buffer, offset);
-        soElement(buffer, offset, null);
+        consumerBuffer = nextBuffer;
+        consumerMask = (length(nextBuffer) - 2) << 1;
+        soElement(buffer, offset, BUFFER_CONSUMED);
         return nextBuffer;
     }
 
@@ -382,7 +381,7 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
     }
 
     private E newBufferPoll(AtomicReferenceArray<E> nextBuffer, long index) {
-        final int offset = newBufferAndOffset(nextBuffer, index);
+        final int offset = modifiedCalcElementOffset(index, consumerMask);
         // LoadLoad
         final E n = lvElement(nextBuffer, offset);
         if (n == null) {
@@ -395,19 +394,13 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
     }
 
     private E newBufferPeek(AtomicReferenceArray<E> nextBuffer, long index) {
-        final int offset = newBufferAndOffset(nextBuffer, index);
+        final int offset = modifiedCalcElementOffset(index, consumerMask);
         // LoadLoad
         final E n = lvElement(nextBuffer, offset);
         if (null == n) {
             throw new IllegalStateException("new buffer must have at least one element");
         }
         return n;
-    }
-
-    private int newBufferAndOffset(AtomicReferenceArray<E> nextBuffer, long index) {
-        consumerBuffer = nextBuffer;
-        consumerMask = (length(nextBuffer) - 2) << 1;
-        return modifiedCalcElementOffset(index, consumerMask);
     }
 
     @Override
@@ -441,7 +434,7 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
             return null;
         }
         if (e == JUMP) {
-            final AtomicReferenceArray<E> nextBuffer = getNextBuffer(buffer, mask);
+            final AtomicReferenceArray<E> nextBuffer = nextBuffer(buffer, mask);
             return newBufferPoll(nextBuffer, index);
         }
         soElement(buffer, offset, null);
@@ -459,7 +452,7 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
         // LoadLoad
         Object e = lvElement(buffer, offset);
         if (e == JUMP) {
-            return newBufferPeek(getNextBuffer(buffer, mask), index);
+            return newBufferPeek(nextBuffer(buffer, mask), index);
         }
         return (E) e;
     }
@@ -568,6 +561,81 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
             }
             idleCounter = 0;
             c.accept(e);
+        }
+    }
+
+    /**
+     * Get an iterator for this queue. This method is thread safe.
+     * <p>
+     * The iterator provides a best-effort snapshot of the elements in the queue.
+     * The returned iterator is not guaranteed to return elements in queue order,
+     * and races with the consumer thread may cause gaps in the sequence of returned elements.
+     * Like {link #relaxedPoll}, the iterator may not immediately return newly inserted elements.
+     * 
+     * @return The iterator.
+     */
+    @Override
+    public Iterator<E> iterator() {
+        return new WeakIterator();
+    }
+
+    /**
+ * NOTE: This class was automatically generated by org.jctools.queues.atomic.JavaParsingAtomicLinkedQueueGenerator
+ * which can found in the jctools-build module. The original source file is BaseMpscLinkedArrayQueue.java.
+ */
+    private final class WeakIterator implements Iterator<E> {
+
+        private long nextIndex;
+
+        private E nextElement;
+
+        private AtomicReferenceArray<E> currentBuffer;
+
+        private int currentBufferLength;
+
+        WeakIterator() {
+            setBuffer(consumerBuffer);
+            nextElement = getNext();
+        }
+
+        @Override
+        public boolean hasNext() {
+            return nextElement != null;
+        }
+
+        @Override
+        public E next() {
+            E e = nextElement;
+            nextElement = getNext();
+            return e;
+        }
+
+        private void setBuffer(AtomicReferenceArray<E> buffer) {
+            this.currentBuffer = buffer;
+            this.currentBufferLength = length(buffer);
+            this.nextIndex = 0;
+        }
+
+        private E getNext() {
+            while (true) {
+                while (nextIndex < currentBufferLength - 1) {
+                    int offset = calcElementOffset(nextIndex++);
+                    E e = lvElement(currentBuffer, offset);
+                    if (e != null && e != JUMP) {
+                        return e;
+                    }
+                }
+                int offset = calcElementOffset(currentBufferLength - 1);
+                Object nextArray = lvElement(currentBuffer, offset);
+                if (nextArray == BUFFER_CONSUMED) {
+                    //Consumer may have passed us, just jump to the current consumer buffer
+                    setBuffer(consumerBuffer);
+                } else if (nextArray != null) {
+                    setBuffer((AtomicReferenceArray<E>) nextArray);
+                } else {
+                    return null;
+                }
+            }
         }
     }
 
