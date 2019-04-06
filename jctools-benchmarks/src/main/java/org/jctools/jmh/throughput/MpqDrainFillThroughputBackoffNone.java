@@ -40,13 +40,11 @@ import org.openjdk.jmh.annotations.Warmup;
 @Measurement(iterations = 10, time = 1)
 public class MpqDrainFillThroughputBackoffNone {
     static final Object TEST_ELEMENT = 1;
-    Integer element = 1;
-    Integer escape;
     MessagePassingQueue<Integer> q;
 
     @Param(value = { "SpscArrayQueue", "MpscArrayQueue", "SpmcArrayQueue", "MpmcArrayQueue" })
     String qType;
-    
+
     @Param(value = { "132000" })
     int qCapacity;
 
@@ -57,27 +55,41 @@ public class MpqDrainFillThroughputBackoffNone {
 
     @AuxCounters
     @State(Scope.Thread)
-    public static class PollCounters {
+    public static class PollCounters implements MessagePassingQueue.Consumer<Integer>{
         public long pollsFailed;
         public long pollsMade;
+        private Integer escape;
+
+        @Override
+        public void accept(Integer e)
+        {
+            if (e == TEST_ELEMENT) {
+                pollsMade++;
+            } else {
+                escape = e;
+            }
+        }
     }
 
     @AuxCounters
     @State(Scope.Thread)
-    public static class OfferCounters {
+    public static class OfferCounters implements MessagePassingQueue.Supplier<Integer>{
         public long offersFailed;
         public long offersMade;
+        private Integer element = 1;
+
+        @Override
+        public Integer get()
+        {
+            offersMade++;
+            return element;
+        }
     }
 
     @Benchmark
     @Group("normal")
     public void fill(final OfferCounters counters) {
-        long filled = q.fill(new MessagePassingQueue.Supplier<Integer>() {
-            public Integer get() {
-                counters.offersMade++;
-                return element;
-            }
-        });
+        long filled = q.fill(counters);
         if (filled == 0) {
             counters.offersFailed++;
             backoff();
@@ -87,68 +99,13 @@ public class MpqDrainFillThroughputBackoffNone {
     @Benchmark
     @Group("normal")
     public void drain(final PollCounters counters) {
-        long drained = q.drain(new MessagePassingQueue.Consumer<Integer>() {
-            public void accept(Integer e) {
-                if (e == TEST_ELEMENT) {
-                    counters.pollsMade++;
-                } else {
-                    escape = e;
-                }
-            }
-        });
+        long drained = q.drain(counters);
         if (drained == 0) {
             counters.pollsFailed++;
             backoff();
         }
     }
-//
-//    @Benchmark
-//    @Group("prepetual")
-//    public void fill(final OfferCounters counters, final Control ctl) {
-//        WaitStrategy w = new WaitStrategy(){
-//            public int idle(int idleCounter) {
-//                backoff();
-//                return idleCounter++;
-//            }
-//        };
-//        ExitCondition e = new ExitCondition() {
-//            public boolean keepRunning() {
-//                return !ctl.stopMeasurement;
-//            }
-//        };
-//        q.fill(new MessagePassingQueue.Supplier<Integer>() {
-//            public Integer get() {
-//                counters.offersMade++;
-//                return element;
-//            }
-//        }, w, e);
-//    }
-//
-//    @Benchmark
-//    @Group("prepetual")
-//    public void drain(final PollCounters counters, final Control ctl) {
-//        WaitStrategy w = new WaitStrategy(){
-//            public int idle(int idleCounter) {
-//                backoff();
-//                return idleCounter++;
-//            }
-//        };
-//        ExitCondition e = new ExitCondition() {
-//            public boolean keepRunning() {
-//                return !ctl.stopMeasurement;
-//            }
-//        };
-//        q.drain(new MessagePassingQueue.Consumer<Integer>() {
-//            public void accept(Integer e) {
-//                if (e == element) {
-//                    counters.pollsMade++;
-//                } else {
-//                    escape = e;
-//                }
-//            }
-//        }, w, e);
-//    }
-    
+
     @TearDown(Level.Iteration)
     public void emptyQ() {
         synchronized (q)
