@@ -3,31 +3,26 @@ package org.jctools.queues.blocking;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 
 import java.util.Queue;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 public final class McParkTakeStrategy<E> implements TakeStrategy<E>
 {
-    private final ReentrantLock lock = new ReentrantLock();
-    private final Condition cond = lock.newCondition();
-
-    private int waiters = 0;
+    private static final AtomicLongFieldUpdater<McParkTakeStrategy> WAITERS_UPDATER = AtomicLongFieldUpdater.newUpdater(McParkTakeStrategy.class, "waiters");
+    private volatile long waiters = 0;
+    private final Object obj = new Object();
 
     @Override
     public void signal()
     {
-        ReentrantLock l = lock;
-        l.lock();
-        try
+        if (waiters > 0)
         {
-            if (waiters>0)
+            synchronized (obj)
             {
-                cond.signal();
+                if (waiters > 0)
+                {
+                    obj.notify();
+                }
             }
-        }
-        finally
-        {
-            l.unlock();
         }
     }
 
@@ -40,20 +35,14 @@ public final class McParkTakeStrategy<E> implements TakeStrategy<E>
             return e;
         }
 
-        ReentrantLock l = lock;
-        l.lock();
-        try
+        WAITERS_UPDATER.incrementAndGet(this);
+        synchronized (obj)
         {
-            while((e = q.poll())==null)
+            while ((e = q.poll()) == null)
             {
-                waiters++;
-                cond.await();
-                waiters--;
+                obj.wait();
             }
-        }
-        finally
-        {
-            l.unlock();
+            WAITERS_UPDATER.decrementAndGet(this);
         }
 
         return e;

@@ -3,21 +3,25 @@ package org.jctools.queues.blocking;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 
 import java.util.Queue;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.concurrent.locks.LockSupport;
 
 public final class ScParkTakeStrategy<E> implements TakeStrategy<E> {
 
+    private static final AtomicReferenceFieldUpdater<ScParkTakeStrategy, Thread> WAITING_UPDATER =
+        AtomicReferenceFieldUpdater.newUpdater(ScParkTakeStrategy.class, Thread.class, "waiting");
+
     public volatile int storeFence = 0;
 
-    private AtomicReference<Thread> t = new AtomicReference<Thread>(null);
+    private volatile Thread waiting = null;
 
     @Override
-    public void signal() {
+    public void signal()
+    {
         // Make sure the offer is visible before unpark
         storeFence = 1; // store load barrier
 
-        LockSupport.unpark(t.get()); // t.get() load barrier
+        LockSupport.unpark(waiting); // t.get() load barrier
     }
 
     @Override
@@ -28,7 +32,7 @@ public final class ScParkTakeStrategy<E> implements TakeStrategy<E> {
         }
 
         Thread currentThread = Thread.currentThread();
-        t.set(currentThread);
+        waiting = currentThread;
 
         while ((e = q.poll()) == null) {
             LockSupport.park();
@@ -38,7 +42,7 @@ public final class ScParkTakeStrategy<E> implements TakeStrategy<E> {
             }
         }
 
-        t.lazySet(null);
+        WAITING_UPDATER.lazySet(this, null);
 
         return e;
     }
