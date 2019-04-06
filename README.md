@@ -66,13 +66,13 @@ But I have a zero-dependency/single-jar project
 ==========
 While you are free to copy & extend JCTools, we would much prefer it if you have a versioned dependency on JCTools to
 enable better support, upgrade paths and discussion. The shade plugin for Maven/Gradle is the preferred way to get
-JCTools fused with your library. Examples are available in the ShadeJCToolsSamples project.
+JCTools fused with your library. Examples are available in the [ShadeJCToolsSamples](https://github.com/JCTools/ShadeJCToolsSamples) project.
 
 
 Benchmarks
 ==========
 JCTools is benchmarked using both JMH benchmarks and handrolled harnesses. The benchmarks and related instructions can be
-found in the jctools-benchmarks module README. Go wild and please let us know how it did on your hardware.
+found in the jctools-benchmarks module [README](jctools-benchmarks/README.md). Go wild and please let us know how it did on your hardware.
 
 Concurrency Testing
 ===========
