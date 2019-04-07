@@ -257,7 +257,7 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
                     case QUEUE_FULL:
                         return false;
                     case QUEUE_RESIZE:
-                        resize(mask, buffer, pIndex, e);
+                        resize(mask, buffer, pIndex, e, null);
                         return true;
                 }
             }
@@ -504,7 +504,7 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
                     case QUEUE_FULL:
                         return 0;
                     case QUEUE_RESIZE:
-                        resize(mask, buffer, pIndex, s.get());
+                        resize(mask, buffer, pIndex, null, s);
                         return 1;
                 }
             }
@@ -639,16 +639,24 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
         }
     }
 
-    private void resize(long oldMask, AtomicReferenceArray<E> oldBuffer, long pIndex, E e) {
+    private void resize(long oldMask, AtomicReferenceArray<E> oldBuffer, long pIndex, E e, Supplier<E> s) {
+        assert (e != null && s == null) || (e == null || s != null);
         int newBufferLength = getNextBufferSize(oldBuffer);
-        final AtomicReferenceArray<E> newBuffer = allocate(newBufferLength);
+        final AtomicReferenceArray<E> newBuffer;
+        try {
+            newBuffer = allocate(newBufferLength);
+        } catch (OutOfMemoryError oom) {
+            assert lvProducerIndex() == pIndex + 1;
+            soProducerIndex(pIndex);
+            throw oom;
+        }
         producerBuffer = newBuffer;
         final int newMask = (newBufferLength - 2) << 1;
         producerMask = newMask;
         final int offsetInOld = modifiedCalcElementOffset(pIndex, oldMask);
         final int offsetInNew = modifiedCalcElementOffset(pIndex, newMask);
         // element in new array
-        soElement(newBuffer, offsetInNew, e);
+        soElement(newBuffer, offsetInNew, e == null ? s.get() : e);
         // buffer linked
         soElement(oldBuffer, nextArrayOffset(oldMask), newBuffer);
         // ASSERT code
