@@ -1,5 +1,8 @@
 package org.jctools.queues;
 
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -13,6 +16,7 @@ import org.jctools.queues.spec.Preference;
 import org.jctools.util.Pow2;
 
 import static org.hamcrest.Matchers.*;
+import static org.jctools.queues.MessagePassingQueue.UNBOUNDED_CAPACITY;
 import static org.jctools.queues.matchers.Matchers.emptyAndZeroSize;
 import static org.junit.Assert.*;
 import static org.junit.Assume.assumeThat;
@@ -401,6 +405,59 @@ public abstract class QueueSanityTest
     static final class Val
     {
         public int value;
+    }
+    
+    @Test
+    public void testIterator() {
+        assumeThat(queue, instanceOf(SupportsIterator.class));
+
+        int capacity = ((MessagePassingQueue)queue).capacity();
+        int insertLimit = (capacity == UNBOUNDED_CAPACITY) ? 128 : capacity;
+            
+        for (int i = 0; i < insertLimit; i++) {
+            queue.offer(i);
+        }
+
+        Iterator<Integer> iterator = queue.iterator();
+        for (int i = 0; i < insertLimit; i++) {
+            assertEquals(Integer.valueOf(i), iterator.next());
+        }
+        assertTrue((capacity == UNBOUNDED_CAPACITY) || !iterator.hasNext());
+        
+        queue.poll(); // drop 0
+        queue.offer(insertLimit); // add capacity
+        iterator = queue.iterator();
+        for (int i = 1; i <= insertLimit; i++) {
+            assertEquals(Integer.valueOf(i), iterator.next());
+        }
+        assertTrue((capacity == UNBOUNDED_CAPACITY) || !iterator.hasNext());
+    }
+
+    @Test
+    public void testIteratorHasNextConcurrentModification() {
+        assumeThat(queue, instanceOf(SupportsIterator.class));
+        int capacity = ((MessagePassingQueue)queue).capacity();
+        if (capacity != UNBOUNDED_CAPACITY)
+            assumeThat(capacity, greaterThanOrEqualTo(2));
+        //There may be gaps in the elements returned by the iterator,
+        //but hasNext needs to be reliable even if the elements are consumed between hasNext() and next().
+        queue.offer(0);
+        queue.offer(1);
+        Iterator<Integer> iter = queue.iterator();
+        assertThat(iter.hasNext(), is(true));
+        queue.poll();
+        queue.poll();
+        assertThat(queue.isEmpty(), is(true));
+        assertThat(iter.hasNext(), is(true));
+        assertThat(iter.next(), is(0));
+        assertThat(iter.hasNext(), is(false));
+    }
+
+    private List<Integer> iteratorToList() {
+        List<Integer> list = new ArrayList<>();
+        Iterator<Integer> iter = queue.iterator();
+        iter.forEachRemaining(list::add);
+        return list;
     }
 
 }

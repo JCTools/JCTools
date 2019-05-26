@@ -17,6 +17,7 @@ import org.jctools.queues.IndexedQueueSizeUtil;
 import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.QueueProgressIndicators;
+import org.jctools.queues.SupportsIterator;
 import org.jctools.util.Pow2;
 
 import java.util.AbstractQueue;
@@ -24,7 +25,7 @@ import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 
-abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> implements IndexedQueue, QueueProgressIndicators, MessagePassingQueue<E>
+abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> implements IndexedQueue, QueueProgressIndicators, MessagePassingQueue<E>, SupportsIterator
 {
     protected final AtomicReferenceArray<E> buffer;
     protected final int mask;
@@ -35,13 +36,7 @@ abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> implements 
         this.mask = actualCapacity - 1;
         this.buffer = new AtomicReferenceArray<E>(actualCapacity);
     }
-
-    @Override
-    public Iterator<E> iterator()
-    {
-        throw new UnsupportedOperationException();
-    }
-
+    
     @Override
     public String toString()
     {
@@ -144,5 +139,59 @@ abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> implements 
     public final long currentConsumerIndex()
     {
         return lvConsumerIndex();
+    }
+
+    /**
+     * Get an iterator for this queue. This method is thread safe.
+     * <p>
+     * The iterator provides a best-effort snapshot of the elements in the queue.
+     * The returned iterator is not guaranteed to return elements in queue order,
+     * and races with the consumer thread may cause gaps in the sequence of returned elements.
+     * Like {link #relaxedPoll}, the iterator may not immediately return newly inserted elements.
+     *
+     * @return The iterator.
+     */
+    @Override
+    public final Iterator<E> iterator() {
+        final long cIndex = lvConsumerIndex();
+        final long pIndex = lvProducerIndex();
+
+        return new WeakIterator(cIndex, pIndex);
+    }
+
+    private final class WeakIterator implements Iterator<E> {
+
+        private final long pIndex;
+        private long nextIndex;
+        private E nextElement;
+
+        WeakIterator(long cIndex, long pIndex) {
+            this.nextIndex = cIndex;
+            this.pIndex = pIndex;
+            nextElement = getNext();
+        }
+
+        @Override
+        public boolean hasNext() {
+            return nextElement != null;
+        }
+
+        @Override
+        public E next() {
+            E e = nextElement;
+            nextElement = getNext();
+            return e;
+        }
+
+        private E getNext() {
+            while (nextIndex < pIndex) {
+                int offset = calcElementOffset(nextIndex++);
+                E e = lvElement(buffer, offset);
+                if (e != null) {
+                    return e;
+                }
+            }
+            return null;
+        }
     }
 }

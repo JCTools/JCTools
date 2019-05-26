@@ -19,8 +19,9 @@ import org.jctools.util.Pow2;
 import java.util.AbstractQueue;
 import java.util.Iterator;
 
+import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
+
 abstract class ConcurrentCircularArrayQueueL0Pad<E> extends AbstractQueue<E>
-    implements MessagePassingQueue<E>, IndexedQueue, QueueProgressIndicators
 {
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
@@ -34,6 +35,7 @@ abstract class ConcurrentCircularArrayQueueL0Pad<E> extends AbstractQueue<E>
  * @author nitsanw
  */
 abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircularArrayQueueL0Pad<E>
+    implements MessagePassingQueue<E>, IndexedQueue, QueueProgressIndicators, SupportsIterator
 {
     protected final long mask;
     protected final E[] buffer;
@@ -62,12 +64,6 @@ abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircularArrayQu
     protected final long calcElementOffset(long index)
     {
         return calcElementOffset(index, mask);
-    }
-
-    @Override
-    public Iterator<E> iterator()
-    {
-        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -115,4 +111,57 @@ abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircularArrayQu
         return lvConsumerIndex();
     }
 
+    /**
+     * Get an iterator for this queue. This method is thread safe.
+     * <p>
+     * The iterator provides a best-effort snapshot of the elements in the queue.
+     * The returned iterator is not guaranteed to return elements in queue order,
+     * and races with the consumer thread may cause gaps in the sequence of returned elements.
+     * Like {link #relaxedPoll}, the iterator may not immediately return newly inserted elements.
+     *
+     * @return The iterator.
+     */
+    @Override
+    public final Iterator<E> iterator() {
+        final long cIndex = lvConsumerIndex();
+        final long pIndex = lvProducerIndex();
+
+        return new WeakIterator(cIndex, pIndex);
+    }
+
+    private final class WeakIterator implements Iterator<E> {
+
+        private final long pIndex;
+        private long nextIndex;
+        private E nextElement;
+
+        WeakIterator(long cIndex, long pIndex) {
+            this.nextIndex = cIndex;
+            this.pIndex = pIndex;
+            nextElement = getNext();
+        }
+
+        @Override
+        public boolean hasNext() {
+            return nextElement != null;
+        }
+
+        @Override
+        public E next() {
+            E e = nextElement;
+            nextElement = getNext();
+            return e;
+        }
+
+        private E getNext() {
+            while (nextIndex < pIndex) {
+                long offset = calcElementOffset(nextIndex++);
+                E e = lvElement(buffer, offset);
+                if (e != null) {
+                    return e;
+                }
+            }
+            return null;
+        }
+    }
 }
