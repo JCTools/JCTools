@@ -6,6 +6,7 @@ import java.util.List;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.Modifier;
+import com.github.javaparser.ast.Modifier.Keyword;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.ConstructorDeclaration;
@@ -49,8 +50,8 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtom
         n.setName(translateQueueName(n.getNameAsString()));
         if (MPSC_LINKED_ATOMIC_QUEUE_NAME.equals(n.getNameAsString())) {
             // Special case for MPSC because the Unsafe variant has a static factory method and a protected constructor.
-            n.setModifier(Modifier.PROTECTED, false);
-            n.setModifier(Modifier.PUBLIC, true);
+            n.setModifier(Keyword.PROTECTED, false);
+            n.setModifier(Keyword.PUBLIC, true);
         }
     }
 
@@ -65,7 +66,7 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtom
             /*
              * Special case for MPSC
              */
-            node.removeModifier(Modifier.ABSTRACT);
+            node.removeModifier(Keyword.ABSTRACT);
         }
 
         if (isCommentPresent(node, GEN_DIRECTIVE_CLASS_CONTAINS_ORDERED_FIELD_ACCESSORS)) {
@@ -240,7 +241,7 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtom
         String className = n.getNameAsString();
 
         for (FieldDeclaration field : n.getFields()) {
-            if (field.getModifiers().contains(Modifier.STATIC)) {
+            if (field.getModifiers().contains(Keyword.STATIC)) {
                 // Ignore statics
                 continue;
             }
@@ -287,7 +288,7 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtom
                     usesFieldUpdater = true;
                     String fieldUpdaterFieldName = fieldUpdaterFieldName(variableName);
 
-                    MethodDeclaration method = n.addMethod("xchgProducerNode", Modifier.PROTECTED, Modifier.FINAL);
+                    MethodDeclaration method = n.addMethod("xchgProducerNode", Keyword.PROTECTED, Keyword.FINAL);
                     method.setType(simpleParametricType("LinkedQueueAtomicNode", "E"));
                     method.addParameter(simpleParametricType("LinkedQueueAtomicNode", "E"), "newValue");
                     method.setBody(fieldUpdaterGetAndSet(fieldUpdaterFieldName, "newValue"));
@@ -303,7 +304,7 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtom
             }
 
             if (usesFieldUpdater) {
-                field.addModifier(Modifier.VOLATILE);
+                field.addModifier(Keyword.VOLATILE);
             }
         }
     }
@@ -337,7 +338,7 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtom
         ClassOrInterfaceType type = simpleParametricType("AtomicReferenceFieldUpdater", className,
                 "LinkedQueueAtomicNode");
         FieldDeclaration newField = fieldDeclarationWithInitialiser(type, fieldUpdaterFieldName(variableName),
-                initializer, Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL);
+                initializer, Keyword.PRIVATE, Keyword.STATIC, Keyword.FINAL);
         return newField;
     }
 

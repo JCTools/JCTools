@@ -5,7 +5,7 @@ import java.util.List;
 
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
-import com.github.javaparser.ast.Modifier;
+import com.github.javaparser.ast.Modifier.Keyword;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
@@ -64,7 +64,7 @@ public final class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomi
         }
 
         if (!node.getMethodsByName("failFastOffer").isEmpty()) {
-            MethodDeclaration deprecatedMethodRedirect = node.addMethod("weakOffer", Modifier.PUBLIC);
+            MethodDeclaration deprecatedMethodRedirect = node.addMethod("weakOffer", Keyword.PUBLIC);
             patchMethodAsDeprecatedRedirector(deprecatedMethodRedirect, "failFastOffer", PrimitiveType.intType(),
                     new Parameter(classType("E"), "e"));
         }
@@ -214,7 +214,7 @@ public final class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomi
         String className = n.getNameAsString();
 
         for (FieldDeclaration field : n.getFields()) {
-            if (field.getModifiers().contains(Modifier.STATIC)) {
+            if (field.getModifiers().contains(Keyword.STATIC)) {
                 // Ignore statics
                 continue;
             }
@@ -259,7 +259,7 @@ public final class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomi
             }
 
             if (usesFieldUpdater) {
-                field.addModifier(Modifier.VOLATILE);
+                field.addModifier(Keyword.VOLATILE);
             }
         }
     }

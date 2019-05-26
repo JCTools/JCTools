@@ -58,11 +58,11 @@ import com.github.javaparser.ast.expr.TypeExpr;
 import com.github.javaparser.ast.expr.UnaryExpr;
 import com.github.javaparser.ast.expr.VariableDeclarationExpr;
 import com.github.javaparser.ast.modules.ModuleDeclaration;
-import com.github.javaparser.ast.modules.ModuleExportsStmt;
-import com.github.javaparser.ast.modules.ModuleOpensStmt;
-import com.github.javaparser.ast.modules.ModuleProvidesStmt;
-import com.github.javaparser.ast.modules.ModuleRequiresStmt;
-import com.github.javaparser.ast.modules.ModuleUsesStmt;
+import com.github.javaparser.ast.modules.ModuleExportsDirective;
+import com.github.javaparser.ast.modules.ModuleOpensDirective;
+import com.github.javaparser.ast.modules.ModuleProvidesDirective;
+import com.github.javaparser.ast.modules.ModuleRequiresDirective;
+import com.github.javaparser.ast.modules.ModuleUsesDirective;
 import com.github.javaparser.ast.stmt.AssertStmt;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.BreakStmt;
@@ -72,13 +72,13 @@ import com.github.javaparser.ast.stmt.DoStmt;
 import com.github.javaparser.ast.stmt.EmptyStmt;
 import com.github.javaparser.ast.stmt.ExplicitConstructorInvocationStmt;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
+import com.github.javaparser.ast.stmt.ForEachStmt;
 import com.github.javaparser.ast.stmt.ForStmt;
-import com.github.javaparser.ast.stmt.ForeachStmt;
 import com.github.javaparser.ast.stmt.IfStmt;
 import com.github.javaparser.ast.stmt.LabeledStmt;
 import com.github.javaparser.ast.stmt.LocalClassDeclarationStmt;
 import com.github.javaparser.ast.stmt.ReturnStmt;
-import com.github.javaparser.ast.stmt.SwitchEntryStmt;
+import com.github.javaparser.ast.stmt.SwitchEntry;
 import com.github.javaparser.ast.stmt.SwitchStmt;
 import com.github.javaparser.ast.stmt.SynchronizedStmt;
 import com.github.javaparser.ast.stmt.ThrowStmt;
@@ -317,8 +317,8 @@ public final class TraceVisitor extends VoidVisitorAdapter<Void> {
     }
 
     @Override
-    public void visit(ForeachStmt n, Void arg) {
-        out.println("ForeachStmt: " + (extended ? n : ""));
+    public void visit(ForEachStmt n, Void arg) {
+        out.println("ForEachStmt: " + (extended ? n : ""));
         super.visit(n, arg);
     }
 
@@ -445,31 +445,31 @@ public final class TraceVisitor extends VoidVisitorAdapter<Void> {
     }
 
     @Override
-    public void visit(ModuleExportsStmt n, Void arg) {
+    public void visit(ModuleExportsDirective n, Void arg) {
         out.println("ModuleExportsStmt: " + (extended ? n : ""));
         super.visit(n, arg);
     }
 
     @Override
-    public void visit(ModuleOpensStmt n, Void arg) {
+    public void visit(ModuleOpensDirective n, Void arg) {
         out.println("ModuleOpensStmt: " + (extended ? n : ""));
         super.visit(n, arg);
     }
 
     @Override
-    public void visit(ModuleProvidesStmt n, Void arg) {
+    public void visit(ModuleProvidesDirective n, Void arg) {
         out.println("ModuleProvidesStmt: " + (extended ? n : ""));
         super.visit(n, arg);
     }
 
     @Override
-    public void visit(ModuleRequiresStmt n, Void arg) {
+    public void visit(ModuleRequiresDirective n, Void arg) {
         out.println("ModuleRequiresStmt: " + (extended ? n : ""));
         super.visit(n, arg);
     }
 
     @Override
-    public void visit(ModuleUsesStmt n, Void arg) {
+    public void visit(ModuleUsesDirective n, Void arg) {
         out.println("ModuleUsesStmt: " + (extended ? n : ""));
         super.visit(n, arg);
     }
@@ -559,7 +559,7 @@ public final class TraceVisitor extends VoidVisitorAdapter<Void> {
     }
 
     @Override
-    public void visit(SwitchEntryStmt n, Void arg) {
+    public void visit(SwitchEntry n, Void arg) {
         out.println("SwitchEntryStmt: " + (extended ? n : ""));
         super.visit(n, arg);
     }
@@ -665,7 +665,7 @@ public final class TraceVisitor extends VoidVisitorAdapter<Void> {
     public static void main(String[] args) throws Exception {
         for (String file : args) {
             System.out.println("Opening " + file);
-            CompilationUnit cu = JavaParser.parse(new File(file));
+            CompilationUnit cu = new JavaParser().parse(new File(file)).getResult().get();
             new TraceVisitor(System.out, false).visit(cu, null);
             System.out.println();
             System.out.println();

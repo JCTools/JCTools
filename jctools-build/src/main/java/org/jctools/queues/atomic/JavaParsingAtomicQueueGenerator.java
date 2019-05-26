@@ -10,6 +10,7 @@ import com.github.javaparser.JavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.Modifier;
+import com.github.javaparser.ast.Modifier.Keyword;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.PackageDeclaration;
@@ -54,7 +55,7 @@ abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter<Void> 
         for (int i = 1; i < args.length; i++) {
             File file = new File(args[i]);
             System.out.println("Processing " + file);
-            CompilationUnit cu = JavaParser.parse(file);
+            CompilationUnit cu = new JavaParser().parse(file).getResult().get();
             JavaParsingAtomicQueueGenerator generator = buildGenerator(generatorClass, file.getName());
             generator.visit(cu, null);
 
@@ -137,7 +138,7 @@ abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter<Void> 
 
         // Remove all static fields
         for (FieldDeclaration field : node.getFields()) {
-            if (field.getModifiers().contains(Modifier.STATIC)) {
+            if (field.getModifiers().contains(Modifier.staticModifier())) {
                 field.remove();
                 continue;
             }
@@ -227,12 +228,11 @@ abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter<Void> 
      * @return
      */
     protected FieldDeclaration fieldDeclarationWithInitialiser(Type type, String name, Expression initializer,
-            Modifier... modifiers) {
+            Keyword... modifiers) {
         FieldDeclaration fieldDeclaration = new FieldDeclaration();
         VariableDeclarator variable = new VariableDeclarator(type, name, initializer);
         fieldDeclaration.getVariables().add(variable);
-        EnumSet<Modifier> modifierSet = EnumSet.copyOf(Arrays.asList(modifiers));
-        fieldDeclaration.setModifiers(modifierSet);
+        fieldDeclaration.setModifiers(modifiers);
         return fieldDeclaration;
     }
 
@@ -249,7 +249,7 @@ abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter<Void> 
 
         ClassOrInterfaceType type = simpleParametricType("AtomicLongFieldUpdater", className);
         FieldDeclaration newField = fieldDeclarationWithInitialiser(type, fieldUpdaterFieldName(variableName),
-                initializer, Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL);
+                initializer, Keyword.PRIVATE, Keyword.STATIC, Keyword.FINAL);
         return newField;
     }
 
