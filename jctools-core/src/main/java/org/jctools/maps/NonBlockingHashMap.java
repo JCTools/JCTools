@@ -669,8 +669,8 @@ public class NonBlockingHashMap<TypeK, TypeV>
       if( K == null ) {         // Slot is free?
         // Found an empty Key slot - which means this Key has never been in
         // this table.  No need to put a Tombstone - the Key is not here!
-        if( putval == TOMBSTONE ) return putval; // Not-now & never-been in this table
-        if( expVal == MATCH_ANY ) return null;   // Will not match, even after K inserts
+        if( putval == TOMBSTONE ) return TOMBSTONE; // Not-now & never-been in this table
+        if( expVal == MATCH_ANY ) return TOMBSTONE; // Will not match, even after K inserts
         // Claim the null key-slot
         if( CAS_key(kvs,idx, null, key ) ) { // Claim slot for Key
           chm._slots.add(1);      // Raise key-slots-used count
