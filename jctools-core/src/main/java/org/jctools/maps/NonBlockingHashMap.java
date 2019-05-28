@@ -379,7 +379,6 @@ public class NonBlockingHashMap<TypeK, TypeV>
     if (oldVal == null || newVal == null) throw new NullPointerException();
     final Object res = putIfMatch( this, _kvs, key, newVal, oldVal );
     assert !(res instanceof Prime);
-    assert res != null;
     return res == TOMBSTONE ? null : (TypeV)res;
   }
 

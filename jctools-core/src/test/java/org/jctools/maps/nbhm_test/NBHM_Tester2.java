@@ -484,6 +484,13 @@ public class NBHM_Tester2
         assertEquals("values().iterator() count", itemCount, iteratorCount);
     }
 
+    @Test
+    public void replaceMissingValue() {
+        NonBlockingHashMap<Integer, Integer> map = new NonBlockingHashMap<>();
+        assertNull(map.replace(1, 2));
+        assertFalse(map.replace(1, 2, 3));
+    }
+
     // --- Tests on equality of values
     @Test
     public void replaceResultIsBasedOnEquality() {
