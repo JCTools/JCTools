@@ -130,6 +130,13 @@ public class NBHML_Tester2
 
 
     @Test
+    public void replaceMissingValue() {
+        NonBlockingHashMapLong<Integer> map = new NonBlockingHashMapLong<>();
+        assertNull(map.replace(1, 2));
+        assertFalse(map.replace(1, 2, 3));
+    }
+    
+    @Test
     public void testIterationBig2()
     {
         final int CNT = 10000;

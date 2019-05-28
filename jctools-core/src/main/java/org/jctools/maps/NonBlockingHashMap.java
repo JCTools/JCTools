@@ -767,7 +767,7 @@ public class NonBlockingHashMap<TypeK, TypeV>
           (expVal != MATCH_ANY || V == TOMBSTONE || V == null) &&
           !(V==null && expVal == TOMBSTONE) &&    // Match on null/TOMBSTONE combo
           (expVal == null || !expVal.equals(V)) ) // Expensive equals check at the last
-        return V;                                 // Do not update!
+        return (V==null) ? TOMBSTONE : V;         // Do not update!
 
       // Actually change the Value in the Key,Value pair
       if( CAS_val(kvs, idx, V, putval ) ) break;

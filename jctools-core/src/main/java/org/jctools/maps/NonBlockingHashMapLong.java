@@ -561,8 +561,8 @@ public class NonBlockingHashMapLong<TypeV>
         if( K == NO_KEY ) {     // Slot is free?
           // Found an empty Key slot - which means this Key has never been in
           // this table.  No need to put a Tombstone - the Key is not here!
-          if( putval == TOMBSTONE ) return putval; // Not-now & never-been in this table
-          if( expVal == MATCH_ANY ) return null;   // Will not match, even after K inserts
+          if( putval == TOMBSTONE ) return TOMBSTONE; // Not-now & never-been in this table
+          if( expVal == MATCH_ANY ) return TOMBSTONE; // Will not match, even after K inserts
           // Claim the zero key-slot
           if( CAS_key(idx, NO_KEY, key) ) { // Claim slot for Key
             _slots.add(1);      // Raise key-slots-used count
@@ -635,7 +635,7 @@ public class NonBlockingHashMapLong<TypeV>
           (expVal != MATCH_ANY || V == TOMBSTONE || V == null) &&
           !(V==null && expVal == TOMBSTONE) &&    // Match on null/TOMBSTONE combo
           (expVal == null || !expVal.equals(V)) ) // Expensive equals check at the last
-        return V;                                 // Do not update!
+        return (V==null) ? TOMBSTONE : V;         // Do not update!
 
       // Actually change the Value in the Key,Value pair
       if( CAS_val(idx, V, putval ) ) {
