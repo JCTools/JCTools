@@ -13,14 +13,14 @@
  */
 package org.jctools.maps;
 
-import org.jctools.util.RangeUtil;
-
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.*;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+
+import org.jctools.util.RangeUtil;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeAccess.fieldOffset;
@@ -362,7 +362,7 @@ public class NonBlockingHashMap<TypeK, TypeV>
   public final TypeV putIfMatchAllowNull( Object key, Object newVal, Object oldVal ) {
     if( oldVal == null ) oldVal = TOMBSTONE;
     if( newVal == null ) newVal = TOMBSTONE;
-    final TypeV res = (TypeV)putIfMatch( this, _kvs, key, newVal, oldVal );
+    final TypeV res = (TypeV) putIfMatch0(this, _kvs, key, newVal, oldVal );
     assert !(res instanceof Prime);
     //assert res != null;
     return res == TOMBSTONE ? null : res;
@@ -377,7 +377,7 @@ public class NonBlockingHashMap<TypeK, TypeV>
    */
   public final TypeV putIfMatch( Object key, Object newVal, Object oldVal ) {
     if (oldVal == null || newVal == null) throw new NullPointerException();
-    final Object res = putIfMatch( this, _kvs, key, newVal, oldVal );
+    final Object res = putIfMatch0(this, _kvs, key, newVal, oldVal );
     assert !(res instanceof Prime);
     assert res != null;
     return res == TOMBSTONE ? null : (TypeV)res;
@@ -624,14 +624,31 @@ public class NonBlockingHashMap<TypeK, TypeV>
     }
   }
 
-  // --- putIfMatch ---------------------------------------------------------
-  // Put, Remove, PutIfAbsent, etc.  Return the old value.  If the returned
-  // value is equal to expVal (or expVal is NO_MATCH_OLD) then the put can be
-  // assumed to work (although might have been immediately overwritten).  Only
-  // the path through copy_slot passes in an expected value of null, and
-  // putIfMatch only returns a null if passed in an expected null.
   static volatile int DUMMY_VOLATILE;
-  private static final Object putIfMatch( final NonBlockingHashMap topmap, final Object[] kvs, final Object key, final Object putval, final Object expVal ) {
+  /**
+   * Put, Remove, PutIfAbsent, etc.  Return the old value.  If the returned value is equal to expVal (or expVal is
+   * {@link #NO_MATCH_OLD}) then the put can be assumed to work (although might have been immediately overwritten). 
+   * Only the path through copy_slot passes in an expected value of null, and putIfMatch only returns a null if passed
+   * in an expected null.
+   * 
+   * @param topmap the map to act on
+   * @param kvs the KV table snapshot we act on
+   * @param key not null (will result in {@link NullPointerException})
+   * @param putval the new value to use. Not null. {@link #TOMBSTONE} will result in deleting the entry.
+   * @param expVal expected old value. Can be null. {@link #NO_MATCH_OLD} for an unconditional put/remove.
+   *              {@link #TOMBSTONE} if we expect old entry to not exist(null/{@link #TOMBSTONE} value).
+   *              {@link #MATCH_ANY} will ignore the current value, but only if an entry exists. A null expVal is used
+   *               internally to perform a strict insert-if-never-been-seen-before operation.
+   * @return {@link #TOMBSTONE} if key does not exist or match has failed. null if expVal is
+   * null AND old value was null. Otherwise the old entry value (not null).              
+   */
+  private static final Object putIfMatch0(
+      final NonBlockingHashMap topmap,
+      final Object[] kvs,
+      final Object key,
+      final Object putval,
+      final Object expVal)
+  {
     assert putval != null;
     assert !(putval instanceof Prime);
     assert !(expVal instanceof Prime);
@@ -701,7 +718,7 @@ public class NonBlockingHashMap<TypeK, TypeV>
         // to claim a key slot (indeed, we cannot find a free one to claim!).
         newkvs = chm.resize(topmap,kvs);
         if( expVal != null ) topmap.help_copy(newkvs); // help along an existing copy
-        return putIfMatch(topmap,newkvs,key,putval,expVal);
+        return putIfMatch0(topmap, newkvs, key, putval, expVal);
       }
 
       idx = (idx+1)&(len-1); // Reprobe!
@@ -735,7 +752,7 @@ public class NonBlockingHashMap<TypeK, TypeV>
       // See if we are moving to a new table.
       // If so, copy our slot and retry in the new table.
       if( newkvs != null )
-        return putIfMatch(topmap,chm.copy_slot_and_check(topmap,kvs,idx,expVal),key,putval,expVal);
+        return putIfMatch0(topmap, chm.copy_slot_and_check(topmap, kvs, idx, expVal), key, putval, expVal);
 
       // ---
       // We are finally prepared to update the existing table
@@ -770,7 +787,7 @@ public class NonBlockingHashMap<TypeK, TypeV>
       // If a Prime'd value got installed, we need to re-run the put on the
       // new table.  Otherwise we lost the CAS to another racing put.
       if( V instanceof Prime )
-        return putIfMatch(topmap,chm.copy_slot_and_check(topmap,kvs,idx,expVal),key,putval,expVal);
+        return putIfMatch0(topmap, chm.copy_slot_and_check(topmap, kvs, idx, expVal), key, putval, expVal);
 
       // Simply retry from the start.
       // NOTE: need the fence, since otherwise 'val(kvs,idx)' load could be hoisted
@@ -1169,7 +1186,7 @@ public class NonBlockingHashMap<TypeK, TypeV>
       // appears in the old table.
       Object old_unboxed = ((Prime)oldval)._V;
       assert old_unboxed != TOMBSTONE;
-      putIfMatch(topmap, newkvs, key, old_unboxed, null);
+      putIfMatch0(topmap, newkvs, key, old_unboxed, null);
 
       // ---
       // Finally, now that any old value is exposed in the new table, we can
@@ -1236,7 +1253,7 @@ public class NonBlockingHashMap<TypeK, TypeV>
     }
     public void remove() {
       if( _prevV == null ) throw new IllegalStateException();
-      putIfMatch( NonBlockingHashMap.this, _sskvs, _prevK, TOMBSTONE, _prevV );
+      putIfMatch0(NonBlockingHashMap.this, _sskvs, _prevK, TOMBSTONE, _prevV );
       _prevV = null;
     }
 
