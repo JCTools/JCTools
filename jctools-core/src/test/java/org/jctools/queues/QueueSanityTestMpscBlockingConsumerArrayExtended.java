@@ -115,6 +115,7 @@ public class QueueSanityTestMpscBlockingConsumerArrayExtended
     public void testTakeBlocksAndIsInterrupted() throws Exception
     {
         final AtomicBoolean wasInterrupted = new AtomicBoolean();
+        final AtomicBoolean interruptedStatusAfter = new AtomicBoolean();
         final MpscBlockingConsumerArrayQueue<Integer> q = new MpscBlockingConsumerArrayQueue<>(1024);
         Thread consumer = new Thread(() -> {
             try
@@ -125,6 +126,7 @@ public class QueueSanityTestMpscBlockingConsumerArrayExtended
             {
                 wasInterrupted.set(true);
             }
+            interruptedStatusAfter.set(Thread.currentThread().isInterrupted());
         });
         consumer.setDaemon(true);
         consumer.start();
@@ -136,8 +138,12 @@ public class QueueSanityTestMpscBlockingConsumerArrayExtended
         consumer.interrupt();
         consumer.join();
         assertTrue(wasInterrupted.get());
+        assertFalse(interruptedStatusAfter.get());
+        
+        // Queue should remain in original state (empty)
+        assertNull(q.poll());
     }
-    
+
     @Test(timeout = 1000L)
     public void testTakeSomeElementsThenBlocksAndIsInterrupted() throws Exception
     {
