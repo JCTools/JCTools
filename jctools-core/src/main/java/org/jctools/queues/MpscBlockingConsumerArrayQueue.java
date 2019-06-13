@@ -26,8 +26,10 @@ import static org.jctools.queues.CircularArrayOffsetCalculator.allocate;
 import static org.jctools.queues.LinkedArrayQueueUtil.modifiedCalcElementOffset;
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeAccess.fieldOffset;
+import static org.jctools.util.UnsafeRefArrayAccess.lpElement;
 import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
 import static org.jctools.util.UnsafeRefArrayAccess.soElement;
+import static org.jctools.util.UnsafeRefArrayAccess.spElement;
 
 abstract class MpscBlockingConsumerArrayQueuePad1<E> extends AbstractQueue<E> implements IndexedQueue
 {
@@ -307,9 +309,9 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         {
             return false;
         }
-        
-        soElement(buffer, offset, e);
-        soBlocked(null); // releases the consumer from the park loop
+
+        spElement(buffer, offset, e);
+        soBlocked(null); // releases the consumer from the park loop and store release the element
         LockSupport.unpark(consumerThread);
         return true;
     }
@@ -375,10 +377,15 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
                     }
                 }
                 while (lvBlocked() != null);
+                //no need a volatile load here, because we have load acquired the
+                //element that has been store released by soBlocked(null) on offerAndWakeup
+                e = lpElement(buffer, offset);
+                assert e != null;
             }
-            // producer index is visible before element, so if we wake up between the index moving and the element
-            // store we could see a null.
-            e = spinWaitForElement(buffer, offset);
+            else
+            {
+                e = spinWaitForElement(buffer, offset);
+            }
         }
 
         soElement(buffer, offset, null); // release element null
