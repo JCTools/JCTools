@@ -40,13 +40,15 @@ abstract class MpscProgressiveChunkedQueuePad1<E> extends AbstractQueue<E> imple
         private volatile long index;
         private volatile AtomicChunk<E> next;
         private final E[] buffer;
+        private final boolean pooled;
 
-        AtomicChunk(long index, AtomicChunk<E> prev, int size)
+        AtomicChunk(long index, AtomicChunk<E> prev, int size, boolean pooled)
         {
             buffer = CircularArrayOffsetCalculator.allocate(size);
             spNext(null);
             spPrev(prev);
             spIndex(index);
+            this.pooled = pooled;
         }
 
         final AtomicChunk<E> lvNext()
@@ -104,6 +106,10 @@ abstract class MpscProgressiveChunkedQueuePad1<E> extends AbstractQueue<E> imple
             return UnsafeRefArrayAccess.lvElement(buffer, UnsafeRefArrayAccess.calcElementOffset(index));
         }
 
+        public boolean isPooled()
+        {
+            return pooled;
+        }
     }
 }
 
@@ -213,31 +219,6 @@ abstract class MpscProgressiveChunkedQueuePad4<E> extends MpscProgressiveChunked
     long p10, p11, p12, p13, p14, p15, p16;
 }
 
-// $gen:ordered-fields
-abstract class MpscProgressiveChunkedQueueFreeBuffer<E> extends MpscProgressiveChunkedQueuePad4<E>
-{
-    private static final long F_BUFFER_OFFSET =
-        fieldOffset(MpscProgressiveChunkedQueueFreeBuffer.class, "freeBuffer");
-
-    private volatile AtomicChunk<E> freeBuffer;
-
-    final AtomicChunk<E> lvFreeBuffer()
-    {
-        return this.freeBuffer;
-    }
-
-    final void soFreeBuffer(AtomicChunk<E> buffer)
-    {
-        UNSAFE.putOrderedObject(this, F_BUFFER_OFFSET, buffer);
-    }
-}
-
-abstract class MpscProgressiveChunkedQueuePad5<E> extends MpscProgressiveChunkedQueueFreeBuffer<E>
-{
-    long p0, p1, p2, p3, p4, p5, p6, p7;
-    long p10, p11, p12, p13, p14, p15, p16;
-}
-
 /**
  * An MPSC array queue which starts at <i>initialCapacity</i> and grows unbounded in linked chunks.<br>
  * Differently from {@link MpscUnboundedArrayQueue} it is designed to provide a better scaling when more
@@ -246,22 +227,32 @@ abstract class MpscProgressiveChunkedQueuePad5<E> extends MpscProgressiveChunked
  * @param <E>
  * @author https://github.com/franz1981
  */
-public class MpscProgressiveChunkedQueue<E> extends MpscProgressiveChunkedQueuePad5<E>
+public class MpscProgressiveChunkedQueue<E> extends MpscProgressiveChunkedQueuePad4<E>
     implements MessagePassingQueue<E>, QueueProgressIndicators
 {
     private final int chunkMask;
     private final int chunkShift;
+    private final SpscArrayQueue<AtomicChunk<E>> freeBuffer;
 
-    public MpscProgressiveChunkedQueue(int chunkSize)
+    public MpscProgressiveChunkedQueue(int chunkSize, int maxPooledChunks)
     {
         chunkSize = Pow2.roundToPowerOfTwo(chunkSize);
-        final AtomicChunk<E> first = new AtomicChunk(0, null, chunkSize);
+        final AtomicChunk<E> first = new AtomicChunk(0, null, chunkSize, true);
         soProducerBuffer(first);
         soProducerChunkIndex(0);
         consumerBuffer = first;
         chunkMask = chunkSize - 1;
         chunkShift = Integer.numberOfTrailingZeros(chunkSize);
-        soFreeBuffer(new AtomicChunk(AtomicChunk.NIL_CHUNK_INDEX, null, chunkSize));
+        freeBuffer = new SpscArrayQueue<AtomicChunk<E>>(maxPooledChunks + 1);
+        for (int i = 0; i < maxPooledChunks; i++)
+        {
+            freeBuffer.offer(new AtomicChunk(AtomicChunk.NIL_CHUNK_INDEX, null, chunkSize, true));
+        }
+    }
+
+    public MpscProgressiveChunkedQueue(int chunkSize)
+    {
+        this(chunkSize, 1);
     }
 
     private AtomicChunk<E> producerBufferOf(AtomicChunk<E> producerBuffer, long expectedChunkIndex)
@@ -314,11 +305,10 @@ public class MpscProgressiveChunkedQueue<E> extends MpscProgressiveChunkedQueueP
         {
             return null;
         }
-        AtomicChunk<E> newChunk = lvFreeBuffer();
+        AtomicChunk<E> newChunk = freeBuffer.poll();
         if (newChunk != null)
         {
             //single-writer: producerBuffer::index == nextChunkIndex is protecting it
-            soFreeBuffer(null);
             assert newChunk.lvIndex() == AtomicChunk.NIL_CHUNK_INDEX;
             //prevent other concurrent attempts on appendNextChunk
             soProducerBuffer(newChunk);
@@ -328,7 +318,7 @@ public class MpscProgressiveChunkedQueue<E> extends MpscProgressiveChunkedQueueP
         }
         else
         {
-            newChunk = new AtomicChunk<E>(nextChunkIndex, producerBuffer, chunkSize);
+            newChunk = new AtomicChunk<E>(nextChunkIndex, producerBuffer, chunkSize, false);
             soProducerBuffer(newChunk);
         }
         //link the next chunk only when finished
@@ -406,13 +396,13 @@ public class MpscProgressiveChunkedQueue<E> extends MpscProgressiveChunkedQueueP
         }
         //save from nepotism
         consumerBuffer.spNext(null);
-        //recycle buffer if necessary: optimistic reciclying
-        if (lvFreeBuffer() == null)
+        //change the chunkIndex to a non valid value
+        //to stop offering threads to use this buffer
+        consumerBuffer.soIndex(AtomicChunk.NIL_CHUNK_INDEX);
+        if (consumerBuffer.isPooled())
         {
-            //change the chunkIndex to a non valid value
-            //to stop offering threads to use this buffer
-            consumerBuffer.soIndex(AtomicChunk.NIL_CHUNK_INDEX);
-            soFreeBuffer(consumerBuffer);
+            final boolean pooled = freeBuffer.offer(consumerBuffer);
+            assert pooled;
         }
         next.spPrev(null);
         return next;
@@ -522,11 +512,13 @@ public class MpscProgressiveChunkedQueue<E> extends MpscProgressiveChunkedQueueP
         }
         //save from nepotism
         consumerBuffer.spNext(null);
-        //recycle buffer if necessary: optimistic reciclying
-        if (lvFreeBuffer() == null)
+        //change the chunkIndex to a non valid value
+        //to stop offering threads to use this buffer
+        consumerBuffer.soIndex(AtomicChunk.NIL_CHUNK_INDEX);
+        if (consumerBuffer.isPooled())
         {
-            consumerBuffer.soIndex(AtomicChunk.NIL_CHUNK_INDEX);
-            soFreeBuffer(consumerBuffer);
+            final boolean pooled = freeBuffer.offer(consumerBuffer);
+            assert pooled;
         }
         next.spPrev(null);
         return next;
