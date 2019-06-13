@@ -396,6 +396,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
     @SuppressWarnings("unchecked")
     public E poll(long timeout, TimeUnit unit) throws InterruptedException
     {
+        long remainingNanos = unit.toNanos(timeout);
         final E[] buffer = consumerBuffer;
         final long mask = consumerMask;
         
@@ -404,6 +405,10 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         Object e = lvElement(buffer, offset);// LoadLoad
         if (e == null)
         {
+            if (remainingNanos <= 0)
+            {
+                return null;
+            }
             final long pIndex = lvProducerIndex();
             if (cIndex == pIndex && casProducerIndex(pIndex, pIndex + 1))
             {
@@ -412,11 +417,10 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
                 {
                     // producers only try a wakeup when both the index and the blocked thread are visible
                     soBlocked(Thread.currentThread());
-                    long remaining = unit.toNanos(timeout);
-                    final long deadline = System.nanoTime() + remaining;
+                    final long deadlineNanos = System.nanoTime() + remainingNanos;
                     while (true)
                     {
-                        LockSupport.parkNanos(this, remaining);
+                        LockSupport.parkNanos(this, remainingNanos);
                         if (Thread.interrupted())
                         {
                             throw new InterruptedException();
@@ -425,8 +429,8 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
                         {
                             break;
                         }
-                        remaining = deadline - System.nanoTime();
-                        if (remaining <= 0)
+                        remainingNanos = deadlineNanos - System.nanoTime();
+                        if (remainingNanos <= 0)
                         {
                             return null;
                         }
