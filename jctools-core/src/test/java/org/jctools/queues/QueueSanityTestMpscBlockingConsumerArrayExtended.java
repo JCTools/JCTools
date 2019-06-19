@@ -9,6 +9,7 @@ import org.junit.Test;
 
 import org.jctools.queues.QueueSanityTest.Val;
 
+import static java.util.concurrent.TimeUnit.*;
 import static org.junit.Assert.*;
 
 
@@ -59,9 +60,20 @@ public class QueueSanityTestMpscBlockingConsumerArrayExtended
         assertEquals("Unexpected offer/poll observed", 0, fail.value);
 
     }
-    
+
     @Test
     public void testOfferTakeSemantics() throws Exception
+    {
+        testOfferBlockSemantics(false);
+    }
+
+    @Test
+    public void testOfferPollWithTimeoutSemantics() throws Exception
+    {
+        testOfferBlockSemantics(true);
+    }
+
+    private void testOfferBlockSemantics(boolean withTimeout) throws Exception
     {
         final AtomicBoolean stop = new AtomicBoolean();
         final AtomicBoolean consumerLock = new AtomicBoolean(true);
@@ -86,7 +98,8 @@ public class QueueSanityTestMpscBlockingConsumerArrayExtended
                 
                 try
                 {
-                    if (q.take() == null)
+                    Integer take = withTimeout ? q.poll(1L, DAYS) : q.take();
+                    if (take == null)
                     {
                         fail.value++;
                     }
@@ -112,14 +125,42 @@ public class QueueSanityTestMpscBlockingConsumerArrayExtended
     }
 
     @Test(timeout = 1000L)
+    public void testPollTimeoutSemantics() throws Exception
+    {
+        final MpscBlockingConsumerArrayQueue<Integer> q = new MpscBlockingConsumerArrayQueue<>(2);
+
+        assertNull(q.poll(0, NANOSECONDS));
+
+        q.offer(1);
+        assertEquals((Integer) 1, q.poll(0, NANOSECONDS));
+
+        long beforeNanos = System.nanoTime();
+        assertNull(q.poll(250L, MILLISECONDS));
+        long tookMillis = MILLISECONDS.convert(System.nanoTime() - beforeNanos, NANOSECONDS);
+
+        assertTrue("took " + tookMillis + "ms", 200L < tookMillis && tookMillis < 300L);
+    }
+
+    @Test(timeout = 1000L)
     public void testTakeBlocksAndIsInterrupted() throws Exception
+    {
+        testTakeBlocksAndIsInterrupted(false);
+    }
+
+    @Test(timeout = 1000L)
+    public void testPollWithTimeoutBlocksAndIsInterrupted() throws Exception
+    {
+        testTakeBlocksAndIsInterrupted(true);
+    }
+
+    private void testTakeBlocksAndIsInterrupted(boolean withTimeout) throws Exception
     {
         final AtomicBoolean wasInterrupted = new AtomicBoolean();
         final MpscBlockingConsumerArrayQueue<Integer> q = new MpscBlockingConsumerArrayQueue<>(1024);
         Thread consumer = new Thread(() -> {
             try
             {
-                q.take();
+                Integer take = withTimeout ? q.poll(1L, DAYS) : q.take();
             }
             catch (InterruptedException e)
             {
@@ -128,7 +169,8 @@ public class QueueSanityTestMpscBlockingConsumerArrayExtended
         });
         consumer.setDaemon(true);
         consumer.start();
-        while(consumer.getState() != State.WAITING)
+        State waitState = withTimeout ? State.TIMED_WAITING : State.WAITING;
+        while(consumer.getState() != waitState)
         {
             Thread.yield();
         }
@@ -137,9 +179,20 @@ public class QueueSanityTestMpscBlockingConsumerArrayExtended
         consumer.join();
         assertTrue(wasInterrupted.get());
     }
-    
+
     @Test(timeout = 1000L)
     public void testTakeSomeElementsThenBlocksAndIsInterrupted() throws Exception
+    {
+        testTakeSomeElementsThenBlocksAndIsInterrupted(false);
+    }
+
+    @Test(timeout = 1000L)
+    public void testTakeSomeElementsThenPollWithTimeoutAndIsInterrupted() throws Exception
+    {
+        testTakeSomeElementsThenBlocksAndIsInterrupted(true);
+    }
+
+    private void testTakeSomeElementsThenBlocksAndIsInterrupted(boolean withTimeout) throws Exception
     {
         Val v = new Val();
         final AtomicBoolean wasInterrupted = new AtomicBoolean();
@@ -149,7 +202,7 @@ public class QueueSanityTestMpscBlockingConsumerArrayExtended
             {
                 while (true)
                 {
-                    Integer take = q.take();
+                    Integer take = withTimeout ? q.poll(1L, DAYS) : q.take();
                     assertNotNull(take); // take never returns null
                     assertEquals(take.intValue(), v.value);
                     v.value++;
@@ -162,7 +215,8 @@ public class QueueSanityTestMpscBlockingConsumerArrayExtended
         });
         consumer.setDaemon(true);
         consumer.start();
-        while(consumer.getState() != State.WAITING)
+        State waitState = withTimeout ? State.TIMED_WAITING : State.WAITING;
+        while(consumer.getState() != waitState)
         {
             Thread.yield();
         }
@@ -177,7 +231,7 @@ public class QueueSanityTestMpscBlockingConsumerArrayExtended
         }
         // Eventually queue is drained
         
-        while(consumer.getState() != State.WAITING)
+        while(consumer.getState() != waitState)
         {
             Thread.yield();
         }
