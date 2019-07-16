@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/JCTools/JCTools.svg?branch=master)](https://travis-ci.org/JCTools/JCTools)
+
 [![Coverage Status](https://coveralls.io/repos/github/JCTools/JCTools/badge.svg?branch=master)](https://coveralls.io/github/JCTools/JCTools?branch=master)
 
 [![Gitter](https://badges.gitter.im/JCTools/JCTools.svg)](https://gitter.im/JCTools/JCTools?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
@@ -93,6 +94,8 @@ platform for knowledge sharing than twitter/mailing-list/gitter (or at least tha
 
 Thanks!!!
 =====
-We have kindly been awarded [IntelliJ IDEA](https://www.jetbrains.com/idea/) licences by [JetBrains](https://www.jetbrains.com/) to aid in the development of JCTools. It's a great suite of tools which has benefited the developers and ultimately the community. It's an awesome and inspiring company, [**BUY THEIR PRODUCTS NOW!!!**](https://www.jetbrains.com/store/#edition=commercial)
+We have kindly been awarded [IntelliJ IDEA](https://www.jetbrains.com/idea/) licences by [JetBrains](https://www.jetbrains.com/) to aid in the development of JCTools. It's a great suite of tools which has benefited the developers and ultimately the community.
+
+It's an awesome and inspiring company, [**BUY THEIR PRODUCTS NOW!!!**](https://www.jetbrains.com/store/#edition=commercial)
 
 JCTools has enjoyed a steady stream of PRs, suggestions and user feedback. It's a community! Thank you all for getting involved!
