@@ -364,17 +364,32 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
             long pIndex = lvProducerIndex();
             if (cIndex == pIndex && casProducerIndex(pIndex, pIndex + 1))
             {
-                // producers only try a wakeup when both the index and the blocked thread are visible
-                soBlocked(Thread.currentThread());
-                do
+                boolean unblocked = false;
+                try
                 {
-                    LockSupport.park();
-                    if (Thread.currentThread().isInterrupted())
+                    // producers only try a wakeup when both the index and the blocked thread are visible
+                    soBlocked(Thread.currentThread());
+                    do
                     {
-                        throw new InterruptedException();
+                        LockSupport.park();
+                        if (Thread.interrupted())
+                        {
+                            throw new InterruptedException();
+                        }
+                    }
+                    while (lvBlocked() != null);
+                    unblocked = true;
+                }
+                finally
+                {
+                    if (!unblocked) {
+                        // revert blocking state
+                        if (casProducerIndex(pIndex + 1, pIndex))
+                        {
+                            soBlocked(null);
+                        }
                     }
                 }
-                while (lvBlocked() != null);
             }
             // producer index is visible before element, so if we wake up between the index moving and the element
             // store we could see a null.
