@@ -14,7 +14,9 @@
 package org.jctools.queues;
 
 import java.util.AbstractQueue;
+import java.util.Collection;
 import java.util.Iterator;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
@@ -164,11 +166,12 @@ abstract class MpscBlockingConsumerArrayQueueConsumerFields<E> extends MpscBlock
 
 
 /**
- *
- * @param <E>
+ * This is a partial implementation of the {@link java.util.concurrent.BlockingQueue} on the consumer side only on top
+ * of the mechanics described in {@link BaseMpscLinkedArrayQueue}, but with the reservation bit used for blocking rather
+ * than resizing in this instance.
  */
 public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArrayQueueConsumerFields<E>
-    implements MessagePassingQueue<E>, QueueProgressIndicators
+    implements MessagePassingQueue<E>, QueueProgressIndicators, BlockingQueue<E>
 {
     long p0, p1, p2, p3, p4, p5, p6, p7;
     long p10, p11, p12, p13, p14, p15, p16, p17;
@@ -289,6 +292,21 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         // INDEX visible before ELEMENT
         soElement(buffer, offset, e); // release element e
         return true;
+    }
+
+    @Override
+    public void put(E e) throws InterruptedException
+    {
+        if (!offer(e))
+            throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public boolean offer(E e, long timeout, TimeUnit unit) throws InterruptedException
+    {
+        if (offer(e))
+            return true;
+        throw new UnsupportedOperationException();
     }
 
     private boolean offerAndWakeup(E[] buffer, long mask, long pIndex, E e)
@@ -473,6 +491,24 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         soConsumerIndex(cIndex + 2); // release cIndex
         
         return (E) e;
+    }
+
+    @Override
+    public int remainingCapacity()
+    {
+        return capacity() - size();
+    }
+
+    @Override
+    public int drainTo(Collection<? super E> c)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public int drainTo(Collection<? super E> c, int maxElements)
+    {
+        throw new UnsupportedOperationException();
     }
 
     /**
