@@ -15,6 +15,7 @@ package org.jctools.queues;
 
 import java.util.AbstractQueue;
 import java.util.Iterator;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
 import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
@@ -361,7 +362,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         Object e = lvElement(buffer, offset);// LoadLoad
         if (e == null)
         {
-            long pIndex = lvProducerIndex();
+            final long pIndex = lvProducerIndex();
             if (cIndex == pIndex && casProducerIndex(pIndex, pIndex + 1))
             {
                 boolean unblocked = false;
@@ -401,7 +402,79 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         
         return (E) e;
     }
-    
+
+    /**
+     * {@inheritDoc}
+     * <p>
+     * This implementation is correct for single consumer thread use only.
+     */
+    @SuppressWarnings("unchecked")
+    public E poll(long timeout, TimeUnit unit) throws InterruptedException
+    {
+        long remainingNanos = unit.toNanos(timeout);
+        final E[] buffer = consumerBuffer;
+        final long mask = consumerMask;
+        
+        final long cIndex = lpConsumerIndex();
+        final long offset = modifiedCalcElementOffset(cIndex, mask);
+        Object e = lvElement(buffer, offset);// LoadLoad
+        if (e == null)
+        {
+            if (remainingNanos <= 0)
+            {
+                return null;
+            }
+            final long pIndex = lvProducerIndex();
+            if (cIndex == pIndex && casProducerIndex(pIndex, pIndex + 1))
+            {
+                boolean unblocked = false;
+                try
+                {
+                    // producers only try a wakeup when both the index and the blocked thread are visible
+                    soBlocked(Thread.currentThread());
+                    final long deadlineNanos = System.nanoTime() + remainingNanos;
+                    while (true)
+                    {
+                        LockSupport.parkNanos(this, remainingNanos);
+                        if (Thread.interrupted())
+                        {
+                            throw new InterruptedException();
+                        }
+                        if (lvBlocked() == null)
+                        {
+                            break;
+                        }
+                        remainingNanos = deadlineNanos - System.nanoTime();
+                        if (remainingNanos <= 0)
+                        {
+                            return null;
+                        }
+                    }
+                    unblocked = true;
+                }
+                finally
+                {
+                    if (!unblocked)
+                    {
+                        // revert blocking state
+                        if (casProducerIndex(pIndex + 1, pIndex))
+                        {
+                            soBlocked(null);
+                        }
+                    }
+                }
+            }
+            // producer index is visible before element, so if we wake up between the index moving and the element
+            // store we could see a null.
+            e = spinWaitForElement(buffer, offset);
+        }
+
+        soElement(buffer, offset, null); // release element null
+        soConsumerIndex(cIndex + 2); // release cIndex
+        
+        return (E) e;
+    }
+
     /**
      * {@inheritDoc}
      * <p>
