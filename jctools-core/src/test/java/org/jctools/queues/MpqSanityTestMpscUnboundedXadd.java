@@ -9,10 +9,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 
 @RunWith(Parameterized.class)
-public class MpqSanityTestMpscProgressiveChunked extends MpqSanityTest
+public class MpqSanityTestMpscUnboundedXadd extends MpqSanityTest
 {
 
-    public MpqSanityTestMpscProgressiveChunked(ConcurrentQueueSpec spec, MessagePassingQueue<Integer> queue)
+    public MpqSanityTestMpscUnboundedXadd(ConcurrentQueueSpec spec, MessagePassingQueue<Integer> queue)
     {
         super(spec, queue);
     }
@@ -21,8 +21,8 @@ public class MpqSanityTestMpscProgressiveChunked extends MpqSanityTest
     public static Collection<Object[]> parameters()
     {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
-        list.add(makeMpq(0, 1, 0, Ordering.FIFO, new MpscProgressiveChunkedQueue<>(1)));
-        list.add(makeMpq(0, 1, 0, Ordering.FIFO, new MpscProgressiveChunkedQueue<>(64)));
+        list.add(makeMpq(0, 1, 0, Ordering.FIFO, new MpscUnboundedXaddArrayQueue<>(1)));
+        list.add(makeMpq(0, 1, 0, Ordering.FIFO, new MpscUnboundedXaddArrayQueue<>(64)));
         return list;
     }
 }

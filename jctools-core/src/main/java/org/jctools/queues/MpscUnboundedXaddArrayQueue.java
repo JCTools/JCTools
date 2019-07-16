@@ -227,14 +227,14 @@ abstract class MpscProgressiveChunkedQueuePad4<E> extends MpscProgressiveChunked
  * @param <E>
  * @author https://github.com/franz1981
  */
-public class MpscProgressiveChunkedQueue<E> extends MpscProgressiveChunkedQueuePad4<E>
+public class MpscUnboundedXaddArrayQueue<E> extends MpscProgressiveChunkedQueuePad4<E>
     implements MessagePassingQueue<E>, QueueProgressIndicators
 {
     private final int chunkMask;
     private final int chunkShift;
     private final SpscArrayQueue<AtomicChunk<E>> freeBuffer;
 
-    public MpscProgressiveChunkedQueue(int chunkSize, int maxPooledChunks)
+    public MpscUnboundedXaddArrayQueue(int chunkSize, int maxPooledChunks)
     {
         chunkSize = Pow2.roundToPowerOfTwo(chunkSize);
         final AtomicChunk<E> first = new AtomicChunk(0, null, chunkSize, true);
@@ -250,7 +250,7 @@ public class MpscProgressiveChunkedQueue<E> extends MpscProgressiveChunkedQueueP
         }
     }
 
-    public MpscProgressiveChunkedQueue(int chunkSize)
+    public MpscUnboundedXaddArrayQueue(int chunkSize)
     {
         this(chunkSize, 1);
     }

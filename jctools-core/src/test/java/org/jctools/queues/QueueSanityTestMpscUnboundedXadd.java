@@ -10,9 +10,9 @@ import java.util.Collection;
 import java.util.Queue;
 
 @RunWith(Parameterized.class)
-public class QueueSanityTestMpscProgressiveChunked extends QueueSanityTest
+public class QueueSanityTestMpscUnboundedXadd extends QueueSanityTest
 {
-    public QueueSanityTestMpscProgressiveChunked(ConcurrentQueueSpec spec, Queue<Integer> queue)
+    public QueueSanityTestMpscUnboundedXadd(ConcurrentQueueSpec spec, Queue<Integer> queue)
     {
         super(spec, queue);
     }
@@ -21,8 +21,8 @@ public class QueueSanityTestMpscProgressiveChunked extends QueueSanityTest
     public static Collection<Object[]> parameters()
     {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
-        list.add(makeQueue(0, 1, 0, Ordering.FIFO, new MpscProgressiveChunkedQueue<>(1)));
-        list.add(makeQueue(0, 1, 0, Ordering.FIFO, new MpscProgressiveChunkedQueue<>(64)));
+        list.add(makeQueue(0, 1, 0, Ordering.FIFO, new MpscUnboundedXaddArrayQueue<>(1)));
+        list.add(makeQueue(0, 1, 0, Ordering.FIFO, new MpscUnboundedXaddArrayQueue<>(64)));
         return list;
     }
 
