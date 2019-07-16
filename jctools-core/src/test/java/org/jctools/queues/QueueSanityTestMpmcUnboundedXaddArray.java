@@ -7,11 +7,14 @@ import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Queue;
+
+import static org.junit.Assert.assertEquals;
 
 @RunWith(Parameterized.class)
-public class MpqSanityTestMpmcProgressiveChunked extends MpqSanityTest
+public class QueueSanityTestMpmcUnboundedXaddArray extends QueueSanityTest
 {
-    public MpqSanityTestMpmcProgressiveChunked(ConcurrentQueueSpec spec, MessagePassingQueue<Integer> queue)
+    public QueueSanityTestMpmcUnboundedXaddArray(ConcurrentQueueSpec spec, Queue<Integer> queue)
     {
         super(spec, queue);
     }
@@ -20,10 +23,9 @@ public class MpqSanityTestMpmcProgressiveChunked extends MpqSanityTest
     public static Collection<Object[]> parameters()
     {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
-        list.add(makeMpq(0, 0, 0, Ordering.FIFO, new MpmcProgressiveChunkedQueue<>(1)));
-        list.add(makeMpq(0, 0, 0, Ordering.FIFO, new MpmcProgressiveChunkedQueue<>(64)));
+        list.add(makeQueue(0, 0, 0, Ordering.FIFO, new MpmcUnboundedXaddArrayQueue<>(1)));
+        list.add(makeQueue(0, 0, 0, Ordering.FIFO, new MpmcUnboundedXaddArrayQueue<>(64)));
         return list;
     }
-
 
 }
