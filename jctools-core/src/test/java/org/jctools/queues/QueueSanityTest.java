@@ -290,10 +290,18 @@ public abstract class QueueSanityTest
             @Override
             public void run()
             {
-                while (!stop.get())
+                try
                 {
-                    q.offer(1);
-                    q.poll();
+                    while (!stop.get())
+                    {
+                        q.offer(1);
+                        q.poll();
+                    }
+                }
+                catch (Throwable t)
+                {
+                    t.printStackTrace();
+                    fail.value++;
                 }
             }
         };
