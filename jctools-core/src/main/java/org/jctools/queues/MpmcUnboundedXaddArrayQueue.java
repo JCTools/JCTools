@@ -516,7 +516,11 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcProgressiveChunkedQueueP
                         continue;
                     }
                     e = consumerBuffer.lvElement(consumerOffset);
-                    assert e != null;
+                    if (e == null)
+                    {
+                        //another consumer has already consumed the element
+                        continue;
+                    }
                 }
                 else
                 {
