@@ -341,7 +341,7 @@ public abstract class QueueSanityTest
 
     }
 
-    //@Test(timeout = TEST_TIMEOUT)
+    @Test(timeout = TEST_TIMEOUT)
     public void testPollAfterIsEmpty() throws Exception
     {
         final AtomicBoolean stop = new AtomicBoolean();

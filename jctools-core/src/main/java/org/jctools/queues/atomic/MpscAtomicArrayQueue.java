@@ -318,7 +318,7 @@ public class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
 
     private static final Object CONSUMED = new Object();
 
-    // TODO TBD?
+    // TODO TBD, maybe tune or heuristic
     private final static int SPIN_COUNT = 128;
 
     // consumer-local cache of highest seen producer index
@@ -337,30 +337,30 @@ public class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
     public E poll() {
         // Copy field to avoid re-reading after volatile load
         final AtomicReferenceArray<E> buffer = this.buffer;
-        long cIndex = lpConsumerIndex();
-        int offset;
-        for (long cIndexBefore = cIndex; ; cIndex++) {
-            offset = calcElementOffset(cIndex);
-            // LoadLoad
-            E e = lvElement(buffer, offset);
-            if (e == null) {
-                if (cIndexBefore != cIndex) {
-                    soConsumerIndex(cIndex);
-                }
-                break;
-            }
-            spElement(buffer, offset, null);
-            if (e != CONSUMED) {
-                // StoreStore
-                soConsumerIndex(cIndex + 1L);
-                return e;
-            }
+        long seenPIndex = seenProducerIndex;
+        final long cIndex = lpConsumerIndex();
+        final int offset = calcElementOffset(cIndex);
+        // LoadLoad
+        E e = lvElement(buffer, offset);
+        if (e != null) {
+            incrementConsumerIndex(buffer, offset, cIndex, seenPIndex);
+            return e;
         }
-        long pIndex = seenProducerIndex;
-        if (pIndex <= cIndex && (pIndex = lvProducerIndex()) == cIndex) {
+        if (seenPIndex <= cIndex && (seenPIndex = lvProducerIndex()) == cIndex) {
             return null;
         }
-        return pollMissPath(buffer, offset, cIndex, pIndex);
+        return pollMissPath(buffer, offset, cIndex, seenPIndex);
+    }
+
+    private void incrementConsumerIndex(final AtomicReferenceArray<E> buffer, int offset, long cIndex, final long pIndex) {
+        // This is called after the current cIndex slot has been read, and moves the consumer index
+        // to the next non-CONSUMED slot, nulling all preceding slots
+        spElement(buffer, offset, null);
+        // If no lookahead has happened then pIndex <= cIndex + 1 and we won't enter the loop
+        while (++cIndex < pIndex && lpElement(buffer, offset = calcElementOffset(cIndex)) == CONSUMED) {
+            spElement(buffer, offset, null);
+        }
+        soConsumerIndex(cIndex);
     }
 
     private E pollMissPath(final AtomicReferenceArray<E> buffer, final int cOffset, final long cIndex, long pIndex) {
@@ -376,14 +376,13 @@ public class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
         }
     }
 
-    private E tryRange(final AtomicReferenceArray<E> buffer, final int cOffset, long cIndex, final long pIndex) {
+    private E tryRange(final AtomicReferenceArray<E> buffer, final int cOffset, final long cIndex, final long pIndex) {
         long candidateIndex = -1L;
         E candidate = null;
         outer: while (true) {
             E e = lvElement(buffer, cOffset);
             if (e != null) {
-                spElement(buffer, cOffset, null);
-                soConsumerIndex(cIndex + 1L);
+                incrementConsumerIndex(buffer, cOffset, cIndex, pIndex);
                 return e;
             }
             for (long index = cIndex + 1L; index < pIndex; index++) {

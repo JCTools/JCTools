@@ -316,7 +316,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
 
     private static final Object CONSUMED = new Object();
 
-    private final static int SPIN_COUNT = 128; //TODO TBD?
+    private final static int SPIN_COUNT = 128; //TODO TBD, maybe tune or heuristic
 
     // consumer-local cache of highest seen producer index
     private long seenProducerIndex;
@@ -333,35 +333,35 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
     @Override
     public E poll()
     {
+        final long cIndex = lpConsumerIndex();
+        final long offset = calcElementOffset(cIndex);
         // Copy field to avoid re-reading after volatile load
         final E[] buffer = this.buffer;
-        long cIndex = lpConsumerIndex();
-        long offset;
-        for (long cIndexBefore = cIndex;; cIndex++)
+
+        long seenPIndex = seenProducerIndex;
+        E e = lvElement(buffer, offset); // LoadLoad
+        if (e != null)
         {
-            offset = calcElementOffset(cIndex);
-            E e = lvElement(buffer, offset);// LoadLoad
-            if (e == null)
-            {
-                if (cIndexBefore != cIndex)
-                {
-                    soConsumerIndex(cIndex);
-                }
-                break;
-            }
-            spElement(buffer, offset, null);
-            if (e != CONSUMED)
-            {
-                soConsumerIndex(cIndex + 1L); // StoreStore
-                return e;
-            }
+            incrementConsumerIndex(buffer, offset, cIndex, seenPIndex);
+            return e;
         }
-        long pIndex = seenProducerIndex;
-        if (pIndex <= cIndex && (pIndex = lvProducerIndex()) == cIndex)
+        if (seenPIndex <= cIndex && (seenPIndex = lvProducerIndex()) == cIndex)
         {
             return null;
         }
-        return pollMissPath(buffer, offset, cIndex, pIndex);
+        return pollMissPath(buffer, offset, cIndex, seenPIndex);
+    }
+
+    private void incrementConsumerIndex(final E[] buffer, long offset, long cIndex, final long pIndex) {
+        // This is called after the current cIndex slot has been read, and moves the consumer index
+        // to the next non-CONSUMED slot, nulling all preceding slots
+        spElement(buffer, offset, null);
+        // If no lookahead has happened then pIndex <= cIndex + 1 and we won't enter the loop
+        while (++cIndex < pIndex && lpElement(buffer, offset = calcElementOffset(cIndex)) == CONSUMED)
+        {
+            spElement(buffer, offset, null);
+        }
+        soConsumerIndex(cIndex);
     }
 
     private E pollMissPath(final E[] buffer, final long cOffset, final long cIndex, long pIndex)
@@ -381,7 +381,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
         }
     }
 
-    private E tryRange(final E[] buffer, final long cOffset, long cIndex, final long pIndex) {
+    private E tryRange(final E[] buffer, final long cOffset, final long cIndex, final long pIndex) {
         long candidateIndex = -1L;
         E candidate = null;
         outer: while (true)
@@ -389,8 +389,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
             E e = lvElement(buffer, cOffset);
             if (e != null)
             {
-                spElement(buffer, cOffset, null);
-                soConsumerIndex(cIndex + 1L);
+                incrementConsumerIndex(buffer, cOffset, cIndex, pIndex);
                 return e;
             }
             for (long index = cIndex + 1L; index < pIndex; index++)
