@@ -314,6 +314,13 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
         return 0; // AWESOME :)
     }
 
+    private static final Object CONSUMED = new Object();
+
+    private final static int SPIN_COUNT = 128; //TODO TBD?
+
+    // consumer-local cache of highest seen producer index
+    private long seenProducerIndex;
+
     /**
      * {@inheritDoc}
      * <p>
@@ -326,37 +333,84 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
     @Override
     public E poll()
     {
-        final long cIndex = lpConsumerIndex();
-        final long offset = calcElementOffset(cIndex);
         // Copy field to avoid re-reading after volatile load
         final E[] buffer = this.buffer;
-
-        // If we can't see the next available element we can't poll
-        E e = lvElement(buffer, offset); // LoadLoad
-        if (null == e)
+        long cIndex = lpConsumerIndex();
+        long offset;
+        for (long cIndexBefore = cIndex;; cIndex++)
         {
-            /*
-             * NOTE: Queue may not actually be empty in the case of a producer (P1) being interrupted after
-             * winning the CAS on offer but before storing the element in the queue. Other producers may go on
-             * to fill up the queue after this element.
-             */
-            if (cIndex != lvProducerIndex())
+            offset = calcElementOffset(cIndex);
+            E e = lvElement(buffer, offset);// LoadLoad
+            if (e == null)
             {
-                do
+                if (cIndexBefore != cIndex)
                 {
-                    e = lvElement(buffer, offset);
+                    soConsumerIndex(cIndex);
                 }
-                while (e == null);
+                break;
             }
-            else
+            spElement(buffer, offset, null);
+            if (e != CONSUMED)
             {
-                return null;
+                soConsumerIndex(cIndex + 1L); // StoreStore
+                return e;
             }
         }
+        long pIndex = seenProducerIndex;
+        if (pIndex <= cIndex && (pIndex = lvProducerIndex()) == cIndex)
+        {
+            return null;
+        }
+        return pollMissPath(buffer, offset, cIndex, pIndex);
+    }
 
-        spElement(buffer, offset, null);
-        soConsumerIndex(cIndex + 1); // StoreStore
-        return e;
+    private E pollMissPath(final E[] buffer, final long cOffset, final long cIndex, long pIndex)
+    {
+        while (true)
+        {
+            for (int i = 0; i < SPIN_COUNT; i++)
+            {
+                E e = tryRange(buffer, cOffset, cIndex, pIndex);
+                if (e != null)
+                {
+                    seenProducerIndex = pIndex;
+                    return e;
+                }
+            }
+            pIndex = lvProducerIndex();
+        }
+    }
+
+    private E tryRange(final E[] buffer, final long cOffset, long cIndex, final long pIndex) {
+        long candidateIndex = -1L;
+        E candidate = null;
+        outer: while (true)
+        {
+            E e = lvElement(buffer, cOffset);
+            if (e != null)
+            {
+                spElement(buffer, cOffset, null);
+                soConsumerIndex(cIndex + 1L);
+                return e;
+            }
+            for (long index = cIndex + 1L; index < pIndex; index++)
+            {
+                long offset = calcElementOffset(index);
+                if (index == candidateIndex)
+                {
+                    spElement(buffer, offset, CONSUMED);
+                    return candidate;
+                }
+                if (lpElement(buffer, offset) != CONSUMED && (e = lvElement(buffer, offset)) != null)
+                {
+                    // must loop back to verify earlier elements are still not visible
+                    candidateIndex = index;
+                    candidate = e;
+                    continue outer;
+                }
+            }
+            return null;
+        }
     }
 
     /**
