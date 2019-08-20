@@ -398,7 +398,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
                 long offset = calcElementOffset(index);
                 if (index == candidateIndex)
                 {
-                    spElement(buffer, offset, CONSUMED);
+                    spElement(buffer, offset, (E) CONSUMED);
                     return candidate;
                 }
                 if (lpElement(buffer, offset) != CONSUMED && (e = lvElement(buffer, offset)) != null)

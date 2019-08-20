@@ -139,6 +139,7 @@ public final class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomi
             switch(name) {
             case "mask":
             case "offset":
+            case "cOffset":
             case "seqOffset":
             case "lookAheadSeqOffset":
             case "lookAheadElementOffset":
