@@ -316,14 +316,6 @@ public class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
         return 0;
     }
 
-    private static final Object CONSUMED = new Object();
-
-    // TODO TBD, maybe tune or heuristic
-    private final static int SPIN_COUNT = 128;
-
-    // consumer-local cache of highest seen producer index
-    private long seenProducerIndex;
-
     /**
      * {@inheritDoc}
      * <p>
@@ -335,71 +327,31 @@ public class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
      */
     @Override
     public E poll() {
-        // Copy field to avoid re-reading after volatile load
-        final AtomicReferenceArray<E> buffer = this.buffer;
-        long seenPIndex = seenProducerIndex;
         final long cIndex = lpConsumerIndex();
         final int offset = calcElementOffset(cIndex);
+        // Copy field to avoid re-reading after volatile load
+        final AtomicReferenceArray<E> buffer = this.buffer;
+        // If we can't see the next available element we can't poll
         // LoadLoad
         E e = lvElement(buffer, offset);
-        if (e != null) {
-            incrementConsumerIndex(buffer, offset, cIndex, seenPIndex);
-            return e;
+        if (null == e) {
+            /*
+             * NOTE: Queue may not actually be empty in the case of a producer (P1) being interrupted after
+             * winning the CAS on offer but before storing the element in the queue. Other producers may go on
+             * to fill up the queue after this element.
+             */
+            if (cIndex != lvProducerIndex()) {
+                do {
+                    e = lvElement(buffer, offset);
+                } while (e == null);
+            } else {
+                return null;
+            }
         }
-        if (seenPIndex <= cIndex && (seenPIndex = lvProducerIndex()) == cIndex) {
-            return null;
-        }
-        return pollMissPath(buffer, offset, cIndex, seenPIndex);
-    }
-
-    private void incrementConsumerIndex(final AtomicReferenceArray<E> buffer, int offset, long cIndex, final long pIndex) {
-        // This is called after the current cIndex slot has been read, and moves the consumer index
-        // to the next non-CONSUMED slot, nulling all preceding slots
         spElement(buffer, offset, null);
-        // If no lookahead has happened then pIndex <= cIndex + 1 and we won't enter the loop
-        while (++cIndex < pIndex && lpElement(buffer, offset = calcElementOffset(cIndex)) == CONSUMED) {
-            spElement(buffer, offset, null);
-        }
-        soConsumerIndex(cIndex);
-    }
-
-    private E pollMissPath(final AtomicReferenceArray<E> buffer, final int cOffset, final long cIndex, long pIndex) {
-        while (true) {
-            for (int i = 0; i < SPIN_COUNT; i++) {
-                E e = tryRange(buffer, cOffset, cIndex, pIndex);
-                if (e != null) {
-                    seenProducerIndex = pIndex;
-                    return e;
-                }
-            }
-            pIndex = lvProducerIndex();
-        }
-    }
-
-    private E tryRange(final AtomicReferenceArray<E> buffer, final int cOffset, final long cIndex, final long pIndex) {
-        long candidateIndex = -1L;
-        E candidate = null;
-        outer: while (true) {
-            E e = lvElement(buffer, cOffset);
-            if (e != null) {
-                incrementConsumerIndex(buffer, cOffset, cIndex, pIndex);
-                return e;
-            }
-            for (long index = cIndex + 1L; index < pIndex; index++) {
-                int offset = calcElementOffset(index);
-                if (index == candidateIndex) {
-                    spElement(buffer, offset, (E) CONSUMED);
-                    return candidate;
-                }
-                if (lpElement(buffer, offset) != CONSUMED && (e = lvElement(buffer, offset)) != null) {
-                    // must loop back to verify earlier elements are still not visible
-                    candidateIndex = index;
-                    candidate = e;
-                    continue outer;
-                }
-            }
-            return null;
-        }
+        // StoreStore
+        soConsumerIndex(cIndex + 1);
+        return e;
     }
 
     /**

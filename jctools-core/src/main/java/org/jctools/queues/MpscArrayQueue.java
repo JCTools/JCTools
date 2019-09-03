@@ -109,6 +109,8 @@ abstract class MpscArrayQueueConsumerIndexField<E> extends MpscArrayQueueL2Pad<E
     private final static long C_INDEX_OFFSET = fieldOffset(MpscArrayQueueConsumerIndexField.class, "consumerIndex");
 
     private volatile long consumerIndex;
+    // consumer-local cache of highest seen producer index
+    protected long seenProducerIndex;
 
     MpscArrayQueueConsumerIndexField(int capacity)
     {
@@ -314,12 +316,9 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
         return 0; // AWESOME :)
     }
 
-    private static final Object CONSUMED = new Object();
+    private final static Object CONSUMED = new Object();
 
-    private final static int SPIN_COUNT = 128; //TODO TBD, maybe tune or heuristic
-
-    // consumer-local cache of highest seen producer index
-    private long seenProducerIndex;
+    private final static int SPIN_COUNT = 256; //TODO TBD, maybe tune or heuristic
 
     /**
      * {@inheritDoc}
