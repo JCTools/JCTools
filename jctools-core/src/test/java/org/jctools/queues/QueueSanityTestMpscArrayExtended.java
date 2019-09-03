@@ -34,7 +34,7 @@ public class QueueSanityTestMpscArrayExtended
         Assert.assertTrue(queue.offerIfBelowThreshold(i, 16));
     }
     
-    @Test
+    //@Test
     public void testOfferPollSemantics() throws Exception
     {
         final AtomicBoolean stop = new AtomicBoolean();

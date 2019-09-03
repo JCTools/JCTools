@@ -109,6 +109,8 @@ abstract class MpscArrayQueueConsumerIndexField<E> extends MpscArrayQueueL2Pad<E
     private final static long C_INDEX_OFFSET = fieldOffset(MpscArrayQueueConsumerIndexField.class, "consumerIndex");
 
     private volatile long consumerIndex;
+    // consumer-local cache of highest seen producer index
+    protected long seenProducerIndex;
 
     MpscArrayQueueConsumerIndexField(int capacity)
     {
@@ -314,6 +316,10 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
         return 0; // AWESOME :)
     }
 
+    private final static Object CONSUMED = new Object();
+
+    private final static int SPIN_COUNT = 256; //TODO TBD, maybe tune or heuristic
+
     /**
      * {@inheritDoc}
      * <p>
@@ -331,32 +337,78 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
         // Copy field to avoid re-reading after volatile load
         final E[] buffer = this.buffer;
 
-        // If we can't see the next available element we can't poll
+        long seenPIndex = seenProducerIndex;
         E e = lvElement(buffer, offset); // LoadLoad
-        if (null == e)
+        if (e != null)
         {
-            /*
-             * NOTE: Queue may not actually be empty in the case of a producer (P1) being interrupted after
-             * winning the CAS on offer but before storing the element in the queue. Other producers may go on
-             * to fill up the queue after this element.
-             */
-            if (cIndex != lvProducerIndex())
-            {
-                do
-                {
-                    e = lvElement(buffer, offset);
-                }
-                while (e == null);
-            }
-            else
-            {
-                return null;
-            }
+            incrementConsumerIndex(buffer, offset, cIndex, seenPIndex);
+            return e;
         }
+        if (seenPIndex <= cIndex && (seenPIndex = lvProducerIndex()) == cIndex)
+        {
+            return null;
+        }
+        return pollMissPath(buffer, offset, cIndex, seenPIndex);
+    }
 
+    private void incrementConsumerIndex(final E[] buffer, long offset, long cIndex, final long pIndex) {
+        // This is called after the current cIndex slot has been read, and moves the consumer index
+        // to the next non-CONSUMED slot, nulling all preceding slots
         spElement(buffer, offset, null);
-        soConsumerIndex(cIndex + 1); // StoreStore
-        return e;
+        // If no lookahead has happened then pIndex <= cIndex + 1 and we won't enter the loop
+        while (++cIndex < pIndex && lpElement(buffer, offset = calcElementOffset(cIndex)) == CONSUMED)
+        {
+            spElement(buffer, offset, null);
+        }
+        soConsumerIndex(cIndex);
+    }
+
+    private E pollMissPath(final E[] buffer, final long cOffset, final long cIndex, long pIndex)
+    {
+        while (true)
+        {
+            for (int i = 0; i < SPIN_COUNT; i++)
+            {
+                E e = tryRange(buffer, cOffset, cIndex, pIndex);
+                if (e != null)
+                {
+                    seenProducerIndex = pIndex;
+                    return e;
+                }
+            }
+            pIndex = lvProducerIndex();
+        }
+    }
+
+    private E tryRange(final E[] buffer, final long cOffset, final long cIndex, final long pIndex) {
+        long candidateIndex = -1L;
+        E candidate = null;
+        outer: while (true)
+        {
+            E e = lvElement(buffer, cOffset);
+            if (e != null)
+            {
+                incrementConsumerIndex(buffer, cOffset, cIndex, pIndex);
+                return e;
+            }
+            for (long index = cIndex + 1L; index < pIndex; index++)
+            {
+                long offset = calcElementOffset(index);
+                if (index == candidateIndex)
+                {
+                    spElement(buffer, offset, (E) CONSUMED);
+                    return candidate;
+                }
+                if (lpElement(buffer, offset) != CONSUMED && (e = lvElement(buffer, offset)) != null)
+                {
+                    // must loop back to verify earlier elements are still not visible
+                    candidateIndex = index;
+                    candidate = e;
+                    continue outer;
+                }
+            }
+            return null;
+        }
     }
 
     /**
