@@ -61,22 +61,26 @@ abstract class MpmcProgressiveChunkedQueuePad1<E> extends AbstractQueue<E> imple
         private volatile AtomicChunk<E> next;
         private final long[] sequence;
         private final E[] buffer;
+        private final int startIndex;
 
-        AtomicChunk(long index, AtomicChunk<E> prev, int size, boolean pooled)
+        AtomicChunk(long index, AtomicChunk<E> prev, E[] buffer, long[] sequence, int startIndex)
         {
-            buffer = CircularArrayOffsetCalculator.allocate(size);
+            this.buffer = buffer;
+            this.startIndex = startIndex;
             spNext(null);
             spPrev(prev);
             spIndex(index);
-            if (pooled)
-            {
-                sequence = new long[size];
-                Arrays.fill(sequence, AtomicChunk.NIL_CHUNK_INDEX);
-            }
-            else
-            {
-                sequence = null;
-            }
+            this.sequence = sequence;
+        }
+
+        AtomicChunk(long index, AtomicChunk<E> prev, int size)
+        {
+            buffer = CircularArrayOffsetCalculator.allocate(size);
+            this.startIndex = 0;
+            spNext(null);
+            spPrev(prev);
+            spIndex(index);
+            sequence = null;
         }
 
         final boolean isPooled()
@@ -91,12 +95,12 @@ abstract class MpmcProgressiveChunkedQueuePad1<E> extends AbstractQueue<E> imple
 
         final void soSequence(int index, long e)
         {
-            UNSAFE.putOrderedLong(sequence, calcSequenceOffset(index), e);
+            UNSAFE.putOrderedLong(sequence, calcSequenceOffset(index + startIndex), e);
         }
 
         final long lvSequence(int index)
         {
-            return UNSAFE.getLongVolatile(sequence, calcSequenceOffset(index));
+            return UNSAFE.getLongVolatile(sequence, calcSequenceOffset(index + startIndex));
         }
 
         final AtomicChunk<E> lvNext()
@@ -141,17 +145,17 @@ abstract class MpmcProgressiveChunkedQueuePad1<E> extends AbstractQueue<E> imple
 
         final void soElement(int index, E e)
         {
-            UnsafeRefArrayAccess.soElement(buffer, UnsafeRefArrayAccess.calcElementOffset(index), e);
+            UnsafeRefArrayAccess.soElement(buffer, UnsafeRefArrayAccess.calcElementOffset(index + startIndex), e);
         }
 
         final void spElement(int index, E e)
         {
-            UnsafeRefArrayAccess.spElement(buffer, UnsafeRefArrayAccess.calcElementOffset(index), e);
+            UnsafeRefArrayAccess.spElement(buffer, UnsafeRefArrayAccess.calcElementOffset(index + startIndex), e);
         }
 
         final E lvElement(int index)
         {
-            return UnsafeRefArrayAccess.lvElement(buffer, UnsafeRefArrayAccess.calcElementOffset(index));
+            return UnsafeRefArrayAccess.lvElement(buffer, UnsafeRefArrayAccess.calcElementOffset(index + startIndex));
         }
 
     }
@@ -289,7 +293,11 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcProgressiveChunkedQueueP
     public MpmcUnboundedXaddArrayQueue(int chunkSize, int maxPooledChunks)
     {
         chunkSize = Pow2.roundToPowerOfTwo(chunkSize);
-        final AtomicChunk<E> first = new AtomicChunk(0, null, chunkSize, true);
+        final int totalSize = chunkSize * (maxPooledChunks + 1);
+        final E[] wholeBuffer = CircularArrayOffsetCalculator.allocate(totalSize);
+        final long[] wholeSequence = new long[totalSize];
+        Arrays.fill(wholeSequence, AtomicChunk.NIL_CHUNK_INDEX);
+        final AtomicChunk<E> first = new AtomicChunk(0, null, wholeBuffer, wholeSequence, 0);
         soProducerBuffer(first);
         soProducerChunkIndex(0);
         soConsumerBuffer(first);
@@ -298,7 +306,13 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcProgressiveChunkedQueueP
         freeBuffer = new SpscArrayQueue<AtomicChunk<E>>(maxPooledChunks + 1);
         for (int i = 0; i < maxPooledChunks; i++)
         {
-            freeBuffer.offer(new AtomicChunk(AtomicChunk.NIL_CHUNK_INDEX, null, chunkSize, true));
+            final int startIndex = chunkSize * (i + 1);
+            freeBuffer.offer(new AtomicChunk(
+                AtomicChunk.NIL_CHUNK_INDEX,
+                null,
+                wholeBuffer,
+                wholeSequence,
+                startIndex));
         }
     }
 
@@ -369,7 +383,7 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcProgressiveChunkedQueueP
         }
         else
         {
-            newChunk = new AtomicChunk<E>(nextChunkIndex, producerBuffer, chunkSize, false);
+            newChunk = new AtomicChunk<E>(nextChunkIndex, producerBuffer, chunkSize);
             soProducerBuffer(newChunk);
         }
         //link the next chunk only when finished
