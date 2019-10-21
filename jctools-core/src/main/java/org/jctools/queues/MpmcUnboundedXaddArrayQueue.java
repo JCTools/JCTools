@@ -282,6 +282,7 @@ abstract class MpmcProgressiveChunkedQueuePad5<E> extends MpmcProgressiveChunked
 public class MpmcUnboundedXaddArrayQueue<E> extends MpmcProgressiveChunkedQueuePad5<E>
     implements MessagePassingQueue<E>, QueueProgressIndicators
 {
+    private static final long ROTATION = -2;
     private final int chunkMask;
     private final int chunkShift;
     private final SpscArrayQueue<AtomicChunk<E>> freeBuffer;
@@ -353,7 +354,7 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcProgressiveChunkedQueueP
         assert chunkIndex != AtomicChunk.NIL_CHUNK_INDEX;
         final long nextChunkIndex = chunkIndex + 1;
         //prevent other concurrent attempts on appendNextChunk
-        if (!casProducerChunkIndex(chunkIndex, nextChunkIndex))
+        if (!casProducerChunkIndex(chunkIndex, ROTATION))
         {
             return null;
         }
@@ -361,8 +362,6 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcProgressiveChunkedQueueP
         if (newChunk != null)
         {
             assert newChunk.lvIndex() == AtomicChunk.NIL_CHUNK_INDEX;
-            //prevent other concurrent attempts on appendNextChunk
-            soProducerBuffer(newChunk);
             newChunk.spPrev(producerBuffer);
             //index set is releasing prev, allowing other pending offers to continue
             newChunk.soIndex(nextChunkIndex);
@@ -370,8 +369,9 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcProgressiveChunkedQueueP
         else
         {
             newChunk = new AtomicChunk<E>(nextChunkIndex, producerBuffer, chunkSize, false);
-            soProducerBuffer(newChunk);
         }
+        soProducerBuffer(newChunk);
+        soProducerChunkIndex(nextChunkIndex);
         //link the next chunk only when finished
         producerBuffer.soNext(newChunk);
         return newChunk;
