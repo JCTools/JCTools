@@ -8,4 +8,4 @@ branches:
     - master
 
 after_success:
-- mvn jacoco:report coveralls:report
+- mvn jacoco:report coveralls:report -pl jctools-core
