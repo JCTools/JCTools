@@ -5,6 +5,6 @@ import java.util.Queue;
 public class ScQueueRemoveTestMpscLinked extends ScQueueRemoveTest {
     @Override
     protected Queue<Integer> newQueue() {
-        return MpscLinkedQueue.newMpscLinkedQueue();
+        return new MpscLinkedQueue();
     }
 }

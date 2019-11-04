@@ -21,14 +21,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import org.jctools.queues.MpmcArrayQueue;
-import org.jctools.queues.MpscArrayQueue;
-import org.jctools.queues.MpscCompoundQueue;
-import org.jctools.queues.MpscLinkedQueue7;
-import org.jctools.queues.MpscLinkedQueue8;
-import org.jctools.queues.SpmcArrayQueue;
-import org.jctools.queues.SpscArrayQueue;
-import org.jctools.queues.SpscLinkedQueue;
+import org.jctools.queues.*;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
 import org.jctools.util.CompilationResult;
@@ -40,9 +33,9 @@ import org.jctools.util.UnsafeAccess;
  * The queue factory produces {@link java.util.Queue} instances based on a best fit to the {@link ConcurrentQueueSpec}.
  * This allows minimal dependencies between user code and the queue implementations and gives users a way to express
  * their requirements on a higher level.
- * 
+ *
  * @author nitsanw
- * 
+ *
  */
 public class BlockingQueueFactory {
 
@@ -117,11 +110,7 @@ public class BlockingQueueFactory {
             }
             // MPSC
             else if (qs.isMpsc()) {
-                if (UnsafeAccess.SUPPORTS_GET_AND_SET) {
-                    return getBlockingQueueFrom(MpscLinkedQueue8.class, takeStratClass, putStratClass, -1);
-                } else {
-                    return getBlockingQueueFrom(MpscLinkedQueue7.class, takeStratClass, putStratClass, -1);
-                }
+                    return getBlockingQueueFrom(MpscLinkedQueue.class, takeStratClass, putStratClass, -1);
             }
 
             // Default unbounded blocking : CLQ based
@@ -173,7 +162,7 @@ public class BlockingQueueFactory {
         // Instantiate new Blocking queue
         BlockingQueue<E> q = null;
         try {
-            
+
             q = (BlockingQueue<E>) blockingClass.getConstructor(Integer.TYPE).newInstance(capacity);
         } catch (Exception e) {
             throw new IllegalStateException(e);

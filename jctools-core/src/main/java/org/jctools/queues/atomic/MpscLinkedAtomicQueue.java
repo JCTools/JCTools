@@ -67,7 +67,7 @@ public class MpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
      * @see java.util.Queue#offer(java.lang.Object)
      */
     @Override
-    public final boolean offer(final E e) {
+    public boolean offer(final E e) {
         if (null == e) {
             throw new NullPointerException();
         }
@@ -98,7 +98,7 @@ public class MpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
      * @see java.util.Queue#poll()
      */
     @Override
-    public final E poll() {
+    public E poll() {
         // don't load twice, it's alright
         LinkedQueueAtomicNode<E> currConsumerNode = lpConsumerNode();
         LinkedQueueAtomicNode<E> nextNode = currConsumerNode.lvNext();
@@ -113,7 +113,7 @@ public class MpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
     }
 
     @Override
-    public final E peek() {
+    public E peek() {
         // don't load twice, it's alright
         LinkedQueueAtomicNode<E> currConsumerNode = lpConsumerNode();
         LinkedQueueAtomicNode<E> nextNode = currConsumerNode.lvNext();
@@ -134,7 +134,7 @@ public class MpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
      * with producers.
      */
     @Override
-    public final boolean remove(Object o) {
+    public boolean remove(Object o) {
         if (null == o) {
             // Null elements are not permitted, so null will never be removed.
             return false;

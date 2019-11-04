@@ -15,6 +15,8 @@ package org.jctools.queues;
 
 import org.jctools.util.UnsafeAccess;
 
+import static org.jctools.util.UnsafeAccess.UNSAFE;
+
 /**
  * This is a direct Java port of the MPSC algorithm as presented
  * <a href="http://www.1024cores.net/home/lock-free-algorithms/queues/non-intrusive-mpsc-node-based-queue"> on
@@ -30,27 +32,9 @@ import org.jctools.util.UnsafeAccess;
  * @param <E> the type of elements in this queue
  * @author nitsanw
  */
-public abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E>
+public class MpscLinkedQueue<E> extends BaseLinkedQueue<E>
 {
-    /**
-     * Construct the implementation based on availability of getAndSet intrinsic.
-     *
-     * @return the right queue for you!
-     */
-    // $gen:ignore
-    public static <E> MpscLinkedQueue<E> newMpscLinkedQueue()
-    {
-        if (UnsafeAccess.SUPPORTS_GET_AND_SET)
-        {
-            return new MpscLinkedQueue8<E>();
-        }
-        else
-        {
-            return new MpscLinkedQueue7<E>();
-        }
-    }
-
-    protected MpscLinkedQueue()
+    public MpscLinkedQueue()
     {
         LinkedQueueNode<E> node = newNode();
         spConsumerNode(node);
@@ -74,7 +58,7 @@ public abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E>
      * @see java.util.Queue#offer(java.lang.Object)
      */
     @Override
-    public final boolean offer(final E e)
+    public boolean offer(final E e)
     {
         if (null == e)
         {
@@ -106,7 +90,7 @@ public abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E>
      * @see java.util.Queue#poll()
      */
     @Override
-    public final E poll()
+    public E poll()
     {
         LinkedQueueNode<E> currConsumerNode = lpConsumerNode(); // don't load twice, it's alright
         LinkedQueueNode<E> nextNode = currConsumerNode.lvNext();
@@ -124,7 +108,7 @@ public abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E>
     }
 
     @Override
-    public final E peek()
+    public E peek()
     {
         LinkedQueueNode<E> currConsumerNode = lpConsumerNode(); // don't load twice, it's alright
         LinkedQueueNode<E> nextNode = currConsumerNode.lvNext();
@@ -148,7 +132,7 @@ public abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E>
      * with producers.
      */
     @Override
-    public final boolean remove(Object o)
+    public boolean remove(Object o)
     {
         if (null == o)
         {
@@ -241,7 +225,23 @@ public abstract class MpscLinkedQueue<E> extends BaseLinkedQueue<E>
     }
 
     // $gen:ignore
-    protected abstract LinkedQueueNode<E> xchgProducerNode(LinkedQueueNode<E> nextNode);
+    private LinkedQueueNode<E> xchgProducerNode(LinkedQueueNode<E> newVal)
+    {
+        if (UnsafeAccess.SUPPORTS_GET_AND_SET)
+        {
+            return (LinkedQueueNode<E>) UNSAFE.getAndSetObject(this, P_NODE_OFFSET, newVal);
+        }
+        else
+        {
+            Object oldVal;
+            do
+            {
+                oldVal = lvProducerNode();
+            }
+            while (!UNSAFE.compareAndSwapObject(this, P_NODE_OFFSET, oldVal, newVal));
+            return (LinkedQueueNode<E>) oldVal;
+        }
+    }
 
     private LinkedQueueNode<E> getNextConsumerNode(LinkedQueueNode<E> currConsumerNode)
     {
