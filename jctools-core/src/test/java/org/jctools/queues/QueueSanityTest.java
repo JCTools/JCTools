@@ -414,14 +414,14 @@ public abstract class QueueSanityTest
     {
         public int value;
     }
-    
+
     @Test
     public void testIterator() {
         assumeThat(queue, instanceOf(SupportsIterator.class));
 
         int capacity = ((MessagePassingQueue)queue).capacity();
         int insertLimit = (capacity == UNBOUNDED_CAPACITY) ? 128 : capacity;
-            
+
         for (int i = 0; i < insertLimit; i++) {
             queue.offer(i);
         }
@@ -431,7 +431,7 @@ public abstract class QueueSanityTest
             assertEquals(Integer.valueOf(i), iterator.next());
         }
         assertTrue((capacity == UNBOUNDED_CAPACITY) || !iterator.hasNext());
-        
+
         queue.poll(); // drop 0
         queue.offer(insertLimit); // add capacity
         iterator = queue.iterator();
