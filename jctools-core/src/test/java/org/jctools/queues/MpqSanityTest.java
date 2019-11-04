@@ -70,6 +70,20 @@ public abstract class MpqSanityTest
         queue.relaxedOffer(null);
     }
 
+
+    @Test
+    public void capacityWorks()
+    {
+        if (spec.isBounded())
+        {
+            assertEquals(Pow2.roundToPowerOfTwo(spec.capacity), queue.capacity());
+        }
+        else
+        {
+            assertEquals(MpmcArrayQueue.UNBOUNDED_CAPACITY, queue.capacity());
+        }
+    }
+
     @Test
     public void sanity()
     {
