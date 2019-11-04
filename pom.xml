@@ -44,7 +44,7 @@
     </developers>
 
     <prerequisites>
-        <maven>3.3.9</maven>
+        <maven>3.5.0</maven>
     </prerequisites>
 
     <properties>
@@ -76,7 +76,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.1</version>
+                <version>3.8.1</version>
                 <configuration>
                     <source>${maven.compiler.source}</source>
                     <target>${maven.compiler.target}</target>
@@ -87,7 +87,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
-                <version>3.0.0-M1</version>
+                <version>3.0.0-M2</version>
                 <executions>
                     <execution>
                         <id>enforce-java</id>
@@ -104,31 +104,13 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>
-              <groupId>org.eluder.coveralls</groupId>
-              <artifactId>coveralls-maven-plugin</artifactId>
-              <version>4.3.0</version>
-            </plugin>
-            <plugin>
-              <groupId>org.jacoco</groupId>
-              <artifactId>jacoco-maven-plugin</artifactId>
-              <version>0.7.9</version>
-              <executions>
-                <execution>
-                  <id>prepare-agent</id>
-                  <goals>
-                    <goal>prepare-agent</goal>
-                  </goals>
-                </execution>
-              </executions>
-            </plugin>
         </plugins>
     </build>
 
     <profiles>
         <profile>
-            <!-- For use by eclipse users using the m2 plugin that gets the source 
-                and target versions mixed up. With this you can go to right click on the projects, 
+            <!-- For use by eclipse users using the m2 plugin that gets the source
+                and target versions mixed up. With this you can go to right click on the projects,
                 select "Maven" and "Select Profiles" then check "eclipse-dev". -->
             <id>eclipse-dev</id>
             <properties>

@@ -19,7 +19,7 @@
 			<version>${hamcrest.version}</version>
 			<scope>test</scope>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
@@ -39,18 +39,17 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
-				<version>2.22.1</version>
+				<version>3.0.0-M3</version>
 				<configuration>
 					<includes>
 						<include>*</include>
 					</includes>
-					<argLine>-Xmx1024m -XX:MaxPermSize=256m</argLine>
 				</configuration>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.felix</groupId>
 				<artifactId>maven-bundle-plugin</artifactId>
-				<version>4.1.0</version>
+				<version>4.2.1</version>
 				<extensions>true</extensions>
 				<configuration>
 					<instructions>
@@ -61,7 +60,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-source-plugin</artifactId>
-				<version>3.0.1</version>
+				<version>3.2.0</version>
 				<executions>
 					<execution>
 						<id>attach-sources</id>
@@ -75,9 +74,12 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-javadoc-plugin</artifactId>
-				<version>3.0.1</version>
+				<version>3.1.1</version>
 				<configuration>
-					<doclint>none</doclint>
+					<additionalOptions>
+						<additionalOption>-Xdoclint:none</additionalOption>
+					</additionalOptions>
+					<source>8</source>
 				</configuration>
 				<executions>
 					<execution>
@@ -91,7 +93,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
-				<version>2.4</version>
+				<version>3.2.0</version>
 				<executions>
 					<execution>
 						<goals>
@@ -150,12 +152,12 @@
                                 <argument>${basedir}/src/main/java/org/jctools/queues/BaseLinkedQueue.java</argument>
                                 <argument>${basedir}/src/main/java/org/jctools/queues/SpscLinkedQueue.java</argument>
                                 <argument>${basedir}/src/main/java/org/jctools/queues/MpscLinkedQueue.java</argument>
-                                
+
                                 <argument>${basedir}/src/main/java/org/jctools/queues/BaseSpscLinkedArrayQueue.java</argument>
                                 <argument>${basedir}/src/main/java/org/jctools/queues/SpscChunkedArrayQueue.java</argument>
                                 <argument>${basedir}/src/main/java/org/jctools/queues/SpscUnboundedArrayQueue.java</argument>
                                 <argument>${basedir}/src/main/java/org/jctools/queues/SpscGrowableArrayQueue.java</argument>
-                                
+
                                 <argument>${basedir}/src/main/java/org/jctools/queues/BaseMpscLinkedArrayQueue.java</argument>
                                 <argument>${basedir}/src/main/java/org/jctools/queues/MpscChunkedArrayQueue.java</argument>
                                 <argument>${basedir}/src/main/java/org/jctools/queues/MpscUnboundedArrayQueue.java</argument>
@@ -165,14 +167,31 @@
                     </execution>
                </executions>
             </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <configuration>
-                    <source>8</source>
-                    <target>8</target>
-                </configuration>
-            </plugin>
+			<plugin>
+				<groupId>org.eluder.coveralls</groupId>
+				<artifactId>coveralls-maven-plugin</artifactId>
+				<version>4.3.0</version>
+			</plugin>
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<version>0.8.5</version>
+				<executions>
+					<execution>
+						<id>prepare-agent</id>
+						<goals>
+							<goal>prepare-agent</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>generate-code-coverage-report</id>
+						<phase>test</phase>
+						<goals>
+							<goal>report</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
         </plugins>
 	</build>
 </project>
