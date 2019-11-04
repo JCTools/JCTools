@@ -179,12 +179,12 @@ public interface MessagePassingQueue<T>
 
     /**
      * Remove all available item from the queue and hand to consume. This should be semantically similar to:
-     * <code><br/>
-     * M m;</br>
-     * while((m = relaxedPoll()) != null){</br>
-     * c.accept(m);</br>
-     * }</br>
-     * </code> There's no strong commitment to the queue being empty at the end of a drain. Called from a
+     * <pre>
+     * M m;
+     * while((m = relaxedPoll()) != null){
+     * c.accept(m);
+     * }
+     * </pre> There's no strong commitment to the queue being empty at the end of a drain. Called from a
      * consumer thread subject to the restrictions appropriate to the implementation.
      *
      * @return the number of polled elements
@@ -192,9 +192,10 @@ public interface MessagePassingQueue<T>
     int drain(Consumer<T> c);
 
     /**
-     * Stuff the queue with elements from the supplier. Semantically similar to: <code><br/>
-     * while(relaxedOffer(s.get());</br>
-     * </code> There's no strong commitment to the queue being full at the end of a fill. Called from a
+     * Stuff the queue with elements from the supplier. Semantically similar to:
+     * <pre>
+     * while(relaxedOffer(s.get());
+     * </pre> There's no strong commitment to the queue being full at the end of a fill. Called from a
      * producer thread subject to the restrictions appropriate to the implementation.
      *
      * @return the number of offered elements
@@ -205,16 +206,14 @@ public interface MessagePassingQueue<T>
      * Remove up to <i>limit</i> elements from the queue and hand to consume. This should be semantically
      * similar to:
      * <p>
-     * <pre>
-     * <code>
+     * <pre>{@code
      *   M m;
      *   int i = 0;
      *   for(;i < limit && (m = relaxedPoll()) != null; i++){
      *     c.accept(m);
      *   }
      *   return i;
-     * </code>
-     * </pre>
+     * }</pre>
      * <p>
      * There's no strong commitment to the queue being empty at the end of a drain. Called from a consumer
      * thread subject to the restrictions appropriate to the implementation.
@@ -226,11 +225,9 @@ public interface MessagePassingQueue<T>
     /**
      * Stuff the queue with up to <i>limit</i> elements from the supplier. Semantically similar to:
      * <p>
-     * <pre>
-     * <code>
-     *   for(int i=0; i < limit && relaxedOffer(s.get()); i++);</br>
-     * </code>
-     * </pre>
+     * <pre>{@code
+     *   for(int i=0; i < limit && relaxedOffer(s.get()); i++);
+     * }</pre>
      * <p>
      * There's no strong commitment to the queue being full at the end of a fill. Called from a producer
      * thread subject to the restrictions appropriate to the implementation.
@@ -243,7 +240,6 @@ public interface MessagePassingQueue<T>
      * Remove elements from the queue and hand to consume forever. Semantically similar to:
      * <p>
      * <pre>
-     * <code>
      *  int idleCounter = 0;
      *  while (exit.keepRunning()) {
      *      E e = relaxedPoll();
@@ -254,7 +250,6 @@ public interface MessagePassingQueue<T>
      *      idleCounter = 0;
      *      c.accept(e);
      *  }
-     * </code>
      * </pre>
      * <p>
      * Called from a consumer thread subject to the restrictions appropriate to the implementation.
