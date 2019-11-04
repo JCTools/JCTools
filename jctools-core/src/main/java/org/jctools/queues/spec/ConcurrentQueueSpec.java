@@ -13,6 +13,8 @@
  */
 package org.jctools.queues.spec;
 
+import org.jctools.queues.MessagePassingQueue;
+
 /**
  * @author nitsanw
  */
@@ -49,7 +51,7 @@ public final class ConcurrentQueueSpec
         super();
         this.producers = producers;
         this.consumers = consumers;
-        this.capacity = capacity;
+        this.capacity = capacity < 1 ? MessagePassingQueue.UNBOUNDED_CAPACITY : capacity;
         this.ordering = ordering;
         this.preference = preference;
     }
@@ -76,6 +78,6 @@ public final class ConcurrentQueueSpec
 
     public boolean isBounded()
     {
-        return capacity != 0;
+        return capacity != MessagePassingQueue.UNBOUNDED_CAPACITY;
     }
 }
