@@ -400,15 +400,11 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcProgressiveChunkedQueueP
         final int chunkShift = this.chunkShift;
         final long producerSeq = getAndIncrementProducerIndex();
         final int pOffset = (int) (producerSeq & chunkMask);
-        long chunkIndex = producerSeq >> chunkShift;
+        final long chunkIndex = producerSeq >> chunkShift;
         AtomicChunk<E> producerBuffer = lvProducerBuffer();
         if (producerBuffer.lvIndex() != chunkIndex)
         {
             producerBuffer = producerBufferOf(producerBuffer, chunkIndex);
-            if (producerBuffer.isPooled())
-            {
-                chunkIndex = producerBuffer.lvIndex();
-            }
         }
         final boolean isPooled = producerBuffer.isPooled();
         if (isPooled)
