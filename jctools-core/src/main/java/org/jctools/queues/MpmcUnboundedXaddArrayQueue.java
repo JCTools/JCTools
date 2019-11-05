@@ -283,6 +283,7 @@ abstract class MpmcProgressiveChunkedQueuePad5<E> extends MpmcProgressiveChunked
 public class MpmcUnboundedXaddArrayQueue<E> extends MpmcProgressiveChunkedQueuePad5<E>
     implements MessagePassingQueue<E>, QueueProgressIndicators
 {
+    private static final long ROTATION = -2;
     private final int chunkMask;
     private final int chunkShift;
     private final SpscArrayQueue<AtomicChunk<E>> freeBuffer;
@@ -332,7 +333,7 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcProgressiveChunkedQueueP
             //try validate against the last producer chunk index
             if (lvProducerChunkIndex() == producerChunkIndex)
             {
-                producerBuffer = appendNextChunk(producerBuffer, producerChunkIndex, chunkMask + 1);
+                producerBuffer = appendNextChunks(producerBuffer, producerChunkIndex, chunkMask + 1, -jumpBackward);
             }
             else
             {
@@ -349,32 +350,37 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcProgressiveChunkedQueueP
         return producerBuffer;
     }
 
-    private AtomicChunk<E> appendNextChunk(AtomicChunk<E> producerBuffer, long chunkIndex, int chunkSize)
+    private AtomicChunk<E> appendNextChunks(AtomicChunk<E> producerBuffer, long chunkIndex, int chunkSize, long chunks)
     {
         assert chunkIndex != AtomicChunk.NIL_CHUNK_INDEX;
-        final long nextChunkIndex = chunkIndex + 1;
         //prevent other concurrent attempts on appendNextChunk
-        if (!casProducerChunkIndex(chunkIndex, nextChunkIndex))
+        if (!casProducerChunkIndex(chunkIndex, ROTATION))
         {
             return null;
         }
-        AtomicChunk<E> newChunk = freeBuffer.poll();
-        if (newChunk != null)
+        AtomicChunk<E> newChunk = null;
+        for (long i = 1; i <= chunks; i++)
         {
-            assert newChunk.lvIndex() == AtomicChunk.NIL_CHUNK_INDEX;
-            //prevent other concurrent attempts on appendNextChunk
+            final long nextChunkIndex = chunkIndex + i;
+            newChunk = freeBuffer.poll();
+            if (newChunk != null)
+            {
+                //single-writer: producerBuffer::index == nextChunkIndex is protecting it
+                assert newChunk.lvIndex() == AtomicChunk.NIL_CHUNK_INDEX;
+                newChunk.spPrev(producerBuffer);
+                //index set is releasing prev, allowing other pending offers to continue
+                newChunk.soIndex(nextChunkIndex);
+            }
+            else
+            {
+                newChunk = new AtomicChunk<E>(nextChunkIndex, producerBuffer, chunkSize, false);
+            }
             soProducerBuffer(newChunk);
-            newChunk.spPrev(producerBuffer);
-            //index set is releasing prev, allowing other pending offers to continue
-            newChunk.soIndex(nextChunkIndex);
+            //link the next chunk only when finished
+            producerBuffer.soNext(newChunk);
+            producerBuffer = newChunk;
         }
-        else
-        {
-            newChunk = new AtomicChunk<E>(nextChunkIndex, producerBuffer, chunkSize, false);
-            soProducerBuffer(newChunk);
-        }
-        //link the next chunk only when finished
-        producerBuffer.soNext(newChunk);
+        soProducerChunkIndex(chunkIndex + chunks);
         return newChunk;
     }
 
