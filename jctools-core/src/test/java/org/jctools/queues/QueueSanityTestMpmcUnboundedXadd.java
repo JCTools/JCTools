@@ -12,9 +12,9 @@ import java.util.Queue;
 import static org.junit.Assert.assertEquals;
 
 @RunWith(Parameterized.class)
-public class QueueSanityTestMpmcUnboundedXaddArray extends QueueSanityTest
+public class QueueSanityTestMpmcUnboundedXadd extends QueueSanityTest
 {
-    public QueueSanityTestMpmcUnboundedXaddArray(ConcurrentQueueSpec spec, Queue<Integer> queue)
+    public QueueSanityTestMpmcUnboundedXadd(ConcurrentQueueSpec spec, Queue<Integer> queue)
     {
         super(spec, queue);
     }

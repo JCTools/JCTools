@@ -25,7 +25,7 @@ import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeAccess.fieldOffset;
 
 
-abstract class MpscProgressiveChunkedQueuePad1<E> extends AbstractQueue<E> implements IndexedQueue
+abstract class MpscUnboundedXaddArrayQueuePad1<E> extends AbstractQueue<E> implements IndexedQueue
 {
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
@@ -114,10 +114,10 @@ abstract class MpscProgressiveChunkedQueuePad1<E> extends AbstractQueue<E> imple
 }
 
 // $gen:ordered-fields
-abstract class MpscProgressiveChunkedQueueProducerFields<E> extends MpscProgressiveChunkedQueuePad1<E>
+abstract class MpscUnboundedXaddArrayQueueProducerFields<E> extends MpscUnboundedXaddArrayQueuePad1<E>
 {
     private final static long P_INDEX_OFFSET =
-        fieldOffset(MpscProgressiveChunkedQueueProducerFields.class, "producerIndex");
+        fieldOffset(MpscUnboundedXaddArrayQueueProducerFields.class, "producerIndex");
     private volatile long producerIndex;
 
     @Override
@@ -137,19 +137,19 @@ abstract class MpscProgressiveChunkedQueueProducerFields<E> extends MpscProgress
     }
 }
 
-abstract class MpscProgressiveChunkedQueuePad2<E> extends MpscProgressiveChunkedQueueProducerFields<E>
+abstract class MpscUnboundedXaddArrayQueuePad2<E> extends MpscUnboundedXaddArrayQueueProducerFields<E>
 {
     long p01, p02, p03, p04, p05, p06, p07, p08;
     long p10, p11, p12, p13, p14, p15, p16;
 }
 
 // $gen:ordered-fields
-abstract class MpscProgressiveChunkedQueueProducerBuffer<E> extends MpscProgressiveChunkedQueuePad2<E>
+abstract class MpscUnboundedXaddArrayQueueProducerBuffer<E> extends MpscUnboundedXaddArrayQueuePad2<E>
 {
     private static final long P_BUFFER_OFFSET =
-        fieldOffset(MpscProgressiveChunkedQueueProducerBuffer.class, "producerBuffer");
+        fieldOffset(MpscUnboundedXaddArrayQueueProducerBuffer.class, "producerBuffer");
     private static final long P_CHUNK_INDEX_OFFSET =
-        fieldOffset(MpscProgressiveChunkedQueueProducerBuffer.class, "producerChunkIndex");
+        fieldOffset(MpscUnboundedXaddArrayQueueProducerBuffer.class, "producerChunkIndex");
 
     private volatile AtomicChunk<E> producerBuffer;
     private volatile long producerChunkIndex;
@@ -181,17 +181,17 @@ abstract class MpscProgressiveChunkedQueueProducerBuffer<E> extends MpscProgress
     }
 }
 
-abstract class MpscProgressiveChunkedQueuePad3<E> extends MpscProgressiveChunkedQueueProducerBuffer<E>
+abstract class MpscUnboundedXaddArrayQueuePad3<E> extends MpscUnboundedXaddArrayQueueProducerBuffer<E>
 {
     long p0, p1, p2, p3, p4, p5, p6, p7;
     long p10, p11, p12, p13, p14, p15, p16;
 }
 
 // $gen:ordered-fields
-abstract class MpscProgressiveChunkedQueueConsumerFields<E> extends MpscProgressiveChunkedQueuePad3<E>
+abstract class MpscUnboundedXaddArrayQueueConsumerFields<E> extends MpscUnboundedXaddArrayQueuePad3<E>
 {
     private final static long C_INDEX_OFFSET =
-        fieldOffset(MpscProgressiveChunkedQueueConsumerFields.class, "consumerIndex");
+        fieldOffset(MpscUnboundedXaddArrayQueueConsumerFields.class, "consumerIndex");
 
     private volatile long consumerIndex;
     protected AtomicChunk<E> consumerBuffer;
@@ -213,7 +213,7 @@ abstract class MpscProgressiveChunkedQueueConsumerFields<E> extends MpscProgress
     }
 }
 
-abstract class MpscProgressiveChunkedQueuePad4<E> extends MpscProgressiveChunkedQueueConsumerFields<E>
+abstract class MpscUnboundedXaddArrayQueuePad4<E> extends MpscUnboundedXaddArrayQueueConsumerFields<E>
 {
     long p0, p1, p2, p3, p4, p5, p6, p7;
     long p10, p11, p12, p13, p14, p15, p16;
@@ -227,7 +227,7 @@ abstract class MpscProgressiveChunkedQueuePad4<E> extends MpscProgressiveChunked
  * @param <E>
  * @author https://github.com/franz1981
  */
-public class MpscUnboundedXaddArrayQueue<E> extends MpscProgressiveChunkedQueuePad4<E>
+public class MpscUnboundedXaddArrayQueue<E> extends MpscUnboundedXaddArrayQueuePad4<E>
     implements MessagePassingQueue<E>, QueueProgressIndicators
 {
     private static final long ROTATION = -2;

@@ -11,9 +11,9 @@ import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
 
 @RunWith(Parameterized.class)
-public class QueueSanityTestMpscBlockingConsumerArray extends QueueSanityTest
+public class QueueSanityTestMpscBlockingConsumer extends QueueSanityTest
 {
-    public QueueSanityTestMpscBlockingConsumerArray(ConcurrentQueueSpec spec, Queue<Integer> queue)
+    public QueueSanityTestMpscBlockingConsumer(ConcurrentQueueSpec spec, Queue<Integer> queue)
     {
         super(spec, queue);
     }

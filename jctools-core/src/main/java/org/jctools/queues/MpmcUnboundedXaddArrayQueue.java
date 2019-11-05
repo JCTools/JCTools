@@ -28,7 +28,7 @@ import static org.jctools.util.UnsafeAccess.fieldOffset;
 import static org.jctools.util.UnsafeRefArrayAccess.lpElement;
 
 
-abstract class MpmcProgressiveChunkedQueuePad1<E> extends AbstractQueue<E> implements IndexedQueue
+abstract class MpmcUnboundedXaddArrayQueuePad1<E> extends AbstractQueue<E> implements IndexedQueue
 {
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
@@ -159,10 +159,10 @@ abstract class MpmcProgressiveChunkedQueuePad1<E> extends AbstractQueue<E> imple
 }
 
 // $gen:ordered-fields
-abstract class MpmcProgressiveChunkedQueueProducerFields<E> extends MpmcProgressiveChunkedQueuePad1<E>
+abstract class MpmcUnboundedXaddArrayQueueProducerFields<E> extends MpmcUnboundedXaddArrayQueuePad1<E>
 {
     private final static long P_INDEX_OFFSET =
-        fieldOffset(MpmcProgressiveChunkedQueueProducerFields.class, "producerIndex");
+        fieldOffset(MpmcUnboundedXaddArrayQueueProducerFields.class, "producerIndex");
     private volatile long producerIndex;
 
     @Override
@@ -182,19 +182,19 @@ abstract class MpmcProgressiveChunkedQueueProducerFields<E> extends MpmcProgress
     }
 }
 
-abstract class MpmcProgressiveChunkedQueuePad2<E> extends MpmcProgressiveChunkedQueueProducerFields<E>
+abstract class MpmcUnboundedXaddArrayQueuePad2<E> extends MpmcUnboundedXaddArrayQueueProducerFields<E>
 {
     long p01, p02, p03, p04, p05, p06, p07, p08;
     long p10, p11, p12, p13, p14, p15, p16;
 }
 
 // $gen:ordered-fields
-abstract class MpmcProgressiveChunkedQueueProducerBuffer<E> extends MpmcProgressiveChunkedQueuePad2<E>
+abstract class MpmcUnboundedXaddArrayQueueProducerBuffer<E> extends MpmcUnboundedXaddArrayQueuePad2<E>
 {
     private static final long P_BUFFER_OFFSET =
-        fieldOffset(MpmcProgressiveChunkedQueueProducerBuffer.class, "producerBuffer");
+        fieldOffset(MpmcUnboundedXaddArrayQueueProducerBuffer.class, "producerBuffer");
     private static final long P_CHUNK_INDEX_OFFSET =
-        fieldOffset(MpmcProgressiveChunkedQueueProducerBuffer.class, "producerChunkIndex");
+        fieldOffset(MpmcUnboundedXaddArrayQueueProducerBuffer.class, "producerChunkIndex");
 
     private volatile AtomicChunk<E> producerBuffer;
     private volatile long producerChunkIndex;
@@ -226,19 +226,19 @@ abstract class MpmcProgressiveChunkedQueueProducerBuffer<E> extends MpmcProgress
     }
 }
 
-abstract class MpmcProgressiveChunkedQueuePad3<E> extends MpmcProgressiveChunkedQueueProducerBuffer<E>
+abstract class MpmcUnboundedXaddArrayQueuePad3<E> extends MpmcUnboundedXaddArrayQueueProducerBuffer<E>
 {
     long p0, p1, p2, p3, p4, p5, p6, p7;
     long p10, p11, p12, p13, p14, p15, p16;
 }
 
 // $gen:ordered-fields
-abstract class MpmcProgressiveChunkedQueueConsumerFields<E> extends MpmcProgressiveChunkedQueuePad3<E>
+abstract class MpmcUnboundedXaddArrayQueueConsumerFields<E> extends MpmcUnboundedXaddArrayQueuePad3<E>
 {
     private final static long C_INDEX_OFFSET =
-        fieldOffset(MpmcProgressiveChunkedQueueConsumerFields.class, "consumerIndex");
+        fieldOffset(MpmcUnboundedXaddArrayQueueConsumerFields.class, "consumerIndex");
     private final static long C_BUFFER_OFFSET =
-        fieldOffset(MpmcProgressiveChunkedQueueConsumerFields.class, "consumerBuffer");
+        fieldOffset(MpmcUnboundedXaddArrayQueueConsumerFields.class, "consumerBuffer");
 
     private volatile long consumerIndex;
     private volatile AtomicChunk<E> consumerBuffer;
@@ -266,7 +266,7 @@ abstract class MpmcProgressiveChunkedQueueConsumerFields<E> extends MpmcProgress
 
 }
 
-abstract class MpmcProgressiveChunkedQueuePad5<E> extends MpmcProgressiveChunkedQueueConsumerFields<E>
+abstract class MpmcUnboundedXaddArrayQueuePad5<E> extends MpmcUnboundedXaddArrayQueueConsumerFields<E>
 {
     long p0, p1, p2, p3, p4, p5, p6, p7;
     long p10, p11, p12, p13, p14, p15, p16;
@@ -280,7 +280,7 @@ abstract class MpmcProgressiveChunkedQueuePad5<E> extends MpmcProgressiveChunked
  * @param <E>
  * @author https://github.com/franz1981
  */
-public class MpmcUnboundedXaddArrayQueue<E> extends MpmcProgressiveChunkedQueuePad5<E>
+public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueuePad5<E>
     implements MessagePassingQueue<E>, QueueProgressIndicators
 {
     private static final long ROTATION = -2;
