@@ -282,6 +282,8 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>
     @Override
     public int fill(final Supplier<E> s, final int limit)
     {
+        if (null == s)
+            throw new IllegalArgumentException("supplier is null");
         if (limit < 0)
             throw new IllegalArgumentException("limit is negative:" + limit);
         if (limit == 0)
@@ -353,6 +355,13 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>
     @Override
     public void fill(final Supplier<E> s, final WaitStrategy w, final ExitCondition e)
     {
+        if (null == w)
+            throw new IllegalArgumentException("waiter is null");
+        if (null == e)
+            throw new IllegalArgumentException("exit condition is null");
+        if (null == s)
+            throw new IllegalArgumentException("supplier is null");
+
         final E[] buffer = this.buffer;
         final long mask = this.mask;
         final int lookAheadStep = this.lookAheadStep;

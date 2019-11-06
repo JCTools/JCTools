@@ -308,6 +308,8 @@ public class MpscCompoundQueue<E> extends MpscCompoundQueueConsumerQueueIndex<E>
     @Override
     public int fill(Supplier<E> s, int limit)
     {
+        if (null == s)
+            throw new IllegalArgumentException("supplier is null");
         if (limit < 0)
             throw new IllegalArgumentException("limit is negative:" + limit);
         if (limit == 0)
@@ -360,6 +362,10 @@ public class MpscCompoundQueue<E> extends MpscCompoundQueueConsumerQueueIndex<E>
     @Override
     public void fill(Supplier<E> s, WaitStrategy w, ExitCondition exit)
     {
+        if (null == w)
+            throw new IllegalArgumentException("waiter is null");
+        if (null == exit)
+            throw new IllegalArgumentException("exit condition is null");
         int idleCounter = 0;
         while (exit.keepRunning())
         {

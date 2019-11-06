@@ -93,6 +93,7 @@ public abstract class MpqSanityTest
         queue.fill(() -> DUMMY_ELEMENT);
         assertEquals(queue.capacity(), queue.size());
     }
+
     @Test
     public void fill0()
     {
@@ -123,6 +124,38 @@ public abstract class MpqSanityTest
                 break;
         }
         assertEquals(queue.capacity(), queue.size());
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void fillNullSupplier()
+    {
+        queue.fill(null);
+        fail();
+    }
+    @Test(expected = IllegalArgumentException.class)
+    public void fillNullSupplierLimit()
+    {
+        queue.fill(null, 10);
+        fail();
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void fillNullSupplierWaiterExit()
+    {
+        queue.fill(null, i -> i++, () -> true);
+        fail();
+    }
+    @Test(expected = IllegalArgumentException.class)
+    public void fillSupplierNullWaiterExit()
+    {
+        queue.fill(() -> DUMMY_ELEMENT, null, () -> true);
+        fail();
+    }
+    @Test(expected = IllegalArgumentException.class)
+    public void fillSupplierWaiterNullExit()
+    {
+        queue.fill(() -> DUMMY_ELEMENT, i -> i++, null);
+        fail();
     }
 
     @Test

@@ -213,6 +213,8 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
     @Override
     public int fill(Supplier<E> s, int limit)
     {
+        if (null == s)
+            throw new IllegalArgumentException("supplier is null");
         if (limit < 0)
             throw new IllegalArgumentException("limit is negative:" + limit);
         if (limit == 0)
@@ -250,6 +252,10 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
     @Override
     public void fill(Supplier<E> s, WaitStrategy wait, ExitCondition exit)
     {
+        if (null == wait)
+            throw new IllegalArgumentException("waiter is null");
+        if (null == exit)
+            throw new IllegalArgumentException("exit condition is null");
         while (exit.keepRunning())
         {
             while (fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH) != 0 && exit.keepRunning())

@@ -186,6 +186,8 @@ public class MpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
 
     @Override
     public int fill(Supplier<E> s, int limit) {
+        if (null == s)
+            throw new IllegalArgumentException("supplier is null");
         if (limit < 0)
             throw new IllegalArgumentException("limit is negative:" + limit);
         if (limit == 0)
@@ -204,8 +206,17 @@ public class MpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
 
     @Override
     public void fill(Supplier<E> s, WaitStrategy wait, ExitCondition exit) {
+        if (null == wait)
+            throw new IllegalArgumentException("waiter is null");
+        if (null == exit)
+            throw new IllegalArgumentException("exit condition is null");
+        int idleCounter = 0;
         while (exit.keepRunning()) {
-            fill(s, 4096);
+            if (fill(s, 4096) == 0) {
+                idleCounter = wait.idle(idleCounter);
+                continue;
+            }
+            idleCounter = 0;
         }
     }
 
