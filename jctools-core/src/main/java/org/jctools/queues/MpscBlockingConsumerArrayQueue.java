@@ -141,7 +141,7 @@ abstract class MpscBlockingConsumerArrayQueueConsumerFields<E> extends MpscBlock
     {
         return consumerIndex;
     }
-    
+
     final long lpConsumerIndex()
     {
         return UNSAFE.getLong(this, C_INDEX_OFFSET);
@@ -151,12 +151,12 @@ abstract class MpscBlockingConsumerArrayQueueConsumerFields<E> extends MpscBlock
     {
         UNSAFE.putOrderedLong(this, C_INDEX_OFFSET, newValue);
     }
-    
+
     final Thread lvBlocked()
     {
         return blocked;
     }
-    
+
     final void soBlocked(Thread thread)
     {
         UNSAFE.putOrderedObject(this, BLOCKED_OFFSET, thread);
@@ -183,9 +183,9 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
     public MpscBlockingConsumerArrayQueue(final int capacity)
     {
         // leave lower bit of mask clear
-        super((long) ((Pow2.roundToPowerOfTwo(capacity) - 1) << 1), 
+        super((long) ((Pow2.roundToPowerOfTwo(capacity) - 1) << 1),
             (E[])allocate(Pow2.roundToPowerOfTwo(capacity)));
-        
+
         RangeUtil.checkGreaterThanOrEqual(capacity, 1, "capacity");
         soProducerLimit((long) ((Pow2.roundToPowerOfTwo(capacity) - 1) << 1)); // we know it's all empty to start with
     }
@@ -320,13 +320,13 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         {
             return false;
         }
-        
+
         // Claim the slot and the responsibility of unparking
         if(!casProducerIndex(pIndex, pIndex + 1))
         {
             return false;
         }
-        
+
         soElement(buffer, offset, e);
         soBlocked(null); // releases the consumer from the park loop
         LockSupport.unpark(consumerThread);
@@ -340,7 +340,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
 
         if (cIndex + bufferCapacity > pIndex)
         {
-            casProducerLimit(producerLimit, cIndex + bufferCapacity); 
+            casProducerLimit(producerLimit, cIndex + bufferCapacity);
         }
         // full and cannot grow
         else if (pIndex - cIndex == bufferCapacity)
@@ -348,7 +348,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
             // offer should return false;
             return false;
         }
-        else 
+        else
             throw new IllegalStateException();
         return true;
     }
@@ -374,7 +374,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
     {
         final E[] buffer = consumerBuffer;
         final long mask = consumerMask;
-        
+
         final long cIndex = lpConsumerIndex();
         final long offset = modifiedCalcElementOffset(cIndex, mask);
         Object e = lvElement(buffer, offset);// LoadLoad
@@ -417,7 +417,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
 
         soElement(buffer, offset, null); // release element null
         soConsumerIndex(cIndex + 2); // release cIndex
-        
+
         return (E) e;
     }
 
@@ -432,7 +432,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         long remainingNanos = unit.toNanos(timeout);
         final E[] buffer = consumerBuffer;
         final long mask = consumerMask;
-        
+
         final long cIndex = lpConsumerIndex();
         final long offset = modifiedCalcElementOffset(cIndex, mask);
         Object e = lvElement(buffer, offset);// LoadLoad
@@ -489,7 +489,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
 
         soElement(buffer, offset, null); // release element null
         soConsumerIndex(cIndex + 2); // release cIndex
-        
+
         return (E) e;
     }
 
@@ -579,7 +579,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
             // check the producer index. If the queue is indeed not empty we spin until element is visible.
             e = spinWaitForElement(buffer, offset);
         }
-        
+
         return (E) e;
     }
 
@@ -661,19 +661,21 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
     {
         if (batchSize == 0)
             return 0;
-        
+
         final long mask = this.producerMask;
         final E[] buffer = this.producerBuffer;
-        
+
         long pIndex;
         int claimedSlots;
         boolean wakeup = false;
         long batchIndex = 0;
+        final long shiftedBatchSize = 2l * batchSize;
+
         while (true)
         {
             pIndex = lvProducerIndex();
             long producerLimit = lvProducerLimit();
-            
+
             // lower bit is indicative of blocked consumer
             if ((pIndex & 1) == 1)
             {
@@ -690,7 +692,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
             // pIndex is even (lower bit is 0) -> actual index is (pIndex >> 1), consumer is awake
 
             // we want 'limit' slots, but will settle for whatever is visible to 'producerLimit'
-            batchIndex = Math.min(producerLimit, pIndex + 2 * batchSize);
+            batchIndex = Math.min(producerLimit, pIndex + shiftedBatchSize);
 
             // Use producer limit to save a read of the more rapidly mutated consumer index.
             // Assumption: queue is usually empty or near empty
@@ -700,7 +702,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
                 {
                     return 0;
                 }
-                batchIndex = Math.min(lvProducerLimit(), pIndex + 2 * batchSize);
+                batchIndex = Math.min(lvProducerLimit(), pIndex + shiftedBatchSize);
             }
 
             // Claim the index
@@ -710,19 +712,19 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
             }
         }
         claimedSlots = (int) ((batchIndex - pIndex) / 2);
-        
+
         // first element offset might be a wakeup, so peeled from loop
         for (int i = 0; i < claimedSlots; i++)
         {
-            long offset = modifiedCalcElementOffset(pIndex + 2 * i, mask);
+            long offset = modifiedCalcElementOffset(pIndex + 2l * i, mask);
             soElement(buffer, offset, s.get());
         }
-        
+
         if (wakeup)
         {
             wakeupConsumer();
         }
-        
+
         return claimedSlots;
     }
 
