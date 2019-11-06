@@ -448,7 +448,7 @@ public class MpscRelaxedArrayQueue<E> extends MpscRelaxedArrayQueueL4Pad<E> impl
             //a definitive fail could be declared only if the claim is trying to overwrite something not consumed yet:
             //isFull is not considering the real occupation of the slot
             final long consumerPosition = lvConsumerPosition();
-            final long effectiveProducerLimit = consumerPosition + (this.cycleLength * 2);
+            final long effectiveProducerLimit = consumerPosition + (this.cycleLength * 2l);
             if (producerPosition >= effectiveProducerLimit)
             {
                 throw new IllegalStateException(
