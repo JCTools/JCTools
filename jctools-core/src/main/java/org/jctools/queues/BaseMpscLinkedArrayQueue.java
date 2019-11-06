@@ -546,9 +546,9 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
             // a successful CAS ties the ordering, lv(pIndex) -> [mask/buffer] -> cas(pIndex)
 
             // we want 'limit' slots, but will settle for whatever is visible to 'producerLimit'
-            long batchIndex = Math.min(producerLimit, pIndex + 2 * limit);
+            long batchIndex = Math.min(producerLimit, pIndex + 2l * limit); //  -> producerLimit >= batchIndex
 
-            if (pIndex >= producerLimit || producerLimit < batchIndex)
+            if (pIndex >= producerLimit)
             {
                 int result = offerSlowPath(mask, pIndex, producerLimit);
                 switch (result)
@@ -575,7 +575,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
 
         for (int i = 0; i < claimedSlots; i++)
         {
-            final long offset = modifiedCalcElementOffset(pIndex + 2 * i, mask);
+            final long offset = modifiedCalcElementOffset(pIndex + 2l * i, mask);
             soElement(buffer, offset, s.get());
         }
         return claimedSlots;

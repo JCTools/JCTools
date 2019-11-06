@@ -497,8 +497,9 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
             buffer = this.producerBuffer;
             // a successful CAS ties the ordering, lv(pIndex) -> [mask/buffer] -> cas(pIndex)
             // we want 'limit' slots, but will settle for whatever is visible to 'producerLimit'
-            long batchIndex = Math.min(producerLimit, pIndex + 2 * limit);
-            if (pIndex >= producerLimit || producerLimit < batchIndex) {
+            // -> producerLimit >= batchIndex
+            long batchIndex = Math.min(producerLimit, pIndex + 2l * limit);
+            if (pIndex >= producerLimit) {
                 int result = offerSlowPath(mask, pIndex, producerLimit);
                 switch(result) {
                     case CONTINUE_TO_P_INDEX_CAS:
@@ -519,7 +520,7 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
             }
         }
         for (int i = 0; i < claimedSlots; i++) {
-            final int offset = modifiedCalcElementOffset(pIndex + 2 * i, mask);
+            final int offset = modifiedCalcElementOffset(pIndex + 2l * i, mask);
             soElement(buffer, offset, s.get());
         }
         return claimedSlots;
