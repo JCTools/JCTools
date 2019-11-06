@@ -80,10 +80,20 @@ public abstract class MpqSanityTest
         }
         else
         {
-            assertEquals(MpmcArrayQueue.UNBOUNDED_CAPACITY, queue.capacity());
+            assertEquals(MessagePassingQueue.UNBOUNDED_CAPACITY, queue.capacity());
         }
     }
 
+    @Test
+    public void fillToCapacityOnBounded()
+    {
+        assumeThat(spec.isBounded(), is(Boolean.TRUE));
+        Integer element = 1;
+
+        queue.fill(() -> element);
+        assertEquals(queue.capacity(), queue.size());
+
+    }
     @Test
     public void sanity()
     {
