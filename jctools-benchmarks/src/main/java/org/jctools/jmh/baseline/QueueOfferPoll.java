@@ -21,9 +21,9 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Measure cost of offer/poll on single thread.
- * 
+ *
  * @author nitsanw
- * 
+ *
  */
 @State(Scope.Thread)
 @BenchmarkMode(Mode.AverageTime)
@@ -39,7 +39,7 @@ public class QueueOfferPoll {
     @Param(value = "1")
     int burstSize;
     Queue<Integer> q;
-    
+
     @Setup(Level.Trial)
     public void createQ() {
         q = QueueByTypeFactory.createQueue(qType, qCapacity);
@@ -51,7 +51,7 @@ public class QueueOfferPoll {
         for (int i = 0; i < burstSize; i++) {
             q.offer(DUMMY_MESSAGE);
         }
-        Integer result = null;
+        Integer result = DUMMY_MESSAGE;
         for (int i = 0; i < burstSize; i++) {
             result = q.poll();
         }
