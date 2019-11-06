@@ -547,7 +547,7 @@ public class MpscUnboundedXaddArrayQueue<E> extends MpscUnboundedXaddArrayQueueP
                 return null;
             }
             this.consumerBuffer = consumerBuffer;
-            //the element on consumerIndex can't be null from now on
+            //the element can't be null from now on
             e = spinForElement(consumerBuffer, 0);
         }
         else
@@ -580,15 +580,8 @@ public class MpscUnboundedXaddArrayQueue<E> extends MpscUnboundedXaddArrayQueueP
                 return null;
             }
             consumerBuffer = next;
-            //the element on consumerIndex can't be null from now on
         }
-        final E e = consumerBuffer.lvElement(consumerOffset);
-        if (e != null)
-        {
-            return e;
-        }
-        assert !firstElementOfNewChunk;
-        return null;
+        return consumerBuffer.lvElement(consumerOffset);
     }
 
     @Override
