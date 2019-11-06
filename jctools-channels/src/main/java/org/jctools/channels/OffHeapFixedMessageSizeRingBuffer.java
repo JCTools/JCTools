@@ -52,12 +52,12 @@ public abstract class OffHeapFixedMessageSizeRingBuffer extends ProxyChannelRing
 
     protected final Object[] references;
     protected final int referenceMessageSize;
-    
+
     public static int getRequiredBufferSize(final int capacity, final int messageSize) {
         int alignedMessageSize = (int) Pow2.align(messageSize + MESSAGE_INDICATOR_SIZE, MESSAGE_INDICATOR_SIZE);
         return HEADER_SIZE + (Pow2.roundToPowerOfTwo(capacity) * alignedMessageSize);
     }
-    
+
     protected static Object[] createReferenceArray(final int capacity, int referenceMessageSize) {
         if (referenceMessageSize > 0) {
             return new Object[getRequiredArraySize(capacity, referenceMessageSize)];
@@ -71,7 +71,7 @@ public abstract class OffHeapFixedMessageSizeRingBuffer extends ProxyChannelRing
     }
 
     public OffHeapFixedMessageSizeRingBuffer(final int capacity, final int primitiveMessageSize, int referenceMessageSize) {
-        this(allocateAlignedByteBuffer(getRequiredBufferSize(capacity, primitiveMessageSize), CACHE_LINE_SIZE), 
+        this(allocateAlignedByteBuffer(getRequiredBufferSize(capacity, primitiveMessageSize), CACHE_LINE_SIZE),
                 Pow2.roundToPowerOfTwo(capacity),
                 true,
                 true,
@@ -117,13 +117,13 @@ public abstract class OffHeapFixedMessageSizeRingBuffer extends ProxyChannelRing
         // pad(64b) |
         // buffer (capacity * messageSize)
         this.consumerIndexAddress = alignedAddress;
-        this.producerIndexAddress = this.consumerIndexAddress + 2 * CACHE_LINE_SIZE;
+        this.producerIndexAddress = this.consumerIndexAddress + 2l * CACHE_LINE_SIZE;
         this.bufferAddress = alignedAddress + HEADER_SIZE;
         this.mask = actualCapacity - 1;
-        
+
         this.references = references;
         this.referenceMessageSize = referenceMessageSize;
-        
+
         // producer owns tail and headCache
         if (isProducer && initialize) {
             soProducerIndex(0);
@@ -186,7 +186,7 @@ public abstract class OffHeapFixedMessageSizeRingBuffer extends ProxyChannelRing
      * Computes an index relative to the buffer start for an offset. This does
      * not recover the original index because that is a very <b>hard</b>
      * problem.
-     * 
+     *
      * @param bufferAddress
      * @param messageSize
      * @param offset
@@ -219,7 +219,7 @@ public abstract class OffHeapFixedMessageSizeRingBuffer extends ProxyChannelRing
     protected final void soProducerIndex(final long value) {
         UNSAFE.putOrderedLong(null, producerIndexAddress, value);
     }
-    
+
     protected final long arrayIndexForCursor(long currentHead) {
         return arrayIndexForCursor(mask, referenceMessageSize, currentHead);
     }
@@ -234,12 +234,12 @@ public abstract class OffHeapFixedMessageSizeRingBuffer extends ProxyChannelRing
         final long consumerIndex = relativeIndexForOffset(offset);
         return arrayIndexForCursor(consumerIndex);
     }
-    
+
     protected long producerReferenceArrayIndex(long offset) {
         final long producerIndex = relativeIndexForOffset(offset);
         return arrayIndexForCursor(producerIndex);
     }
-    
+
     /**
      * Write a reference to the given position
      * @param offset index into the reference array
@@ -251,7 +251,7 @@ public abstract class OffHeapFixedMessageSizeRingBuffer extends ProxyChannelRing
         // arithmetic?
         UnsafeRefArrayAccess.spElement(references, UnsafeRefArrayAccess.calcElementOffset(offset), reference);
     }
-    
+
     /**
      * Read a reference at the given position
      * @param offset index into the reference array
@@ -264,17 +264,17 @@ public abstract class OffHeapFixedMessageSizeRingBuffer extends ProxyChannelRing
         return UnsafeRefArrayAccess.lpElement(references, UnsafeRefArrayAccess.calcElementOffset(offset));
     }
 
-    
+
     /**
      * @return a base address for a message acquired to be read, or EOF if none is available
      */
     protected abstract long readAcquire();
-    
+
     /**
      * @param offset the base address of a message that we are done reading and can be overwritten now
      */
     protected abstract void readRelease(long offset);
-    
+
     /**
      * @return a base address for a message acquired to be written, or EOF if none is available
      */
