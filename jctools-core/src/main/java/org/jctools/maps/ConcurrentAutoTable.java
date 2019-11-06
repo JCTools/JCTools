@@ -15,7 +15,7 @@ package org.jctools.maps;
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 
 import java.io.Serializable;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater; 
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 
 /**
@@ -49,7 +49,7 @@ public class ConcurrentAutoTable implements Serializable {
   /** Atomically set the sum of the striped counters to specified value.
    *  Rather more expensive than a simple store, in order to remain atomic.
    */
-  public void set( long x ) { 
+  public void set( long x ) {
     CAT newcat = new CAT(null,4,x);
     // Spin until CAS works
     while( !CAS_cat(_cat,newcat) ) {/*empty*/}
@@ -76,7 +76,7 @@ public class ConcurrentAutoTable implements Serializable {
    * Return the counter's {@code long} value converted to a string.
    */
   public String toString() { return _cat.toString(); }
-  
+
   /**
    * A more verbose print than {@link #toString}, showing internal structure.
    * Useful for debugging.
@@ -109,18 +109,18 @@ public class ConcurrentAutoTable implements Serializable {
 
   // --- CAT -----------------------------------------------------------------
   private static class CAT implements Serializable {
-    
+
     // Unsafe crud: get a function which will CAS arrays
     private static final int _Lbase  = UNSAFE.arrayBaseOffset(long[].class);
     private static final int _Lscale = UNSAFE.arrayIndexScale(long[].class);
     private static long rawIndex(long[] ary, int i) {
       assert i >= 0 && i < ary.length;
-      return _Lbase + i * _Lscale;
+      return _Lbase + (i * (long)_Lscale);
     }
     private static boolean CAS( long[] A, int idx, long old, long nnn ) {
       return UNSAFE.compareAndSwapLong( A, rawIndex(A,idx), old, nnn );
     }
-   
+
     //volatile long _resizers;    // count of threads attempting a resize
     //static private final AtomicLongFieldUpdater<CAT> _resizerUpdater =
     //  AtomicLongFieldUpdater.newUpdater(CAT.class, "_resizers");
@@ -136,7 +136,7 @@ public class ConcurrentAutoTable implements Serializable {
       _t = new long[sz];
       _t[0] = init;
     }
-    
+
     // Only add 'x' to some slot in table, hinted at by 'hash'.  The sum can
     // overflow.  Value is CAS'd so no counts are lost.  The CAS is attempted
     // ONCE.
@@ -180,7 +180,7 @@ public class ConcurrentAutoTable implements Serializable {
       while( master._cat == this && !master.CAS_cat(this,newcat) ) {/*empty*/}
       return old;
     }
-    
+
 
     // Return the current sum of all things in the table.  Writers can be
     // updating the table furiously, so the sum is only locally accurate.
@@ -206,11 +206,11 @@ public class ConcurrentAutoTable implements Serializable {
     }
 
     public String toString( ) { return Long.toString(sum()); }
-    
-    public void print() { 
+
+    public void print() {
       long[] t = _t;
       System.out.print("["+t[0]);
-      for( int i=1; i<t.length; i++ ) 
+      for( int i=1; i<t.length; i++ )
         System.out.print(","+t[i]);
       System.out.print("]");
       if( _next != null ) _next.print();
