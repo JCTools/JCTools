@@ -47,7 +47,10 @@ public final class SpscOffHeapIntQueue extends AbstractQueue<Integer> {
 	}
 
 	public static int getRequiredBufferSize(final int capacity) {
-	    return 4 * PortableJvmInfo.CACHE_LINE_SIZE + (Pow2.roundToPowerOfTwo(capacity) << INT_ELEMENT_SCALE);
+		int p2Capacity = Pow2.roundToPowerOfTwo(capacity);
+		if (p2Capacity > (Pow2.MAX_POW2 >> INT_ELEMENT_SCALE))
+			throw new IllegalArgumentException("capacity exceeds max buffer capacity: " + (Pow2.MAX_POW2 >> INT_ELEMENT_SCALE));
+		return 4 * PortableJvmInfo.CACHE_LINE_SIZE + (p2Capacity << INT_ELEMENT_SCALE);
     }
 
 	/**
@@ -68,9 +71,9 @@ public final class SpscOffHeapIntQueue extends AbstractQueue<Integer> {
 
 		headAddress = alignedAddress;
 		tailCacheAddress = headAddress + 8;
-		tailAddress = headAddress + 2 * PortableJvmInfo.CACHE_LINE_SIZE;
+		tailAddress = headAddress + 2l * PortableJvmInfo.CACHE_LINE_SIZE;
 		headCacheAddress = tailAddress + 8;
-		arrayBase = alignedAddress + 4 * PortableJvmInfo.CACHE_LINE_SIZE;
+		arrayBase = alignedAddress + 4l * PortableJvmInfo.CACHE_LINE_SIZE;
 		// producer owns tail and headCache
 		if((viewMask & PRODUCER) == PRODUCER){
     		setHeadCache(0);
