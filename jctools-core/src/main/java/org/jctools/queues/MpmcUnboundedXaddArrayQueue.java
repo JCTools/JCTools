@@ -719,6 +719,11 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
     @Override
     public int fill(Supplier<E> s, int limit)
     {
+        if (limit < 0)
+            throw new IllegalArgumentException("limit is negative:" + limit);
+        if (limit == 0)
+            return 0;
+
         final int chunkShift = this.chunkShift;
         final int chunkMask = this.chunkMask;
         long producerSeq = getAndAddProducerIndex(limit);

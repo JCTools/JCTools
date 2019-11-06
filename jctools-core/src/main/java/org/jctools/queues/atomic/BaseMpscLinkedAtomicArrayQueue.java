@@ -473,7 +473,11 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
     }
 
     @Override
-    public int fill(Supplier<E> s, int batchSize) {
+    public int fill(Supplier<E> s, int limit) {
+        if (limit < 0)
+            throw new IllegalArgumentException("limit is negative:" + limit);
+        if (limit == 0)
+            return 0;
         long mask;
         AtomicReferenceArray<E> buffer;
         long pIndex;
@@ -493,7 +497,7 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
             buffer = this.producerBuffer;
             // a successful CAS ties the ordering, lv(pIndex) -> [mask/buffer] -> cas(pIndex)
             // we want 'limit' slots, but will settle for whatever is visible to 'producerLimit'
-            long batchIndex = Math.min(producerLimit, pIndex + 2 * batchSize);
+            long batchIndex = Math.min(producerLimit, pIndex + 2 * limit);
             if (pIndex >= producerLimit || producerLimit < batchIndex) {
                 int result = offerSlowPath(mask, pIndex, producerLimit);
                 switch(result) {

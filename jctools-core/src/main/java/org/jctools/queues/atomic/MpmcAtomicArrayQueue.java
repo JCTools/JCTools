@@ -404,6 +404,10 @@ public class MpmcAtomicArrayQueue<E> extends MpmcAtomicArrayQueueL3Pad<E> {
 
     @Override
     public int fill(Supplier<E> s, int limit) {
+        if (limit < 0)
+            throw new IllegalArgumentException("limit is negative:" + limit);
+        if (limit == 0)
+            return 0;
         final AtomicLongArray sBuffer = sequenceBuffer;
         final int mask = this.mask;
         final AtomicReferenceArray<E> buffer = this.buffer;

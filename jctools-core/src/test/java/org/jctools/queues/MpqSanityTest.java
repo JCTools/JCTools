@@ -27,6 +27,7 @@ public abstract class MpqSanityTest
     private final ConcurrentQueueSpec spec;
     int count = 0;
     Integer p;
+    public static final Integer DUMMY_ELEMENT = 1;
 
     public MpqSanityTest(ConcurrentQueueSpec spec, MessagePassingQueue<Integer> queue)
     {
@@ -88,12 +89,42 @@ public abstract class MpqSanityTest
     public void fillToCapacityOnBounded()
     {
         assumeThat(spec.isBounded(), is(Boolean.TRUE));
+
+        queue.fill(() -> DUMMY_ELEMENT);
+        assertEquals(queue.capacity(), queue.size());
+    }
+    @Test
+    public void fill0()
+    {
+        queue.fill(() -> DUMMY_ELEMENT,0);
+        assertEquals(0, queue.fill(() -> DUMMY_ELEMENT,0));
+        assertTrue(queue.isEmpty());
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void fillNegative()
+    {
+        queue.fill(() -> DUMMY_ELEMENT,-1);
+        fail();
+    }
+
+    @Test
+    public void fillToCapacityInBatches()
+    {
+        assumeThat(spec.isBounded(), is(Boolean.TRUE));
         Integer element = 1;
 
-        queue.fill(() -> element);
+        int filled = 0;
+        for (int i = 0; i < SIZE; i++)
+        {
+            filled += queue.fill(() -> DUMMY_ELEMENT, 16);
+            assertEquals(filled, queue.size());
+            if (filled == queue.capacity())
+                break;
+        }
         assertEquals(queue.capacity(), queue.size());
-
     }
+
     @Test
     public void sanity()
     {

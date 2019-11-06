@@ -219,6 +219,10 @@ abstract class BaseSpscLinkedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArr
 
     @Override
     public int fill(Supplier<E> s, int limit) {
+        if (limit < 0)
+            throw new IllegalArgumentException("limit is negative:" + limit);
+        if (limit == 0)
+            return 0;
         for (int i = 0; i < limit; i++) {
             // local load of field to avoid repeated loads after volatile reads
             final AtomicReferenceArray<E> buffer = producerBuffer;

@@ -47,7 +47,7 @@ abstract class SpmcArrayQueueProducerIndexField<E> extends SpmcArrayQueueL1Pad<E
     {
         return producerIndex;
     }
-    
+
     final long lpProducerIndex()
     {
         return UNSAFE.getLong(this, P_INDEX_OFFSET);
@@ -350,6 +350,11 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E>
     @Override
     public int fill(final Supplier<E> s, final int limit)
     {
+        if (limit < 0)
+            throw new IllegalArgumentException("limit is negative:" + limit);
+        if (limit == 0)
+            return 0;
+
         final E[] buffer = this.buffer;
         final long mask = this.mask;
         long producerIndex = this.lpProducerIndex();

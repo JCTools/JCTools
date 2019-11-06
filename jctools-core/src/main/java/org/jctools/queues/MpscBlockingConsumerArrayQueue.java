@@ -657,9 +657,11 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
     }
 
     @Override
-    public int fill(Supplier<E> s, int batchSize)
+    public int fill(Supplier<E> s, int limit)
     {
-        if (batchSize == 0)
+        if (limit < 0)
+            throw new IllegalArgumentException("limit is negative:" + limit);
+        if (limit == 0)
             return 0;
 
         final long mask = this.producerMask;
@@ -669,7 +671,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         int claimedSlots;
         boolean wakeup = false;
         long batchIndex = 0;
-        final long shiftedBatchSize = 2l * batchSize;
+        final long shiftedBatchSize = 2l * limit;
 
         while (true)
         {

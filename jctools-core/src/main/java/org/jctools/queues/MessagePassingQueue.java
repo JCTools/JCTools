@@ -233,6 +233,7 @@ public interface MessagePassingQueue<T>
      * thread subject to the restrictions appropriate to the implementation.
      *
      * @return the number of offered elements
+     * @throws IllegalArgumentException if limit is negative
      */
     int fill(Supplier<T> s, int limit);
 

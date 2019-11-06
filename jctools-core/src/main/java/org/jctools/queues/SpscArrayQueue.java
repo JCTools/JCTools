@@ -59,7 +59,7 @@ abstract class SpscArrayQueueProducerIndexFields<E> extends SpscArrayQueueL1Pad<
     {
         return producerIndex;
     }
-    
+
     final long lpProducerIndex()
     {
         return UNSAFE.getLong(this, P_INDEX_OFFSET);
@@ -99,12 +99,12 @@ abstract class SpscArrayQueueConsumerIndexField<E> extends SpscArrayQueueL2Pad<E
     {
         return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
     }
-    
+
     final long lpConsumerIndex()
     {
         return UNSAFE.getLong(this, C_INDEX_OFFSET);
     }
-    
+
     final void soConsumerIndex(final long newValue)
     {
         UNSAFE.putOrderedLong(this, C_INDEX_OFFSET, newValue);
@@ -282,6 +282,11 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>
     @Override
     public int fill(final Supplier<E> s, final int limit)
     {
+        if (limit < 0)
+            throw new IllegalArgumentException("limit is negative:" + limit);
+        if (limit == 0)
+            return 0;
+
         final E[] buffer = this.buffer;
         final long mask = this.mask;
         final int lookAheadStep = this.lookAheadStep;

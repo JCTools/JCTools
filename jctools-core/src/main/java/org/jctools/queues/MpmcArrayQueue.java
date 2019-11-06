@@ -438,6 +438,11 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E>
     @Override
     public int fill(Supplier<E> s, int limit)
     {
+        if (limit < 0)
+            throw new IllegalArgumentException("limit is negative:" + limit);
+        if (limit == 0)
+            return 0;
+
         final long[] sBuffer = sequenceBuffer;
         final long mask = this.mask;
         final E[] buffer = this.buffer;

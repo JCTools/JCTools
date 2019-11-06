@@ -321,6 +321,10 @@ public class SpmcAtomicArrayQueue<E> extends SpmcAtomicArrayQueueL3Pad<E> {
 
     @Override
     public int fill(final Supplier<E> s, final int limit) {
+        if (limit < 0)
+            throw new IllegalArgumentException("limit is negative:" + limit);
+        if (limit == 0)
+            return 0;
         final AtomicReferenceArray<E> buffer = this.buffer;
         final int mask = this.mask;
         long producerIndex = this.lpProducerIndex();

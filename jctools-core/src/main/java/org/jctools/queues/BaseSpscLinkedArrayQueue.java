@@ -52,7 +52,7 @@ abstract class BaseSpscLinkedArrayQueueConsumerField<E> extends BaseSpscLinkedAr
     {
         return consumerIndex;
     }
-    
+
     final long lpConsumerIndex()
     {
         return UNSAFE.getLong(this, C_INDEX_OFFSET);
@@ -93,7 +93,7 @@ abstract class BaseSpscLinkedArrayQueueProducerFields<E> extends BaseSpscLinkedA
     {
         return UNSAFE.getLong(this, P_INDEX_OFFSET);
     }
-    
+
 }
 
 abstract class BaseSpscLinkedArrayQueueProducerColdFields<E> extends BaseSpscLinkedArrayQueueProducerFields<E>
@@ -213,6 +213,11 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
     @Override
     public int fill(Supplier<E> s, int limit)
     {
+        if (limit < 0)
+            throw new IllegalArgumentException("limit is negative:" + limit);
+        if (limit == 0)
+            return 0;
+
         for (int i = 0; i < limit; i++)
         {
             // local load of field to avoid repeated loads after volatile reads

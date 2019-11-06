@@ -461,6 +461,10 @@ public class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
 
     @Override
     public int fill(Supplier<E> s, int limit) {
+        if (limit < 0)
+            throw new IllegalArgumentException("limit is negative:" + limit);
+        if (limit == 0)
+            return 0;
         final int mask = this.mask;
         final long capacity = mask + 1;
         // LoadLoad

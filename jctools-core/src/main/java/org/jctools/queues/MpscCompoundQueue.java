@@ -308,6 +308,11 @@ public class MpscCompoundQueue<E> extends MpscCompoundQueueConsumerQueueIndex<E>
     @Override
     public int fill(Supplier<E> s, int limit)
     {
+        if (limit < 0)
+            throw new IllegalArgumentException("limit is negative:" + limit);
+        if (limit == 0)
+            return 0;
+
         final int parallelQueuesMask = this.parallelQueuesMask;
         int start = (int) (Thread.currentThread().getId() & parallelQueuesMask);
         final MpscArrayQueue<E>[] queues = this.queues;

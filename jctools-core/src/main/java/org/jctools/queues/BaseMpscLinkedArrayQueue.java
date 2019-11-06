@@ -49,7 +49,7 @@ abstract class BaseMpscLinkedArrayQueueProducerFields<E> extends BaseMpscLinkedA
     {
         return producerIndex;
     }
-    
+
     final void soProducerIndex(long newValue)
     {
         UNSAFE.putOrderedLong(this, P_INDEX_OFFSET, newValue);
@@ -81,7 +81,7 @@ abstract class BaseMpscLinkedArrayQueueConsumerFields<E> extends BaseMpscLinkedA
     {
         return consumerIndex;
     }
-    
+
     final long lpConsumerIndex()
     {
         return UNSAFE.getLong(this, C_INDEX_OFFSET);
@@ -516,8 +516,13 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
     }
 
     @Override
-    public int fill(Supplier<E> s, int batchSize)
+    public int fill(Supplier<E> s, int limit)
     {
+        if (limit < 0)
+            throw new IllegalArgumentException("limit is negative:" + limit);
+        if (limit == 0)
+            return 0;
+
         long mask;
         E[] buffer;
         long pIndex;
@@ -541,7 +546,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
             // a successful CAS ties the ordering, lv(pIndex) -> [mask/buffer] -> cas(pIndex)
 
             // we want 'limit' slots, but will settle for whatever is visible to 'producerLimit'
-            long batchIndex = Math.min(producerLimit, pIndex + 2 * batchSize);
+            long batchIndex = Math.min(producerLimit, pIndex + 2 * limit);
 
             if (pIndex >= producerLimit || producerLimit < batchIndex)
             {
@@ -632,7 +637,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
             c.accept(e);
         }
     }
-    
+
     /**
      * Get an iterator for this queue. This method is thread safe.
      * <p>
@@ -640,14 +645,14 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
      * The returned iterator is not guaranteed to return elements in queue order,
      * and races with the consumer thread may cause gaps in the sequence of returned elements.
      * Like {link #relaxedPoll}, the iterator may not immediately return newly inserted elements.
-     * 
+     *
      * @return The iterator.
      */
     @Override
     public Iterator<E> iterator() {
         return new WeakIterator();
     }
-    
+
     private final class WeakIterator implements Iterator<E> {
 
         private long nextIndex;
@@ -677,7 +682,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
             this.currentBufferLength = length(buffer);
             this.nextIndex = 0;
         }
-        
+
         private E getNext() {
             while (true) {
                 while (nextIndex < currentBufferLength - 1) {
