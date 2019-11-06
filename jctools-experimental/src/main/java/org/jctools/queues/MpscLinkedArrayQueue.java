@@ -45,8 +45,8 @@ public final class MpscLinkedArrayQueue<T> extends AbstractQueue<T> {
         if (index < end) {
             int offset = (int)(index - start);
             array.lazySet(offset, value);
-        } else
-        if (index >= end) {
+        }
+        else { //(index >= end)
             for (;;) {
                 Object nextArray = array.next();
                 if (nextArray == null) {
