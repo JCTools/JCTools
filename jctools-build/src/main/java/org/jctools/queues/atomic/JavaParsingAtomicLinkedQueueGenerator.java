@@ -91,7 +91,7 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtom
     @Override
     public void visit(CastExpr n, Void arg) {
         super.visit(n, arg);
-        
+
         if (isRefArray(n.getType(), "E")) {
             n.setType(atomicRefArrayType((ArrayType) n.getType()));
         }
@@ -114,11 +114,11 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtom
         if (originalQueueName.length() < 5) {
             return originalQueueName;
         }
-        
+
         if (originalQueueName.contains("LinkedQueue") || originalQueueName.contains("LinkedArrayQueue")) {
             return originalQueueName.replace("Linked", "LinkedAtomic");
         }
-        
+
         if (originalQueueName.contains("ArrayQueue")) {
             return originalQueueName.replace("ArrayQueue", "AtomicArrayQueue");
         }
@@ -153,11 +153,11 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtom
             if (name.startsWith("org.jctools.queues.CircularArrayOffsetCalculator")) {
                 continue;
             }
-            
+
             if (name.startsWith("org.jctools.queues.LinkedArrayQueueUtil")) {
                 importDeclaration.setName(name.replace("org.jctools.queues.LinkedArrayQueueUtil", "org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil"));
             }
-            
+
             importDecls.add(importDeclaration);
         }
         cu.getImports().clear();
@@ -180,9 +180,6 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtom
      * Given a variable declaration of some sort, check it's name and type and
      * if it looks like any of the key type changes between unsafe and atomic
      * queues, perform the conversion to change it's type.
-     * 
-     * @param node
-     * @param name
      */
     void processSpecialNodeTypes(NodeWithType<?, Type> node, String name) {
         Type type = node.getType();
@@ -207,8 +204,6 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtom
      * Searches all extended or implemented super classes or interfaces for
      * special classes that differ with the atomics version and replaces them
      * with the appropriate class.
-     * 
-     * @param n
      */
     private void replaceParentClassesForAtomics(ClassOrInterfaceDeclaration n) {
         replaceParentClassesForAtomics(n.getExtendedTypes());
@@ -233,15 +228,14 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtom
      * followed by the field name are processed. Clearly <code>lv<code>,
      * <code>lp<code> and <code>sv<code> are simple field accesses with only
      * <code>so and <code>cas <code> using the AtomicFieldUpdaters.
-     * 
-     * @param n
-     *            the AST node for the containing class
+     *
+     * @param n the AST node for the containing class
      */
     private void patchAtomicFieldUpdaterAccessorMethods(ClassOrInterfaceDeclaration n) {
         String className = n.getNameAsString();
 
         for (FieldDeclaration field : n.getFields()) {
-            if (field.getModifiers().contains(Keyword.STATIC)) {
+            if (field.getModifiers().contains(Modifier.staticModifier())) {
                 // Ignore statics
                 continue;
             }
@@ -312,7 +306,7 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtom
     /**
      * Generates something like
      * <code>return P_INDEX_UPDATER.getAndSet(this, newValue)</code>
-     * 
+     *
      * @param fieldUpdaterFieldName
      * @param newValueName
      * @return
@@ -327,7 +321,7 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtom
     /**
      * Generates something like
      * <code>private static final AtomicReferenceFieldUpdater<MpmcAtomicArrayQueueProducerNodeField> P_NODE_UPDATER = AtomicReferenceFieldUpdater.newUpdater(MpmcAtomicArrayQueueProducerNodeField.class, "producerNode");</code>
-     * 
+     *
      * @param className
      * @param variableName
      * @return

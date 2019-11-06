@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
+import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.Modifier.Keyword;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.ConstructorDeclaration;
@@ -31,7 +32,7 @@ public final class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomi
     public static void main(String[] args) throws Exception {
         main(JavaParsingAtomicArrayQueueGenerator.class, args);
     }
-    
+
     JavaParsingAtomicArrayQueueGenerator(String sourceFileName) {
         super(sourceFileName);
     }
@@ -125,9 +126,6 @@ public final class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomi
      * Given a variable declaration of some sort, check it's name and type and
      * if it looks like any of the key type changes between unsafe and atomic
      * queues, perform the conversion to change it's type.
-     * 
-     * @param node
-     * @param name
      */
     void processSpecialNodeTypes(NodeWithType<?, Type> node, String name) {
         Type type = node.getType();
@@ -151,8 +149,6 @@ public final class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomi
      * Searches all extended or implemented super classes or interfaces for
      * special classes that differ with the atomics version and replaces them
      * with the appropriate class.
-     * 
-     * @param n
      */
     private void replaceParentClassesForAtomics(ClassOrInterfaceDeclaration n) {
         for (ClassOrInterfaceType parent : n.getExtendedTypes()) {
@@ -173,11 +169,6 @@ public final class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomi
      * signature with code to redirect all calls to it to the
      * <code>newMethodName</code>. Method signatures of both methods must match
      * exactly.
-     * 
-     * @param methodToPatch
-     * @param toMethodName
-     * @param returnType
-     * @param parameters
      */
     private void patchMethodAsDeprecatedRedirector(MethodDeclaration methodToPatch, String toMethodName,
             Type returnType, Parameter... parameters) {
@@ -206,7 +197,7 @@ public final class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomi
      * the field name are processed. Clearly <code>lv<code>, <code>lp<code> and
      * <code>sv<code> are simple field accesses with only <code>so and <code>cas
      * <code> using the AtomicFieldUpdaters.
-     * 
+     *
      * @param n
      *            the AST node for the containing class
      */
@@ -214,7 +205,7 @@ public final class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomi
         String className = n.getNameAsString();
 
         for (FieldDeclaration field : n.getFields()) {
-            if (field.getModifiers().contains(Keyword.STATIC)) {
+            if (field.getModifiers().contains(Modifier.staticModifier())) {
                 // Ignore statics
                 continue;
             }
