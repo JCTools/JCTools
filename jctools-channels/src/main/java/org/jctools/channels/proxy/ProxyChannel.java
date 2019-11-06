@@ -26,7 +26,7 @@ package org.jctools.channels.proxy;
 public interface ProxyChannel<E> {
 
     /**
-     * @param callback the accept function for this consumer
+     * @param impl the accept function for this consumer
      * @return a consumer instance to be used for this particular thread.
      */
     E proxyInstance(E impl);
