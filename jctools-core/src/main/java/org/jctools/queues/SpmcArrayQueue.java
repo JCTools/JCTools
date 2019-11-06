@@ -176,7 +176,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E>
                 }
             }
         }
-        spElement(buffer, offset, e);
+        soElement(buffer, offset, e);
         // single producer, so store ordered is valid. It is also required to correctly publish the element
         // and for the consumers to pick up the tail value.
         soProducerIndex(currProducerIndex + 1);
@@ -263,7 +263,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E>
         {
             return false;
         }
-        spElement(buffer, offset, e);
+        soElement(buffer, offset, e);
         // single producer, so store ordered is valid. It is also required to correctly publish the element
         // and for the consumers to pick up the tail value.
         soProducerIndex(producerIndex + 1);

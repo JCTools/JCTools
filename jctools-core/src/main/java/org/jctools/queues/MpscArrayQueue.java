@@ -354,7 +354,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
             }
         }
 
-        spElement(buffer, offset, null);
+        soElement(buffer, offset, null);
         soConsumerIndex(cIndex + 1); // StoreStore
         return e;
     }
@@ -420,7 +420,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
             return null;
         }
 
-        spElement(buffer, offset, null);
+        soElement(buffer, offset, null);
         soConsumerIndex(cIndex + 1); // StoreStore
         return e;
     }
@@ -474,7 +474,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
             {
                 return i;
             }
-            spElement(buffer, offset, null);
+            soElement(buffer, offset, null);
             soConsumerIndex(index + 1); // ordered store -> atomic and ordered for size()
             c.accept(e);
         }
@@ -550,7 +550,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
                 }
                 cIndex++;
                 counter = 0;
-                spElement(buffer, offset, null);
+                soElement(buffer, offset, null);
                 soConsumerIndex(cIndex); // ordered store -> atomic and ordered for size()
                 c.accept(e);
             }

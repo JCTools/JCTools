@@ -436,7 +436,7 @@ public class MpscUnboundedXaddArrayQueue<E> extends MpscUnboundedXaddArrayQueueP
             final E e = consumerBuffer.lvElement(consumerOffset);
             if (e != null)
             {
-                consumerBuffer.spElement(consumerOffset, null);
+                consumerBuffer.soElement(consumerOffset, null);
                 soConsumerIndex(consumerIndex + 1);
                 return e;
             }
@@ -446,7 +446,7 @@ public class MpscUnboundedXaddArrayQueue<E> extends MpscUnboundedXaddArrayQueueP
             }
         }
         final E e = spinForElement(consumerBuffer, consumerOffset);
-        consumerBuffer.spElement(consumerOffset, null);
+        consumerBuffer.soElement(consumerOffset, null);
         soConsumerIndex(consumerIndex + 1);
         return e;
     }
@@ -558,7 +558,7 @@ public class MpscUnboundedXaddArrayQueue<E> extends MpscUnboundedXaddArrayQueueP
                 return null;
             }
         }
-        consumerBuffer.spElement(consumerOffset, null);
+        consumerBuffer.soElement(consumerOffset, null);
         soConsumerIndex(consumerIndex + 1);
         return e;
     }
@@ -647,7 +647,7 @@ public class MpscUnboundedXaddArrayQueue<E> extends MpscUnboundedXaddArrayQueueP
                     return i;
                 }
             }
-            consumerBuffer.spElement(consumerOffset, null);
+            consumerBuffer.soElement(consumerOffset, null);
             final long nextConsumerIndex = consumerIndex + 1;
             soConsumerIndex(nextConsumerIndex);
             c.accept(e);
