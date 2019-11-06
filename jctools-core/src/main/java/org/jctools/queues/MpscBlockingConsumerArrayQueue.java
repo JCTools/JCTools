@@ -694,11 +694,11 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
             // pIndex is even (lower bit is 0) -> actual index is (pIndex >> 1), consumer is awake
 
             // we want 'limit' slots, but will settle for whatever is visible to 'producerLimit'
-            batchIndex = Math.min(producerLimit, pIndex + shiftedBatchSize);
+            batchIndex = Math.min(producerLimit, pIndex + shiftedBatchSize); //  -> producerLimit >= batchIndex
 
             // Use producer limit to save a read of the more rapidly mutated consumer index.
             // Assumption: queue is usually empty or near empty
-            if (pIndex >= producerLimit || producerLimit < batchIndex)
+            if (pIndex >= producerLimit)
             {
                 if (!recalculateProducerLimit(mask, pIndex, producerLimit))
                 {
