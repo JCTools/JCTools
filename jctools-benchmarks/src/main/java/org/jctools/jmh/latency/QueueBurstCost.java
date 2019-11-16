@@ -14,6 +14,7 @@
 package org.jctools.jmh.latency;
 
 import org.jctools.queues.QueueByTypeFactory;
+import org.jctools.util.UnsafeAccess;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 
@@ -22,7 +23,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
@@ -34,7 +34,6 @@ public class QueueBurstCost
 {
     private static final long DELAY_PRODUCER = Long.getLong("delay.p", 0L);
     private static final long DELAY_CONSUMER = Long.getLong("delay.c", 0L);
-    Go GO = new Go();
     @Param( {"SpscArrayQueue", "MpscArrayQueue", "SpmcArrayQueue", "MpmcArrayQueue"})
     String qType;
     @Param( {"100"})
@@ -44,22 +43,24 @@ public class QueueBurstCost
     @Param("true")
     boolean warmup;
     @Param(value = {"132000"})
-    String qCapacity;
-    Queue<AbstractEvent> q;
+    int qCapacity;
+    Queue<Event> q;
     private ExecutorService consumerExecutor;
     private Consumer consumer;
 
     @Setup(Level.Trial)
-    public void setupQueue()
+    public void setupQueueAndConsumers()
     {
         if (warmup)
         {
             q = QueueByTypeFactory.createQueue(qType, 128);
 
+            final Event event = new Event();
+
             // stretch the queue to the limit, working through resizing and full
             for (int i = 0; i < 128 + 100; i++)
             {
-                q.offer(GO);
+                q.offer(event);
             }
             for (int i = 0; i < 128 + 100; i++)
             {
@@ -68,12 +69,12 @@ public class QueueBurstCost
             // make sure the important common case is exercised
             for (int i = 0; i < 20000; i++)
             {
-                q.offer(GO);
+                q.offer(event);
                 q.poll();
             }
         }
-        q = QueueByTypeFactory.buildQ(qType, qCapacity);
-        consumer = new Consumer(q);
+        q = QueueByTypeFactory.createQueue(qType, qCapacity);
+        consumer = new Consumer(q, consumerCount > 1);
         consumerExecutor = Executors.newFixedThreadPool(consumerCount);
     }
 
@@ -104,30 +105,20 @@ public class QueueBurstCost
 
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-    public void burstCost(Stop stop)
+    public void burstCost(Event event)
     {
         final int burst = burstSize;
-        final Queue<AbstractEvent> q = this.q;
-        final Go go = GO;
-        stop.lazySet(false);
-        sendBurst(q, burst, go, stop);
-
-        waitForIt(stop);
+        final Queue<Event> q = this.q;
+        event.reset();
+        sendBurst(q, event, burst);
+        event.waitFor(burst);
     }
 
-    private void waitForIt(Stop stop)
+    private static void sendBurst(Queue<Event> q, Event event, int burst)
     {
-        while (!stop.get())
+        for (int i = 0; i < burst; i++)
         {
-            ;
-        }
-    }
-
-    private void sendBurst(Queue<AbstractEvent> q, int burst, Go go, Stop stop)
-    {
-        for (int i = 0; i < burst - 1; i++)
-        {
-            while (!q.offer(go))
+            while (!q.offer(event))
             {
                 ;
             }
@@ -136,34 +127,36 @@ public class QueueBurstCost
                 Blackhole.consumeCPU(DELAY_PRODUCER);
             }
         }
-
-        while (!q.offer(stop))
-        {
-            ;
-        }
     }
 
-    abstract static class AbstractEvent extends AtomicBoolean
-    {
-        abstract void handle();
-    }
-
-    static class Go extends AbstractEvent
-    {
-        @Override
-        void handle()
-        {
-            // do nothing
-        }
-    }
-
+    //do not extends AtomicLong here: JMH will take care of padding fields for us
     @State(Scope.Thread)
-    public static class Stop extends AbstractEvent
+    public static class Event
     {
-        @Override
-        void handle()
+        private static final long handledOffset = UnsafeAccess.fieldOffset(Event.class, "handled");
+        private long handled;
+
+        void reset()
         {
-            lazySet(true);
+            UnsafeAccess.UNSAFE.putOrderedLong(this, handledOffset, 0);
+        }
+
+        void waitFor(int value)
+        {
+            while (UnsafeAccess.UNSAFE.getLongVolatile(this, handledOffset) != value)
+            {
+
+            }
+        }
+
+        void sharedHandle()
+        {
+            UnsafeAccess.UNSAFE.getAndAddLong(this, handledOffset, 1);
+        }
+
+        void exclusiveHandle()
+        {
+            UnsafeAccess.UNSAFE.putOrderedLong(this, handledOffset, handled + 1);
         }
     }
 
@@ -175,7 +168,7 @@ public class QueueBurstCost
 
     static class ConsumerFields extends ConsumerPad
     {
-        Queue<AbstractEvent> q;
+        Queue<Event> q;
         volatile boolean isRunning = true;
         CountDownLatch stopped;
     }
@@ -184,27 +177,31 @@ public class QueueBurstCost
     {
         public long p40, p41, p42, p43, p44, p45, p46;
         public long p30, p31, p32, p33, p34, p35, p36, p37;
+        private final boolean shared;
 
-        public Consumer(Queue<AbstractEvent> q)
+        public Consumer(Queue<Event> q, boolean shared)
         {
             this.q = q;
+            this.shared = shared;
         }
 
         @Override
         public void run()
         {
-            final Queue<AbstractEvent> q = this.q;
+            final CountDownLatch stopped = this.stopped;
+            final Queue<Event> q = this.q;
+            final boolean shared = this.shared;
             while (isRunning)
             {
-                consume(q);
+                consume(q, shared);
             }
             stopped.countDown();
         }
 
         @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-        private void consume(Queue<AbstractEvent> q)
+        private void consume(Queue<Event> q, boolean shared)
         {
-            AbstractEvent e = null;
+            Event e = null;
             if ((e = q.poll()) == null)
             {
                 return;
@@ -213,10 +210,15 @@ public class QueueBurstCost
             {
                 Blackhole.consumeCPU(DELAY_CONSUMER);
             }
-            e.handle();
+            if (shared)
+            {
+                e.sharedHandle();
+            }
+            else
+            {
+                e.exclusiveHandle();
+            }
         }
 
     }
-
-
 }

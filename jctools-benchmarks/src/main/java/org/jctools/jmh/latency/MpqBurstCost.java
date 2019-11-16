@@ -15,10 +15,14 @@ package org.jctools.jmh.latency;
 
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MessagePassingQueueByTypeFactory;
+import org.jctools.util.UnsafeAccess;
 import org.openjdk.jmh.annotations.*;
+import org.openjdk.jmh.infra.Blackhole;
 
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
@@ -28,129 +32,191 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @SuppressWarnings("serial")
 public class MpqBurstCost
 {
-    static final Go GO = new Go();
+    private static final long DELAY_PRODUCER = Long.getLong("delay.p", 0L);
+    private static final long DELAY_CONSUMER = Long.getLong("delay.c", 0L);
     @Param( {"SpscArrayQueue", "MpscArrayQueue", "SpmcArrayQueue", "MpmcArrayQueue"})
     String qType;
     @Param( {"100"})
     int burstSize;
     @Param("1")
     int consumerCount;
-    MessagePassingQueue<AbstractEvent> q;
-    private Thread[] consumerThreads;
+    @Param("true")
+    boolean warmup;
+    @Param(value = {"132000"})
+    int qCapacity;
+    MessagePassingQueue<Event> q;
+    private ExecutorService consumerExecutor;
     private Consumer consumer;
 
     @Setup(Level.Trial)
     public void setupQueueAndConsumers()
     {
-        q = MessagePassingQueueByTypeFactory.createQueue(qType, 128);
+        if (warmup)
+        {
+            q = MessagePassingQueueByTypeFactory.createQueue(qType, 128);
 
-        // stretch the queue to the limit, working through resizing and full
-        for (int i = 0; i < 128 + 100; i++)
-        {
-            q.offer(GO);
+            final Event event = new Event();
+
+            // stretch the queue to the limit, working through resizing and full
+            for (int i = 0; i < 128 + 100; i++)
+            {
+                q.offer(event);
+            }
+            for (int i = 0; i < 128 + 100; i++)
+            {
+                q.poll();
+            }
+            // make sure the important common case is exercised
+            for (int i = 0; i < 20000; i++)
+            {
+                q.offer(event);
+                q.poll();
+            }
         }
-        for (int i = 0; i < 128 + 100; i++)
-        {
-            q.poll();
-        }
-        // make sure the important common case is exercised
-        for (int i = 0; i < 20000; i++)
-        {
-            q.offer(GO);
-            q.poll();
-        }
-        q = MessagePassingQueueByTypeFactory.createQueue(qType, 128 * 1024);
-        consumer = new Consumer(q);
-        consumerThreads = new Thread[consumerCount];
+        q = MessagePassingQueueByTypeFactory.createQueue(qType, qCapacity);
+        consumer = new Consumer(q, consumerCount > 1);
+        consumerExecutor = Executors.newFixedThreadPool(consumerCount);
+    }
+
+    @Setup(Level.Iteration)
+    public void startConsumers()
+    {
+        consumer.isRunning = true;
+        consumer.stopped = new CountDownLatch(consumerCount);
         for (int i = 0; i < consumerCount; i++)
         {
-            consumerThreads[i] = new Thread(consumer);
-            consumerThreads[i].start();
+            consumerExecutor.execute(consumer);
         }
+
+    }
+
+    @TearDown(Level.Iteration)
+    public void stopConsumers() throws InterruptedException
+    {
+        consumer.isRunning = false;
+        consumer.stopped.await();
+    }
+
+    @TearDown(Level.Trial)
+    public void stopExecutor() throws InterruptedException
+    {
+        consumerExecutor.shutdown();
     }
 
     @Benchmark
-    public void burstCost(Stop stop)
+    @CompilerControl(CompilerControl.Mode.DONT_INLINE)
+    public void burstCost(Event event)
     {
         final int burst = burstSize;
-        final MessagePassingQueue<AbstractEvent> q = this.q;
-        final Go go = GO;
-        stop.lazySet(false);
-        for (int i = 0; i < burst - 1; i++)
+        final MessagePassingQueue<Event> q = this.q;
+        event.reset();
+        sendBurst(q, event, burst);
+        event.waitFor(burst);
+    }
+
+    private static void sendBurst(MessagePassingQueue<Event> q, Event event, int burst)
+    {
+        for (int i = 0; i < burst; i++)
         {
-            while (!q.offer(go))
+            while (!q.offer(event))
             {
                 ;
             }
-        }
-
-        while (!q.offer(stop))
-        {
-            ;
-        }
-
-        while (!stop.get())
-        {
-            ;
+            if (DELAY_PRODUCER != 0)
+            {
+                Blackhole.consumeCPU(DELAY_PRODUCER);
+            }
         }
     }
 
-    @TearDown
-    public void killConsumer() throws InterruptedException
-    {
-        consumer.isRunning = false;
-        for (int i = 0; i < consumerCount; i++)
-        {
-            consumerThreads[i].join();
-        }
-    }
-
-    abstract static class AbstractEvent extends AtomicBoolean
-    {
-        abstract void handle();
-    }
-
-    static class Go extends AbstractEvent
-    {
-        @Override
-        void handle()
-        {
-            // do nothing
-        }
-    }
-
+    //do not extends AtomicLong here: JMH will take care of padding fields for us
     @State(Scope.Thread)
-    public static class Stop extends AbstractEvent
+    public static class Event
     {
-        @Override
-        void handle()
+        private static final long handledOffset = UnsafeAccess.fieldOffset(Event.class, "handled");
+        private long handled;
+
+        void reset()
         {
-            lazySet(true);
+            UnsafeAccess.UNSAFE.putOrderedLong(this, handledOffset, 0);
+        }
+
+        void waitFor(int value)
+        {
+            while (UnsafeAccess.UNSAFE.getLongVolatile(this, handledOffset) != value)
+            {
+
+            }
+        }
+
+        void sharedHandle()
+        {
+            UnsafeAccess.UNSAFE.getAndAddLong(this, handledOffset, 1);
+        }
+
+        void exclusiveHandle()
+        {
+            UnsafeAccess.UNSAFE.putOrderedLong(this, handledOffset, handled + 1);
         }
     }
 
-    static class Consumer implements Runnable
+    static class ConsumerPad
     {
-        final MessagePassingQueue<AbstractEvent> q;
-        volatile boolean isRunning = true;
+        public long p40, p41, p42, p43, p44, p45, p46;
+        public long p30, p31, p32, p33, p34, p35, p36, p37;
+    }
 
-        public Consumer(MessagePassingQueue<AbstractEvent> q)
+    static class ConsumerFields extends ConsumerPad
+    {
+        MessagePassingQueue<Event> q;
+        volatile boolean isRunning = true;
+        CountDownLatch stopped;
+    }
+
+    static class Consumer extends ConsumerFields implements Runnable
+    {
+        public long p40, p41, p42, p43, p44, p45, p46;
+        public long p30, p31, p32, p33, p34, p35, p36, p37;
+        private final boolean shared;
+
+        public Consumer(MessagePassingQueue<Event> q, boolean shared)
         {
             this.q = q;
+            this.shared = shared;
         }
 
         @Override
         public void run()
         {
-            final MessagePassingQueue<AbstractEvent> q = this.q;
+            final CountDownLatch stopped = this.stopped;
+            final MessagePassingQueue<Event> q = this.q;
+            final boolean shared = this.shared;
             while (isRunning)
             {
-                AbstractEvent e = null;
-                if ((e = q.relaxedPoll()) == null)
-                {
-                    continue;
-                }
-                e.handle();
+                consume(q, shared);
+            }
+            stopped.countDown();
+        }
+
+        @CompilerControl(CompilerControl.Mode.DONT_INLINE)
+        private void consume(MessagePassingQueue<Event> q, boolean shared)
+        {
+            Event e = null;
+            if ((e = q.relaxedPoll()) == null)
+            {
+                return;
+            }
+            if (DELAY_CONSUMER != 0)
+            {
+                Blackhole.consumeCPU(DELAY_CONSUMER);
+            }
+            if (shared)
+            {
+                e.sharedHandle();
+            }
+            else
+            {
+                e.exclusiveHandle();
             }
         }
 
