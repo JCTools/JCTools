@@ -18,6 +18,7 @@ import org.jctools.util.UnsafeAccess;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 
+import java.util.Arrays;
 import java.util.Queue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -46,7 +47,8 @@ public class QueueBurstCost
     int qCapacity;
     Queue<Event> q;
     private ExecutorService consumerExecutor;
-    private Consumer consumer;
+    private Consumer[] consumers;
+    private CountDownLatch stopped;
 
     @Setup(Level.Trial)
     public void setupQueueAndConsumers()
@@ -74,31 +76,43 @@ public class QueueBurstCost
             }
         }
         q = QueueByTypeFactory.createQueue(qType, qCapacity);
-        consumer = new Consumer(q, consumerCount > 1);
+        consumers = new Consumer[consumerCount];
+        for (int i = 0; i < consumerCount; i++)
+        {
+            consumers[i] = new Consumer(q, i);
+        }
         consumerExecutor = Executors.newFixedThreadPool(consumerCount);
     }
 
     @Setup(Level.Iteration)
     public void startConsumers()
     {
-        consumer.isRunning = true;
-        consumer.stopped = new CountDownLatch(consumerCount);
+        stopped = new CountDownLatch(consumerCount);
+        final int consumerCount = this.consumerCount;
         for (int i = 0; i < consumerCount; i++)
         {
-            consumerExecutor.execute(consumer);
+            consumers[i].isRunning = true;
+            consumers[i].stopped = stopped;
         }
-
+        for (int i = 0; i < consumerCount; i++)
+        {
+            consumerExecutor.execute(consumers[i]);
+        }
     }
 
     @TearDown(Level.Iteration)
     public void stopConsumers() throws InterruptedException
     {
-        consumer.isRunning = false;
-        consumer.stopped.await();
+        final int consumerCount = this.consumerCount;
+        for (int i = 0; i < consumerCount; i++)
+        {
+            consumers[i].isRunning = false;
+        }
+        stopped.await();
     }
 
     @TearDown(Level.Trial)
-    public void stopExecutor() throws InterruptedException
+    public void stopExecutor()
     {
         consumerExecutor.shutdown();
     }
@@ -133,30 +147,69 @@ public class QueueBurstCost
     @State(Scope.Thread)
     public static class Event
     {
-        private static final long handledOffset = UnsafeAccess.fieldOffset(Event.class, "handled");
-        private long handled;
+        private static final long ARRAY_BASE;
+        private static final int ELEMENT_SHIFT;
+
+        static
+        {
+            final int scale = UnsafeAccess.UNSAFE.arrayIndexScale(long[].class);
+            if (8 == scale)
+            {
+                ELEMENT_SHIFT = 3;
+            }
+            else
+            {
+                throw new IllegalStateException("Unexpected long[] element size");
+            }
+            // Including the buffer pad in the array base offset
+            ARRAY_BASE = UnsafeAccess.UNSAFE.arrayBaseOffset(long[].class);
+        }
+
+        private static long calcSequenceOffset(long index)
+        {
+            return ARRAY_BASE + (index << ELEMENT_SHIFT);
+        }
+
+        private long[] handledCount = null;
+
+        @Setup
+        public void init(QueueBurstCost state)
+        {
+            handledCount = new long[state.consumerCount];
+        }
 
         void reset()
         {
-            UnsafeAccess.UNSAFE.putOrderedLong(this, handledOffset, 0);
+            Arrays.fill(handledCount, 0);
+            UnsafeAccess.UNSAFE.storeFence();
         }
 
         void waitFor(int value)
         {
-            while (UnsafeAccess.UNSAFE.getLongVolatile(this, handledOffset) != value)
+            final long[] values = this.handledCount;
+            final long length = values.length;
+            do
             {
-
+                long total = 0;
+                for (int i = 0; i < length; i++)
+                {
+                    final long offset = calcSequenceOffset(i);
+                    total += UnsafeAccess.UNSAFE.getLongVolatile(values, offset);
+                    if (total == value)
+                    {
+                        return;
+                    }
+                }
             }
+            while (true);
         }
 
-        void sharedHandle()
+        void handle(int consumerId)
         {
-            UnsafeAccess.UNSAFE.getAndAddLong(this, handledOffset, 1);
-        }
-
-        void exclusiveHandle()
-        {
-            UnsafeAccess.UNSAFE.putOrderedLong(this, handledOffset, handled + 1);
+            final long[] values = this.handledCount;
+            final long offset = calcSequenceOffset(consumerId);
+            final long value = UnsafeAccess.UNSAFE.getLong(values, offset);
+            UnsafeAccess.UNSAFE.putOrderedLong(values, offset, value + 1);
         }
     }
 
@@ -177,29 +230,29 @@ public class QueueBurstCost
     {
         public long p40, p41, p42, p43, p44, p45, p46;
         public long p30, p31, p32, p33, p34, p35, p36, p37;
-        private final boolean shared;
+        private final int consumerId;
 
-        public Consumer(Queue<Event> q, boolean shared)
+        public Consumer(Queue<Event> q, int consumerId)
         {
             this.q = q;
-            this.shared = shared;
+            this.consumerId = consumerId;
         }
 
         @Override
         public void run()
         {
             final CountDownLatch stopped = this.stopped;
+            final int consumerId = this.consumerId;
             final Queue<Event> q = this.q;
-            final boolean shared = this.shared;
             while (isRunning)
             {
-                consume(q, shared);
+                consume(q, consumerId);
             }
             stopped.countDown();
         }
 
         @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-        private void consume(Queue<Event> q, boolean shared)
+        private void consume(Queue<Event> q, int consumerId)
         {
             Event e = null;
             if ((e = q.poll()) == null)
@@ -210,14 +263,7 @@ public class QueueBurstCost
             {
                 Blackhole.consumeCPU(DELAY_CONSUMER);
             }
-            if (shared)
-            {
-                e.sharedHandle();
-            }
-            else
-            {
-                e.exclusiveHandle();
-            }
+            e.handle(consumerId);
         }
 
     }
