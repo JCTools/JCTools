@@ -639,24 +639,6 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
     }
 
     @Override
-    public int fill(Supplier<E> s)
-    {
-        long result = 0;// result is a long because we want to have a safepoint check at regular intervals
-        final int capacity = capacity();
-        do
-        {
-            final int filled = fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH);
-            if (filled == 0)
-            {
-                return (int) result;
-            }
-            result += filled;
-        }
-        while (result <= capacity);
-        return (int) result;
-    }
-
-    @Override
     public int fill(Supplier<E> s, int limit)
     {
         if (null == s)
@@ -733,26 +715,15 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
     }
 
     @Override
-    public void fill(
-        Supplier<E> s,
-        WaitStrategy w,
-        ExitCondition exit)
+    public int fill(Supplier<E> s)
     {
-        if (null == w)
-            throw new IllegalArgumentException("waiter is null");
-        if (null == exit)
-            throw new IllegalArgumentException("exit condition is null");
-        while (exit.keepRunning())
-        {
-            if (fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH) == 0)
-            {
-                int idleCounter = 0;
-                while (exit.keepRunning() && fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH) == 0)
-                {
-                    idleCounter = w.idle(idleCounter);
-                }
-            }
-        }
+        return MessagePassingQueueUtil.fillBounded(this, s);
+    }
+
+    @Override
+    public void fill(Supplier<E> s, WaitStrategy wait, ExitCondition exit)
+    {
+        MessagePassingQueueUtil.fill(this, s, wait, exit);
     }
 
     @Override
@@ -764,31 +735,12 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
     @Override
     public int drain(final Consumer<E> c, final int limit)
     {
-        // Impl note: there are potentially some small gains to be had by manually inlining relaxedPoll() and hoisting
-        // reused fields out to reduce redundant reads.
-        int i = 0;
-        E m;
-        for (; i < limit && (m = relaxedPoll()) != null; i++)
-        {
-            c.accept(m);
-        }
-        return i;
+        return MessagePassingQueueUtil.drain(this, c, limit);
     }
 
     @Override
     public void drain(Consumer<E> c, WaitStrategy w, ExitCondition exit)
     {
-        int idleCounter = 0;
-        while (exit.keepRunning())
-        {
-            E e = relaxedPoll();
-            if (e == null)
-            {
-                idleCounter = w.idle(idleCounter);
-                continue;
-            }
-            idleCounter = 0;
-            c.accept(e);
-        }
+        MessagePassingQueueUtil.drain(this, c, w, exit);
     }
 }

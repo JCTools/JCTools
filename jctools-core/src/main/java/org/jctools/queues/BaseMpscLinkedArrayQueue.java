@@ -584,29 +584,10 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
     }
 
     @Override
-    public void fill(
-        Supplier<E> s,
-        WaitStrategy w,
-        ExitCondition exit)
+    public void fill(Supplier<E> s, WaitStrategy wait, ExitCondition exit)
     {
-        if (null == w)
-            throw new IllegalArgumentException("waiter is null");
-        if (null == exit)
-            throw new IllegalArgumentException("exit condition is null");
-
-        while (exit.keepRunning())
-        {
-            if (fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH) == 0)
-            {
-                int idleCounter = 0;
-                while (exit.keepRunning() && fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH) == 0)
-                {
-                    idleCounter = w.idle(idleCounter);
-                }
-            }
-        }
+        MessagePassingQueueUtil.fill(this, s, wait, exit);
     }
-
     @Override
     public int drain(Consumer<E> c)
     {
@@ -614,34 +595,15 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
     }
 
     @Override
-    public int drain(final Consumer<E> c, final int limit)
+    public int drain(Consumer<E> c, int limit)
     {
-        // Impl note: there are potentially some small gains to be had by manually inlining relaxedPoll() and hoisting
-        // reused fields out to reduce redundant reads.
-        int i = 0;
-        E m;
-        for (; i < limit && (m = relaxedPoll()) != null; i++)
-        {
-            c.accept(m);
-        }
-        return i;
+        return MessagePassingQueueUtil.drain(this, c, limit);
     }
 
     @Override
-    public void drain(Consumer<E> c, WaitStrategy w, ExitCondition exit)
+    public void drain(Consumer<E> c, WaitStrategy wait, ExitCondition exit)
     {
-        int idleCounter = 0;
-        while (exit.keepRunning())
-        {
-            E e = relaxedPoll();
-            if (e == null)
-            {
-                idleCounter = w.idle(idleCounter);
-                continue;
-            }
-            idleCounter = 0;
-            c.accept(e);
-        }
+        MessagePassingQueueUtil.drain(this, c, wait, exit);
     }
 
     /**

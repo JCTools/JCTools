@@ -259,6 +259,13 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>
     @Override
     public int drain(final Consumer<E> c, final int limit)
     {
+        if (null == c)
+            throw new IllegalArgumentException("c is null");
+        if (limit < 0)
+            throw new IllegalArgumentException("limit is negative: " + limit);
+        if (limit == 0)
+            return 0;
+
         final E[] buffer = this.buffer;
         final long mask = this.mask;
         final long consumerIndex = this.lpConsumerIndex();
@@ -327,6 +334,13 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>
     @Override
     public void drain(final Consumer<E> c, final WaitStrategy w, final ExitCondition exit)
     {
+        if (null == c)
+            throw new IllegalArgumentException("c is null");
+        if (null == w)
+            throw new IllegalArgumentException("wait is null");
+        if (null == exit)
+            throw new IllegalArgumentException("exit condition is null");
+
         final E[] buffer = this.buffer;
         final long mask = this.mask;
         long consumerIndex = this.lpConsumerIndex();

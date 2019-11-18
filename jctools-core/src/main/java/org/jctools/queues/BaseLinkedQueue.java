@@ -219,22 +219,15 @@ abstract class BaseLinkedQueue<E> extends BaseLinkedQueuePad2<E>
     }
 
     @Override
-    public int drain(Consumer<E> c)
-    {
-        long result = 0;// use long to force safepoint into loop below
-        int drained;
-        do
-        {
-            drained = drain(c, 4096);
-            result += drained;
-        }
-        while (drained == 4096 && result <= Integer.MAX_VALUE - 4096);
-        return (int) result;
-    }
-
-    @Override
     public int drain(Consumer<E> c, int limit)
     {
+        if (null == c)
+            throw new IllegalArgumentException("c is null");
+        if (limit < 0)
+            throw new IllegalArgumentException("limit is negative: " + limit);
+        if (limit == 0)
+            return 0;
+
         LinkedQueueNode<E> chaserNode = this.lpConsumerNode();
         for (int i = 0; i < limit; i++)
         {
@@ -253,28 +246,15 @@ abstract class BaseLinkedQueue<E> extends BaseLinkedQueuePad2<E>
     }
 
     @Override
+    public int drain(Consumer<E> c)
+    {
+        return MessagePassingQueueUtil.drain(this, c);
+    }
+
+    @Override
     public void drain(Consumer<E> c, WaitStrategy wait, ExitCondition exit)
     {
-        LinkedQueueNode<E> chaserNode = this.lpConsumerNode();
-        int idleCounter = 0;
-        while (exit.keepRunning())
-        {
-            for (int i = 0; i < 4096; i++)
-            {
-                final LinkedQueueNode<E> nextNode = chaserNode.lvNext();
-                if (nextNode == null)
-                {
-                    idleCounter = wait.idle(idleCounter);
-                    continue;
-                }
-
-                idleCounter = 0;
-                // we have to null out the value because we are going to hang on to the node
-                final E nextValue = getSingleConsumerNodeValue(chaserNode, nextNode);
-                chaserNode = nextNode;
-                c.accept(nextValue);
-            }
-        }
+        MessagePassingQueueUtil.drain(this, c, wait, exit);
     }
 
     @Override

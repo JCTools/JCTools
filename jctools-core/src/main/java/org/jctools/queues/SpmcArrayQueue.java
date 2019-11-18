@@ -286,31 +286,15 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E>
     }
 
     @Override
-    public int drain(final Consumer<E> c)
-    {
-        final int capacity = capacity();
-        int sum = 0;
-        while (sum < capacity)
-        {
-            int drained = 0;
-            if ((drained = drain(c, PortableJvmInfo.RECOMENDED_POLL_BATCH)) == 0)
-            {
-                break;
-            }
-            sum += drained;
-        }
-        return sum;
-    }
-
-    @Override
-    public int fill(final Supplier<E> s)
-    {
-        return fill(s, capacity());
-    }
-
-    @Override
     public int drain(final Consumer<E> c, final int limit)
     {
+        if (null == c)
+            throw new IllegalArgumentException("c is null");
+        if (limit < 0)
+            throw new IllegalArgumentException("limit is negative: " + limit);
+        if (limit == 0)
+            return 0;
+
         final E[] buffer = this.buffer;
         final long mask = this.mask;
         long currProducerIndexCache = lvProducerIndexCache();
@@ -376,49 +360,26 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E>
     }
 
     @Override
+    public int drain(final Consumer<E> c)
+    {
+        return MessagePassingQueueUtil.drain(this, c);
+    }
+
+    @Override
+    public int fill(final Supplier<E> s)
+    {
+        return fill(s, capacity());
+    }
+
+    @Override
     public void drain(final Consumer<E> c, final WaitStrategy w, final ExitCondition exit)
     {
-        int idleCounter = 0;
-        while (exit.keepRunning())
-        {
-            if (drain(c, PortableJvmInfo.RECOMENDED_POLL_BATCH) == 0)
-            {
-                idleCounter = w.idle(idleCounter);
-                continue;
-            }
-            idleCounter = 0;
-        }
+        MessagePassingQueueUtil.drain(this, c, w, exit);
     }
 
     @Override
     public void fill(final Supplier<E> s, final WaitStrategy w, final ExitCondition e)
     {
-        if (null == w)
-            throw new IllegalArgumentException("waiter is null");
-        if (null == e)
-            throw new IllegalArgumentException("exit condition is null");
-        if (null == s)
-            throw new IllegalArgumentException("supplier is null");
-
-        final E[] buffer = this.buffer;
-        final long mask = this.mask;
-        long producerIndex = this.lpProducerIndex();
-        int counter = 0;
-        while (e.keepRunning())
-        {
-            for (int i = 0; i < 4096; i++)
-            {
-                final long offset = calcElementOffset(producerIndex, mask);
-                if (null != lvElement(buffer, offset))
-                {// LoadLoad
-                    counter = w.idle(counter);
-                    continue;
-                }
-                producerIndex++;
-                counter = 0;
-                soElement(buffer, offset, s.get()); // StoreStore
-                soProducerIndex(producerIndex); // ordered store -> atomic and ordered for size()
-            }
-        }
+        MessagePassingQueueUtil.fill(this, s, w, e);
     }
 }

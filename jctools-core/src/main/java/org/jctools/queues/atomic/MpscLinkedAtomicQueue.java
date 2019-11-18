@@ -206,18 +206,7 @@ public class MpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
 
     @Override
     public void fill(Supplier<E> s, WaitStrategy wait, ExitCondition exit) {
-        if (null == wait)
-            throw new IllegalArgumentException("waiter is null");
-        if (null == exit)
-            throw new IllegalArgumentException("exit condition is null");
-        int idleCounter = 0;
-        while (exit.keepRunning()) {
-            if (fill(s, 4096) == 0) {
-                idleCounter = wait.idle(idleCounter);
-                continue;
-            }
-            idleCounter = 0;
-        }
+        MessagePassingQueueUtil.fill(this, s, wait, exit);
     }
 
     private LinkedQueueAtomicNode<E> getNextConsumerNode(LinkedQueueAtomicNode<E> currConsumerNode) {

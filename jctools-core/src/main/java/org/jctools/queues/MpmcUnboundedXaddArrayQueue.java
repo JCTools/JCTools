@@ -679,7 +679,7 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
     @Override
     public int drain(Consumer<E> c)
     {
-        return drain(c, chunkMask + 1);
+        return MessagePassingQueueUtil.drain(this, c);
     }
 
     @Override
@@ -704,16 +704,7 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
     @Override
     public int drain(Consumer<E> c, int limit)
     {
-        for (int i = 0; i < limit; i++)
-        {
-            final E e = relaxedPoll();
-            if (e == null)
-            {
-                return i;
-            }
-            c.accept(e);
-        }
-        return limit;
+        return MessagePassingQueueUtil.drain(this, c, limit);
     }
 
     @Override
@@ -768,20 +759,7 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
     @Override
     public void fill(Supplier<E> s, WaitStrategy wait, ExitCondition exit)
     {
-        if (null == wait)
-            throw new IllegalArgumentException("waiter is null");
-        if (null == exit)
-            throw new IllegalArgumentException("exit condition is null");
-        int idleCounter = 0;
-        while (exit.keepRunning())
-        {
-            if (fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH) == 0)
-            {
-                idleCounter = wait.idle(idleCounter);
-                continue;
-            }
-            idleCounter = 0;
-        }
+        MessagePassingQueueUtil.fill(this, s, wait, exit);
     }
 
     @Override

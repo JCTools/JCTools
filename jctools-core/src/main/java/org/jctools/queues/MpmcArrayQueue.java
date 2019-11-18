@@ -314,43 +314,15 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E>
     }
 
     @Override
-    public int drain(Consumer<E> c)
-    {
-        final int capacity = capacity();
-        int sum = 0;
-        while (sum < capacity)
-        {
-            int drained = 0;
-            if ((drained = drain(c, PortableJvmInfo.RECOMENDED_POLL_BATCH)) == 0)
-            {
-                break;
-            }
-            sum += drained;
-        }
-        return sum;
-    }
-
-    @Override
-    public int fill(Supplier<E> s)
-    {
-        long result = 0;// result is a long because we want to have a safepoint check at regular intervals
-        final int capacity = capacity();
-        do
-        {
-            final int filled = fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH);
-            if (filled == 0)
-            {
-                return (int) result;
-            }
-            result += filled;
-        }
-        while (result <= capacity);
-        return (int) result;
-    }
-
-    @Override
     public int drain(Consumer<E> c, int limit)
     {
+        if (null == c)
+            throw new IllegalArgumentException("c is null");
+        if (limit < 0)
+            throw new IllegalArgumentException("limit is negative: " + limit);
+        if (limit == 0)
+            return 0;
+
         final long[] sBuffer = sequenceBuffer;
         final long mask = this.mask;
         final E[] buffer = this.buffer;
@@ -532,43 +504,26 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E>
     }
 
     @Override
-    public void drain(
-        Consumer<E> c,
-        WaitStrategy w,
-        ExitCondition exit)
+    public int drain(Consumer<E> c)
     {
-        int idleCounter = 0;
-        while (exit.keepRunning())
-        {
-            if (drain(c, PortableJvmInfo.RECOMENDED_POLL_BATCH) == 0)
-            {
-                idleCounter = w.idle(idleCounter);
-                continue;
-            }
-            idleCounter = 0;
-        }
+        return MessagePassingQueueUtil.drain(this, c);
     }
 
     @Override
-    public void fill(
-        Supplier<E> s,
-        WaitStrategy w,
-        ExitCondition exit)
+    public int fill(Supplier<E> s)
     {
-        if (null == w)
-            throw new IllegalArgumentException("waiter is null");
-        if (null == exit)
-            throw new IllegalArgumentException("exit condition is null");
+        return MessagePassingQueueUtil.fillBounded(this, s);
+    }
 
-        int idleCounter = 0;
-        while (exit.keepRunning())
-        {
-            if (fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH) == 0)
-            {
-                idleCounter = w.idle(idleCounter);
-                continue;
-            }
-            idleCounter = 0;
-        }
+    @Override
+    public void drain(Consumer<E> c, WaitStrategy w, ExitCondition exit)
+    {
+        MessagePassingQueueUtil.drain(this, c, w, exit);
+    }
+
+    @Override
+    public void fill(Supplier<E> s, WaitStrategy wait, ExitCondition exit)
+    {
+        MessagePassingQueueUtil.fill(this, s, wait, exit);
     }
 }

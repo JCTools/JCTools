@@ -435,32 +435,15 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
     }
 
     @Override
-    public int drain(Consumer<E> c)
-    {
-        return drain(c, capacity());
-    }
-
-    @Override
-    public int fill(Supplier<E> s)
-    {
-        long result = 0;// result is a long because we want to have a safepoint check at regular intervals
-        final int capacity = capacity();
-        do
-        {
-            final int filled = fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH);
-            if (filled == 0)
-            {
-                return (int) result;
-            }
-            result += filled;
-        }
-        while (result <= capacity);
-        return (int) result;
-    }
-
-    @Override
     public int drain(final Consumer<E> c, final int limit)
     {
+        if (null == c)
+            throw new IllegalArgumentException("c is null");
+        if (limit < 0)
+            throw new IllegalArgumentException("limit is negative: " + limit);
+        if (limit == 0)
+            return 0;
+
         final E[] buffer = this.buffer;
         final long mask = this.mask;
         final long cIndex = lpConsumerIndex();
@@ -530,49 +513,26 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
     }
 
     @Override
-    public void drain(Consumer<E> c, WaitStrategy w, ExitCondition exit)
+    public int drain(Consumer<E> c)
     {
-        final E[] buffer = this.buffer;
-        final long mask = this.mask;
-        long cIndex = lpConsumerIndex();
-
-        int counter = 0;
-        while (exit.keepRunning())
-        {
-            for (int i = 0; i < 4096; i++)
-            {
-                final long offset = calcElementOffset(cIndex, mask);
-                final E e = lvElement(buffer, offset);// LoadLoad
-                if (null == e)
-                {
-                    counter = w.idle(counter);
-                    continue;
-                }
-                cIndex++;
-                counter = 0;
-                soElement(buffer, offset, null);
-                soConsumerIndex(cIndex); // ordered store -> atomic and ordered for size()
-                c.accept(e);
-            }
-        }
+        return drain(c, capacity());
     }
 
     @Override
-    public void fill(Supplier<E> s, WaitStrategy w, ExitCondition exit)
+    public int fill(Supplier<E> s)
     {
-        if (null == w)
-            throw new IllegalArgumentException("waiter is null");
-        if (null == exit)
-            throw new IllegalArgumentException("exit condition is null");
-        int idleCounter = 0;
-        while (exit.keepRunning())
-        {
-            if (fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH) == 0)
-            {
-                idleCounter = w.idle(idleCounter);
-                continue;
-            }
-            idleCounter = 0;
-        }
+        return MessagePassingQueueUtil.fillBounded(this, s);
+    }
+
+    @Override
+    public void drain(Consumer<E> c, WaitStrategy w, ExitCondition exit)
+    {
+        MessagePassingQueueUtil.drain(this, c, w, exit);
+    }
+
+    @Override
+    public void fill(Supplier<E> s, WaitStrategy wait, ExitCondition exit)
+    {
+        MessagePassingQueueUtil.fill(this, s, wait, exit);
     }
 }

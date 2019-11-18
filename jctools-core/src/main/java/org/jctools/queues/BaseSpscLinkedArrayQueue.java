@@ -252,23 +252,7 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
     @Override
     public void fill(Supplier<E> s, WaitStrategy wait, ExitCondition exit)
     {
-        if (null == wait)
-            throw new IllegalArgumentException("waiter is null");
-        if (null == exit)
-            throw new IllegalArgumentException("exit condition is null");
-        while (exit.keepRunning())
-        {
-            while (fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH) != 0 && exit.keepRunning())
-            {
-                continue;
-            }
-            int idleCounter = 0;
-            while (exit.keepRunning() && fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH) == 0)
-            {
-                idleCounter = wait.idle(idleCounter);
-            }
-
-        }
+        MessagePassingQueueUtil.fill(this, s, wait, exit);
     }
 
     /**

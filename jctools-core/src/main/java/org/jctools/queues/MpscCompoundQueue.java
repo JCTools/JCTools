@@ -13,7 +13,6 @@
  */
 package org.jctools.queues;
 
-import org.jctools.util.PortableJvmInfo;
 import org.jctools.util.RangeUtil;
 
 import java.util.AbstractQueue;
@@ -275,34 +274,14 @@ public class MpscCompoundQueue<E> extends MpscCompoundQueueConsumerQueueIndex<E>
     @Override
     public int fill(Supplier<E> s)
     {
-        long result = 0;// result is a long because we want to have a safepoint check at regular intervals
-        final int capacity = capacity();
-        do
-        {
-            final int filled = fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH);
-            if (filled == 0)
-            {
-                return (int) result;
-            }
-            result += filled;
-        }
-        while (result <= capacity);
-        return (int) result;
+
+        return MessagePassingQueueUtil.fillBounded(this, s);
     }
 
     @Override
     public int drain(Consumer<E> c, int limit)
     {
-        for (int i = 0; i < limit; i++)
-        {
-            E e = relaxedPoll();
-            if (e == null)
-            {
-                return i;
-            }
-            c.accept(e);
-        }
-        return limit;
+        return MessagePassingQueueUtil.drain(this, c, limit);
     }
 
     @Override
@@ -340,41 +319,14 @@ public class MpscCompoundQueue<E> extends MpscCompoundQueueConsumerQueueIndex<E>
     }
 
     @Override
-    public void drain(
-        Consumer<E> c,
-        WaitStrategy wait,
-        ExitCondition exit)
+    public void drain(Consumer<E> c, WaitStrategy wait, ExitCondition exit)
     {
-        int idleCounter = 0;
-        while (exit.keepRunning())
-        {
-            E e = relaxedPoll();
-            if (e == null)
-            {
-                idleCounter = wait.idle(idleCounter);
-                continue;
-            }
-            idleCounter = 0;
-            c.accept(e);
-        }
+        MessagePassingQueueUtil.drain(this, c, wait, exit);
     }
 
     @Override
-    public void fill(Supplier<E> s, WaitStrategy w, ExitCondition exit)
+    public void fill(Supplier<E> s, WaitStrategy wait, ExitCondition exit)
     {
-        if (null == w)
-            throw new IllegalArgumentException("waiter is null");
-        if (null == exit)
-            throw new IllegalArgumentException("exit condition is null");
-        int idleCounter = 0;
-        while (exit.keepRunning())
-        {
-            if (fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH) == 0)
-            {
-                idleCounter = w.idle(idleCounter);
-                continue;
-            }
-            idleCounter = 0;
-        }
+        MessagePassingQueueUtil.fill(this, s, wait, exit);
     }
 }

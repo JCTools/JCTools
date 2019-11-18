@@ -11,6 +11,7 @@ import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
 import org.jctools.queues.spec.Preference;
 import org.jctools.util.Pow2;
+import sun.jvm.hotspot.utilities.AssertionFailure;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.*;
@@ -95,21 +96,6 @@ public abstract class MpqSanityTest
     }
 
     @Test
-    public void fill0()
-    {
-        queue.fill(() -> DUMMY_ELEMENT,0);
-        assertEquals(0, queue.fill(() -> DUMMY_ELEMENT,0));
-        assertTrue(queue.isEmpty());
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void fillNegative()
-    {
-        queue.fill(() -> DUMMY_ELEMENT,-1);
-        fail();
-    }
-
-    @Test
     public void fillToCapacityInBatches()
     {
         assumeThat(spec.isBounded(), is(Boolean.TRUE));
@@ -132,6 +118,7 @@ public abstract class MpqSanityTest
         queue.fill(null);
         fail();
     }
+
     @Test(expected = IllegalArgumentException.class)
     public void fillNullSupplierLimit()
     {
@@ -140,21 +127,87 @@ public abstract class MpqSanityTest
     }
 
     @Test(expected = IllegalArgumentException.class)
+    public void fillNegativeLimit()
+    {
+        queue.fill(() -> DUMMY_ELEMENT,-1);
+        fail();
+    }
+
+    @Test
+    public void fill0()
+    {
+        assertEquals(0, queue.fill(() -> {fail(); return 1;},0));
+        assertTrue(queue.isEmpty());
+    }
+
+    @Test(expected = IllegalArgumentException.class)
     public void fillNullSupplierWaiterExit()
     {
         queue.fill(null, i -> i++, () -> true);
         fail();
     }
+
     @Test(expected = IllegalArgumentException.class)
     public void fillSupplierNullWaiterExit()
     {
         queue.fill(() -> DUMMY_ELEMENT, null, () -> true);
         fail();
     }
+
     @Test(expected = IllegalArgumentException.class)
     public void fillSupplierWaiterNullExit()
     {
         queue.fill(() -> DUMMY_ELEMENT, i -> i++, null);
+        fail();
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void drainNullConsumer()
+    {
+        queue.drain(null);
+        fail();
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void drainNullConsumerLimit()
+    {
+        queue.drain(null, 10);
+        fail();
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void drainNegativeLimit()
+    {
+        queue.drain(e -> {},-1);
+        fail();
+    }
+
+    @Test
+    public void drain0()
+    {
+        queue.offer(DUMMY_ELEMENT);
+        assertEquals(0, queue.drain(e -> fail(),0));
+        assertEquals(1, queue.size());
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void drainNullConsumerWaiterExit()
+    {
+        queue.drain(null, i -> i++, () -> true);
+        fail();
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void drainSupplierNullWaiterExit()
+    {
+        queue.drain(e -> fail(), null, () -> true);
+        fail();
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void drainSupplierWaiterNullExit()
+    {
+        queue.drain(e -> fail(), i -> i++, null);
         fail();
     }
 

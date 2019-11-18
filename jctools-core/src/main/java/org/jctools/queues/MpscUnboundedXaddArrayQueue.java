@@ -619,6 +619,13 @@ public class MpscUnboundedXaddArrayQueue<E> extends MpscUnboundedXaddArrayQueueP
     @Override
     public int drain(Consumer<E> c, int limit)
     {
+        if (null == c)
+            throw new IllegalArgumentException("c is null");
+        if (limit < 0)
+            throw new IllegalArgumentException("limit is negative: " + limit);
+        if (limit == 0)
+            return 0;
+
         final int chunkMask = this.chunkMask;
         final int chunkSize = chunkMask + 1;
         long consumerIndex = this.lpConsumerIndex();
@@ -693,20 +700,7 @@ public class MpscUnboundedXaddArrayQueue<E> extends MpscUnboundedXaddArrayQueueP
     @Override
     public void fill(Supplier<E> s, WaitStrategy w, ExitCondition exit)
     {
-        if (null == w)
-            throw new IllegalArgumentException("waiter is null");
-        if (null == exit)
-            throw new IllegalArgumentException("exit condition is null");
-        int idleCounter = 0;
-        while (exit.keepRunning())
-        {
-            if (fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH) == 0)
-            {
-                idleCounter = w.idle(idleCounter);
-                continue;
-            }
-            idleCounter = 0;
-        }
+        MessagePassingQueueUtil.fill(this, s, w, exit);
     }
 
     @Override
