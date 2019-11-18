@@ -16,14 +16,14 @@ package org.jctools.queues;
 import java.util.Queue;
 
 /**
- * This is a tagging interface for the queues in this library which implement a subset of the {@link Queue}
- * interface sufficient for concurrent message passing.<br>
+ * Message passing queues are intended for concurrent method passing. A subset of {@link Queue} methods are provided
+ * with the same semantics, while further functionality which accomodates the concurrent usecase is also on offer.
+ * <p>
  * Message passing queues provide happens before semantics to messages passed through, namely that writes made
  * by the producer before offering the message are visible to the consuming thread after the message has been
  * polled out of the queue.
  *
  * @param <T> the event/message type
- * @author nitsanw
  */
 public interface MessagePassingQueue<T>
 {
@@ -38,6 +38,9 @@ public interface MessagePassingQueue<T>
          * Users should be aware that underlying queue implementations may upfront claim parts of the queue
          * for batch operations and this will effect the view on the queue from the supplier method. In
          * particular size and any offer methods may take the view that the full batch has already happened.
+         *
+         * <p><b>WARNING</b>: this method is assumed to never throw. Breaking this assumption can lead to a broken queue.
+         * <p><b>WARNING</b>: this method is assumed to never return null. Breaking this assumption can lead to a broken queue.
          *
          * @return new element, NEVER null
          */
@@ -55,6 +58,7 @@ public interface MessagePassingQueue<T>
          * particular size and any poll/peek methods may take the view that the full batch has already
          * happened.
          *
+         * <p><b>WARNING</b>: this method is assumed to never throw. Breaking this assumption can lead to a broken queue.
          * @param e not null
          */
         void accept(T e);
@@ -178,31 +182,6 @@ public interface MessagePassingQueue<T>
     T relaxedPeek();
 
     /**
-     * Remove all available item from the queue and hand to consume. This should be semantically similar to:
-     * <pre>
-     * M m;
-     * while((m = relaxedPoll()) != null){
-     * c.accept(m);
-     * }
-     * </pre> There's no strong commitment to the queue being empty at the end of a drain. Called from a
-     * consumer thread subject to the restrictions appropriate to the implementation.
-     *
-     * @return the number of polled elements
-     */
-    int drain(Consumer<T> c);
-
-    /**
-     * Stuff the queue with elements from the supplier. Semantically similar to:
-     * <pre>
-     * while(relaxedOffer(s.get());
-     * </pre> There's no strong commitment to the queue being full at the end of a fill. Called from a
-     * producer thread subject to the restrictions appropriate to the implementation.
-     *
-     * @return the number of offered elements
-     */
-    int fill(Supplier<T> s);
-
-    /**
      * Remove up to <i>limit</i> elements from the queue and hand to consume. This should be semantically
      * similar to:
      * <p>
@@ -217,8 +196,13 @@ public interface MessagePassingQueue<T>
      * <p>
      * There's no strong commitment to the queue being empty at the end of a drain. Called from a consumer
      * thread subject to the restrictions appropriate to the implementation.
+     * <p>
+     * <b>WARNING</b>: Explicit assumptions are made with regards to {@link Consumer#accept} make sure you have read
+     * and understood these before using this method.
      *
      * @return the number of polled elements
+     * @throws IllegalArgumentException c is null
+     * @throws IllegalArgumentException if limit is negative
      */
     int drain(Consumer<T> c, int limit);
 
@@ -232,10 +216,51 @@ public interface MessagePassingQueue<T>
      * There's no strong commitment to the queue being full at the end of a fill. Called from a producer
      * thread subject to the restrictions appropriate to the implementation.
      *
+     * <b>WARNING</b>: Explicit assumptions are made with regards to {@link Supplier#get} make sure you have read
+     * and understood these before using this method.
+     *
      * @return the number of offered elements
+     * @throws IllegalArgumentException s is null
      * @throws IllegalArgumentException if limit is negative
      */
     int fill(Supplier<T> s, int limit);
+
+    /**
+     * Remove all available item from the queue and hand to consume. This should be semantically similar to:
+     * <pre>
+     * M m;
+     * while((m = relaxedPoll()) != null){
+     * c.accept(m);
+     * }
+     * </pre>
+     * There's no strong commitment to the queue being empty at the end of a drain. Called from a
+     * consumer thread subject to the restrictions appropriate to the implementation.
+     * <p>
+     * <b>WARNING</b>: Explicit assumptions are made with regards to {@link Consumer#accept} make sure you have read
+     * and understood these before using this method.
+     *
+     * @return the number of polled elements
+     * @throws IllegalArgumentException c is null
+     */
+    int drain(Consumer<T> c);
+
+    /**
+     * Stuff the queue with elements from the supplier. Semantically similar to:
+     * <pre>
+     * while(relaxedOffer(s.get());
+     * </pre>
+     * There's no strong commitment to the queue being full at the end of a fill. Called from a
+     * producer thread subject to the restrictions appropriate to the implementation.
+     * <p>
+     * Unbounded queues will fill up the queue with a fixed amount rather than fill up to oblivion.
+     *
+     * <b>WARNING</b>: Explicit assumptions are made with regards to {@link Supplier#get} make sure you have read
+     * and understood these before using this method.
+     *
+     * @return the number of offered elements
+     * @throws IllegalArgumentException s is null
+     */
+    int fill(Supplier<T> s);
 
     /**
      * Remove elements from the queue and hand to consume forever. Semantically similar to:
@@ -254,6 +279,11 @@ public interface MessagePassingQueue<T>
      * </pre>
      * <p>
      * Called from a consumer thread subject to the restrictions appropriate to the implementation.
+     * <p>
+     * <b>WARNING</b>: Explicit assumptions are made with regards to {@link Consumer#accept} make sure you have read
+     * and understood these before using this method.
+     *
+     * @throws IllegalArgumentException c OR wait OR exit are null
      */
     void drain(Consumer<T> c, WaitStrategy wait, ExitCondition exit);
 
@@ -274,7 +304,13 @@ public interface MessagePassingQueue<T>
      * </code>
      * </pre>
      * <p>
-     * Called from a producer thread subject to the restrictions appropriate to the implementation.
+     * Called from a producer thread subject to the restrictions appropriate to the implementation. The main difference
+     * being that implementors MUST assure room in the queue is available BEFORE calling {@link Supplier#get}.
+     *
+     * <b>WARNING</b>: Explicit assumptions are made with regards to {@link Supplier#get} make sure you have read
+     * and understood these before using this method.
+     *
+     * @throws IllegalArgumentException s OR wait OR exit are null
      */
     void fill(Supplier<T> s, WaitStrategy wait, ExitCondition exit);
 }
