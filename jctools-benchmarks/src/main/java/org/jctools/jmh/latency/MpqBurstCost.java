@@ -15,11 +15,12 @@ package org.jctools.jmh.latency;
 
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MessagePassingQueueByTypeFactory;
+import org.jctools.util.PortableJvmInfo;
+import org.jctools.util.Pow2;
 import org.jctools.util.UnsafeAccess;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 
-import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -44,7 +45,7 @@ public class MpqBurstCost
     @Param("true")
     boolean warmup;
     @Param(value = {"132000"})
-    int qCapacity;
+    String qCapacity;
     MessagePassingQueue<Event> q;
     private ExecutorService consumerExecutor;
     private Consumer[] consumers;
@@ -75,7 +76,7 @@ public class MpqBurstCost
                 q.poll();
             }
         }
-        q = MessagePassingQueueByTypeFactory.createQueue(qType, qCapacity);
+        q = MessagePassingQueueByTypeFactory.buildQ(qType, qCapacity);
         consumers = new Consumer[consumerCount];
         for (int i = 0; i < consumerCount; i++)
         {
@@ -143,19 +144,25 @@ public class MpqBurstCost
         }
     }
 
-    //do not extends AtomicLong here: JMH will take care of padding fields for us
     @State(Scope.Thread)
     public static class Event
     {
         private static final long ARRAY_BASE;
         private static final int ELEMENT_SHIFT;
+        private static final int LONG_PAD;
 
         static
         {
             final int scale = UnsafeAccess.UNSAFE.arrayIndexScale(long[].class);
+            final int bytesPad = PortableJvmInfo.CACHE_LINE_SIZE * 2;
             if (8 == scale)
             {
-                ELEMENT_SHIFT = 3;
+                if (bytesPad < 8 || Pow2.align(bytesPad, 8) != bytesPad)
+                {
+                    throw new IllegalStateException(bytesPad + " is not multiple of the scale (8)!");
+                }
+                ELEMENT_SHIFT = Integer.numberOfTrailingZeros(bytesPad);
+                LONG_PAD = bytesPad / 8;
             }
             else
             {
@@ -171,27 +178,37 @@ public class MpqBurstCost
         }
 
         private long[] handledCount = null;
+        private int consumerCount;
 
         @Setup
         public void init(MpqBurstCost state)
         {
-            handledCount = new long[state.consumerCount];
+            //pad the array at the beginning
+            final int length = (state.consumerCount << ELEMENT_SHIFT) / 8 + LONG_PAD;
+            handledCount = new long[length];
+            consumerCount = state.consumerCount;
         }
 
         void reset()
         {
-            Arrays.fill(handledCount, 0);
+            final long[] values = this.handledCount;
+            final int consumerCount = this.consumerCount;
+            for (int i = 0; i < consumerCount; i++)
+            {
+                final long offset = calcSequenceOffset(i);
+                UnsafeAccess.UNSAFE.putLong(values, offset, 0);
+            }
             UnsafeAccess.UNSAFE.storeFence();
         }
 
         void waitFor(int value)
         {
             final long[] values = this.handledCount;
-            final long length = values.length;
+            final int consumerCount = this.consumerCount;
             do
             {
                 long total = 0;
-                for (int i = 0; i < length; i++)
+                for (int i = 0; i < consumerCount; i++)
                 {
                     final long offset = calcSequenceOffset(i);
                     total += UnsafeAccess.UNSAFE.getLongVolatile(values, offset);
