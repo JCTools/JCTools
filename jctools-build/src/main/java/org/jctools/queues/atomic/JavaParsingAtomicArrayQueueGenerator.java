@@ -120,6 +120,7 @@ public final class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomi
         cu.addImport(importDeclaration("java.util.concurrent.atomic.AtomicLongFieldUpdater"));
         cu.addImport(importDeclaration("java.util.concurrent.atomic.AtomicReferenceArray"));
         cu.addImport(importDeclaration("java.util.concurrent.atomic.AtomicLongArray"));
+        cu.addImport(importDeclaration("org.jctools.queues.MessagePassingQueueUtil"));
     }
 
     /**
