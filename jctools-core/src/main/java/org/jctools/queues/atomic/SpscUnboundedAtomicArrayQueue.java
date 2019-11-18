@@ -74,6 +74,11 @@ public class SpscUnboundedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArrayQ
     }
 
     @Override
+    public int fill(Supplier<E> s) {
+        return fill(s, (int) this.producerMask);
+    }
+
+    @Override
     public int capacity() {
         return UNBOUNDED_CAPACITY;
     }

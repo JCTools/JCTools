@@ -25,7 +25,6 @@ import java.util.Iterator;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeAccess.fieldOffset;
-import static org.jctools.util.UnsafeRefArrayAccess.lpElement;
 
 
 abstract class MpmcUnboundedXaddArrayQueuePad1<E> extends AbstractQueue<E> implements IndexedQueue
@@ -685,20 +684,9 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
     @Override
     public int fill(Supplier<E> s)
     {
-        long result = 0;// result is a long because we want to have a safepoint check at regular intervals
-        final int capacity = chunkMask + 1;
-        final int offerBatch = Math.min(PortableJvmInfo.RECOMENDED_OFFER_BATCH, capacity);
-        do
-        {
-            final int filled = fill(s, offerBatch);
-            if (filled == 0)
-            {
-                return (int) result;
-            }
-            result += filled;
-        }
-        while (result <= capacity);
-        return (int) result;
+        final int chunkCapacity = chunkMask + 1;
+        final int offerBatch = Math.min(PortableJvmInfo.RECOMENDED_OFFER_BATCH, chunkCapacity);
+        return MessagePassingQueueUtil.fillInBatchesToLimit(this, s, offerBatch, chunkCapacity);
     }
 
     @Override

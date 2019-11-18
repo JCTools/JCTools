@@ -104,13 +104,7 @@ public class SpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
 
     @Override
     public int fill(Supplier<E> s) {
-        // result is a long because we want to have a safepoint check at regular intervals
-        long result = 0;
-        do {
-            fill(s, 4096);
-            result += 4096;
-        } while (result <= Integer.MAX_VALUE - 4096);
-        return (int) result;
+        return MessagePassingQueueUtil.fillUnbounded(this, s);
     }
 
     @Override

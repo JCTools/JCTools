@@ -105,18 +105,27 @@ public final class MessagePassingQueueUtil
 
     public static <E> int fillBounded(MessagePassingQueue<E> q, Supplier<E> s)
     {
+        return fillInBatchesToLimit(q, s, PortableJvmInfo.RECOMENDED_OFFER_BATCH, q.capacity());
+    }
+
+    public static <E> int fillInBatchesToLimit(MessagePassingQueue<E> q, Supplier<E> s, int batch, int limit)
+    {
         long result = 0;// result is a long because we want to have a safepoint check at regular intervals
-        final int capacity = q.capacity();
         do
         {
-            final int filled = q.fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH);
+            final int filled = q.fill(s, batch);
             if (filled == 0)
             {
                 return (int) result;
             }
             result += filled;
         }
-        while (result <= capacity);
+        while (result <= limit);
         return (int) result;
+    }
+
+    public static <E> int fillUnbounded(MessagePassingQueue<E> q, Supplier<E> s)
+    {
+        return fillInBatchesToLimit(q, s, PortableJvmInfo.RECOMENDED_OFFER_BATCH, 4096);
     }
 }

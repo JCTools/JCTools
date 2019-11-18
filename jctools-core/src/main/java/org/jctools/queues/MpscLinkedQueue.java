@@ -185,14 +185,7 @@ public class MpscLinkedQueue<E> extends BaseLinkedQueue<E>
     @Override
     public int fill(Supplier<E> s)
     {
-        long result = 0;// result is a long because we want to have a safepoint check at regular intervals
-        do
-        {
-            fill(s, 4096);
-            result += 4096;
-        }
-        while (result <= Integer.MAX_VALUE - 4096);
-        return (int) result;
+        return MessagePassingQueueUtil.fillUnbounded(this, s);
     }
 
     @Override

@@ -13,7 +13,6 @@
  */
 package org.jctools.queues.atomic;
 
-import org.jctools.util.PortableJvmInfo;
 import static org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.length;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -63,17 +62,7 @@ public class MpscUnboundedAtomicArrayQueue<E> extends BaseMpscLinkedAtomicArrayQ
 
     @Override
     public int fill(Supplier<E> s) {
-        // result is a long because we want to have a safepoint check at regular intervals
-        long result = 0;
-        final int capacity = 4096;
-        do {
-            final int filled = fill(s, PortableJvmInfo.RECOMENDED_OFFER_BATCH);
-            if (filled == 0) {
-                return (int) result;
-            }
-            result += filled;
-        } while (result <= capacity);
-        return (int) result;
+        return MessagePassingQueueUtil.fillUnbounded(this, s);
     }
 
     @Override

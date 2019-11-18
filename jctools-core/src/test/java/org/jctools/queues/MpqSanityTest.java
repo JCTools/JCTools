@@ -1,17 +1,15 @@
 package org.jctools.queues;
 
-import java.util.Queue;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import org.junit.After;
-import org.junit.Test;
-
 import org.jctools.queues.atomic.AtomicQueueFactory;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
 import org.jctools.queues.spec.Preference;
 import org.jctools.util.Pow2;
-import sun.jvm.hotspot.utilities.AssertionFailure;
+import org.junit.After;
+import org.junit.Test;
+
+import java.util.Queue;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.*;
@@ -95,6 +93,14 @@ public abstract class MpqSanityTest
         assertEquals(queue.capacity(), queue.size());
     }
 
+    @Test
+    public void fillOnUnbounded()
+    {
+        assumeThat(spec.isBounded(), is(Boolean.FALSE));
+
+        queue.fill(() -> DUMMY_ELEMENT);
+        assertTrue(!queue.isEmpty());
+    }
     @Test
     public void fillToCapacityInBatches()
     {
