@@ -40,9 +40,9 @@ public interface MessagePassingQueue<T>
          * particular size and any offer methods may take the view that the full batch has already happened.
          *
          * <p><b>WARNING</b>: this method is assumed to never throw. Breaking this assumption can lead to a broken queue.
-         * <p><b>WARNING</b>: this method is assumed to never return null. Breaking this assumption can lead to a broken queue.
+         * <p><b>WARNING</b>: this method is assumed to never return {@code null}. Breaking this assumption can lead to a broken queue.
          *
-         * @return new element, NEVER null
+         * @return new element, NEVER {@code null}
          */
         T get();
     }
@@ -59,7 +59,7 @@ public interface MessagePassingQueue<T>
          * happened.
          *
          * <p><b>WARNING</b>: this method is assumed to never throw. Breaking this assumption can lead to a broken queue.
-         * @param e not null
+         * @param e not {@code null}
          */
         void accept(T e);
     }
@@ -106,7 +106,7 @@ public interface MessagePassingQueue<T>
      * Called from a producer thread subject to the restrictions appropriate to the implementation and
      * according to the {@link Queue#offer(Object)} interface.
      *
-     * @param e not null, will throw NPE if it is
+     * @param e not {@code null}, will throw NPE if it is
      * @return true if element was inserted into the queue, false iff full
      */
     boolean offer(T e);
@@ -115,7 +115,7 @@ public interface MessagePassingQueue<T>
      * Called from the consumer thread subject to the restrictions appropriate to the implementation and
      * according to the {@link Queue#poll()} interface.
      *
-     * @return a message from the queue if one is available, null iff empty
+     * @return a message from the queue if one is available, {@code null} iff empty
      */
     T poll();
 
@@ -123,7 +123,7 @@ public interface MessagePassingQueue<T>
      * Called from the consumer thread subject to the restrictions appropriate to the implementation and
      * according to the {@link Queue#peek()} interface.
      *
-     * @return a message from the queue if one is available, null iff empty
+     * @return a message from the queue if one is available, {@code null} iff empty
      */
     T peek();
 
@@ -160,24 +160,24 @@ public interface MessagePassingQueue<T>
      * Called from a producer thread subject to the restrictions appropriate to the implementation. As opposed
      * to {@link Queue#offer(Object)} this method may return false without the queue being full.
      *
-     * @param e not null, will throw NPE if it is
+     * @param e not {@code null}, will throw NPE if it is
      * @return true if element was inserted into the queue, false if unable to offer
      */
     boolean relaxedOffer(T e);
 
     /**
      * Called from the consumer thread subject to the restrictions appropriate to the implementation. As
-     * opposed to {@link Queue#poll()} this method may return null without the queue being empty.
+     * opposed to {@link Queue#poll()} this method may return {@code null} without the queue being empty.
      *
-     * @return a message from the queue if one is available, null if unable to poll
+     * @return a message from the queue if one is available, {@code null} if unable to poll
      */
     T relaxedPoll();
 
     /**
      * Called from the consumer thread subject to the restrictions appropriate to the implementation. As
-     * opposed to {@link Queue#peek()} this method may return null without the queue being empty.
+     * opposed to {@link Queue#peek()} this method may return {@code null} without the queue being empty.
      *
-     * @return a message from the queue if one is available, null if unable to peek
+     * @return a message from the queue if one is available, {@code null} if unable to peek
      */
     T relaxedPeek();
 
@@ -201,7 +201,7 @@ public interface MessagePassingQueue<T>
      * and understood these before using this method.
      *
      * @return the number of polled elements
-     * @throws IllegalArgumentException c is null
+     * @throws IllegalArgumentException c is {@code null}
      * @throws IllegalArgumentException if limit is negative
      */
     int drain(Consumer<T> c, int limit);
@@ -220,7 +220,7 @@ public interface MessagePassingQueue<T>
      * and understood these before using this method.
      *
      * @return the number of offered elements
-     * @throws IllegalArgumentException s is null
+     * @throws IllegalArgumentException s is {@code null}
      * @throws IllegalArgumentException if limit is negative
      */
     int fill(Supplier<T> s, int limit);
@@ -240,7 +240,7 @@ public interface MessagePassingQueue<T>
      * and understood these before using this method.
      *
      * @return the number of polled elements
-     * @throws IllegalArgumentException c is null
+     * @throws IllegalArgumentException c is {@code null}
      */
     int drain(Consumer<T> c);
 
@@ -258,7 +258,7 @@ public interface MessagePassingQueue<T>
      * and understood these before using this method.
      *
      * @return the number of offered elements
-     * @throws IllegalArgumentException s is null
+     * @throws IllegalArgumentException s is {@code null}
      */
     int fill(Supplier<T> s);
 
@@ -283,7 +283,7 @@ public interface MessagePassingQueue<T>
      * <b>WARNING</b>: Explicit assumptions are made with regards to {@link Consumer#accept} make sure you have read
      * and understood these before using this method.
      *
-     * @throws IllegalArgumentException c OR wait OR exit are null
+     * @throws IllegalArgumentException c OR wait OR exit are {@code null}
      */
     void drain(Consumer<T> c, WaitStrategy wait, ExitCondition exit);
 
@@ -310,7 +310,7 @@ public interface MessagePassingQueue<T>
      * <b>WARNING</b>: Explicit assumptions are made with regards to {@link Supplier#get} make sure you have read
      * and understood these before using this method.
      *
-     * @throws IllegalArgumentException s OR wait OR exit are null
+     * @throws IllegalArgumentException s OR wait OR exit are {@code null}
      */
     void fill(Supplier<T> s, WaitStrategy wait, ExitCondition exit);
 }
