@@ -14,6 +14,9 @@
 package org.jctools.jmh.latency;
 
 import org.jctools.queues.QueueByTypeFactory;
+import org.jctools.util.PortableJvmInfo;
+import org.jctools.util.Pow2;
+import org.jctools.util.UnsafeAccess;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 
@@ -22,7 +25,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
@@ -34,7 +36,6 @@ public class QueueBurstCost
 {
     private static final long DELAY_PRODUCER = Long.getLong("delay.p", 0L);
     private static final long DELAY_CONSUMER = Long.getLong("delay.c", 0L);
-    Go GO = new Go();
     @Param( {"SpscArrayQueue", "MpscArrayQueue", "SpmcArrayQueue", "MpmcArrayQueue"})
     String qType;
     @Param( {"100"})
@@ -45,21 +46,24 @@ public class QueueBurstCost
     boolean warmup;
     @Param(value = {"132000"})
     String qCapacity;
-    Queue<AbstractEvent> q;
+    Queue<Event> q;
     private ExecutorService consumerExecutor;
-    private Consumer consumer;
+    private Consumer[] consumers;
+    private CountDownLatch stopped;
 
     @Setup(Level.Trial)
-    public void setupQueue()
+    public void setupQueueAndConsumers()
     {
         if (warmup)
         {
             q = QueueByTypeFactory.createQueue(qType, 128);
 
+            final Event event = new Event();
+
             // stretch the queue to the limit, working through resizing and full
             for (int i = 0; i < 128 + 100; i++)
             {
-                q.offer(GO);
+                q.offer(event);
             }
             for (int i = 0; i < 128 + 100; i++)
             {
@@ -68,66 +72,71 @@ public class QueueBurstCost
             // make sure the important common case is exercised
             for (int i = 0; i < 20000; i++)
             {
-                q.offer(GO);
+                q.offer(event);
                 q.poll();
             }
         }
         q = QueueByTypeFactory.buildQ(qType, qCapacity);
-        consumer = new Consumer(q);
+        consumers = new Consumer[consumerCount];
+        for (int i = 0; i < consumerCount; i++)
+        {
+            consumers[i] = new Consumer(q, i);
+        }
         consumerExecutor = Executors.newFixedThreadPool(consumerCount);
     }
 
     @Setup(Level.Iteration)
-    public void startConsumers()
+    public void startConsumers() throws InterruptedException
     {
-        consumer.isRunning = true;
-        consumer.stopped = new CountDownLatch(consumerCount);
+        stopped = new CountDownLatch(consumerCount);
+        final CountDownLatch started = new CountDownLatch(consumerCount);
+        final int consumerCount = this.consumerCount;
         for (int i = 0; i < consumerCount; i++)
         {
-            consumerExecutor.execute(consumer);
+            consumers[i].isRunning = true;
+            consumers[i].stopped = stopped;
+            consumers[i].started = started;
         }
-
+        for (int i = 0; i < consumerCount; i++)
+        {
+            consumerExecutor.execute(consumers[i]);
+        }
+        started.await();
     }
 
     @TearDown(Level.Iteration)
     public void stopConsumers() throws InterruptedException
     {
-        consumer.isRunning = false;
-        consumer.stopped.await();
+        final int consumerCount = this.consumerCount;
+        for (int i = 0; i < consumerCount; i++)
+        {
+            consumers[i].isRunning = false;
+        }
+        stopped.await();
     }
 
     @TearDown(Level.Trial)
-    public void stopExecutor() throws InterruptedException
+    public void stopExecutor()
     {
         consumerExecutor.shutdown();
     }
 
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-    public void burstCost(Stop stop)
+    public void burstCost(Event event)
     {
         final int burst = burstSize;
-        final Queue<AbstractEvent> q = this.q;
-        final Go go = GO;
-        stop.lazySet(false);
-        sendBurst(q, burst, go, stop);
-
-        waitForIt(stop);
+        final Queue<Event> q = this.q;
+        event.reset();
+        sendBurst(q, event, burst);
+        event.waitFor(burst);
     }
 
-    private void waitForIt(Stop stop)
+    private static void sendBurst(Queue<Event> q, Event event, int burst)
     {
-        while (!stop.get())
+        for (int i = 0; i < burst; i++)
         {
-            ;
-        }
-    }
-
-    private void sendBurst(Queue<AbstractEvent> q, int burst, Go go, Stop stop)
-    {
-        for (int i = 0; i < burst - 1; i++)
-        {
-            while (!q.offer(go))
+            while (!q.offer(event))
             {
                 ;
             }
@@ -136,34 +145,91 @@ public class QueueBurstCost
                 Blackhole.consumeCPU(DELAY_PRODUCER);
             }
         }
-
-        while (!q.offer(stop))
-        {
-            ;
-        }
-    }
-
-    abstract static class AbstractEvent extends AtomicBoolean
-    {
-        abstract void handle();
-    }
-
-    static class Go extends AbstractEvent
-    {
-        @Override
-        void handle()
-        {
-            // do nothing
-        }
     }
 
     @State(Scope.Thread)
-    public static class Stop extends AbstractEvent
+    public static class Event
     {
-        @Override
-        void handle()
+        private static final long ARRAY_BASE;
+        private static final int ELEMENT_SHIFT;
+        private static final int LONG_PAD;
+
+        static
         {
-            lazySet(true);
+            final int scale = UnsafeAccess.UNSAFE.arrayIndexScale(long[].class);
+            final int bytesPad = PortableJvmInfo.CACHE_LINE_SIZE * 2;
+            if (8 == scale)
+            {
+                if (bytesPad < 8 || Pow2.align(bytesPad, 8) != bytesPad)
+                {
+                    throw new IllegalStateException(bytesPad + " is not multiple of the scale (8)!");
+                }
+                ELEMENT_SHIFT = Integer.numberOfTrailingZeros(bytesPad);
+                LONG_PAD = bytesPad / 8;
+            }
+            else
+            {
+                throw new IllegalStateException("Unexpected long[] element size");
+            }
+            // Including the buffer pad in the array base offset
+            ARRAY_BASE = UnsafeAccess.UNSAFE.arrayBaseOffset(long[].class);
+        }
+
+        private static long calcSequenceOffset(long index)
+        {
+            return ARRAY_BASE + (index << ELEMENT_SHIFT);
+        }
+
+        private long[] handledCount = null;
+        private int consumerCount;
+
+        @Setup
+        public void init(QueueBurstCost state)
+        {
+            //pad the array at the beginning
+            final int length = (state.consumerCount << ELEMENT_SHIFT) / 8 + LONG_PAD;
+            handledCount = new long[length];
+            consumerCount = state.consumerCount;
+        }
+
+        void reset()
+        {
+            final long[] values = this.handledCount;
+            final int consumerCount = this.consumerCount;
+            for (int i = 0; i < consumerCount; i++)
+            {
+                final long offset = calcSequenceOffset(i);
+                UnsafeAccess.UNSAFE.putLong(values, offset, 0);
+            }
+            UnsafeAccess.UNSAFE.storeFence();
+        }
+
+        void waitFor(int value)
+        {
+            final long[] values = this.handledCount;
+            final int consumerCount = this.consumerCount;
+            do
+            {
+                long total = 0;
+                for (int i = 0; i < consumerCount; i++)
+                {
+                    final long offset = calcSequenceOffset(i);
+                    total += UnsafeAccess.UNSAFE.getLongVolatile(values, offset);
+                    if (total == value)
+                    {
+                        return;
+                    }
+                }
+            }
+            while (true);
+        }
+
+        void handle(int consumerId)
+        {
+            final long[] values = this.handledCount;
+            final long offset = calcSequenceOffset(consumerId);
+            final long value = UnsafeAccess.UNSAFE.getLong(values, offset);
+            UnsafeAccess.UNSAFE.putOrderedLong(values, offset, value + 1);
         }
     }
 
@@ -175,36 +241,43 @@ public class QueueBurstCost
 
     static class ConsumerFields extends ConsumerPad
     {
-        Queue<AbstractEvent> q;
+        Queue<Event> q;
         volatile boolean isRunning = true;
         CountDownLatch stopped;
+        CountDownLatch started;
     }
 
     static class Consumer extends ConsumerFields implements Runnable
     {
         public long p40, p41, p42, p43, p44, p45, p46;
         public long p30, p31, p32, p33, p34, p35, p36, p37;
+        private final int consumerId;
 
-        public Consumer(Queue<AbstractEvent> q)
+        public Consumer(Queue<Event> q, int consumerId)
         {
             this.q = q;
+            this.consumerId = consumerId;
         }
 
         @Override
         public void run()
         {
-            final Queue<AbstractEvent> q = this.q;
+            final CountDownLatch stopped = this.stopped;
+            final CountDownLatch started = this.started;
+            final int consumerId = this.consumerId;
+            final Queue<Event> q = this.q;
+            started.countDown();
             while (isRunning)
             {
-                consume(q);
+                consume(q, consumerId);
             }
             stopped.countDown();
         }
 
         @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-        private void consume(Queue<AbstractEvent> q)
+        private void consume(Queue<Event> q, int consumerId)
         {
-            AbstractEvent e = null;
+            Event e = null;
             if ((e = q.poll()) == null)
             {
                 return;
@@ -213,10 +286,8 @@ public class QueueBurstCost
             {
                 Blackhole.consumeCPU(DELAY_CONSUMER);
             }
-            e.handle();
+            e.handle(consumerId);
         }
 
     }
-
-
 }
