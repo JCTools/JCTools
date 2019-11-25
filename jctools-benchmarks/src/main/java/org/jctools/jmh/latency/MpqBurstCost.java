@@ -86,19 +86,22 @@ public class MpqBurstCost
     }
 
     @Setup(Level.Iteration)
-    public void startConsumers()
+    public void startConsumers() throws InterruptedException
     {
         stopped = new CountDownLatch(consumerCount);
+        final CountDownLatch started = new CountDownLatch(consumerCount);
         final int consumerCount = this.consumerCount;
         for (int i = 0; i < consumerCount; i++)
         {
             consumers[i].isRunning = true;
             consumers[i].stopped = stopped;
+            consumers[i].started = started;
         }
         for (int i = 0; i < consumerCount; i++)
         {
             consumerExecutor.execute(consumers[i]);
         }
+        started.await();
     }
 
     @TearDown(Level.Iteration)
@@ -241,6 +244,7 @@ public class MpqBurstCost
         MessagePassingQueue<Event> q;
         volatile boolean isRunning = true;
         CountDownLatch stopped;
+        CountDownLatch started;
     }
 
     static class Consumer extends ConsumerFields implements Runnable
@@ -259,8 +263,10 @@ public class MpqBurstCost
         public void run()
         {
             final CountDownLatch stopped = this.stopped;
+            final CountDownLatch started = this.started;
             final int consumerId = this.consumerId;
             final MessagePassingQueue<Event> q = this.q;
+            started.countDown();
             while (isRunning)
             {
                 consume(q, consumerId);
