@@ -226,6 +226,19 @@ public abstract class QueueSanityTest
         assertFalse(queue.offer(n));
     }
 
+    @Test
+    public void testQueueProgressIndicators()
+    {
+        assumeThat(queue, is(instanceOf(QueueProgressIndicators.class)));
+        QueueProgressIndicators q = (QueueProgressIndicators)queue;
+        // queue is empty
+        assertEquals(q.currentConsumerIndex(), q.currentProducerIndex());
+        queue.offer(1);
+        assertEquals(q.currentConsumerIndex() + 1, q.currentProducerIndex());
+        queue.poll();
+        assertEquals(q.currentConsumerIndex(), q.currentProducerIndex());
+    }
+
     @Test(timeout = TEST_TIMEOUT)
     public void testHappensBefore() throws Exception
     {
