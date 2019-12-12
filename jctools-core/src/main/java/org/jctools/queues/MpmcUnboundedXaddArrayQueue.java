@@ -658,7 +658,97 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
     @Override
     public E relaxedPoll()
     {
-        return poll();
+        final int chunkMask = this.chunkMask;
+        final int chunkShift = this.chunkShift;
+        final int chunkSize = chunkMask + 1;
+        final long consumerIndex = this.lvConsumerIndex();
+        final AtomicChunk<E> consumerBuffer = this.lvConsumerBuffer();
+        final int consumerOffset = (int) (consumerIndex & chunkMask);
+        final long chunkIndex = consumerIndex >> chunkShift;
+        final boolean firstElementOfNewChunk = consumerOffset == 0 && consumerIndex >= chunkSize;
+        if (firstElementOfNewChunk)
+        {
+            final AtomicChunk<E> next = consumerBuffer.lvNext();
+            final long expectedChunkIndex = chunkIndex - 1;
+            if (expectedChunkIndex != consumerBuffer.lvIndex() || next == null)
+            {
+                return null;
+            }
+            E e = null;
+            final boolean pooled = next.isPooled();
+            if (pooled)
+            {
+                if (next.lvSequence(consumerOffset) != chunkIndex)
+                {
+                    return null;
+                }
+            }
+            else
+            {
+                e = next.lvElement(consumerOffset);
+                if (e == null)
+                {
+                    return null;
+                }
+            }
+            if (!casConsumerIndex(consumerIndex, consumerIndex + 1))
+            {
+                return null;
+            }
+            if (pooled)
+            {
+                e = next.lvElement(consumerOffset);
+            }
+            assert e != null;
+            //perform the rotation
+            next.soElement(consumerOffset, null);
+            next.spPrev(null);
+            //save from nepotism
+            consumerBuffer.spNext(null);
+            if (consumerBuffer.isPooled())
+            {
+                final boolean offered = freeBuffer.offer(consumerBuffer);
+                assert offered;
+            }
+            //expose next to the other consumers
+            soConsumerBuffer(next);
+            return e;
+        }
+        else
+        {
+            final boolean pooled = consumerBuffer.isPooled();
+            E e = null;
+            if (pooled)
+            {
+                final long sequence = consumerBuffer.lvSequence(consumerOffset);
+                if (sequence != chunkIndex)
+                {
+                    return null;
+                }
+            }
+            else
+            {
+                e = consumerBuffer.lvElement(consumerOffset);
+                final long index = consumerBuffer.lvIndex();
+                if (index != chunkIndex || e == null)
+                {
+                    return null;
+                }
+            }
+            if (!casConsumerIndex(consumerIndex, consumerIndex + 1))
+            {
+                return null;
+            }
+            if (pooled)
+            {
+                e = consumerBuffer.lvElement(consumerOffset);
+                assert e != null;
+            }
+            assert !pooled ||
+                (pooled && consumerBuffer.lvSequence(consumerOffset) == chunkIndex);
+            consumerBuffer.soElement(consumerOffset, null);
+            return e;
+        }
     }
 
     @Override
