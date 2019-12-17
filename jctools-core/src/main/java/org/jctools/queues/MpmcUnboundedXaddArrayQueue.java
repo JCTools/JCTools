@@ -612,12 +612,12 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
             final boolean firstElementOfNewChunk = consumerOffset == 0 && consumerIndex >= chunkSize;
             if (firstElementOfNewChunk)
             {
-                AtomicChunk<E> next = consumerBuffer.lvNext();
                 final long expectedChunkIndex = chunkIndex - 1;
                 if (expectedChunkIndex != consumerBuffer.lvIndex())
                 {
                     continue;
                 }
+                final AtomicChunk<E> next = consumerBuffer.lvNext();
                 if (next == null)
                 {
                     continue;
@@ -630,12 +630,13 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
                 {
                     continue;
                 }
+            } else {
+                if (consumerBuffer.lvIndex() != chunkIndex)
+                {
+                    continue;
+                }
             }
             e = consumerBuffer.lvElement(consumerOffset);
-            if (consumerBuffer.lvIndex() != chunkIndex)
-            {
-                e = null;
-            }
         }
         while (e == null && consumerIndex != lvProducerIndex());
         return e;
@@ -763,7 +764,43 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
     @Override
     public E relaxedPeek()
     {
-        return peek();
+        final int chunkMask = this.chunkMask;
+        final int chunkShift = this.chunkShift;
+        final int chunkSize = chunkMask + 1;
+        final long consumerIndex = this.lvConsumerIndex();
+        AtomicChunk<E> consumerBuffer = this.lvConsumerBuffer();
+        final int consumerOffset = (int) (consumerIndex & chunkMask);
+        final long chunkIndex = consumerIndex >> chunkShift;
+        final boolean firstElementOfNewChunk = consumerOffset == 0 && consumerIndex >= chunkSize;
+        if (firstElementOfNewChunk)
+        {
+            final long expectedChunkIndex = chunkIndex - 1;
+            if (expectedChunkIndex != consumerBuffer.lvIndex())
+            {
+                return null;
+            }
+            final AtomicChunk<E> next = consumerBuffer.lvNext();
+            if (next == null)
+            {
+                return null;
+            }
+            consumerBuffer = next;
+        }
+        if (consumerBuffer.isPooled())
+        {
+            if (consumerBuffer.lvSequence(consumerOffset) != chunkIndex)
+            {
+                return null;
+            }
+        }
+        else
+        {
+            if (consumerBuffer.lvIndex() != chunkIndex)
+            {
+                return null;
+            }
+        }
+        return consumerBuffer.lvElement(consumerOffset);
     }
 
     @Override
