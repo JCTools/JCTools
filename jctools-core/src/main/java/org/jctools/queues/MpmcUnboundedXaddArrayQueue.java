@@ -498,7 +498,7 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
                 //  but not reused (yet, if possible)
                 //- consumerBuffer::index > expectedChunkIndex: another consumer has rotated consumerBuffer,
                 // that has been pooled and reused again
-                //In both cases we have a stale view of the world with a not reliable next value.
+                //in both cases we have a stale view of the world with a not reliable next value.
                 final long expectedChunkIndex = chunkIndex - 1;
                 if (expectedChunkIndex != consumerBuffer.lvIndex())
                 {
@@ -538,7 +538,7 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
                         //it cover both cases:
                         //- right chunk, awaiting element to be set
                         //- old chunk, awaiting rotation
-                        //It allows to fail fast if the q is empty after the first element on the new chunk.
+                        //it allows to fail fast if the q is empty after the first element on the new chunk.
                         if (consumerIndex >= pIndex && // test against cached pIndex
                             consumerIndex == (pIndex = lvProducerIndex()))
                         { // update pIndex if we must
@@ -559,7 +559,7 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
                         //it cover both cases:
                         //- right chunk, awaiting element to be set
                         //- old chunk, awaiting rotation
-                        //It allows to fail fast if the q is empty after the first element on the new chunk.
+                        //it allows to fail fast if the q is empty after the first element on the new chunk.
                         if (consumerIndex >= pIndex && // test against cached pIndex
                             consumerIndex == (pIndex = lvProducerIndex()))
                         { // update pIndex if we must
