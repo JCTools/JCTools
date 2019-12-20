@@ -25,5 +25,4 @@ public class QueueSanityTestSpscLinked extends QueueSanityTest
         list.add(makeQueue(1, 1, 0, Ordering.FIFO, null));
         return list;
     }
-
 }

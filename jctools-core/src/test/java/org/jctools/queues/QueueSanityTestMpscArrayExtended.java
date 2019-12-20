@@ -33,7 +33,7 @@ public class QueueSanityTestMpscArrayExtended
         Assert.assertTrue(queue.offerIfBelowThreshold(i, 9));
         Assert.assertTrue(queue.offerIfBelowThreshold(i, 16));
     }
-    
+
     @Test
     public void testOfferPollSemantics() throws Exception
     {
@@ -84,7 +84,5 @@ public class QueueSanityTestMpscArrayExtended
         t1.join();
         t2.join();
         assertEquals("Unexpected offer/poll observed", 0, fail.value);
-
     }
-
 }

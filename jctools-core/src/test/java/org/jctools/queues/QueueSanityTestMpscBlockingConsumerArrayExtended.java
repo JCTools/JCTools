@@ -23,7 +23,7 @@ public class QueueSanityTestMpscBlockingConsumerArrayExtended
         final Queue<Integer> q = new MpscBlockingConsumerArrayQueue<>(2);
         // fill up the queue
         while (q.offer(1));
-        
+
         // queue has 2 empty slots
         q.poll();
         q.poll();
@@ -38,8 +38,8 @@ public class QueueSanityTestMpscBlockingConsumerArrayExtended
                 }
 
                 while (!consumerLock.compareAndSet(true, false));
-                
-                
+
+
                 if (q.poll() == null)
                 {
                     fail.value++;
@@ -47,7 +47,7 @@ public class QueueSanityTestMpscBlockingConsumerArrayExtended
                 consumerLock.lazySet(true);
             }
         };
-        
+
         Thread t1 = new Thread(runnable);
         Thread t2 = new Thread(runnable);
 
@@ -80,7 +80,7 @@ public class QueueSanityTestMpscBlockingConsumerArrayExtended
         final MpscBlockingConsumerArrayQueue<Integer> q = new MpscBlockingConsumerArrayQueue<>(2);
         // fill up the queue
         while (q.offer(1));
-        
+
         // queue has 2 empty slots
         q.poll();
         q.poll();
@@ -95,7 +95,7 @@ public class QueueSanityTestMpscBlockingConsumerArrayExtended
                 }
 
                 while (!consumerLock.compareAndSet(true, false));
-                
+
                 try
                 {
                     Integer take = withTimeout ? q.poll(1L, DAYS) : q.take();
@@ -181,7 +181,7 @@ public class QueueSanityTestMpscBlockingConsumerArrayExtended
         consumer.join();
         assertTrue(wasInterrupted.get());
         assertFalse(interruptedStatusAfter.get());
-        
+
         // Queue should remain in original state (empty)
         assertNull(q.poll());
     }
@@ -230,13 +230,13 @@ public class QueueSanityTestMpscBlockingConsumerArrayExtended
         int someElements = ThreadLocalRandom.current().nextInt(10000);
         for (int i=0;i < someElements; i++)
             while (!q.offer(i));
-            
+
         while(!q.isEmpty())
         {
             Thread.yield();
         }
         // Eventually queue is drained
-        
+
         while(consumer.getState() != waitState)
         {
             Thread.yield();
@@ -248,5 +248,4 @@ public class QueueSanityTestMpscBlockingConsumerArrayExtended
         assertTrue(wasInterrupted.get());
         assertEquals(someElements, v.value);
     }
-
 }

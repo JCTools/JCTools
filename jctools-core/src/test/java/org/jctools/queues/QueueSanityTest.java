@@ -480,5 +480,4 @@ public abstract class QueueSanityTest
         iter.forEachRemaining(list::add);
         return list;
     }
-
 }

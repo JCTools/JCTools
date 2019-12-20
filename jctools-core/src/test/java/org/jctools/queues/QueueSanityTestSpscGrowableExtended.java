@@ -32,5 +32,4 @@ public class QueueSanityTestSpscGrowableExtended
         Assert.assertThat(q.size(), is(capacity));
         Assert.assertFalse(q.offer(v));
     }
-
 }

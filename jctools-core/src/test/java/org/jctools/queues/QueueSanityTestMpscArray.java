@@ -84,5 +84,4 @@ public class QueueSanityTestMpscArray extends QueueSanityTest
         assertEquals("Unexpected offer/poll observed", 0, fail.value);
 
     }
-
 }

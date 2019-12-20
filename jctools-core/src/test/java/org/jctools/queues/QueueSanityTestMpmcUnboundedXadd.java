@@ -27,5 +27,4 @@ public class QueueSanityTestMpmcUnboundedXadd extends QueueSanityTest
         list.add(makeQueue(0, 0, 0, Ordering.FIFO, new MpmcUnboundedXaddArrayQueue<>(64)));
         return list;
     }
-
 }

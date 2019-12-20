@@ -26,5 +26,4 @@ public class QueueSanityTestSpscArray extends QueueSanityTest
         list.add(makeQueue(1, 1, SIZE, Ordering.FIFO, null));
         return list;
     }
-
 }

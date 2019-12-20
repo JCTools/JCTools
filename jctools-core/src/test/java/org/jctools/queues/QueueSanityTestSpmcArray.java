@@ -28,5 +28,4 @@ public class QueueSanityTestSpmcArray extends QueueSanityTest
 
         return list;
     }
-
 }

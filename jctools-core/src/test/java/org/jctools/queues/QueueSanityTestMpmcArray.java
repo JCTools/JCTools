@@ -91,7 +91,5 @@ public class QueueSanityTestMpmcArray extends QueueSanityTest
         t1.join();
         t2.join();
         assertEquals("Unexpected offer/poll observed", 0, fail.value);
-
     }
-
 }
