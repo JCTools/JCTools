@@ -170,7 +170,7 @@ abstract class BaseLinkedQueue<E> extends BaseLinkedQueuePad2<E>
      * @see MessagePassingQueue#isEmpty()
      */
     @Override
-    public final boolean isEmpty()
+    public boolean isEmpty()
     {
         return lvConsumerNode() == lvProducerNode();
     }
