@@ -208,7 +208,7 @@ public class MpscRelaxedArrayQueue<E> extends MpscRelaxedArrayQueueL4Pad<E> impl
     {
         RangeUtil.checkGreaterThanOrEqual(capacity, 2, "capacity");
         capacity = Pow2.roundToPowerOfTwo(capacity * 2);
-        this.buffer = CircularArrayOffsetCalculator.allocate(capacity);
+        this.buffer = (E[]) new Object[capacity];
         this.soConsumerPosition(0);
         this.soActiveCycleId(0);
         this.mask = capacity - 1;
@@ -475,7 +475,7 @@ public class MpscRelaxedArrayQueue<E> extends MpscRelaxedArrayQueueL4Pad<E> impl
     public E poll()
     {
         final long consumerPosition = lpConsumerPosition();
-        final long offset = circularArrayOffset(consumerPosition, this.mask);
+        final long offset = calcCircularElementOffset(consumerPosition, this.mask);
         final E[] buffer = this.buffer;
         final E e = lvElement(buffer, offset);
         if (null == e)
@@ -517,7 +517,7 @@ public class MpscRelaxedArrayQueue<E> extends MpscRelaxedArrayQueueL4Pad<E> impl
     {
         final E[] buffer = this.buffer;
         final long consumerPosition = lpConsumerPosition();
-        final long offset = circularArrayOffset(consumerPosition, this.mask);
+        final long offset = calcCircularElementOffset(consumerPosition, this.mask);
         E e = lvElement(buffer, offset);
         if (null == e)
         {
@@ -623,7 +623,7 @@ public class MpscRelaxedArrayQueue<E> extends MpscRelaxedArrayQueueL4Pad<E> impl
     public E relaxedPoll()
     {
         final long consumerPosition = lpConsumerPosition();
-        final long offset = circularArrayOffset(consumerPosition, this.mask);
+        final long offset = calcCircularElementOffset(consumerPosition, this.mask);
         final E[] buffer = this.buffer;
         final E e = lvElement(buffer, offset);
         if (e != null)
@@ -638,7 +638,7 @@ public class MpscRelaxedArrayQueue<E> extends MpscRelaxedArrayQueueL4Pad<E> impl
     {
         final long consumerPosition = lpConsumerPosition();
         final long mask = this.mask;
-        final long offset = circularArrayOffset(consumerPosition, mask);
+        final long offset = calcCircularElementOffset(consumerPosition, mask);
         return lvElement(this.buffer, offset);
     }
 
@@ -675,7 +675,7 @@ public class MpscRelaxedArrayQueue<E> extends MpscRelaxedArrayQueueL4Pad<E> impl
         for (int i = 0; i < limit; i++)
         {
             final long consumerPosition = lpConsumerPosition();
-            final long offset = circularArrayOffset(consumerPosition, mask);
+            final long offset = calcCircularElementOffset(consumerPosition, mask);
 
             E e;
             if ((e = lvElement(buffer, offset)) != null)
@@ -766,7 +766,7 @@ public class MpscRelaxedArrayQueue<E> extends MpscRelaxedArrayQueueL4Pad<E> impl
         {
             for (int i = 0; i < 4096; i++)
             {
-                final long offset = circularArrayOffset(consumerPosition, mask);
+                final long offset = calcCircularElementOffset(consumerPosition, mask);
                 final E e = lvElement(buffer, offset);// LoadLoad
                 if (null == e)
                 {
@@ -841,14 +841,6 @@ public class MpscRelaxedArrayQueue<E> extends MpscRelaxedArrayQueueL4Pad<E> impl
         int cycleLengthLog2)
     {
         return (cycleIndex << cycleLengthLog2) + positionWithinCycle;
-    }
-
-    /**
-     * Used by the consumer only to compute offset in bytes, within the full circular buffer, for the given position.
-     */
-    private static long circularArrayOffset(long consumerPosition, long mask)
-    {
-        return CircularArrayOffsetCalculator.calcElementOffset(consumerPosition, mask);
     }
 
     @Override

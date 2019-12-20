@@ -1,13 +1,13 @@
 package org.jctools.sets;
 
 import org.jctools.util.Pow2;
+import org.jctools.util.UnsafeRefArrayAccess;
 
 import java.util.AbstractSet;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-import static org.jctools.queues.CircularArrayOffsetCalculator.calcElementOffset;
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeAccess.fieldOffset;
 import static org.jctools.util.UnsafeRefArrayAccess.*;
@@ -41,7 +41,7 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
         final long mask = buffer.length - 1;
 
         final int hash = rehash(newVal.hashCode());
-        final long offset = calcElementOffset(hash, mask);
+        final long offset = calcCircularElementOffset(hash, mask);
         final E currVal = lpElement(buffer, offset);
 
         boolean result;
@@ -64,7 +64,7 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
         final int hash = rehash(newVal.hashCode());
         final int limit = (int) (hash + mask);
         for (int i = hash; i <= limit; i++) {
-            final long offset = calcElementOffset(i, mask);
+            final long offset = calcCircularElementOffset(i, mask);
             final E currVal = lpElement(buffer, offset);
             if (currVal == null) {
                 soElement(buffer, offset, newVal);
@@ -76,7 +76,7 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
     private boolean addSlowPath(E[] buffer, long mask, E newVal, int hash) {
         final int limit = (int) (hash + mask);
         for (int i = hash + 1; i <= limit; i++) {
-            final long offset = calcElementOffset(i, mask);
+            final long offset = calcCircularElementOffset(i, mask);
             final E currVal = lpElement(buffer, offset);
             if (currVal == null) {
                 size++;
@@ -112,14 +112,14 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
         final E[] buffer = this.buffer;
         final long mask = buffer.length - 1;
         final int hash = rehash(val.hashCode());
-        final long offset = calcElementOffset(hash, mask);
+        final long offset = calcCircularElementOffset(hash, mask);
         final E e = lpElement(buffer, offset);
         if (e == null) {
             return false;
         }
         else if (val.equals(e)) {
             size--;
-            if (lpElement(buffer, calcElementOffset(hash + 1, mask)) == null) {
+            if (lpElement(buffer, calcCircularElementOffset(hash + 1, mask)) == null) {
                 soElement(buffer, offset, null);
             }
             else {
@@ -133,14 +133,14 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
     private boolean removeSlowPath(Object val, E[] buffer, long mask, int hash) {
         final int limit = (int) (hash + mask);
         for (int searchIndex = hash + 1; searchIndex <= limit; searchIndex++) {
-            final long offset = calcElementOffset(searchIndex, mask);
+            final long offset = calcCircularElementOffset(searchIndex, mask);
             final E e = lpElement(buffer, offset);
             if (e == null) {
                 return false;
             }
             else if (val.equals(e)) {
                 size--;
-                if (lpElement(buffer, calcElementOffset(searchIndex + 1, mask)) == null) {
+                if (lpElement(buffer, calcCircularElementOffset(searchIndex + 1, mask)) == null) {
                     soElement(buffer, offset, null);
                 }
                 else {
@@ -168,11 +168,11 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
             do {
                 // j := (j+1) modulo num_slots
                 j = (int) ((j + 1) & mask);
-                slotJ = lpElement(buffer, calcElementOffset(j, mask));
+                slotJ = lpElement(buffer, calcCircularElementOffset(j, mask));
                 // if slot[j] is unoccupied exit
                 if (slotJ == null) {
                     // delete last duplicate slot
-                    soElement(buffer, calcElementOffset(removeHashIndex, mask), null);
+                    soElement(buffer, calcCircularElementOffset(removeHashIndex, mask), null);
                     UNSAFE.putOrderedLong(this, MC_OFFSET, modCount + 1);
                     return;
                 }
@@ -187,7 +187,7 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
                     ((removeHashIndex < k) && (k <= j)) :
                     ((removeHashIndex < k) || (k <= j)) );
             // slot[removeHashIndex] := slot[j]
-            soElement(buffer, calcElementOffset(removeHashIndex, mask), slotJ);
+            soElement(buffer, calcCircularElementOffset(removeHashIndex, mask), slotJ);
             // removeHashIndex := j
             removeHashIndex = j;
         }
@@ -220,7 +220,7 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
         final E[] buffer = this.buffer;
         final long mask = buffer.length - 1;
         final int hash = rehash(needle.hashCode());
-        long offset = calcElementOffset(hash, mask);
+        long offset = calcCircularElementOffset(hash, mask);
         final E e = lvElement(buffer, offset);
         if (e == null) {
             return false;
@@ -233,7 +233,7 @@ public class SingleWriterHashSet<E> extends AbstractSet<E> {
 
     private boolean containsSlowPath(final E[] buffer, final long mask, final int hash, Object needle) {
         for (int i = hash + 1; i <= hash + mask; i++) {
-            final long offset = calcElementOffset(i, mask);
+            final long offset = calcCircularElementOffset(i, mask);
             final E e = lvElement(buffer, offset);
             if (e == null) {
                 return false;

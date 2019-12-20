@@ -15,11 +15,8 @@ package org.jctools.queues;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeAccess.fieldOffset;
+import static org.jctools.util.UnsafeRefArrayAccess.calcCircularElementOffset;
 
-import org.jctools.queues.MessagePassingQueue.Consumer;
-import org.jctools.queues.MessagePassingQueue.ExitCondition;
-import org.jctools.queues.MessagePassingQueue.Supplier;
-import org.jctools.queues.MessagePassingQueue.WaitStrategy;
 import org.jctools.util.UnsafeRefArrayAccess;
 
 abstract class MpscSequencedArrayQueueL1Pad<E> extends ConcurrentSequencedCircularArrayQueue<E> {
@@ -127,7 +124,7 @@ public class MpscSequencedArrayQueue<E> extends MpscSequencedArrayQueueConsumerF
         }
 
         // on 64bit(no compressed oops) JVM this is the same as seqOffset
-        final long elementOffset = calcElementOffset(currentProducerIndex);
+        final long elementOffset = calcCircularElementOffset(currentProducerIndex, mask);
         UnsafeRefArrayAccess.spElement(buffer, elementOffset, e);
 
         // increment sequence by 1, the value expected by consumer
@@ -153,7 +150,7 @@ public class MpscSequencedArrayQueue<E> extends MpscSequencedArrayQueueConsumerF
         }
 
         // on 64bit(no compressed oops) JVM this is the same as seqOffset
-        final long offset = calcElementOffset(consumerIndex);
+        final long offset = calcCircularElementOffset(consumerIndex, mask);
         final E e = UnsafeRefArrayAccess.lpElement(buffer, offset);
         UnsafeRefArrayAccess.spElement(buffer, offset, null);
         // Move sequence ahead by capacity, preparing it for next offer
@@ -165,7 +162,7 @@ public class MpscSequencedArrayQueue<E> extends MpscSequencedArrayQueueConsumerF
 
     @Override
     public E peek() {
-        return UnsafeRefArrayAccess.lpElement(buffer, calcElementOffset(lvConsumerIndex()));
+        return UnsafeRefArrayAccess.lpElement(buffer, calcCircularElementOffset(lvConsumerIndex(), mask));
     }
 
 	@Override

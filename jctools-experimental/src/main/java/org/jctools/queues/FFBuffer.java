@@ -13,15 +13,11 @@
  */
 package org.jctools.queues;
 
-import org.jctools.util.UnsafeAccess;
-import org.jctools.util.UnsafeRefArrayAccess;
-
 import java.util.Queue;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeAccess.fieldOffset;
-import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
-import static org.jctools.util.UnsafeRefArrayAccess.soElement;
+import static org.jctools.util.UnsafeRefArrayAccess.*;
 
 abstract class FFBufferL1Pad<E> extends ConcurrentCircularArrayQueue<E>
 {
@@ -108,7 +104,7 @@ public final class FFBuffer<E> extends FFBufferL3Pad<E> implements Queue<E>
 
         final E[] lb = buffer;
         final long t = pIndex;
-        final long offset = calcElementOffset(t);
+        final long offset = calcCircularElementOffset(t, mask);
         if (null != lvElement(lb, offset))
         { // read acquire
             return false;
@@ -122,7 +118,7 @@ public final class FFBuffer<E> extends FFBufferL3Pad<E> implements Queue<E>
     public E poll()
     {
         long cIndex = this.cIndex;
-        final long offset = calcElementOffset(cIndex);
+        final long offset = calcCircularElementOffset(cIndex, mask);
         final E[] lb = buffer;
         final E e = lvElement(lb, offset); // write acquire
         if (null == e)
@@ -138,7 +134,7 @@ public final class FFBuffer<E> extends FFBufferL3Pad<E> implements Queue<E>
     public E peek()
     {
         long currentHead = lvProducerIndex();
-        return lvElement(buffer, calcElementOffset(currentHead));
+        return lvElement(buffer, calcCircularElementOffset(currentHead, mask));
     }
 
     @Override
