@@ -127,6 +127,11 @@ abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircularArrayQu
         }
 
         @Override
+        public void remove() {
+            throw new UnsupportedOperationException("remove");
+        }
+
+        @Override
         public boolean hasNext() {
             return nextElement != null;
         }

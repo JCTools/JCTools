@@ -172,6 +172,11 @@ abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> implements 
         }
 
         @Override
+        public void remove() {
+            throw new UnsupportedOperationException("remove");
+        }
+
+        @Override
         public boolean hasNext() {
             return nextElement != null;
         }
