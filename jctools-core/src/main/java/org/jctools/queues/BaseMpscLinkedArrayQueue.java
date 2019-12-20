@@ -165,7 +165,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
     }
 
     @Override
-    public final int size()
+    public int size()
     {
         // NOTE: because indices are on even numbers we cannot use the size util.
 
@@ -201,7 +201,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
     }
 
     @Override
-    public final boolean isEmpty()
+    public boolean isEmpty()
     {
         // Order matters!
         // Loading consumer before producer allows for producer increments after consumer index is read.
@@ -621,7 +621,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
         return new WeakIterator();
     }
 
-    private final class WeakIterator implements Iterator<E> {
+    private class WeakIterator implements Iterator<E> {
 
         private long nextIndex;
         private E nextElement;
