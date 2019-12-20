@@ -21,16 +21,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
 import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
-import org.jctools.util.PortableJvmInfo;
 import org.jctools.util.Pow2;
 import org.jctools.util.RangeUtil;
 
-import static org.jctools.queues.CircularArrayOffsetCalculator.allocate;
 import static org.jctools.queues.LinkedArrayQueueUtil.modifiedCalcElementOffset;
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeAccess.fieldOffset;
-import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
-import static org.jctools.util.UnsafeRefArrayAccess.soElement;
+import static org.jctools.util.UnsafeRefArrayAccess.*;
 
 abstract class MpscBlockingConsumerArrayQueuePad1<E> extends AbstractQueue<E> implements IndexedQueue
 {
@@ -183,8 +180,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
     public MpscBlockingConsumerArrayQueue(final int capacity)
     {
         // leave lower bit of mask clear
-        super((long) ((Pow2.roundToPowerOfTwo(capacity) - 1) << 1),
-            (E[])allocate(Pow2.roundToPowerOfTwo(capacity)));
+        super((long) ((Pow2.roundToPowerOfTwo(capacity) - 1) << 1), (E[]) allocate(Pow2.roundToPowerOfTwo(capacity)));
 
         RangeUtil.checkGreaterThanOrEqual(capacity, 1, "capacity");
         soProducerLimit((long) ((Pow2.roundToPowerOfTwo(capacity) - 1) << 1)); // we know it's all empty to start with

@@ -18,8 +18,9 @@ import org.jctools.util.Pow2;
 
 import java.util.AbstractQueue;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 
-import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
+import static org.jctools.util.UnsafeRefArrayAccess.*;
 
 abstract class ConcurrentCircularArrayQueueL0Pad<E> extends AbstractQueue<E>
 {
@@ -44,36 +45,17 @@ abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircularArrayQu
     {
         int actualCapacity = Pow2.roundToPowerOfTwo(capacity);
         mask = actualCapacity - 1;
-        buffer = CircularArrayOffsetCalculator.allocate(actualCapacity);
-    }
-
-    /**
-     * @param index desirable element index
-     * @param mask (length - 1)
-     * @return the offset in bytes within the array for a given index.
-     */
-    protected static long calcElementOffset(long index, long mask)
-    {
-        return CircularArrayOffsetCalculator.calcElementOffset(index, mask);
-    }
-
-    /**
-     * @param index desirable element index
-     * @return the offset in bytes within the array for a given index.
-     */
-    protected final long calcElementOffset(long index)
-    {
-        return calcElementOffset(index, mask);
+        buffer = allocate(actualCapacity);
     }
 
     @Override
-    public final int size()
+    public int size()
     {
         return IndexedQueueSizeUtil.size(this);
     }
 
     @Override
-    public final boolean isEmpty()
+    public boolean isEmpty()
     {
         return IndexedQueueSizeUtil.isEmpty(this);
     }
@@ -100,13 +82,13 @@ abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircularArrayQu
     }
 
     @Override
-    public final long currentProducerIndex()
+    public long currentProducerIndex()
     {
         return lvProducerIndex();
     }
 
     @Override
-    public final long currentConsumerIndex()
+    public long currentConsumerIndex()
     {
         return lvConsumerIndex();
     }
@@ -122,22 +104,25 @@ abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircularArrayQu
      * @return The iterator.
      */
     @Override
-    public final Iterator<E> iterator() {
+    public Iterator<E> iterator() {
         final long cIndex = lvConsumerIndex();
         final long pIndex = lvProducerIndex();
 
-        return new WeakIterator(cIndex, pIndex);
+        return new WeakIterator(cIndex, pIndex, mask, buffer);
     }
 
-    private final class WeakIterator implements Iterator<E> {
-
+    private static class WeakIterator<E> implements Iterator<E> {
         private final long pIndex;
+        private final long mask;
+        private final E[] buffer;
         private long nextIndex;
         private E nextElement;
 
-        WeakIterator(long cIndex, long pIndex) {
+        WeakIterator(long cIndex, long pIndex, long mask, E[] buffer) {
             this.nextIndex = cIndex;
             this.pIndex = pIndex;
+            this.mask = mask;
+            this.buffer = buffer;
             nextElement = getNext();
         }
 
@@ -148,14 +133,16 @@ abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircularArrayQu
 
         @Override
         public E next() {
-            E e = nextElement;
+            final E e = nextElement;
+            if (e == null)
+                throw new NoSuchElementException();
             nextElement = getNext();
             return e;
         }
 
         private E getNext() {
             while (nextIndex < pIndex) {
-                long offset = calcElementOffset(nextIndex++);
+                long offset = calcCircularElementOffset(nextIndex++, mask);
                 E e = lvElement(buffer, offset);
                 if (e != null) {
                     return e;

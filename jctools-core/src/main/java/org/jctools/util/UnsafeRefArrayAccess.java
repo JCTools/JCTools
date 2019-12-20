@@ -69,7 +69,7 @@ public final class UnsafeRefArrayAccess
      * An ordered store(store + StoreStore barrier) of an element to a given offset
      *
      * @param buffer this.buffer
-     * @param offset computed via {@link UnsafeRefArrayAccess#calcElementOffset}
+     * @param offset computed via {@link UnsafeRefArrayAccess#calcCircularElementOffset}
      * @param e      an orderly kitty
      */
     public static <E> void soElement(E[] buffer, long offset, E e)
@@ -110,5 +110,24 @@ public final class UnsafeRefArrayAccess
     public static long calcElementOffset(long index)
     {
         return REF_ARRAY_BASE + (index << REF_ELEMENT_SHIFT);
+    }
+
+    /**
+     * @param index desirable element index
+     * @param mask (length - 1)
+     * @return the offset in bytes within the array for a given index.
+     */
+    public static long calcCircularElementOffset(long index, long mask)
+    {
+        return REF_ARRAY_BASE + ((index & mask) << REF_ELEMENT_SHIFT);
+    }
+
+    /**
+     * This makes for an easier time generating the atomic queues, and removes some warnings.
+     */
+    @SuppressWarnings("unchecked")
+    public static <E> E[] allocate(int capacity)
+    {
+        return (E[]) new Object[capacity];
     }
 }

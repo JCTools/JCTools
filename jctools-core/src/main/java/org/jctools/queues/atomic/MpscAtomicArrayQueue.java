@@ -13,8 +13,6 @@
  */
 package org.jctools.queues.atomic;
 
-import org.jctools.util.PortableJvmInfo;
-import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.concurrent.atomic.AtomicLongArray;
@@ -220,7 +218,7 @@ public class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
          * the index visibility to poll() we would need to handle the case where the element is not visible.
          */
         // Won CAS, move on to storing
-        final int offset = calcElementOffset(pIndex, mask);
+        final int offset = calcCircularElementOffset(pIndex, mask);
         // StoreStore
         soElement(buffer, offset, e);
         // AWESOME :)
@@ -269,7 +267,7 @@ public class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
          * the index visibility to poll() we would need to handle the case where the element is not visible.
          */
         // Won CAS, move on to storing
-        final int offset = calcElementOffset(pIndex, mask);
+        final int offset = calcCircularElementOffset(pIndex, mask);
         // StoreStore
         soElement(buffer, offset, e);
         // AWESOME :)
@@ -311,7 +309,7 @@ public class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
             return -1;
         }
         // Won CAS, move on to storing
-        final int offset = calcElementOffset(pIndex, mask);
+        final int offset = calcCircularElementOffset(pIndex, mask);
         soElement(buffer, offset, e);
         // AWESOME :)
         return 0;
@@ -329,7 +327,7 @@ public class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
     @Override
     public E poll() {
         final long cIndex = lpConsumerIndex();
-        final int offset = calcElementOffset(cIndex);
+        final int offset = calcCircularElementOffset(cIndex, mask);
         // Copy field to avoid re-reading after volatile load
         final AtomicReferenceArray<E> buffer = this.buffer;
         // If we can't see the next available element we can't poll
@@ -370,7 +368,7 @@ public class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
         final AtomicReferenceArray<E> buffer = this.buffer;
         // LoadLoad
         final long cIndex = lpConsumerIndex();
-        final int offset = calcElementOffset(cIndex);
+        final int offset = calcCircularElementOffset(cIndex, mask);
         E e = lvElement(buffer, offset);
         if (null == e) {
             /*
@@ -398,7 +396,7 @@ public class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
     public E relaxedPoll() {
         final AtomicReferenceArray<E> buffer = this.buffer;
         final long cIndex = lpConsumerIndex();
-        final int offset = calcElementOffset(cIndex);
+        final int offset = calcCircularElementOffset(cIndex, mask);
         // If we can't see the next available element we can't poll
         // LoadLoad
         E e = lvElement(buffer, offset);
@@ -416,7 +414,7 @@ public class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
         final AtomicReferenceArray<E> buffer = this.buffer;
         final int mask = this.mask;
         final long cIndex = lpConsumerIndex();
-        return lvElement(buffer, calcElementOffset(cIndex, mask));
+        return lvElement(buffer, calcCircularElementOffset(cIndex, mask));
     }
 
     @Override
@@ -432,7 +430,7 @@ public class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
         final long cIndex = lpConsumerIndex();
         for (int i = 0; i < limit; i++) {
             final long index = cIndex + i;
-            final int offset = calcElementOffset(index, mask);
+            final int offset = calcCircularElementOffset(index, mask);
             // LoadLoad
             final E e = lvElement(buffer, offset);
             if (null == e) {
@@ -484,7 +482,7 @@ public class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
         final AtomicReferenceArray<E> buffer = this.buffer;
         for (int i = 0; i < actualLimit; i++) {
             // Won CAS, move on to storing
-            final int offset = calcElementOffset(pIndex + i, mask);
+            final int offset = calcCircularElementOffset(pIndex + i, mask);
             soElement(buffer, offset, s.get());
         }
         return actualLimit;

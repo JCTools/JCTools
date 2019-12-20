@@ -72,7 +72,7 @@ public class SpscGrowableAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArrayQu
         final long lookAheadStep = this.lookAheadStep;
         // normal case, go around the buffer or resize if full (unless we hit max capacity)
         if (lookAheadStep > 0) {
-            int lookAheadElementOffset = calcElementOffset(index + lookAheadStep, mask);
+            int lookAheadElementOffset = calcCircularElementOffset(index + lookAheadStep, mask);
             // Try and look ahead a number of elements so we don't have to do this all the time
             if (null == lvElement(buffer, lookAheadElementOffset)) {
                 // joy, there's plenty of room
@@ -91,7 +91,7 @@ public class SpscGrowableAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArrayQu
                 return false;
             }
             // not at max capacity, so must allow extra slot for next buffer pointer
-            if (null == lvElement(buffer, calcElementOffset(index + 1, mask))) {
+            if (null == lvElement(buffer, calcCircularElementOffset(index + 1, mask))) {
                 // buffer is not full
                 writeToQueue(buffer, v == null ? s.get() : v, index, offset);
             } else {
@@ -99,7 +99,7 @@ public class SpscGrowableAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArrayQu
                 final AtomicReferenceArray<E> newBuffer = allocate((int) (2 * (mask + 1) + 1));
                 producerBuffer = newBuffer;
                 producerMask = length(newBuffer) - 2;
-                final int offsetInNew = calcElementOffset(index, producerMask);
+                final int offsetInNew = calcCircularElementOffset(index, producerMask);
                 linkOldToNew(index, buffer, offset, newBuffer, offsetInNew, v == null ? s.get() : v);
                 int newCapacity = (int) (producerMask + 1);
                 if (newCapacity == maxCapacity) {

@@ -22,6 +22,7 @@ import org.jctools.util.Pow2;
 
 import java.util.AbstractQueue;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 
@@ -36,7 +37,7 @@ abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> implements 
         this.mask = actualCapacity - 1;
         this.buffer = new AtomicReferenceArray<E>(actualCapacity);
     }
-    
+
     @Override
     public String toString()
     {
@@ -52,12 +53,7 @@ abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> implements 
         }
     }
 
-    protected final int calcElementOffset(long index, int mask)
-    {
-        return (int) index & mask;
-    }
-
-    protected final int calcElementOffset(long index)
+    protected static final int calcCircularElementOffset(long index, int mask)
     {
         return (int) index & mask;
     }
@@ -156,18 +152,22 @@ abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> implements 
         final long cIndex = lvConsumerIndex();
         final long pIndex = lvProducerIndex();
 
-        return new WeakIterator(cIndex, pIndex);
+        return new WeakIterator(cIndex, pIndex, mask, buffer);
     }
 
-    private final class WeakIterator implements Iterator<E> {
+    private static class WeakIterator<E> implements Iterator<E> {
 
         private final long pIndex;
+        private final int mask;
+        private final AtomicReferenceArray<E> buffer;
         private long nextIndex;
         private E nextElement;
 
-        WeakIterator(long cIndex, long pIndex) {
+        WeakIterator(long cIndex, long pIndex, int mask, AtomicReferenceArray<E> buffer) {
             this.nextIndex = cIndex;
             this.pIndex = pIndex;
+            this.mask = mask;
+            this.buffer = buffer;
             nextElement = getNext();
         }
 
@@ -178,14 +178,18 @@ abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> implements 
 
         @Override
         public E next() {
-            E e = nextElement;
+            final E e = nextElement;
+            if (e == null)
+                throw new NoSuchElementException();
             nextElement = getNext();
             return e;
         }
 
         private E getNext() {
+            final int mask = this.mask;
+            final AtomicReferenceArray<E> buffer = this.buffer;
             while (nextIndex < pIndex) {
-                int offset = calcElementOffset(nextIndex++);
+                int offset = AtomicReferenceArrayQueue.calcCircularElementOffset(nextIndex++, mask);
                 E e = lvElement(buffer, offset);
                 if (e != null) {
                     return e;

@@ -230,7 +230,7 @@ abstract class BaseSpscLinkedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArr
             final AtomicReferenceArray<E> buffer = producerBuffer;
             final long index = lpProducerIndex();
             final long mask = producerMask;
-            final int offset = calcElementOffset(index, mask);
+            final int offset = calcCircularElementOffset(index, mask);
             // expected hot path
             if (index < producerBufferLimit) {
                 writeToQueue(buffer, s.get(), index, offset);
@@ -268,7 +268,7 @@ abstract class BaseSpscLinkedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArr
         final AtomicReferenceArray<E> buffer = producerBuffer;
         final long index = lpProducerIndex();
         final long mask = producerMask;
-        final int offset = calcElementOffset(index, mask);
+        final int offset = calcCircularElementOffset(index, mask);
         // expected hot path
         if (index < producerBufferLimit) {
             writeToQueue(buffer, e, index, offset);
@@ -291,7 +291,7 @@ abstract class BaseSpscLinkedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArr
         final AtomicReferenceArray<E> buffer = consumerBuffer;
         final long index = lpConsumerIndex();
         final long mask = consumerMask;
-        final int offset = calcElementOffset(index, mask);
+        final int offset = calcCircularElementOffset(index, mask);
         // LoadLoad
         final Object e = lvElement(buffer, offset);
         boolean isNextBuffer = e == JUMP;
@@ -317,7 +317,7 @@ abstract class BaseSpscLinkedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArr
         final AtomicReferenceArray<E> buffer = consumerBuffer;
         final long index = lpConsumerIndex();
         final long mask = consumerMask;
-        final int offset = calcElementOffset(index, mask);
+        final int offset = calcCircularElementOffset(index, mask);
         // LoadLoad
         final Object e = lvElement(buffer, offset);
         if (e == JUMP) {
@@ -349,7 +349,7 @@ abstract class BaseSpscLinkedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArr
         consumerBuffer = nextBuffer;
         final long mask = length(nextBuffer) - 2;
         consumerMask = mask;
-        final int offset = calcElementOffset(index, mask);
+        final int offset = calcCircularElementOffset(index, mask);
         // LoadLoad
         return lvElement(nextBuffer, offset);
     }
@@ -359,7 +359,7 @@ abstract class BaseSpscLinkedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArr
         consumerBuffer = nextBuffer;
         final long mask = length(nextBuffer) - 2;
         consumerMask = mask;
-        final int offset = calcElementOffset(index, mask);
+        final int offset = calcCircularElementOffset(index, mask);
         // LoadLoad
         final E n = lvElement(nextBuffer, offset);
         if (null == n) {

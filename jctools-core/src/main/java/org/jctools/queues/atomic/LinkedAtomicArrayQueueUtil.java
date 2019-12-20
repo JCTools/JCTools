@@ -33,7 +33,7 @@ final class LinkedAtomicArrayQueueUtil
         buffer.lazySet(offset, value);
     }
 
-    static int calcElementOffset(long index, long mask)
+    static int calcCircularElementOffset(long index, long mask)
     {
         return (int) (index & mask);
     }
@@ -55,7 +55,7 @@ final class LinkedAtomicArrayQueueUtil
     {
         return (int) (index & mask) >> 1;
     }
-    
+
     static int calcElementOffset(long index)
     {
         return (int) index;

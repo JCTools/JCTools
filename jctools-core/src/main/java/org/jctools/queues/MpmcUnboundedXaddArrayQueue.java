@@ -25,6 +25,7 @@ import java.util.Iterator;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeAccess.fieldOffset;
+import static org.jctools.util.UnsafeRefArrayAccess.allocate;
 
 
 abstract class MpmcUnboundedXaddArrayQueuePad1<E> extends AbstractQueue<E> implements IndexedQueue
@@ -64,7 +65,7 @@ abstract class MpmcUnboundedXaddArrayQueuePad1<E> extends AbstractQueue<E> imple
 
         AtomicChunk(long index, AtomicChunk<E> prev, int size, boolean pooled)
         {
-            buffer = CircularArrayOffsetCalculator.allocate(size);
+            buffer = allocate(size);
             spNext(null);
             spPrev(prev);
             spIndex(index);

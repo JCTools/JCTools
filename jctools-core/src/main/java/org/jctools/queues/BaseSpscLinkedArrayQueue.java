@@ -19,13 +19,11 @@ import org.jctools.util.PortableJvmInfo;
 import java.util.AbstractQueue;
 import java.util.Iterator;
 
-import static org.jctools.queues.CircularArrayOffsetCalculator.calcElementOffset;
 import static org.jctools.queues.LinkedArrayQueueUtil.length;
 import static org.jctools.queues.LinkedArrayQueueUtil.nextArrayOffset;
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeAccess.fieldOffset;
-import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
-import static org.jctools.util.UnsafeRefArrayAccess.soElement;
+import static org.jctools.util.UnsafeRefArrayAccess.*;
 
 abstract class BaseSpscLinkedArrayQueuePrePad<E> extends AbstractQueue<E> implements IndexedQueue
 {
@@ -226,7 +224,7 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
             final E[] buffer = producerBuffer;
             final long index = lpProducerIndex();
             final long mask = producerMask;
-            final long offset = calcElementOffset(index, mask);
+            final long offset = calcCircularElementOffset(index, mask);
             // expected hot path
             if (index < producerBufferLimit)
             {
@@ -272,7 +270,7 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
         final E[] buffer = producerBuffer;
         final long index = lpProducerIndex();
         final long mask = producerMask;
-        final long offset = calcElementOffset(index, mask);
+        final long offset = calcCircularElementOffset(index, mask);
         // expected hot path
         if (index < producerBufferLimit)
         {
@@ -303,7 +301,7 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
         final E[] buffer = consumerBuffer;
         final long index = lpConsumerIndex();
         final long mask = consumerMask;
-        final long offset = calcElementOffset(index, mask);
+        final long offset = calcCircularElementOffset(index, mask);
         final Object e = lvElement(buffer, offset);// LoadLoad
         boolean isNextBuffer = e == JUMP;
         if (null != e && !isNextBuffer)
@@ -332,7 +330,7 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
         final E[] buffer = consumerBuffer;
         final long index = lpConsumerIndex();
         final long mask = consumerMask;
-        final long offset = calcElementOffset(index, mask);
+        final long offset = calcCircularElementOffset(index, mask);
         final Object e = lvElement(buffer, offset);// LoadLoad
         if (e == JUMP)
         {
@@ -368,7 +366,7 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
         consumerBuffer = nextBuffer;
         final long mask = length(nextBuffer) - 2;
         consumerMask = mask;
-        final long offset = calcElementOffset(index, mask);
+        final long offset = calcCircularElementOffset(index, mask);
         return lvElement(nextBuffer, offset);// LoadLoad
     }
 
@@ -378,7 +376,7 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
         consumerBuffer = nextBuffer;
         final long mask = length(nextBuffer) - 2;
         consumerMask = mask;
-        final long offset = calcElementOffset(index, mask);
+        final long offset = calcCircularElementOffset(index, mask);
         final E n = lvElement(nextBuffer, offset);// LoadLoad
         if (null == n)
         {

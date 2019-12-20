@@ -150,9 +150,6 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtom
             if (name.startsWith("org.jctools.util.Unsafe")) {
                 continue;
             }
-            if (name.startsWith("org.jctools.queues.CircularArrayOffsetCalculator")) {
-                continue;
-            }
 
             if (name.startsWith("org.jctools.queues.LinkedArrayQueueUtil")) {
                 importDeclaration.setName(name.replace("org.jctools.queues.LinkedArrayQueueUtil", "org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil"));

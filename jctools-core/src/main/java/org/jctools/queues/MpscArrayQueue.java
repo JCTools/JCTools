@@ -13,13 +13,9 @@
  */
 package org.jctools.queues;
 
-import org.jctools.util.PortableJvmInfo;
-
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeAccess.fieldOffset;
 import static org.jctools.util.UnsafeRefArrayAccess.*;
-
-import java.util.Iterator;
 
 abstract class MpscArrayQueueL1Pad<E> extends ConcurrentCircularArrayQueue<E>
 {
@@ -212,7 +208,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
          */
 
         // Won CAS, move on to storing
-        final long offset = calcElementOffset(pIndex, mask);
+        final long offset = calcCircularElementOffset(pIndex, mask);
         soElement(buffer, offset, e); // StoreStore
         return true; // AWESOME :)
     }
@@ -266,7 +262,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
          */
 
         // Won CAS, move on to storing
-        final long offset = calcElementOffset(pIndex, mask);
+        final long offset = calcCircularElementOffset(pIndex, mask);
         soElement(buffer, offset, e); // StoreStore
         return true; // AWESOME :)
     }
@@ -309,7 +305,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
         }
 
         // Won CAS, move on to storing
-        final long offset = calcElementOffset(pIndex, mask);
+        final long offset = calcCircularElementOffset(pIndex, mask);
         soElement(buffer, offset, e);
         return 0; // AWESOME :)
     }
@@ -327,7 +323,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
     public E poll()
     {
         final long cIndex = lpConsumerIndex();
-        final long offset = calcElementOffset(cIndex);
+        final long offset = calcCircularElementOffset(cIndex, mask);
         // Copy field to avoid re-reading after volatile load
         final E[] buffer = this.buffer;
 
@@ -375,7 +371,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
         final E[] buffer = this.buffer;
 
         final long cIndex = lpConsumerIndex(); // LoadLoad
-        final long offset = calcElementOffset(cIndex);
+        final long offset = calcCircularElementOffset(cIndex, mask);
         E e = lvElement(buffer, offset);
         if (null == e)
         {
@@ -411,7 +407,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
     {
         final E[] buffer = this.buffer;
         final long cIndex = lpConsumerIndex();
-        final long offset = calcElementOffset(cIndex);
+        final long offset = calcCircularElementOffset(cIndex, mask);
 
         // If we can't see the next available element we can't poll
         E e = lvElement(buffer, offset); // LoadLoad
@@ -431,7 +427,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
         final E[] buffer = this.buffer;
         final long mask = this.mask;
         final long cIndex = lpConsumerIndex();
-        return lvElement(buffer, calcElementOffset(cIndex, mask));
+        return lvElement(buffer, calcCircularElementOffset(cIndex, mask));
     }
 
     @Override
@@ -451,7 +447,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
         for (int i = 0; i < limit; i++)
         {
             final long index = cIndex + i;
-            final long offset = calcElementOffset(index, mask);
+            final long offset = calcCircularElementOffset(index, mask);
             final E e = lvElement(buffer, offset);// LoadLoad
             if (null == e)
             {
@@ -506,7 +502,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
         for (int i = 0; i < actualLimit; i++)
         {
             // Won CAS, move on to storing
-            final long offset = calcElementOffset(pIndex + i, mask);
+            final long offset = calcCircularElementOffset(pIndex + i, mask);
             soElement(buffer, offset, s.get());
         }
         return actualLimit;

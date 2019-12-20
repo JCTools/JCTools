@@ -177,7 +177,7 @@ public class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueL3Pad<E> {
         if (producerIndex >= producerLimit && !offerSlowPath(buffer, mask, producerIndex)) {
             return false;
         }
-        final int offset = calcElementOffset(producerIndex, mask);
+        final int offset = calcCircularElementOffset(producerIndex, mask);
         // StoreStore
         soElement(buffer, offset, e);
         // ordered store -> atomic and ordered for size()
@@ -187,11 +187,11 @@ public class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueL3Pad<E> {
 
     private boolean offerSlowPath(final AtomicReferenceArray<E> buffer, final int mask, final long producerIndex) {
         final int lookAheadStep = this.lookAheadStep;
-        if (null == lvElement(buffer, calcElementOffset(producerIndex + lookAheadStep, mask))) {
+        if (null == lvElement(buffer, calcCircularElementOffset(producerIndex + lookAheadStep, mask))) {
             // LoadLoad
             producerLimit = producerIndex + lookAheadStep;
         } else {
-            final int offset = calcElementOffset(producerIndex, mask);
+            final int offset = calcCircularElementOffset(producerIndex, mask);
             if (null != lvElement(buffer, offset)) {
                 return false;
             }
@@ -207,7 +207,7 @@ public class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueL3Pad<E> {
     @Override
     public E poll() {
         final long consumerIndex = this.lpConsumerIndex();
-        final int offset = calcElementOffset(consumerIndex);
+        final int offset = calcCircularElementOffset(consumerIndex, mask);
         // local load of field to avoid repeated loads after volatile reads
         final AtomicReferenceArray<E> buffer = this.buffer;
         // LoadLoad
@@ -229,7 +229,7 @@ public class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueL3Pad<E> {
      */
     @Override
     public E peek() {
-        return lvElement(buffer, calcElementOffset(lpConsumerIndex()));
+        return lvElement(buffer, calcCircularElementOffset(lpConsumerIndex(), mask));
     }
 
     @Override
@@ -270,7 +270,7 @@ public class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueL3Pad<E> {
         final long consumerIndex = this.lpConsumerIndex();
         for (int i = 0; i < limit; i++) {
             final long index = consumerIndex + i;
-            final int offset = calcElementOffset(index, mask);
+            final int offset = calcCircularElementOffset(index, mask);
             // LoadLoad
             final E e = lvElement(buffer, offset);
             if (null == e) {
@@ -299,12 +299,12 @@ public class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueL3Pad<E> {
         final long producerIndex = this.lpProducerIndex();
         for (int i = 0; i < limit; i++) {
             final long index = producerIndex + i;
-            final int lookAheadElementOffset = calcElementOffset(index + lookAheadStep, mask);
+            final int lookAheadElementOffset = calcCircularElementOffset(index + lookAheadStep, mask);
             if (null == lvElement(buffer, lookAheadElementOffset)) {
                 // LoadLoad
                 int lookAheadLimit = Math.min(lookAheadStep, limit - i);
                 for (int j = 0; j < lookAheadLimit; j++) {
-                    final int offset = calcElementOffset(index + j, mask);
+                    final int offset = calcCircularElementOffset(index + j, mask);
                     // StoreStore
                     soElement(buffer, offset, s.get());
                     // ordered store -> atomic and ordered for size()
@@ -312,7 +312,7 @@ public class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueL3Pad<E> {
                 }
                 i += lookAheadLimit - 1;
             } else {
-                final int offset = calcElementOffset(index, mask);
+                final int offset = calcCircularElementOffset(index, mask);
                 if (null != lvElement(buffer, offset)) {
                     return i;
                 }
@@ -339,7 +339,7 @@ public class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueL3Pad<E> {
         int counter = 0;
         while (exit.keepRunning()) {
             for (int i = 0; i < 4096; i++) {
-                final int offset = calcElementOffset(consumerIndex, mask);
+                final int offset = calcCircularElementOffset(consumerIndex, mask);
                 // LoadLoad
                 final E e = lvElement(buffer, offset);
                 if (null == e) {
@@ -371,11 +371,11 @@ public class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueL3Pad<E> {
         long producerIndex = this.lpProducerIndex();
         int counter = 0;
         while (e.keepRunning()) {
-            final int lookAheadElementOffset = calcElementOffset(producerIndex + lookAheadStep, mask);
+            final int lookAheadElementOffset = calcCircularElementOffset(producerIndex + lookAheadStep, mask);
             if (null == lvElement(buffer, lookAheadElementOffset)) {
                 // LoadLoad
                 for (int j = 0; j < lookAheadStep; j++) {
-                    final int offset = calcElementOffset(producerIndex, mask);
+                    final int offset = calcCircularElementOffset(producerIndex, mask);
                     producerIndex++;
                     // StoreStore
                     soElement(buffer, offset, s.get());
@@ -383,7 +383,7 @@ public class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueL3Pad<E> {
                     soProducerIndex(producerIndex);
                 }
             } else {
-                final int offset = calcElementOffset(producerIndex, mask);
+                final int offset = calcCircularElementOffset(producerIndex, mask);
                 if (null != lvElement(buffer, offset)) {
                     // LoadLoad
                     counter = w.idle(counter);

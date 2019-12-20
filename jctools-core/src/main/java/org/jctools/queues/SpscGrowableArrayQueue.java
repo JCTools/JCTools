@@ -15,11 +15,10 @@ package org.jctools.queues;
 
 import org.jctools.util.Pow2;
 import org.jctools.util.RangeUtil;
+import org.jctools.util.UnsafeRefArrayAccess;
 
-import static org.jctools.queues.CircularArrayOffsetCalculator.allocate;
-import static org.jctools.queues.CircularArrayOffsetCalculator.calcElementOffset;
 import static org.jctools.queues.LinkedArrayQueueUtil.length;
-import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
+import static org.jctools.util.UnsafeRefArrayAccess.*;
 
 /**
  * An SPSC array queue which starts at <i>initialCapacity</i> and grows to <i>maxCapacity</i> in linked chunks,
@@ -73,7 +72,7 @@ public class SpscGrowableArrayQueue<E> extends BaseSpscLinkedArrayQueue<E>
         // normal case, go around the buffer or resize if full (unless we hit max capacity)
         if (lookAheadStep > 0)
         {
-            long lookAheadElementOffset = calcElementOffset(index + lookAheadStep, mask);
+            long lookAheadElementOffset = calcCircularElementOffset(index + lookAheadStep, mask);
             // Try and look ahead a number of elements so we don't have to do this all the time
             if (null == lvElement(buffer, lookAheadElementOffset))
             {
@@ -94,7 +93,7 @@ public class SpscGrowableArrayQueue<E> extends BaseSpscLinkedArrayQueue<E>
                 return false;
             }
             // not at max capacity, so must allow extra slot for next buffer pointer
-            if (null == lvElement(buffer, calcElementOffset(index + 1, mask)))
+            if (null == lvElement(buffer, calcCircularElementOffset(index + 1, mask)))
             { // buffer is not full
                 writeToQueue(buffer, v == null ? s.get() : v, index, offset);
             }
@@ -106,7 +105,7 @@ public class SpscGrowableArrayQueue<E> extends BaseSpscLinkedArrayQueue<E>
                 producerBuffer = newBuffer;
                 producerMask = length(newBuffer) - 2;
 
-                final long offsetInNew = calcElementOffset(index, producerMask);
+                final long offsetInNew = calcCircularElementOffset(index, producerMask);
                 linkOldToNew(index, buffer, offset, newBuffer, offsetInNew, v == null ? s.get() : v);
                 int newCapacity = (int) (producerMask + 1);
                 if (newCapacity == maxCapacity)

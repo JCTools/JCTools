@@ -14,9 +14,9 @@
 package org.jctools.queues;
 
 import org.jctools.util.Pow2;
+import org.jctools.util.UnsafeRefArrayAccess;
 
-import static org.jctools.queues.CircularArrayOffsetCalculator.allocate;
-import static org.jctools.queues.CircularArrayOffsetCalculator.calcElementOffset;
+import static org.jctools.util.UnsafeRefArrayAccess.*;
 import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
 
 /**
@@ -49,12 +49,12 @@ public class SpscUnboundedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E>
         long pBufferLimit = pIndex + lookAheadStep;
 
         // go around the buffer or add a new buffer
-        if (null == lvElement(buffer, calcElementOffset(pBufferLimit, mask)))
+        if (null == lvElement(buffer, calcCircularElementOffset(pBufferLimit, mask)))
         {
             producerBufferLimit = pBufferLimit - 1; // joy, there's plenty of room
             writeToQueue(buffer, v == null ? s.get() : v, pIndex, offset);
         }
-        else if (null == lvElement(buffer, calcElementOffset(pIndex + 1, mask)))
+        else if (null == lvElement(buffer, calcCircularElementOffset(pIndex + 1, mask)))
         { // buffer is not full
             writeToQueue(buffer, v == null ? s.get() : v, pIndex, offset);
         }

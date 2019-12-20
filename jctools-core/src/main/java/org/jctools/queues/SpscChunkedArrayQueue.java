@@ -15,10 +15,9 @@ package org.jctools.queues;
 
 import org.jctools.util.Pow2;
 import org.jctools.util.RangeUtil;
+import org.jctools.util.UnsafeRefArrayAccess;
 
-import static org.jctools.queues.CircularArrayOffsetCalculator.allocate;
-import static org.jctools.queues.CircularArrayOffsetCalculator.calcElementOffset;
-import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
+import static org.jctools.util.UnsafeRefArrayAccess.*;
 
 /**
  * An SPSC array queue which starts at <i>initialCapacity</i> and grows to <i>maxCapacity</i> in linked chunks
@@ -87,12 +86,12 @@ public class SpscChunkedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E>
 
         // go around the buffer or add a new buffer
         if (pBufferLimit > pIndex + 1 && // there's sufficient room in buffer/queue to use pBufferLimit
-            null == lvElement(buffer, calcElementOffset(pBufferLimit, mask)))
+            null == lvElement(buffer, calcCircularElementOffset(pBufferLimit, mask)))
         {
             producerBufferLimit = pBufferLimit - 1; // joy, there's plenty of room
             writeToQueue(buffer, v == null ? s.get() : v, pIndex, offset);
         }
-        else if (null == lvElement(buffer, calcElementOffset(pIndex + 1, mask)))
+        else if (null == lvElement(buffer, calcCircularElementOffset(pIndex + 1, mask)))
         { // buffer is not full
             writeToQueue(buffer, v == null ? s.get() : v, pIndex, offset);
         }

@@ -13,7 +13,6 @@
  */
 package org.jctools.queues.atomic;
 
-import org.jctools.util.PortableJvmInfo;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.concurrent.atomic.AtomicLongArray;
@@ -172,7 +171,7 @@ public class SpmcAtomicArrayQueue<E> extends SpmcAtomicArrayQueueL3Pad<E> {
         final AtomicReferenceArray<E> buffer = this.buffer;
         final int mask = this.mask;
         final long currProducerIndex = lvProducerIndex();
-        final int offset = calcElementOffset(currProducerIndex, mask);
+        final int offset = calcCircularElementOffset(currProducerIndex, mask);
         if (null != lvElement(buffer, offset)) {
             long size = currProducerIndex - lvConsumerIndex();
             if (size > mask) {
@@ -212,7 +211,7 @@ public class SpmcAtomicArrayQueue<E> extends SpmcAtomicArrayQueueL3Pad<E> {
     }
 
     private E removeElement(final AtomicReferenceArray<E> buffer, long index, final int mask) {
-        final int offset = calcElementOffset(index, mask);
+        final int offset = calcCircularElementOffset(index, mask);
         // load plain, element happens before it's index becomes visible
         final E e = lpElement(buffer, offset);
         // store ordered, make sure nulling out is visible. Producer is waiting for this value.
@@ -236,7 +235,7 @@ public class SpmcAtomicArrayQueue<E> extends SpmcAtomicArrayQueueL3Pad<E> {
                     svProducerIndexCache(currProducerIndex);
                 }
             }
-        } while (null == (e = lvElement(buffer, calcElementOffset(currentConsumerIndex, mask))));
+        } while (null == (e = lvElement(buffer, calcCircularElementOffset(currentConsumerIndex, mask))));
         return e;
     }
 
@@ -248,7 +247,7 @@ public class SpmcAtomicArrayQueue<E> extends SpmcAtomicArrayQueueL3Pad<E> {
         final AtomicReferenceArray<E> buffer = this.buffer;
         final int mask = this.mask;
         final long producerIndex = lpProducerIndex();
-        final int offset = calcElementOffset(producerIndex, mask);
+        final int offset = calcCircularElementOffset(producerIndex, mask);
         if (null != lvElement(buffer, offset)) {
             return false;
         }
@@ -269,7 +268,7 @@ public class SpmcAtomicArrayQueue<E> extends SpmcAtomicArrayQueueL3Pad<E> {
         final AtomicReferenceArray<E> buffer = this.buffer;
         final int mask = this.mask;
         final long consumerIndex = lvConsumerIndex();
-        return lvElement(buffer, calcElementOffset(consumerIndex, mask));
+        return lvElement(buffer, calcCircularElementOffset(consumerIndex, mask));
     }
 
     @Override
@@ -319,7 +318,7 @@ public class SpmcAtomicArrayQueue<E> extends SpmcAtomicArrayQueueL3Pad<E> {
         final int mask = this.mask;
         long producerIndex = this.lpProducerIndex();
         for (int i = 0; i < limit; i++) {
-            final int offset = calcElementOffset(producerIndex, mask);
+            final int offset = calcCircularElementOffset(producerIndex, mask);
             if (null != lvElement(buffer, offset)) {
                 return i;
             }

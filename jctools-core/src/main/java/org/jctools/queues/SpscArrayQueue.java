@@ -15,6 +15,7 @@ package org.jctools.queues;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeAccess.fieldOffset;
+import static org.jctools.util.UnsafeRefArrayAccess.*;
 import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
 import static org.jctools.util.UnsafeRefArrayAccess.soElement;
 
@@ -168,7 +169,7 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>
         {
             return false;
         }
-        final long offset = calcElementOffset(producerIndex, mask);
+        final long offset = calcCircularElementOffset(producerIndex, mask);
 
         soElement(buffer, offset, e); // StoreStore
         soProducerIndex(producerIndex + 1); // ordered store -> atomic and ordered for size()
@@ -178,13 +179,14 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>
     private boolean offerSlowPath(final E[] buffer, final long mask, final long producerIndex)
     {
         final int lookAheadStep = this.lookAheadStep;
-        if (null == lvElement(buffer, calcElementOffset(producerIndex + lookAheadStep, mask)))
+        if (null == lvElement(buffer,
+            calcCircularElementOffset(producerIndex + lookAheadStep, mask)))
         {// LoadLoad
             producerLimit = producerIndex + lookAheadStep;
         }
         else
         {
-            final long offset = calcElementOffset(producerIndex, mask);
+            final long offset = calcCircularElementOffset(producerIndex, mask);
             if (null != lvElement(buffer, offset))
             {
                 return false;
@@ -202,7 +204,7 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>
     public E poll()
     {
         final long consumerIndex = this.lpConsumerIndex();
-        final long offset = calcElementOffset(consumerIndex);
+        final long offset = calcCircularElementOffset(consumerIndex, mask);
         // local load of field to avoid repeated loads after volatile reads
         final E[] buffer = this.buffer;
         final E e = lvElement(buffer, offset);// LoadLoad
@@ -223,7 +225,7 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>
     @Override
     public E peek()
     {
-        return lvElement(buffer, calcElementOffset(lpConsumerIndex()));
+        return lvElement(buffer, calcCircularElementOffset(lpConsumerIndex(), mask));
     }
 
     @Override
@@ -273,7 +275,7 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>
         for (int i = 0; i < limit; i++)
         {
             final long index = consumerIndex + i;
-            final long offset = calcElementOffset(index, mask);
+            final long offset = calcCircularElementOffset(index, mask);
             final E e = lvElement(buffer, offset);// LoadLoad
             if (null == e)
             {
@@ -304,13 +306,14 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>
         for (int i = 0; i < limit; i++)
         {
             final long index = producerIndex + i;
-            final long lookAheadElementOffset = calcElementOffset(index + lookAheadStep, mask);
+            final long lookAheadElementOffset =
+                calcCircularElementOffset(index + lookAheadStep, mask);
             if (null == lvElement(buffer, lookAheadElementOffset))
             {// LoadLoad
                 int lookAheadLimit = Math.min(lookAheadStep, limit - i);
                 for (int j = 0; j < lookAheadLimit; j++)
                 {
-                    final long offset = calcElementOffset(index + j, mask);
+                    final long offset = calcCircularElementOffset(index + j, mask);
                     soElement(buffer, offset, s.get()); // StoreStore
                     soProducerIndex(index + j + 1); // ordered store -> atomic and ordered for size()
                 }
@@ -318,7 +321,7 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>
             }
             else
             {
-                final long offset = calcElementOffset(index, mask);
+                final long offset = calcCircularElementOffset(index, mask);
                 if (null != lvElement(buffer, offset))
                 {
                     return i;
@@ -350,7 +353,7 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>
         {
             for (int i = 0; i < 4096; i++)
             {
-                final long offset = calcElementOffset(consumerIndex, mask);
+                final long offset = calcCircularElementOffset(consumerIndex, mask);
                 final E e = lvElement(buffer, offset);// LoadLoad
                 if (null == e)
                 {
@@ -383,12 +386,13 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>
         int counter = 0;
         while (e.keepRunning())
         {
-            final long lookAheadElementOffset = calcElementOffset(producerIndex + lookAheadStep, mask);
+            final long lookAheadElementOffset =
+                calcCircularElementOffset(producerIndex + lookAheadStep, mask);
             if (null == lvElement(buffer, lookAheadElementOffset))
             {// LoadLoad
                 for (int j = 0; j < lookAheadStep; j++)
                 {
-                    final long offset = calcElementOffset(producerIndex, mask);
+                    final long offset = calcCircularElementOffset(producerIndex, mask);
                     producerIndex++;
                     soElement(buffer, offset, s.get()); // StoreStore
                     soProducerIndex(producerIndex); // ordered store -> atomic and ordered for size()
@@ -396,7 +400,7 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>
             }
             else
             {
-                final long offset = calcElementOffset(producerIndex, mask);
+                final long offset = calcCircularElementOffset(producerIndex, mask);
                 if (null != lvElement(buffer, offset))
                 {// LoadLoad
                     counter = w.idle(counter);

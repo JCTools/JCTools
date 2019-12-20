@@ -191,7 +191,7 @@ abstract class BaseLinkedAtomicQueue<E> extends BaseLinkedAtomicQueuePad2<E> {
      * @see MessagePassingQueue#isEmpty()
      */
     @Override
-    public final boolean isEmpty() {
+    public boolean isEmpty() {
         return lvConsumerNode() == lvProducerNode();
     }
 

@@ -13,13 +13,11 @@
  */
 package org.jctools.queues;
 
-import org.jctools.util.PortableJvmInfo;
 import org.jctools.util.RangeUtil;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeAccess.fieldOffset;
-import static org.jctools.util.UnsafeRefArrayAccess.lpElement;
-import static org.jctools.util.UnsafeRefArrayAccess.soElement;
+import static org.jctools.util.UnsafeRefArrayAccess.*;
 
 abstract class MpmcArrayQueueL1Pad<E> extends ConcurrentSequencedCircularArrayQueue<E>
 {
@@ -175,7 +173,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E>
         while (seq > pIndex || // another producer has moved the sequence(or +)
             !casProducerIndex(pIndex, pIndex + 1)); // failed to increment
 
-        soElement(buffer, calcElementOffset(pIndex, mask), e);
+        soElement(buffer, calcCircularElementOffset(pIndex, mask), e);
         soSequence(sBuffer, seqOffset, pIndex + 1); // seq++;
         return true;
     }
@@ -221,7 +219,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E>
         while (seq > expectedSeq || // another consumer beat us to it
             !casConsumerIndex(cIndex, cIndex + 1)); // failed the CAS
 
-        final long offset = calcElementOffset(cIndex, mask);
+        final long offset = calcCircularElementOffset(cIndex, mask);
         final E e = lpElement(buffer, offset);
         soElement(buffer, offset, null);
         soSequence(sBuffer, seqOffset, cIndex + mask + 1);// i.e. seq += capacity
@@ -237,7 +235,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E>
         {
             cIndex = lvConsumerIndex();
             // other consumers may have grabbed the element, or queue might be empty
-            e = lpElement(buffer, calcElementOffset(cIndex));
+            e = lpElement(buffer, calcCircularElementOffset(cIndex, mask));
             // only return null if queue is empty
         }
         while (e == null && cIndex != lvProducerIndex());
@@ -270,7 +268,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E>
         while (seq > pIndex || // another producer has moved the sequence
             !casProducerIndex(pIndex, pIndex + 1)); // failed to increment
 
-        soElement(buffer, calcElementOffset(pIndex, mask), e);
+        soElement(buffer, calcCircularElementOffset(pIndex, mask), e);
         soSequence(sBuffer, seqOffset, pIndex + 1);
         return true;
     }
@@ -299,7 +297,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E>
         while (seq > expectedSeq || // another consumer beat us to it
             !casConsumerIndex(cIndex, cIndex + 1)); // failed the CAS
 
-        final long offset = calcElementOffset(cIndex, mask);
+        final long offset = calcCircularElementOffset(cIndex, mask);
         final E e = lpElement(buffer, offset);
         soElement(buffer, offset, null);
         soSequence(sBuffer, seqOffset, cIndex + mask + 1);
@@ -310,7 +308,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E>
     public E relaxedPeek()
     {
         long currConsumerIndex = lvConsumerIndex();
-        return lpElement(buffer, calcElementOffset(currConsumerIndex));
+        return lpElement(buffer, calcCircularElementOffset(currConsumerIndex, mask));
     }
 
     @Override
@@ -344,7 +342,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E>
                 {
                     final long index = cIndex + i;
                     final long seqOffset = calcSequenceOffset(index, mask);
-                    final long offset = calcElementOffset(index, mask);
+                    final long offset = calcCircularElementOffset(index, mask);
                     final long expectedSeq = index + 1;
                     while (lvSequence(sBuffer, seqOffset) != expectedSeq)
                     {
@@ -398,7 +396,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E>
             while (seq > expectedSeq || // another consumer beat us to it
                 !casConsumerIndex(cIndex, cIndex + 1)); // failed the CAS
 
-            final long offset = calcElementOffset(cIndex, mask);
+            final long offset = calcCircularElementOffset(cIndex, mask);
             final E e = lpElement(buffer, offset);
             soElement(buffer, offset, null);
             soSequence(sBuffer, seqOffset, cIndex + mask + 1);
@@ -438,7 +436,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E>
                 {
                     final long index = pIndex + i;
                     final long seqOffset = calcSequenceOffset(index, mask);
-                    final long offset = calcElementOffset(index, mask);
+                    final long offset = calcCircularElementOffset(index, mask);
                     while (lvSequence(sBuffer, seqOffset) != index)
                     {
 
@@ -497,7 +495,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E>
             }
             while (seq > pIndex || // another producer has moved the sequence
                 !casProducerIndex(pIndex, pIndex + 1)); // failed to increment
-            soElement(buffer, calcElementOffset(pIndex, mask), s.get());
+            soElement(buffer, calcCircularElementOffset(pIndex, mask), s.get());
             soSequence(sBuffer, seqOffset, pIndex + 1);
         }
         return limit;

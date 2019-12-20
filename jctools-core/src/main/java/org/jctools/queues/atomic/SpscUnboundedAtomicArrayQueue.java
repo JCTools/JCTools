@@ -55,11 +55,11 @@ public class SpscUnboundedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArrayQ
         final long lookAheadStep = (mask + 1) / 4;
         long pBufferLimit = pIndex + lookAheadStep;
         // go around the buffer or add a new buffer
-        if (null == lvElement(buffer, calcElementOffset(pBufferLimit, mask))) {
+        if (null == lvElement(buffer, calcCircularElementOffset(pBufferLimit, mask))) {
             // joy, there's plenty of room
             producerBufferLimit = pBufferLimit - 1;
             writeToQueue(buffer, v == null ? s.get() : v, pIndex, offset);
-        } else if (null == lvElement(buffer, calcElementOffset(pIndex + 1, mask))) {
+        } else if (null == lvElement(buffer, calcCircularElementOffset(pIndex + 1, mask))) {
             // buffer is not full
             writeToQueue(buffer, v == null ? s.get() : v, pIndex, offset);
         } else {

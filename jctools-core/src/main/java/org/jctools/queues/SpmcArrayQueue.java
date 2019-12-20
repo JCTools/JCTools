@@ -13,8 +13,6 @@
  */
 package org.jctools.queues;
 
-import org.jctools.util.PortableJvmInfo;
-
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeAccess.fieldOffset;
 import static org.jctools.util.UnsafeRefArrayAccess.*;
@@ -158,7 +156,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E>
         final E[] buffer = this.buffer;
         final long mask = this.mask;
         final long currProducerIndex = lvProducerIndex();
-        final long offset = calcElementOffset(currProducerIndex, mask);
+        final long offset = calcCircularElementOffset(currProducerIndex, mask);
         if (null != lvElement(buffer, offset))
         {
             long size = currProducerIndex - lvConsumerIndex();
@@ -213,7 +211,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E>
 
     private E removeElement(final E[] buffer, long index, final long mask)
     {
-        final long offset = calcElementOffset(index, mask);
+        final long offset = calcCircularElementOffset(index, mask);
         // load plain, element happens before it's index becomes visible
         final E e = lpElement(buffer, offset);
         // store ordered, make sure nulling out is visible. Producer is waiting for this value.
@@ -244,7 +242,8 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E>
                 }
             }
         }
-        while (null == (e = lvElement(buffer, calcElementOffset(currentConsumerIndex, mask))));
+        while (null == (e = lvElement(buffer,
+            calcCircularElementOffset(currentConsumerIndex, mask))));
         return e;
     }
 
@@ -258,7 +257,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E>
         final E[] buffer = this.buffer;
         final long mask = this.mask;
         final long producerIndex = lpProducerIndex();
-        final long offset = calcElementOffset(producerIndex, mask);
+        final long offset = calcCircularElementOffset(producerIndex, mask);
         if (null != lvElement(buffer, offset))
         {
             return false;
@@ -282,7 +281,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E>
         final E[] buffer = this.buffer;
         final long mask = this.mask;
         final long consumerIndex = lvConsumerIndex();
-        return lvElement(buffer, calcElementOffset(consumerIndex, mask));
+        return lvElement(buffer, calcCircularElementOffset(consumerIndex, mask));
     }
 
     @Override
@@ -347,7 +346,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E>
 
         for (int i = 0; i < limit; i++)
         {
-            final long offset = calcElementOffset(producerIndex, mask);
+            final long offset = calcCircularElementOffset(producerIndex, mask);
             if (null != lvElement(buffer, offset))
             {
                 return i;

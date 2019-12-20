@@ -21,14 +21,11 @@ import org.jctools.util.RangeUtil;
 import java.util.AbstractQueue;
 import java.util.Iterator;
 
-import static org.jctools.queues.CircularArrayOffsetCalculator.allocate;
 import static org.jctools.queues.LinkedArrayQueueUtil.length;
 import static org.jctools.queues.LinkedArrayQueueUtil.modifiedCalcElementOffset;
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeAccess.fieldOffset;
-import static org.jctools.util.UnsafeRefArrayAccess.calcElementOffset;
-import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
-import static org.jctools.util.UnsafeRefArrayAccess.soElement;
+import static org.jctools.util.UnsafeRefArrayAccess.*;
 
 
 abstract class BaseMpscLinkedArrayQueuePad1<E> extends AbstractQueue<E> implements IndexedQueue
