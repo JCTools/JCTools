@@ -125,7 +125,7 @@ public class NonBlockingHashMap<TypeK, TypeV>
     return h;
   }
 
- 
+
 
   // --- The Hash Table --------------------
   // Slot 0 is always used for a 'CHM' entry below to hold the interesting
@@ -281,17 +281,17 @@ public class NonBlockingHashMap<TypeK, TypeV>
 
   /** Returns the number of key-value mappings in this map.
    *  @return the number of key-value mappings in this map */
-  @Override 
+  @Override
   public int     size       ( )                       { return chm(_kvs).size(); }
   /** Returns <tt>size() == 0</tt>.
    *  @return <tt>size() == 0</tt> */
-  @Override 
+  @Override
   public boolean isEmpty    ( )                       { return size() == 0;      }
 
   /** Tests if the key in the table using the <tt>equals</tt> method.
    * @return <tt>true</tt> if the key is in the table using the <tt>equals</tt> method
    * @throws NullPointerException if the specified key is null  */
-  @Override 
+  @Override
   public boolean containsKey( Object key )            { return get(key) != null; }
 
   /** Legacy method testing if some key maps into the specified value in this
@@ -337,7 +337,7 @@ public class NonBlockingHashMap<TypeK, TypeV>
    *  to a value which is <code>equals</code> to the given value.
    *  @throws NullPointerException if the specified key or value is null */
   public boolean remove     ( Object key,Object val ) {
-    return Objects.equals(putIfMatch( key,TOMBSTONE, val ), val);
+    return objectsEquals(putIfMatch( key,TOMBSTONE, val ), val);
   }
 
   /** Atomically do a <code>put(key,val)</code> if-and-only-if the key is
@@ -351,9 +351,11 @@ public class NonBlockingHashMap<TypeK, TypeV>
    *  @throws NullPointerException if the specified key or value is null */
   @Override
   public boolean replace    ( TypeK  key, TypeV  oldValue, TypeV newValue ) {
-    return Objects.equals(putIfMatch( key, newValue, oldValue ), oldValue);
+    return objectsEquals(putIfMatch( key, newValue, oldValue ), oldValue);
   }
-
+  private static boolean objectsEquals(Object a, Object b) {
+    return (a == b) || (a != null && a.equals(b));
+  }
 
   // Atomically replace newVal for oldVal, returning the value that existed
   // there before.  If the oldVal matches the returned value, then newVal was
@@ -627,10 +629,10 @@ public class NonBlockingHashMap<TypeK, TypeV>
   static volatile int DUMMY_VOLATILE;
   /**
    * Put, Remove, PutIfAbsent, etc.  Return the old value.  If the returned value is equal to expVal (or expVal is
-   * {@link #NO_MATCH_OLD}) then the put can be assumed to work (although might have been immediately overwritten). 
+   * {@link #NO_MATCH_OLD}) then the put can be assumed to work (although might have been immediately overwritten).
    * Only the path through copy_slot passes in an expected value of null, and putIfMatch only returns a null if passed
    * in an expected null.
-   * 
+   *
    * @param topmap the map to act on
    * @param kvs the KV table snapshot we act on
    * @param key not null (will result in {@link NullPointerException})
@@ -640,7 +642,7 @@ public class NonBlockingHashMap<TypeK, TypeV>
    *              {@link #MATCH_ANY} will ignore the current value, but only if an entry exists. A null expVal is used
    *               internally to perform a strict insert-if-never-been-seen-before operation.
    * @return {@link #TOMBSTONE} if key does not exist or match has failed. null if expVal is
-   * null AND old value was null. Otherwise the old entry value (not null).              
+   * null AND old value was null. Otherwise the old entry value (not null).
    */
   private static final Object putIfMatch0(
       final NonBlockingHashMap topmap,
