@@ -460,7 +460,7 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
         next.soElement(consumerOffset, null);
         next.spPrev(null);
         //save from nepotism
-        consumerBuffer.spNext(null);
+        consumerBuffer.soNext(null);
         if (consumerBuffer.isPooled())
         {
             final boolean offered = freeBuffer.offer(consumerBuffer);
@@ -494,18 +494,21 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
             firstElementOfNewChunk = consumerOffset == 0 && consumerIndex >= chunkSize;
             if (firstElementOfNewChunk)
             {
-                next = consumerBuffer.lvNext();
-                final long expectedChunkIndex = chunkIndex - 1;
                 //we don't care about < or >, because if:
                 //- consumerBuffer::index < expectedChunkIndex: another consumer has rotated consumerBuffer,
                 //  but not reused (yet, if possible)
                 //- consumerBuffer::index > expectedChunkIndex: another consumer has rotated consumerBuffer,
                 // that has been pooled and reused again
-                //In both cases we have a stale view of the world with a not reliable next value.
+                //in both cases we have a stale view of the world with a not reliable next value.
+                final long expectedChunkIndex = chunkIndex - 1;
                 if (expectedChunkIndex != consumerBuffer.lvIndex())
                 {
                     continue;
                 }
+                next = consumerBuffer.lvNext();
+                //next could have been modified by another consumer, but:
+                //- if null: it still needs to check q empty + casConsumerIndex
+                //- if !null: it will fail on casConsumerIndex
                 if (next == null)
                 {
                     if (consumerIndex >= pIndex && // test against cached pIndex
@@ -533,6 +536,10 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
                             //stale view of the world
                             continue;
                         }
+                        //it cover both cases:
+                        //- right chunk, awaiting element to be set
+                        //- old chunk, awaiting rotation
+                        //it allows to fail fast if the q is empty after the first element on the new chunk.
                         if (consumerIndex >= pIndex && // test against cached pIndex
                             consumerIndex == (pIndex = lvProducerIndex()))
                         { // update pIndex if we must
@@ -542,15 +549,18 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
                         continue;
                     }
                 } else {
-                    e = consumerBuffer.lvElement(consumerOffset);
                     final long index = consumerBuffer.lvIndex();
-                    if (index != chunkIndex || e == null)
+                    if (index != chunkIndex || (e = consumerBuffer.lvElement(consumerOffset)) == null)
                     {
                         if (index > chunkIndex)
                         {
                             //stale view of the world
                             continue;
                         }
+                        //it cover both cases:
+                        //- right chunk, awaiting element to be set
+                        //- old chunk, awaiting rotation
+                        //it allows to fail fast if the q is empty after the first element on the new chunk.
                         if (consumerIndex >= pIndex && // test against cached pIndex
                             consumerIndex == (pIndex = lvProducerIndex()))
                         { // update pIndex if we must
@@ -603,12 +613,12 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
             final boolean firstElementOfNewChunk = consumerOffset == 0 && consumerIndex >= chunkSize;
             if (firstElementOfNewChunk)
             {
-                AtomicChunk<E> next = consumerBuffer.lvNext();
                 final long expectedChunkIndex = chunkIndex - 1;
                 if (expectedChunkIndex != consumerBuffer.lvIndex())
                 {
                     continue;
                 }
+                final AtomicChunk<E> next = consumerBuffer.lvNext();
                 if (next == null)
                 {
                     continue;
@@ -621,12 +631,13 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
                 {
                     continue;
                 }
+            } else {
+                if (consumerBuffer.lvIndex() != chunkIndex)
+                {
+                    continue;
+                }
             }
             e = consumerBuffer.lvElement(consumerOffset);
-            if (consumerBuffer.lvIndex() != chunkIndex)
-            {
-                e = null;
-            }
         }
         while (e == null && consumerIndex != lvProducerIndex());
         return e;
@@ -659,13 +670,138 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
     @Override
     public E relaxedPoll()
     {
-        return poll();
+        final int chunkMask = this.chunkMask;
+        final int chunkShift = this.chunkShift;
+        final int chunkSize = chunkMask + 1;
+        final long consumerIndex = this.lvConsumerIndex();
+        final AtomicChunk<E> consumerBuffer = this.lvConsumerBuffer();
+        final int consumerOffset = (int) (consumerIndex & chunkMask);
+        final long chunkIndex = consumerIndex >> chunkShift;
+        final boolean firstElementOfNewChunk = consumerOffset == 0 && consumerIndex >= chunkSize;
+        if (firstElementOfNewChunk)
+        {
+            final long expectedChunkIndex = chunkIndex - 1;
+            final AtomicChunk<E> next;
+            if (expectedChunkIndex != consumerBuffer.lvIndex() || (next = consumerBuffer.lvNext()) == null)
+            {
+                return null;
+            }
+            E e = null;
+            final boolean pooled = next.isPooled();
+            if (pooled)
+            {
+                if (next.lvSequence(consumerOffset) != chunkIndex)
+                {
+                    return null;
+                }
+            }
+            else
+            {
+                e = next.lvElement(consumerOffset);
+                if (e == null)
+                {
+                    return null;
+                }
+            }
+            if (!casConsumerIndex(consumerIndex, consumerIndex + 1))
+            {
+                return null;
+            }
+            if (pooled)
+            {
+                e = next.lvElement(consumerOffset);
+            }
+            assert e != null;
+            //perform the rotation
+            next.soElement(consumerOffset, null);
+            next.spPrev(null);
+            //save from nepotism
+            consumerBuffer.soNext(null);
+            if (consumerBuffer.isPooled())
+            {
+                final boolean offered = freeBuffer.offer(consumerBuffer);
+                assert offered;
+            }
+            //expose next to the other consumers
+            soConsumerBuffer(next);
+            return e;
+        }
+        else
+        {
+            final boolean pooled = consumerBuffer.isPooled();
+            E e = null;
+            if (pooled)
+            {
+                final long sequence = consumerBuffer.lvSequence(consumerOffset);
+                if (sequence != chunkIndex)
+                {
+                    return null;
+                }
+            }
+            else
+            {
+                final long index = consumerBuffer.lvIndex();
+                if (index != chunkIndex || (e = consumerBuffer.lvElement(consumerOffset)) == null)
+                {
+                    return null;
+                }
+            }
+            if (!casConsumerIndex(consumerIndex, consumerIndex + 1))
+            {
+                return null;
+            }
+            if (pooled)
+            {
+                e = consumerBuffer.lvElement(consumerOffset);
+                assert e != null;
+            }
+            assert !pooled ||
+                (pooled && consumerBuffer.lvSequence(consumerOffset) == chunkIndex);
+            consumerBuffer.soElement(consumerOffset, null);
+            return e;
+        }
     }
 
     @Override
     public E relaxedPeek()
     {
-        return peek();
+        final int chunkMask = this.chunkMask;
+        final int chunkShift = this.chunkShift;
+        final int chunkSize = chunkMask + 1;
+        final long consumerIndex = this.lvConsumerIndex();
+        AtomicChunk<E> consumerBuffer = this.lvConsumerBuffer();
+        final int consumerOffset = (int) (consumerIndex & chunkMask);
+        final long chunkIndex = consumerIndex >> chunkShift;
+        final boolean firstElementOfNewChunk = consumerOffset == 0 && consumerIndex >= chunkSize;
+        if (firstElementOfNewChunk)
+        {
+            final long expectedChunkIndex = chunkIndex - 1;
+            if (expectedChunkIndex != consumerBuffer.lvIndex())
+            {
+                return null;
+            }
+            final AtomicChunk<E> next = consumerBuffer.lvNext();
+            if (next == null)
+            {
+                return null;
+            }
+            consumerBuffer = next;
+        }
+        if (consumerBuffer.isPooled())
+        {
+            if (consumerBuffer.lvSequence(consumerOffset) != chunkIndex)
+            {
+                return null;
+            }
+        }
+        else
+        {
+            if (consumerBuffer.lvIndex() != chunkIndex)
+            {
+                return null;
+            }
+        }
+        return consumerBuffer.lvElement(consumerOffset);
     }
 
     @Override
