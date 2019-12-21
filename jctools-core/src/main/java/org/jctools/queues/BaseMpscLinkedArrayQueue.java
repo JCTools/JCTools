@@ -20,6 +20,7 @@ import org.jctools.util.RangeUtil;
 
 import java.util.AbstractQueue;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 
 import static org.jctools.queues.LinkedArrayQueueUtil.length;
 import static org.jctools.queues.LinkedArrayQueueUtil.modifiedCalcElementOffset;
@@ -403,7 +404,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
         return nextBuffer;
     }
 
-    private long nextArrayOffset(long mask)
+    private static long nextArrayOffset(long mask)
     {
         return modifiedCalcElementOffset(mask + 2, Long.MAX_VALUE);
     }
@@ -615,59 +616,98 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
      */
     @Override
     public Iterator<E> iterator() {
-        return new WeakIterator();
+        return new WeakIterator(consumerBuffer, lvConsumerIndex(), lvProducerIndex());
     }
 
-    private class WeakIterator implements Iterator<E> {
-
+    private static class WeakIterator<E> implements Iterator<E>
+    {
+        private final long pIndex;
         private long nextIndex;
         private E nextElement;
         private E[] currentBuffer;
-        private int currentBufferLength;
+        private int mask;
 
-        WeakIterator() {
-            setBuffer(consumerBuffer);
+        WeakIterator(E[] currentBuffer, long cIndex, long pIndex)
+        {
+            this.pIndex = pIndex >> 1;
+            this.nextIndex = cIndex >> 1;
+            setBuffer(currentBuffer);
             nextElement = getNext();
         }
 
         @Override
-        public boolean hasNext() {
+        public void remove() {
+            throw new UnsupportedOperationException("remove");
+        }
+
+        @Override
+        public boolean hasNext()
+        {
             return nextElement != null;
         }
 
         @Override
-        public E next() {
-            E e = nextElement;
+        public E next()
+        {
+            final E e = nextElement;
+            if (e == null)
+            {
+                throw new NoSuchElementException();
+            }
             nextElement = getNext();
             return e;
         }
 
-        private void setBuffer(E[] buffer) {
+        private void setBuffer(E[] buffer)
+        {
             this.currentBuffer = buffer;
-            this.currentBufferLength = length(buffer);
-            this.nextIndex = 0;
+            this.mask = length(buffer) - 2;
         }
 
-        private E getNext() {
-            while (true) {
-                while (nextIndex < currentBufferLength - 1) {
-                    long offset = calcElementOffset(nextIndex++);
-                    E e = lvElement(currentBuffer, offset);
-                    if (e != null && e != JUMP) {
-                        return e;
-                    }
+        private E getNext()
+        {
+            while (nextIndex < pIndex)
+            {
+                long index = nextIndex++;
+                E e = lvElement(currentBuffer, calcCircularElementOffset(index, mask));
+                // skip removed/not yet visible elements
+                if (e == null)
+                {
+                    continue;
                 }
-                long offset = calcElementOffset(currentBufferLength - 1);
-                Object nextArray = lvElement(currentBuffer, offset);
-                if (nextArray == BUFFER_CONSUMED) {
-                    //Consumer may have passed us, just jump to the current consumer buffer
-                    setBuffer(consumerBuffer);
-                } else if (nextArray != null) {
-                    setBuffer((E[]) nextArray);
-                } else {
+
+                // not null && not JUMP -> found next element
+                if (e != JUMP)
+                {
+                    return e;
+                }
+
+                // need to jump to the next buffer
+                int nextBufferIndex = mask + 1;
+                Object nextBuffer = lvElement(currentBuffer,
+                                              calcElementOffset(nextBufferIndex));
+
+                if (nextBuffer == BUFFER_CONSUMED || nextBuffer == null)
+                {
+                    // Consumer may have passed us, or the next buffer is not visible yet: drop out early
                     return null;
                 }
+
+                setBuffer((E[]) nextBuffer);
+                // now with the new array retry the load, it can't be a JUMP, but we need to repeat same index
+                e = lvElement(currentBuffer, calcCircularElementOffset(index, mask));
+                // skip removed/not yet visible elements
+                if (e == null)
+                {
+                    continue;
+                }
+                else
+                {
+                    return e;
+                }
+
             }
+            return null;
         }
     }
 

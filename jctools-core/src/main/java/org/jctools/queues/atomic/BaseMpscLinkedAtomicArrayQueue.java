@@ -578,7 +578,7 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
 
         private AtomicReferenceArray<E> currentBuffer;
 
-        private int currentBufferLength;
+        private int mask;
 
         WeakIterator(AtomicReferenceArray<E> currentBuffer, long cIndex, long pIndex) {
             this.pIndex = pIndex >> 1;
@@ -609,37 +609,34 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
 
         private void setBuffer(AtomicReferenceArray<E> buffer) {
             this.currentBuffer = buffer;
-            this.currentBufferLength = length(buffer);
+            this.mask = length(buffer) - 2;
         }
 
         private E getNext() {
             while (nextIndex < pIndex) {
-                int offset = calcCircularElementOffset(nextIndex++, currentBufferLength - 2);
-                E e = lvElement(currentBuffer, offset);
+                long index = nextIndex++;
+                E e = lvElement(currentBuffer, calcCircularElementOffset(index, mask));
                 // skip removed/not yet visible elements
                 if (e == null) {
                     continue;
                 }
-                if (e == JUMP) {
-                    offset = calcElementOffset(currentBufferLength - 1);
-                    Object nextArray = lvElement(currentBuffer, offset);
-                    if (nextArray == BUFFER_CONSUMED) {
-                        // Consumer may have passed us, we're done
-                        return null;
-                    } else if (nextArray != null) {
-                        setBuffer((AtomicReferenceArray<E>) nextArray);
-                        // now with the new array retry the load, it can't be a JUMP, but we need to repeat same index
-                        offset = calcCircularElementOffset(nextIndex - 1, currentBufferLength - 2);
-                        e = lvElement(currentBuffer, offset);
-                        // skip removed/not yet visible elements
-                        if (e == null) {
-                            continue;
-                        } else {
-                            return e;
-                        }
-                    } else {
-                        return null;
-                    }
+                // not null && not JUMP -> found next element
+                if (e != JUMP) {
+                    return e;
+                }
+                // need to jump to the next buffer
+                int nextBufferIndex = mask + 1;
+                Object nextBuffer = lvElement(currentBuffer, calcElementOffset(nextBufferIndex));
+                if (nextBuffer == BUFFER_CONSUMED || nextBuffer == null) {
+                    // Consumer may have passed us, or the next buffer is not visible yet: drop out early
+                    return null;
+                }
+                setBuffer((AtomicReferenceArray<E>) nextBuffer);
+                // now with the new array retry the load, it can't be a JUMP, but we need to repeat same index
+                e = lvElement(currentBuffer, calcCircularElementOffset(index, mask));
+                // skip removed/not yet visible elements
+                if (e == null) {
+                    continue;
                 } else {
                     return e;
                 }
