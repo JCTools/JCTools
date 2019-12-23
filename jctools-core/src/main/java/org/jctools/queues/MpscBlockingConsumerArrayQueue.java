@@ -24,7 +24,7 @@ import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
 import org.jctools.util.Pow2;
 import org.jctools.util.RangeUtil;
 
-import static org.jctools.queues.LinkedArrayQueueUtil.modifiedCalcElementOffset;
+import static org.jctools.queues.LinkedArrayQueueUtil.modifiedCalcCircularRefElementOffset;
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeAccess.fieldOffset;
 import static org.jctools.util.UnsafeRefArrayAccess.*;
@@ -180,7 +180,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
     public MpscBlockingConsumerArrayQueue(final int capacity)
     {
         // leave lower bit of mask clear
-        super((long) ((Pow2.roundToPowerOfTwo(capacity) - 1) << 1), (E[]) allocate(Pow2.roundToPowerOfTwo(capacity)));
+        super((long) ((Pow2.roundToPowerOfTwo(capacity) - 1) << 1), (E[]) allocateRefArray(Pow2.roundToPowerOfTwo(capacity)));
 
         RangeUtil.checkGreaterThanOrEqual(capacity, 1, "capacity");
         soProducerLimit((long) ((Pow2.roundToPowerOfTwo(capacity) - 1) << 1)); // we know it's all empty to start with
@@ -284,9 +284,9 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
                 break;
             }
         }
-        final long offset = modifiedCalcElementOffset(pIndex, mask);
+        final long offset = modifiedCalcCircularRefElementOffset(pIndex, mask);
         // INDEX visible before ELEMENT
-        soElement(buffer, offset, e); // release element e
+        soRefElement(buffer, offset, e); // release element e
         return true;
     }
 
@@ -307,7 +307,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
 
     private boolean offerAndWakeup(E[] buffer, long mask, long pIndex, E e)
     {
-        final long offset = modifiedCalcElementOffset(pIndex, mask);
+        final long offset = modifiedCalcCircularRefElementOffset(pIndex, mask);
         final Thread consumerThread = lvBlocked();
 
         // We could see a null here through a race with the consumer not yet storing the reference, or through a race
@@ -323,7 +323,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
             return false;
         }
 
-        soElement(buffer, offset, e);
+        soRefElement(buffer, offset, e);
         soBlocked(null); // releases the consumer from the park loop
         LockSupport.unpark(consumerThread);
         return true;
@@ -372,8 +372,8 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         final long mask = consumerMask;
 
         final long cIndex = lpConsumerIndex();
-        final long offset = modifiedCalcElementOffset(cIndex, mask);
-        Object e = lvElement(buffer, offset);// LoadLoad
+        final long offset = modifiedCalcCircularRefElementOffset(cIndex, mask);
+        Object e = lvRefElement(buffer, offset);// LoadLoad
         if (e == null)
         {
             final long pIndex = lvProducerIndex();
@@ -411,7 +411,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
             e = spinWaitForElement(buffer, offset);
         }
 
-        soElement(buffer, offset, null); // release element null
+        soRefElement(buffer, offset, null); // release element null
         soConsumerIndex(cIndex + 2); // release cIndex
 
         return (E) e;
@@ -430,8 +430,8 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         final long mask = consumerMask;
 
         final long cIndex = lpConsumerIndex();
-        final long offset = modifiedCalcElementOffset(cIndex, mask);
-        Object e = lvElement(buffer, offset);// LoadLoad
+        final long offset = modifiedCalcCircularRefElementOffset(cIndex, mask);
+        Object e = lvRefElement(buffer, offset);// LoadLoad
         if (e == null)
         {
             if (remainingNanos <= 0)
@@ -483,7 +483,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
             e = spinWaitForElement(buffer, offset);
         }
 
-        soElement(buffer, offset, null); // release element null
+        soRefElement(buffer, offset, null); // release element null
         soConsumerIndex(cIndex + 2); // release cIndex
 
         return (E) e;
@@ -520,8 +520,8 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         final long mask = consumerMask;
 
         final long index = lpConsumerIndex();
-        final long offset = modifiedCalcElementOffset(index, mask);
-        Object e = lvElement(buffer, offset);// LoadLoad
+        final long offset = modifiedCalcCircularRefElementOffset(index, mask);
+        Object e = lvRefElement(buffer, offset);// LoadLoad
         if (e == null)
         {
             // consumer can't see the odd producer index
@@ -538,7 +538,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
             }
         }
 
-        soElement(buffer, offset, null); // release element null
+        soRefElement(buffer, offset, null); // release element null
         soConsumerIndex(index + 2); // release cIndex
         return (E) e;
     }
@@ -548,7 +548,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         Object e;
         do
         {
-            e = lvElement(buffer, offset);
+            e = lvRefElement(buffer, offset);
         }
         while (e == null);
         return e;
@@ -567,8 +567,8 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         final long mask = consumerMask;
 
         final long index = lpConsumerIndex();
-        final long offset = modifiedCalcElementOffset(index, mask);
-        Object e = lvElement(buffer, offset);// LoadLoad
+        final long offset = modifiedCalcCircularRefElementOffset(index, mask);
+        Object e = lvRefElement(buffer, offset);// LoadLoad
         if (e == null && index != lvProducerIndex())
         {
             // peek() == null iff queue is empty, null element is not strong enough indicator, so we must
@@ -611,13 +611,13 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         final long index = lpConsumerIndex();
         final long mask = consumerMask;
 
-        final long offset = modifiedCalcElementOffset(index, mask);
-        E e = lvElement(buffer, offset);// LoadLoad
+        final long offset = modifiedCalcCircularRefElementOffset(index, mask);
+        E e = lvRefElement(buffer, offset);// LoadLoad
         if (e == null)
         {
             return null;
         }
-        soElement(buffer, offset, null);
+        soRefElement(buffer, offset, null);
         soConsumerIndex(index + 2);
         return e;
     }
@@ -629,8 +629,8 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         final long index = lpConsumerIndex();
         final long mask = consumerMask;
 
-        final long offset = modifiedCalcElementOffset(index, mask);
-        E e = lvElement(buffer, offset);// LoadLoad
+        final long offset = modifiedCalcCircularRefElementOffset(index, mask);
+        E e = lvRefElement(buffer, offset);// LoadLoad
         return e;
     }
 
@@ -698,8 +698,8 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         // first element offset might be a wakeup, so peeled from loop
         for (int i = 0; i < claimedSlots; i++)
         {
-            long offset = modifiedCalcElementOffset(pIndex + 2l * i, mask);
-            soElement(buffer, offset, s.get());
+            long offset = modifiedCalcCircularRefElementOffset(pIndex + 2l * i, mask);
+            soRefElement(buffer, offset, s.get());
         }
 
         if (wakeup)

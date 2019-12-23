@@ -104,12 +104,12 @@ public final class FFBuffer<E> extends FFBufferL3Pad<E> implements Queue<E>
 
         final E[] lb = buffer;
         final long t = pIndex;
-        final long offset = calcCircularElementOffset(t, mask);
-        if (null != lvElement(lb, offset))
+        final long offset = calcCircularRefElementOffset(t, mask);
+        if (null != lvRefElement(lb, offset))
         { // read acquire
             return false;
         }
-        soElement(lb, offset, e); // write release
+        soRefElement(lb, offset, e); // write release
         pIndex = t + 1;
         return true;
     }
@@ -118,14 +118,14 @@ public final class FFBuffer<E> extends FFBufferL3Pad<E> implements Queue<E>
     public E poll()
     {
         long cIndex = this.cIndex;
-        final long offset = calcCircularElementOffset(cIndex, mask);
+        final long offset = calcCircularRefElementOffset(cIndex, mask);
         final E[] lb = buffer;
-        final E e = lvElement(lb, offset); // write acquire
+        final E e = lvRefElement(lb, offset); // write acquire
         if (null == e)
         {
             return null;
         }
-        soElement(lb, offset, null); // read release
+        soRefElement(lb, offset, null); // read release
         this.cIndex = cIndex + 1;
         return e;
     }
@@ -134,7 +134,7 @@ public final class FFBuffer<E> extends FFBufferL3Pad<E> implements Queue<E>
     public E peek()
     {
         long currentHead = lvProducerIndex();
-        return lvElement(buffer, calcCircularElementOffset(currentHead, mask));
+        return lvRefElement(buffer, calcCircularRefElementOffset(currentHead, mask));
     }
 
     @Override

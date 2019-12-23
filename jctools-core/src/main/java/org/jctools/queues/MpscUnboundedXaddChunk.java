@@ -25,7 +25,7 @@ final class MpscUnboundedXaddChunk<E>
 
     MpscUnboundedXaddChunk(long index, MpscUnboundedXaddChunk<E> prev, int size, boolean pooled)
     {
-        buffer = allocate(size);
+        buffer = allocateRefArray(size);
         // next is null
         spPrev(prev);
         spIndex(index);
@@ -69,12 +69,12 @@ final class MpscUnboundedXaddChunk<E>
 
     void soElement(int index, E e)
     {
-        UnsafeRefArrayAccess.soElement(buffer, UnsafeRefArrayAccess.calcElementOffset(index), e);
+        UnsafeRefArrayAccess.soRefElement(buffer, UnsafeRefArrayAccess.calcRefElementOffset(index), e);
     }
 
     E lvElement(int index)
     {
-        return UnsafeRefArrayAccess.lvElement(buffer, UnsafeRefArrayAccess.calcElementOffset(index));
+        return UnsafeRefArrayAccess.lvRefElement(buffer, UnsafeRefArrayAccess.calcRefElementOffset(index));
     }
 
     boolean isPooled()

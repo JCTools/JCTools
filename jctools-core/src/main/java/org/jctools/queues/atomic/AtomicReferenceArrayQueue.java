@@ -23,8 +23,9 @@ import org.jctools.util.Pow2;
 import java.util.AbstractQueue;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
-import java.util.concurrent.atomic.AtomicLongArray;
 import java.util.concurrent.atomic.AtomicReferenceArray;
+
+import static org.jctools.queues.atomic.AtomicQueueUtil.*;
 
 abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> implements IndexedQueue, QueueProgressIndicators, MessagePassingQueue<E>, SupportsIterator
 {
@@ -51,71 +52,6 @@ abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> implements 
         {
             // toss it away
         }
-    }
-
-    static int calcCircularElementOffset(long index, int mask)
-    {
-        return (int) index & mask;
-    }
-
-    static <E> E lvElement(AtomicReferenceArray<E> buffer, int offset)
-    {
-        return buffer.get(offset);
-    }
-
-    static <E> E lpElement(AtomicReferenceArray<E> buffer, int offset)
-    {
-        return buffer.get(offset); // no weaker form available
-    }
-
-    static <E> void spElement(AtomicReferenceArray<E> buffer, int offset, E value)
-    {
-        buffer.lazySet(offset, value);  // no weaker form available
-    }
-
-    static <E> void soElement(AtomicReferenceArray<E> buffer, int offset, E value)
-    {
-        buffer.lazySet(offset, value);
-    }
-
-    static <E> void svElement(AtomicReferenceArray<E> buffer, int offset, E value)
-    {
-        buffer.set(offset, value);
-    }
-
-    static void spLongElement(AtomicLongArray buffer, int offset, long e)
-    {
-        buffer.lazySet(offset, e);
-    }
-
-    static void soLongElement(AtomicLongArray buffer, int offset, long e)
-    {
-        buffer.lazySet(offset, e);
-    }
-
-    static long lpLongElement(AtomicLongArray buffer, int offset)
-    {
-        return buffer.get(offset);
-    }
-
-    static long lvLongElement(AtomicLongArray buffer, int offset)
-    {
-        return buffer.get(offset);
-    }
-
-    static long calcLongElementOffset(long index)
-    {
-        return index;
-    }
-
-    static long calcCircularLongElementOffset(long index, long mask)
-    {
-        return index & mask;
-    }
-
-    static AtomicLongArray allocateLongArray(int capacity)
-    {
-        return new AtomicLongArray(capacity);
     }
 
     @Override
@@ -209,8 +145,8 @@ abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> implements 
             final int mask = this.mask;
             final AtomicReferenceArray<E> buffer = this.buffer;
             while (nextIndex < pIndex) {
-                int offset = AtomicReferenceArrayQueue.calcCircularElementOffset(nextIndex++, mask);
-                E e = lvElement(buffer, offset);
+                int offset = calcCircularRefElementOffset(nextIndex++, mask);
+                E e = lvRefElement(buffer, offset);
                 if (e != null) {
                     return e;
                 }

@@ -79,7 +79,7 @@ abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter<Void> 
     abstract String translateQueueName(String fileName);
     abstract void processSpecialNodeTypes(NodeWithType<?, Type> node, String name);
     abstract String fieldUpdaterFieldName(String fieldName);
-    
+
     @Override
     public void visit(FieldAccessExpr n, Void arg) {
         super.visit(n, arg);
@@ -88,7 +88,7 @@ abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter<Void> 
             name.setName(translateQueueName(name.getNameAsString()));
         }
     }
-    
+
     @Override
     public void visit(PackageDeclaration n, Void arg) {
         super.visit(n, arg);
@@ -166,7 +166,7 @@ abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter<Void> 
     /**
      * Generates something like
      * <code>P_INDEX_UPDATER.lazySet(this, newValue)</code>
-     * 
+     *
      * @param fieldUpdaterFieldName
      * @param newValueName
      * @return
@@ -181,7 +181,7 @@ abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter<Void> 
     /**
      * Generates something like
      * <code>return P_INDEX_UPDATER.compareAndSet(this, expectedValue, newValue)</code>
-     * 
+     *
      * @param fieldUpdaterFieldName
      * @param expectedValueName
      * @param newValueName
@@ -205,7 +205,7 @@ abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter<Void> 
 
     /**
      * Generates something like <code>field = newValue</code>
-     * 
+     *
      * @param fieldName
      * @param valueName
      * @return
@@ -220,7 +220,7 @@ abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter<Void> 
     /**
      * Generates something like
      * <code>private static final AtomicLongFieldUpdater<MpmcAtomicArrayQueueProducerIndexField> P_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(MpmcAtomicArrayQueueProducerIndexField.class, "producerIndex");</code>
-     * 
+     *
      * @param type
      * @param name
      * @param initializer
@@ -239,7 +239,7 @@ abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter<Void> 
     /**
      * Generates something like
      * <code>private static final AtomicLongFieldUpdater<MpmcAtomicArrayQueueProducerIndexField> P_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(MpmcAtomicArrayQueueProducerIndexField.class, "producerIndex");</code>
-     * 
+     *
      * @param className
      * @param variableName
      * @return
@@ -276,7 +276,7 @@ abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter<Void> 
 
     /**
      * Generates something like <code>return field</code>
-     * 
+     *
      * @param fieldName
      * @return
      */
@@ -304,6 +304,10 @@ abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter<Void> 
 
     private static <T> T buildGenerator(Class<? extends T> generatorClass, String fileName) throws Exception {
         return generatorClass.getDeclaredConstructor(String.class).newInstance(fileName);
+    }
+
+    ImportDeclaration staticImportDeclaration(String name) {
+        return new ImportDeclaration(new Name(name), true, false);
     }
 
 }

@@ -156,8 +156,8 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E>
         final E[] buffer = this.buffer;
         final long mask = this.mask;
         final long currProducerIndex = lvProducerIndex();
-        final long offset = calcCircularElementOffset(currProducerIndex, mask);
-        if (null != lvElement(buffer, offset))
+        final long offset = calcCircularRefElementOffset(currProducerIndex, mask);
+        if (null != lvRefElement(buffer, offset))
         {
             long size = currProducerIndex - lvConsumerIndex();
 
@@ -168,13 +168,13 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E>
             else
             {
                 // spin wait for slot to clear, buggers wait freedom
-                while (null != lvElement(buffer, offset))
+                while (null != lvRefElement(buffer, offset))
                 {
                     // BURN
                 }
             }
         }
-        soElement(buffer, offset, e);
+        soRefElement(buffer, offset, e);
         // single producer, so store ordered is valid. It is also required to correctly publish the element
         // and for the consumers to pick up the tail value.
         soProducerIndex(currProducerIndex + 1);
@@ -211,11 +211,11 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E>
 
     private E removeElement(final E[] buffer, long index, final long mask)
     {
-        final long offset = calcCircularElementOffset(index, mask);
+        final long offset = calcCircularRefElementOffset(index, mask);
         // load plain, element happens before it's index becomes visible
-        final E e = lpElement(buffer, offset);
+        final E e = lpRefElement(buffer, offset);
         // store ordered, make sure nulling out is visible. Producer is waiting for this value.
-        soElement(buffer, offset, null);
+        soRefElement(buffer, offset, null);
         return e;
     }
 
@@ -242,8 +242,8 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E>
                 }
             }
         }
-        while (null == (e = lvElement(buffer,
-            calcCircularElementOffset(currentConsumerIndex, mask))));
+        while (null == (e = lvRefElement(buffer,
+            calcCircularRefElementOffset(currentConsumerIndex, mask))));
         return e;
     }
 
@@ -257,12 +257,12 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E>
         final E[] buffer = this.buffer;
         final long mask = this.mask;
         final long producerIndex = lpProducerIndex();
-        final long offset = calcCircularElementOffset(producerIndex, mask);
-        if (null != lvElement(buffer, offset))
+        final long offset = calcCircularRefElementOffset(producerIndex, mask);
+        if (null != lvRefElement(buffer, offset))
         {
             return false;
         }
-        soElement(buffer, offset, e);
+        soRefElement(buffer, offset, e);
         // single producer, so store ordered is valid. It is also required to correctly publish the element
         // and for the consumers to pick up the tail value.
         soProducerIndex(producerIndex + 1);
@@ -281,7 +281,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E>
         final E[] buffer = this.buffer;
         final long mask = this.mask;
         final long consumerIndex = lvConsumerIndex();
-        return lvElement(buffer, calcCircularElementOffset(consumerIndex, mask));
+        return lvRefElement(buffer, calcCircularRefElementOffset(consumerIndex, mask));
     }
 
     @Override
@@ -346,13 +346,13 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E>
 
         for (int i = 0; i < limit; i++)
         {
-            final long offset = calcCircularElementOffset(producerIndex, mask);
-            if (null != lvElement(buffer, offset))
+            final long offset = calcCircularRefElementOffset(producerIndex, mask);
+            if (null != lvRefElement(buffer, offset))
             {
                 return i;
             }
             producerIndex++;
-            soElement(buffer, offset, s.get()); // StoreStore
+            soRefElement(buffer, offset, s.get()); // StoreStore
             soProducerIndex(producerIndex); // ordered store -> atomic and ordered for size()
         }
         return limit;

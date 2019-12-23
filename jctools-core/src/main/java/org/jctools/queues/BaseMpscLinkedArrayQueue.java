@@ -23,7 +23,7 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 import static org.jctools.queues.LinkedArrayQueueUtil.length;
-import static org.jctools.queues.LinkedArrayQueueUtil.modifiedCalcElementOffset;
+import static org.jctools.queues.LinkedArrayQueueUtil.modifiedCalcCircularRefElementOffset;
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeAccess.fieldOffset;
 import static org.jctools.util.UnsafeRefArrayAccess.*;
@@ -154,7 +154,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
         // leave lower bit of mask clear
         long mask = (p2capacity - 1) << 1;
         // need extra element to point at next array
-        E[] buffer = allocate(p2capacity + 1);
+        E[] buffer = allocateRefArray(p2capacity + 1);
         producerBuffer = buffer;
         producerMask = mask;
         consumerBuffer = buffer;
@@ -266,8 +266,8 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
             }
         }
         // INDEX visible before ELEMENT
-        final long offset = modifiedCalcElementOffset(pIndex, mask);
-        soElement(buffer, offset, e); // release element e
+        final long offset = modifiedCalcCircularRefElementOffset(pIndex, mask);
+        soRefElement(buffer, offset, e); // release element e
         return true;
     }
 
@@ -284,8 +284,8 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
         final long index = lpConsumerIndex();
         final long mask = consumerMask;
 
-        final long offset = modifiedCalcElementOffset(index, mask);
-        Object e = lvElement(buffer, offset);// LoadLoad
+        final long offset = modifiedCalcCircularRefElementOffset(index, mask);
+        Object e = lvRefElement(buffer, offset);// LoadLoad
         if (e == null)
         {
             if (index != lvProducerIndex())
@@ -295,7 +295,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
                 // visible.
                 do
                 {
-                    e = lvElement(buffer, offset);
+                    e = lvRefElement(buffer, offset);
                 }
                 while (e == null);
             }
@@ -311,7 +311,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
             return newBufferPoll(nextBuffer, index);
         }
 
-        soElement(buffer, offset, null); // release element null
+        soRefElement(buffer, offset, null); // release element null
         soConsumerIndex(index + 2); // release cIndex
         return (E) e;
     }
@@ -329,15 +329,15 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
         final long index = lpConsumerIndex();
         final long mask = consumerMask;
 
-        final long offset = modifiedCalcElementOffset(index, mask);
-        Object e = lvElement(buffer, offset);// LoadLoad
+        final long offset = modifiedCalcCircularRefElementOffset(index, mask);
+        Object e = lvRefElement(buffer, offset);// LoadLoad
         if (e == null && index != lvProducerIndex())
         {
             // peek() == null iff queue is empty, null element is not strong enough indicator, so we must
             // check the producer index. If the queue is indeed not empty we spin until element is visible.
             do
             {
-                e = lvElement(buffer, offset);
+                e = lvRefElement(buffer, offset);
             }
             while (e == null);
         }
@@ -397,35 +397,35 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
     private E[] nextBuffer(final E[] buffer, final long mask)
     {
         final long offset = nextArrayOffset(mask);
-        final E[] nextBuffer = (E[]) lvElement(buffer, offset);
+        final E[] nextBuffer = (E[]) lvRefElement(buffer, offset);
         consumerBuffer = nextBuffer;
         consumerMask = (length(nextBuffer) - 2) << 1;
-        soElement(buffer, offset, BUFFER_CONSUMED);
+        soRefElement(buffer, offset, BUFFER_CONSUMED);
         return nextBuffer;
     }
 
     private static long nextArrayOffset(long mask)
     {
-        return modifiedCalcElementOffset(mask + 2, Long.MAX_VALUE);
+        return modifiedCalcCircularRefElementOffset(mask + 2, Long.MAX_VALUE);
     }
 
     private E newBufferPoll(E[] nextBuffer, long index)
     {
-        final long offset = modifiedCalcElementOffset(index, consumerMask);
-        final E n = lvElement(nextBuffer, offset);// LoadLoad
+        final long offset = modifiedCalcCircularRefElementOffset(index, consumerMask);
+        final E n = lvRefElement(nextBuffer, offset);// LoadLoad
         if (n == null)
         {
             throw new IllegalStateException("new buffer must have at least one element");
         }
-        soElement(nextBuffer, offset, null);// StoreStore
+        soRefElement(nextBuffer, offset, null);// StoreStore
         soConsumerIndex(index + 2);
         return n;
     }
 
     private E newBufferPeek(E[] nextBuffer, long index)
     {
-        final long offset = modifiedCalcElementOffset(index, consumerMask);
-        final E n = lvElement(nextBuffer, offset);// LoadLoad
+        final long offset = modifiedCalcCircularRefElementOffset(index, consumerMask);
+        final E n = lvRefElement(nextBuffer, offset);// LoadLoad
         if (null == n)
         {
             throw new IllegalStateException("new buffer must have at least one element");
@@ -462,8 +462,8 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
         final long index = lpConsumerIndex();
         final long mask = consumerMask;
 
-        final long offset = modifiedCalcElementOffset(index, mask);
-        Object e = lvElement(buffer, offset);// LoadLoad
+        final long offset = modifiedCalcCircularRefElementOffset(index, mask);
+        Object e = lvRefElement(buffer, offset);// LoadLoad
         if (e == null)
         {
             return null;
@@ -473,7 +473,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
             final E[] nextBuffer = nextBuffer(buffer, mask);
             return newBufferPoll(nextBuffer, index);
         }
-        soElement(buffer, offset, null);
+        soRefElement(buffer, offset, null);
         soConsumerIndex(index + 2);
         return (E) e;
     }
@@ -486,8 +486,8 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
         final long index = lpConsumerIndex();
         final long mask = consumerMask;
 
-        final long offset = modifiedCalcElementOffset(index, mask);
-        Object e = lvElement(buffer, offset);// LoadLoad
+        final long offset = modifiedCalcCircularRefElementOffset(index, mask);
+        Object e = lvRefElement(buffer, offset);// LoadLoad
         if (e == JUMP)
         {
             return newBufferPeek(nextBuffer(buffer, mask), index);
@@ -575,8 +575,8 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
 
         for (int i = 0; i < claimedSlots; i++)
         {
-            final long offset = modifiedCalcElementOffset(pIndex + 2l * i, mask);
-            soElement(buffer, offset, s.get());
+            final long offset = modifiedCalcCircularRefElementOffset(pIndex + 2l * i, mask);
+            soRefElement(buffer, offset, s.get());
         }
         return claimedSlots;
     }
@@ -669,7 +669,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
             while (nextIndex < pIndex)
             {
                 long index = nextIndex++;
-                E e = lvElement(currentBuffer, calcCircularElementOffset(index, mask));
+                E e = lvRefElement(currentBuffer, calcCircularRefElementOffset(index, mask));
                 // skip removed/not yet visible elements
                 if (e == null)
                 {
@@ -684,8 +684,8 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
 
                 // need to jump to the next buffer
                 int nextBufferIndex = mask + 1;
-                Object nextBuffer = lvElement(currentBuffer,
-                                              calcElementOffset(nextBufferIndex));
+                Object nextBuffer = lvRefElement(currentBuffer,
+                                              calcRefElementOffset(nextBufferIndex));
 
                 if (nextBuffer == BUFFER_CONSUMED || nextBuffer == null)
                 {
@@ -695,7 +695,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
 
                 setBuffer((E[]) nextBuffer);
                 // now with the new array retry the load, it can't be a JUMP, but we need to repeat same index
-                e = lvElement(currentBuffer, calcCircularElementOffset(index, mask));
+                e = lvRefElement(currentBuffer, calcCircularRefElementOffset(index, mask));
                 // skip removed/not yet visible elements
                 if (e == null)
                 {
@@ -718,7 +718,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
         final E[] newBuffer;
         try
         {
-            newBuffer = allocate(newBufferLength);
+            newBuffer = allocateRefArray(newBufferLength);
         }
         catch (OutOfMemoryError oom)
         {
@@ -731,11 +731,11 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
         final int newMask = (newBufferLength - 2) << 1;
         producerMask = newMask;
 
-        final long offsetInOld = modifiedCalcElementOffset(pIndex, oldMask);
-        final long offsetInNew = modifiedCalcElementOffset(pIndex, newMask);
+        final long offsetInOld = modifiedCalcCircularRefElementOffset(pIndex, oldMask);
+        final long offsetInNew = modifiedCalcCircularRefElementOffset(pIndex, newMask);
 
-        soElement(newBuffer, offsetInNew, e == null ? s.get() : e);// element in new array
-        soElement(oldBuffer, nextArrayOffset(oldMask), newBuffer);// buffer linked
+        soRefElement(newBuffer, offsetInNew, e == null ? s.get() : e);// element in new array
+        soRefElement(oldBuffer, nextArrayOffset(oldMask), newBuffer);// buffer linked
 
         // ASSERT code
         final long cIndex = lvConsumerIndex();
@@ -752,7 +752,7 @@ public abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQue
         // INDEX visible before ELEMENT, consistent with consumer expectation
 
         // make resize visible to consumer
-        soElement(oldBuffer, offsetInOld, JUMP);
+        soRefElement(oldBuffer, offsetInOld, JUMP);
     }
 
     /**

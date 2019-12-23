@@ -8,7 +8,7 @@ import java.util.Arrays;
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeAccess.fieldOffset;
 import static org.jctools.util.UnsafeLongArrayAccess.*;
-import static org.jctools.util.UnsafeRefArrayAccess.allocate;
+import static org.jctools.util.UnsafeRefArrayAccess.allocateRefArray;
 
 @InternalAPI
 final class MpmcUnboundedXaddChunk<E>
@@ -28,7 +28,7 @@ final class MpmcUnboundedXaddChunk<E>
 
     MpmcUnboundedXaddChunk(long index, MpmcUnboundedXaddChunk<E> prev, int size, boolean pooled)
     {
-        buffer = allocate(size);
+        buffer = allocateRefArray(size);
         // next is null
         spPrev(prev);
         spIndex(index);
@@ -100,11 +100,11 @@ final class MpmcUnboundedXaddChunk<E>
 
     void soElement(int index, E e)
     {
-        UnsafeRefArrayAccess.soElement(buffer, UnsafeRefArrayAccess.calcElementOffset(index), e);
+        UnsafeRefArrayAccess.soRefElement(buffer, UnsafeRefArrayAccess.calcRefElementOffset(index), e);
     }
 
     E lvElement(int index)
     {
-        return UnsafeRefArrayAccess.lvElement(buffer, UnsafeRefArrayAccess.calcElementOffset(index));
+        return UnsafeRefArrayAccess.lvRefElement(buffer, UnsafeRefArrayAccess.calcRefElementOffset(index));
     }
 }

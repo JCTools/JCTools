@@ -45,7 +45,7 @@ abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircularArrayQu
     {
         int actualCapacity = Pow2.roundToPowerOfTwo(capacity);
         mask = actualCapacity - 1;
-        buffer = allocate(actualCapacity);
+        buffer = allocateRefArray(actualCapacity);
     }
 
     @Override
@@ -147,8 +147,8 @@ abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircularArrayQu
 
         private E getNext() {
             while (nextIndex < pIndex) {
-                long offset = calcCircularElementOffset(nextIndex++, mask);
-                E e = lvElement(buffer, offset);
+                long offset = calcCircularRefElementOffset(nextIndex++, mask);
+                E e = lvRefElement(buffer, offset);
                 if (e != null) {
                     return e;
                 }

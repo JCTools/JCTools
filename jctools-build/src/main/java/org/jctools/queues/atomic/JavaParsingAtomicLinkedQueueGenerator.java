@@ -152,7 +152,7 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtom
             }
 
             if (name.startsWith("org.jctools.queues.LinkedArrayQueueUtil")) {
-                importDeclaration.setName(name.replace("org.jctools.queues.LinkedArrayQueueUtil", "org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil"));
+                continue;
             }
 
             importDecls.add(importDeclaration);
@@ -163,14 +163,14 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtom
         }
         cu.addImport(importDeclaration("java.util.concurrent.atomic.AtomicReferenceFieldUpdater"));
         cu.addImport(importDeclaration("java.util.concurrent.atomic.AtomicLongFieldUpdater"));
+        cu.addImport(importDeclaration("java.util.concurrent.atomic.AtomicReferenceArray"));
+
         cu.addImport(importDeclaration("org.jctools.queues.MessagePassingQueue"));
         cu.addImport(importDeclaration("org.jctools.queues.MessagePassingQueue.Supplier"));
         cu.addImport(importDeclaration("org.jctools.queues.MessagePassingQueueUtil"));
         cu.addImport(importDeclaration("org.jctools.queues.QueueProgressIndicators"));
         cu.addImport(importDeclaration("org.jctools.queues.IndexedQueueSizeUtil"));
-        cu.addImport(staticImportDeclaration("org.jctools.queues.atomic.LinkedAtomicArrayQueueUtil.*"));
-        cu.addImport(importDeclaration("java.util.concurrent.atomic.AtomicReferenceArray"));
-        cu.addImport(importDeclaration("org.jctools.queues.MpmcArrayQueue"));
+        cu.addImport(staticImportDeclaration("org.jctools.queues.atomic.AtomicQueueUtil.*"));
     }
 
     /**
@@ -342,10 +342,6 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtom
         ClassOrInterfaceType out = new ClassOrInterfaceType(null, "AtomicReferenceArray");
         out.setTypeArguments(in.getComponentType());
         return out;
-    }
-
-    private ImportDeclaration staticImportDeclaration(String name) {
-        return new ImportDeclaration(new Name(name), true, false);
     }
 
     private void processSpecialNodeTypes(MethodDeclaration node) {

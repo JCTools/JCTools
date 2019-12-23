@@ -467,17 +467,17 @@ public class MpscRelaxedArrayQueue<E> extends MpscRelaxedArrayQueueL4Pad<E> impl
     private void soCycleElement(E[] buffer, E e, int activeCycleIndex, int positionWithinCycle, int cycleLengthLog2)
     {
         final int indexInBuffer = calcElementIndexInBuffer(positionWithinCycle, activeCycleIndex, cycleLengthLog2);
-        final long offset = UnsafeRefArrayAccess.calcElementOffset(indexInBuffer);
-        soElement(buffer, offset, e);
+        final long offset = UnsafeRefArrayAccess.calcRefElementOffset(indexInBuffer);
+        soRefElement(buffer, offset, e);
     }
 
     @Override
     public E poll()
     {
         final long consumerPosition = lpConsumerPosition();
-        final long offset = calcCircularElementOffset(consumerPosition, this.mask);
+        final long offset = calcCircularRefElementOffset(consumerPosition, this.mask);
         final E[] buffer = this.buffer;
-        final E e = lvElement(buffer, offset);
+        final E e = lvRefElement(buffer, offset);
         if (null == e)
         {
             return pollSlowPath(buffer, offset, consumerPosition);
@@ -488,7 +488,7 @@ public class MpscRelaxedArrayQueue<E> extends MpscRelaxedArrayQueueL4Pad<E> impl
 
     private void signalConsumerProgress(long consumerPosition, E[] buffer, long offset)
     {
-        spElement(buffer, offset, null);
+        spRefElement(buffer, offset, null);
         soConsumerPosition(consumerPosition + 1);
     }
 
@@ -517,8 +517,8 @@ public class MpscRelaxedArrayQueue<E> extends MpscRelaxedArrayQueueL4Pad<E> impl
     {
         final E[] buffer = this.buffer;
         final long consumerPosition = lpConsumerPosition();
-        final long offset = calcCircularElementOffset(consumerPosition, this.mask);
-        E e = lvElement(buffer, offset);
+        final long offset = calcCircularRefElementOffset(consumerPosition, this.mask);
+        E e = lvRefElement(buffer, offset);
         if (null == e)
         {
             return peekSlowPath(buffer, consumerPosition, offset);
@@ -550,7 +550,7 @@ public class MpscRelaxedArrayQueue<E> extends MpscRelaxedArrayQueueL4Pad<E> impl
         E e;
         do
         {
-            e = lvElement(buffer, offset);
+            e = lvRefElement(buffer, offset);
         }
         while (e == null);
         return e;
@@ -623,9 +623,9 @@ public class MpscRelaxedArrayQueue<E> extends MpscRelaxedArrayQueueL4Pad<E> impl
     public E relaxedPoll()
     {
         final long consumerPosition = lpConsumerPosition();
-        final long offset = calcCircularElementOffset(consumerPosition, this.mask);
+        final long offset = calcCircularRefElementOffset(consumerPosition, this.mask);
         final E[] buffer = this.buffer;
-        final E e = lvElement(buffer, offset);
+        final E e = lvRefElement(buffer, offset);
         if (e != null)
         {
             signalConsumerProgress(consumerPosition, buffer, offset);
@@ -638,8 +638,8 @@ public class MpscRelaxedArrayQueue<E> extends MpscRelaxedArrayQueueL4Pad<E> impl
     {
         final long consumerPosition = lpConsumerPosition();
         final long mask = this.mask;
-        final long offset = calcCircularElementOffset(consumerPosition, mask);
-        return lvElement(this.buffer, offset);
+        final long offset = calcCircularRefElementOffset(consumerPosition, mask);
+        return lvRefElement(this.buffer, offset);
     }
 
 
@@ -675,10 +675,10 @@ public class MpscRelaxedArrayQueue<E> extends MpscRelaxedArrayQueueL4Pad<E> impl
         for (int i = 0; i < limit; i++)
         {
             final long consumerPosition = lpConsumerPosition();
-            final long offset = calcCircularElementOffset(consumerPosition, mask);
+            final long offset = calcCircularRefElementOffset(consumerPosition, mask);
 
             E e;
-            if ((e = lvElement(buffer, offset)) != null)
+            if ((e = lvRefElement(buffer, offset)) != null)
             {
                 signalConsumerProgress(consumerPosition, buffer, offset);
                 c.accept(e);
@@ -766,8 +766,8 @@ public class MpscRelaxedArrayQueue<E> extends MpscRelaxedArrayQueueL4Pad<E> impl
         {
             for (int i = 0; i < 4096; i++)
             {
-                final long offset = calcCircularElementOffset(consumerPosition, mask);
-                final E e = lvElement(buffer, offset);// LoadLoad
+                final long offset = calcCircularRefElementOffset(consumerPosition, mask);
+                final E e = lvRefElement(buffer, offset);// LoadLoad
                 if (null == e)
                 {
                     counter = w.idle(counter);

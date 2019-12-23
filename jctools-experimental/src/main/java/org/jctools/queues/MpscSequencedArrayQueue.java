@@ -16,7 +16,7 @@ package org.jctools.queues;
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeAccess.fieldOffset;
 import static org.jctools.util.UnsafeLongArrayAccess.*;
-import static org.jctools.util.UnsafeRefArrayAccess.calcCircularElementOffset;
+import static org.jctools.util.UnsafeRefArrayAccess.calcCircularRefElementOffset;
 
 import org.jctools.util.UnsafeRefArrayAccess;
 
@@ -125,8 +125,8 @@ public class MpscSequencedArrayQueue<E> extends MpscSequencedArrayQueueConsumerF
         }
 
         // on 64bit(no compressed oops) JVM this is the same as seqOffset
-        final long elementOffset = calcCircularElementOffset(currentProducerIndex, mask);
-        UnsafeRefArrayAccess.spElement(buffer, elementOffset, e);
+        final long elementOffset = calcCircularRefElementOffset(currentProducerIndex, mask);
+        UnsafeRefArrayAccess.spRefElement(buffer, elementOffset, e);
 
         // increment sequence by 1, the value expected by consumer
         // (seeing this value from a producer will lead to retry 2)
@@ -152,9 +152,9 @@ public class MpscSequencedArrayQueue<E> extends MpscSequencedArrayQueueConsumerF
         }
 
         // on 64bit(no compressed oops) JVM this is the same as seqOffset
-        final long offset = calcCircularElementOffset(consumerIndex, mask);
-        final E e = UnsafeRefArrayAccess.lpElement(buffer, offset);
-        UnsafeRefArrayAccess.spElement(buffer, offset, null);
+        final long offset = calcCircularRefElementOffset(consumerIndex, mask);
+        final E e = UnsafeRefArrayAccess.lpRefElement(buffer, offset);
+        UnsafeRefArrayAccess.spRefElement(buffer, offset, null);
         // Move sequence ahead by capacity, preparing it for next offer
         // (seeing this value from a consumer will lead to retry 2)
         // StoreStore
@@ -165,7 +165,7 @@ public class MpscSequencedArrayQueue<E> extends MpscSequencedArrayQueueConsumerF
 
     @Override
     public E peek() {
-        return UnsafeRefArrayAccess.lpElement(buffer, calcCircularElementOffset(lvConsumerIndex(), mask));
+        return UnsafeRefArrayAccess.lpRefElement(buffer, calcCircularRefElementOffset(lvConsumerIndex(), mask));
     }
 
 	@Override

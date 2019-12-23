@@ -15,7 +15,6 @@ package org.jctools.queues;
 
 import org.jctools.util.Pow2;
 import org.jctools.util.RangeUtil;
-import org.jctools.util.UnsafeRefArrayAccess;
 
 import static org.jctools.util.UnsafeRefArrayAccess.*;
 
@@ -48,7 +47,7 @@ public class SpscChunkedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E>
 
         long mask = chunkCapacity - 1;
         // need extra element to point at next array
-        E[] buffer = allocate(chunkCapacity + 1);
+        E[] buffer = allocateRefArray(chunkCapacity + 1);
         producerBuffer = buffer;
         producerMask = mask;
         consumerBuffer = buffer;
@@ -86,12 +85,12 @@ public class SpscChunkedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E>
 
         // go around the buffer or add a new buffer
         if (pBufferLimit > pIndex + 1 && // there's sufficient room in buffer/queue to use pBufferLimit
-            null == lvElement(buffer, calcCircularElementOffset(pBufferLimit, mask)))
+            null == lvRefElement(buffer, calcCircularRefElementOffset(pBufferLimit, mask)))
         {
             producerBufferLimit = pBufferLimit - 1; // joy, there's plenty of room
             writeToQueue(buffer, v == null ? s.get() : v, pIndex, offset);
         }
-        else if (null == lvElement(buffer, calcCircularElementOffset(pIndex + 1, mask)))
+        else if (null == lvRefElement(buffer, calcCircularRefElementOffset(pIndex + 1, mask)))
         { // buffer is not full
             writeToQueue(buffer, v == null ? s.get() : v, pIndex, offset);
         }
@@ -99,7 +98,7 @@ public class SpscChunkedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E>
         {
             // we got one slot left to write into, and we are not full. Need to link new buffer.
             // allocate new buffer of same length
-            final E[] newBuffer = allocate((int) (mask + 2));
+            final E[] newBuffer = allocateRefArray((int) (mask + 2));
             producerBuffer = newBuffer;
 
             linkOldToNew(pIndex, buffer, offset, newBuffer, offset, v == null ? s.get() : v);

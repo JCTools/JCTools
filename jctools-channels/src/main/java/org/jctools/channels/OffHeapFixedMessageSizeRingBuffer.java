@@ -249,7 +249,7 @@ public abstract class OffHeapFixedMessageSizeRingBuffer extends ProxyChannelRing
         assert referenceMessageSize != 0 : "References are not in use";
         // Is there a way to compute the element offset once and just
         // arithmetic?
-        UnsafeRefArrayAccess.spElement(references, UnsafeRefArrayAccess.calcElementOffset(offset), reference);
+        UnsafeRefArrayAccess.spRefElement(references, UnsafeRefArrayAccess.calcRefElementOffset(offset), reference);
     }
 
     /**
@@ -261,7 +261,7 @@ public abstract class OffHeapFixedMessageSizeRingBuffer extends ProxyChannelRing
         assert referenceMessageSize != 0 : "References are not in use";
         // Is there a way to compute the element offset once and just
         // arithmetic?
-        return UnsafeRefArrayAccess.lpElement(references, UnsafeRefArrayAccess.calcElementOffset(offset));
+        return UnsafeRefArrayAccess.lpRefElement(references, UnsafeRefArrayAccess.calcRefElementOffset(offset));
     }
 
 

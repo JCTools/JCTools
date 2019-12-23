@@ -147,16 +147,16 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
     protected final void soNext(E[] curr, E[] next)
     {
         long offset = nextArrayOffset(curr);
-        soElement(curr, offset, next);
+        soRefElement(curr, offset, next);
     }
 
     @SuppressWarnings("unchecked")
     protected final E[] lvNextArrayAndUnlink(E[] curr)
     {
         final long offset = nextArrayOffset(curr);
-        final E[] nextBuffer = (E[]) lvElement(curr, offset);
+        final E[] nextBuffer = (E[]) lvRefElement(curr, offset);
         // prevent GC nepotism
-        soElement(curr, offset, null);
+        soRefElement(curr, offset, null);
         return nextBuffer;
     }
 
@@ -224,7 +224,7 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
             final E[] buffer = producerBuffer;
             final long index = lpProducerIndex();
             final long mask = producerMask;
-            final long offset = calcCircularElementOffset(index, mask);
+            final long offset = calcCircularRefElementOffset(index, mask);
             // expected hot path
             if (index < producerBufferLimit)
             {
@@ -270,7 +270,7 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
         final E[] buffer = producerBuffer;
         final long index = lpProducerIndex();
         final long mask = producerMask;
-        final long offset = calcCircularElementOffset(index, mask);
+        final long offset = calcCircularRefElementOffset(index, mask);
         // expected hot path
         if (index < producerBufferLimit)
         {
@@ -301,13 +301,13 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
         final E[] buffer = consumerBuffer;
         final long index = lpConsumerIndex();
         final long mask = consumerMask;
-        final long offset = calcCircularElementOffset(index, mask);
-        final Object e = lvElement(buffer, offset);// LoadLoad
+        final long offset = calcCircularRefElementOffset(index, mask);
+        final Object e = lvRefElement(buffer, offset);// LoadLoad
         boolean isNextBuffer = e == JUMP;
         if (null != e && !isNextBuffer)
         {
             soConsumerIndex(index + 1);// this ensures correctness on 32bit platforms
-            soElement(buffer, offset, null);
+            soRefElement(buffer, offset, null);
             return (E) e;
         }
         else if (isNextBuffer)
@@ -330,8 +330,8 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
         final E[] buffer = consumerBuffer;
         final long index = lpConsumerIndex();
         final long mask = consumerMask;
-        final long offset = calcCircularElementOffset(index, mask);
-        final Object e = lvElement(buffer, offset);// LoadLoad
+        final long offset = calcCircularRefElementOffset(index, mask);
+        final Object e = lvRefElement(buffer, offset);// LoadLoad
         if (e == JUMP)
         {
             return newBufferPeek(buffer, index);
@@ -346,17 +346,17 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
         final E[] newBuffer, final long offsetInNew,
         final E e)
     {
-        soElement(newBuffer, offsetInNew, e);// StoreStore
+        soRefElement(newBuffer, offsetInNew, e);// StoreStore
         // link to next buffer and add next indicator as element of old buffer
         soNext(oldBuffer, newBuffer);
-        soElement(oldBuffer, offset, JUMP);
+        soRefElement(oldBuffer, offset, JUMP);
         // index is visible after elements (isEmpty/poll ordering)
         soProducerIndex(currIndex + 1);// this ensures atomic write of long on 32bit platforms
     }
 
     final void writeToQueue(final E[] buffer, final E e, final long index, final long offset)
     {
-        soElement(buffer, offset, e);// StoreStore
+        soRefElement(buffer, offset, e);// StoreStore
         soProducerIndex(index + 1);// this ensures atomic write of long on 32bit platforms
     }
 
@@ -366,8 +366,8 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
         consumerBuffer = nextBuffer;
         final long mask = length(nextBuffer) - 2;
         consumerMask = mask;
-        final long offset = calcCircularElementOffset(index, mask);
-        return lvElement(nextBuffer, offset);// LoadLoad
+        final long offset = calcCircularRefElementOffset(index, mask);
+        return lvRefElement(nextBuffer, offset);// LoadLoad
     }
 
     private E newBufferPoll(final E[] buffer, final long index)
@@ -376,8 +376,8 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
         consumerBuffer = nextBuffer;
         final long mask = length(nextBuffer) - 2;
         consumerMask = mask;
-        final long offset = calcCircularElementOffset(index, mask);
-        final E n = lvElement(nextBuffer, offset);// LoadLoad
+        final long offset = calcCircularRefElementOffset(index, mask);
+        final E n = lvRefElement(nextBuffer, offset);// LoadLoad
         if (null == n)
         {
             throw new IllegalStateException("new buffer must have at least one element");
@@ -385,7 +385,7 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
         else
         {
             soConsumerIndex(index + 1);// this ensures correctness on 32bit platforms
-            soElement(nextBuffer, offset, null);// StoreStore
+            soRefElement(nextBuffer, offset, null);// StoreStore
             return n;
         }
     }

@@ -15,7 +15,6 @@ package org.jctools.queues;
 
 import org.jctools.util.Pow2;
 import org.jctools.util.RangeUtil;
-import org.jctools.util.UnsafeRefArrayAccess;
 
 import static org.jctools.queues.LinkedArrayQueueUtil.length;
 import static org.jctools.util.UnsafeRefArrayAccess.*;
@@ -50,7 +49,7 @@ public class SpscGrowableArrayQueue<E> extends BaseSpscLinkedArrayQueue<E>
 
         long mask = chunkCapacity - 1;
         // need extra element to point at next array
-        E[] buffer = allocate(chunkCapacity + 1);
+        E[] buffer = allocateRefArray(chunkCapacity + 1);
         producerBuffer = buffer;
         producerMask = mask;
         consumerBuffer = buffer;
@@ -72,9 +71,9 @@ public class SpscGrowableArrayQueue<E> extends BaseSpscLinkedArrayQueue<E>
         // normal case, go around the buffer or resize if full (unless we hit max capacity)
         if (lookAheadStep > 0)
         {
-            long lookAheadElementOffset = calcCircularElementOffset(index + lookAheadStep, mask);
+            long lookAheadElementOffset = calcCircularRefElementOffset(index + lookAheadStep, mask);
             // Try and look ahead a number of elements so we don't have to do this all the time
-            if (null == lvElement(buffer, lookAheadElementOffset))
+            if (null == lvRefElement(buffer, lookAheadElementOffset))
             {
                 producerBufferLimit = index + lookAheadStep - 1; // joy, there's plenty of room
                 writeToQueue(buffer, v == null ? s.get() : v, index, offset);
@@ -84,7 +83,7 @@ public class SpscGrowableArrayQueue<E> extends BaseSpscLinkedArrayQueue<E>
             final int maxCapacity = maxQueueCapacity;
             if (mask + 1 == maxCapacity)
             {
-                if (null == lvElement(buffer, offset))
+                if (null == lvRefElement(buffer, offset))
                 {
                     writeToQueue(buffer, v == null ? s.get() : v, index, offset);
                     return true;
@@ -93,19 +92,19 @@ public class SpscGrowableArrayQueue<E> extends BaseSpscLinkedArrayQueue<E>
                 return false;
             }
             // not at max capacity, so must allow extra slot for next buffer pointer
-            if (null == lvElement(buffer, calcCircularElementOffset(index + 1, mask)))
+            if (null == lvRefElement(buffer, calcCircularRefElementOffset(index + 1, mask)))
             { // buffer is not full
                 writeToQueue(buffer, v == null ? s.get() : v, index, offset);
             }
             else
             {
                 // allocate new buffer of same length
-                final E[] newBuffer = allocate((int) (2 * (mask + 1) + 1));
+                final E[] newBuffer = allocateRefArray((int) (2 * (mask + 1) + 1));
 
                 producerBuffer = newBuffer;
                 producerMask = length(newBuffer) - 2;
 
-                final long offsetInNew = calcCircularElementOffset(index, producerMask);
+                final long offsetInNew = calcCircularRefElementOffset(index, producerMask);
                 linkOldToNew(index, buffer, offset, newBuffer, offsetInNew, v == null ? s.get() : v);
                 int newCapacity = (int) (producerMask + 1);
                 if (newCapacity == maxCapacity)

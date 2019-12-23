@@ -14,10 +14,9 @@
 package org.jctools.queues;
 
 import org.jctools.util.Pow2;
-import org.jctools.util.UnsafeRefArrayAccess;
 
 import static org.jctools.util.UnsafeRefArrayAccess.*;
-import static org.jctools.util.UnsafeRefArrayAccess.lvElement;
+import static org.jctools.util.UnsafeRefArrayAccess.lvRefElement;
 
 /**
  * An SPSC array queue which starts at <i>initialCapacity</i> and grows indefinitely in linked chunks of the initial size.
@@ -33,7 +32,7 @@ public class SpscUnboundedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E>
     {
         int chunkCapacity = Math.max(Pow2.roundToPowerOfTwo(chunkSize), 16);
         long mask = chunkCapacity - 1;
-        E[] buffer = allocate(chunkCapacity + 1);
+        E[] buffer = allocateRefArray(chunkCapacity + 1);
         producerBuffer = buffer;
         producerMask = mask;
         consumerBuffer = buffer;
@@ -49,12 +48,12 @@ public class SpscUnboundedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E>
         long pBufferLimit = pIndex + lookAheadStep;
 
         // go around the buffer or add a new buffer
-        if (null == lvElement(buffer, calcCircularElementOffset(pBufferLimit, mask)))
+        if (null == lvRefElement(buffer, calcCircularRefElementOffset(pBufferLimit, mask)))
         {
             producerBufferLimit = pBufferLimit - 1; // joy, there's plenty of room
             writeToQueue(buffer, v == null ? s.get() : v, pIndex, offset);
         }
-        else if (null == lvElement(buffer, calcCircularElementOffset(pIndex + 1, mask)))
+        else if (null == lvRefElement(buffer, calcCircularRefElementOffset(pIndex + 1, mask)))
         { // buffer is not full
             writeToQueue(buffer, v == null ? s.get() : v, pIndex, offset);
         }
@@ -62,7 +61,7 @@ public class SpscUnboundedArrayQueue<E> extends BaseSpscLinkedArrayQueue<E>
         {
             // we got one slot left to write into, and we are not full. Need to link new buffer.
             // allocate new buffer of same length
-            final E[] newBuffer = allocate((int) (mask + 2));
+            final E[] newBuffer = allocateRefArray((int) (mask + 2));
             producerBuffer = newBuffer;
             producerBufferLimit = pIndex + mask - 1;
 

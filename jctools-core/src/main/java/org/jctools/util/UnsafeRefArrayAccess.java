@@ -43,10 +43,10 @@ public final class UnsafeRefArrayAccess
      * A plain store (no ordering/fences) of an element to a given offset
      *
      * @param buffer this.buffer
-     * @param offset computed via {@link UnsafeRefArrayAccess#calcElementOffset(long)}
+     * @param offset computed via {@link UnsafeRefArrayAccess#calcRefElementOffset(long)}
      * @param e      an orderly kitty
      */
-    public static <E> void spElement(E[] buffer, long offset, E e)
+    public static <E> void spRefElement(E[] buffer, long offset, E e)
     {
         UNSAFE.putObject(buffer, offset, e);
     }
@@ -55,10 +55,10 @@ public final class UnsafeRefArrayAccess
      * An ordered store of an element to a given offset
      *
      * @param buffer this.buffer
-     * @param offset computed via {@link UnsafeRefArrayAccess#calcCircularElementOffset}
+     * @param offset computed via {@link UnsafeRefArrayAccess#calcCircularRefElementOffset}
      * @param e      an orderly kitty
      */
-    public static <E> void soElement(E[] buffer, long offset, E e)
+    public static <E> void soRefElement(E[] buffer, long offset, E e)
     {
         UNSAFE.putOrderedObject(buffer, offset, e);
     }
@@ -67,11 +67,11 @@ public final class UnsafeRefArrayAccess
      * A plain load (no ordering/fences) of an element from a given offset.
      *
      * @param buffer this.buffer
-     * @param offset computed via {@link UnsafeRefArrayAccess#calcElementOffset(long)}
+     * @param offset computed via {@link UnsafeRefArrayAccess#calcRefElementOffset(long)}
      * @return the element at the offset
      */
     @SuppressWarnings("unchecked")
-    public static <E> E lpElement(E[] buffer, long offset)
+    public static <E> E lpRefElement(E[] buffer, long offset)
     {
         return (E) UNSAFE.getObject(buffer, offset);
     }
@@ -80,11 +80,11 @@ public final class UnsafeRefArrayAccess
      * A volatile load of an element from a given offset.
      *
      * @param buffer this.buffer
-     * @param offset computed via {@link UnsafeRefArrayAccess#calcElementOffset(long)}
+     * @param offset computed via {@link UnsafeRefArrayAccess#calcRefElementOffset(long)}
      * @return the element at the offset
      */
     @SuppressWarnings("unchecked")
-    public static <E> E lvElement(E[] buffer, long offset)
+    public static <E> E lvRefElement(E[] buffer, long offset)
     {
         return (E) UNSAFE.getObjectVolatile(buffer, offset);
     }
@@ -93,7 +93,7 @@ public final class UnsafeRefArrayAccess
      * @param index desirable element index
      * @return the offset in bytes within the array for a given index
      */
-    public static long calcElementOffset(long index)
+    public static long calcRefElementOffset(long index)
     {
         return REF_ARRAY_BASE + (index << REF_ELEMENT_SHIFT);
     }
@@ -105,7 +105,7 @@ public final class UnsafeRefArrayAccess
      * @param mask (length - 1)
      * @return the offset in bytes within the circular array for a given index
      */
-    public static long calcCircularElementOffset(long index, long mask)
+    public static long calcCircularRefElementOffset(long index, long mask)
     {
         return REF_ARRAY_BASE + ((index & mask) << REF_ELEMENT_SHIFT);
     }
@@ -114,7 +114,7 @@ public final class UnsafeRefArrayAccess
      * This makes for an easier time generating the atomic queues, and removes some warnings.
      */
     @SuppressWarnings("unchecked")
-    public static <E> E[] allocate(int capacity)
+    public static <E> E[] allocateRefArray(int capacity)
     {
         return (E[]) new Object[capacity];
     }
