@@ -11,9 +11,7 @@ public final class CountersFactory {
     }
 
     public static FixedSizeStripedLongCounter createFixedSizeStripedCounter(int stripesCount) {
-        // Assuming that if Unsafe has getAndSet(Object, Long, Object) then it has
-        // all JDK 8+ methods like getAndAddX, getAndSetX etc.
-        if (UnsafeAccess.SUPPORTS_GET_AND_SET) {
+        if (UnsafeAccess.SUPPORTS_GET_AND_ADD_LONG) {
             return new FixedSizeStripedLongCounterV8(stripesCount);
         } else {
             return new FixedSizeStripedLongCounterV6(stripesCount);
