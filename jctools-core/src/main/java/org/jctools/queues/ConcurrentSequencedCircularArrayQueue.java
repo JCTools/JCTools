@@ -22,7 +22,6 @@ public abstract class ConcurrentSequencedCircularArrayQueue<E> extends Concurren
 {
     private static final long ARRAY_BASE;
     private static final int ELEMENT_SHIFT;
-    protected static final int SEQ_BUFFER_PAD;
 
     static
     {
@@ -35,10 +34,8 @@ public abstract class ConcurrentSequencedCircularArrayQueue<E> extends Concurren
         {
             throw new IllegalStateException("Unexpected long[] element size");
         }
-        // 2 cache lines pad
-        SEQ_BUFFER_PAD = (PortableJvmInfo.CACHE_LINE_SIZE * 2) / scale;
         // Including the buffer pad in the array base offset
-        ARRAY_BASE = UnsafeAccess.UNSAFE.arrayBaseOffset(long[].class) + (SEQ_BUFFER_PAD * (long)scale);
+        ARRAY_BASE = UnsafeAccess.UNSAFE.arrayBaseOffset(long[].class);
     }
 
     protected final long[] sequenceBuffer;
@@ -48,7 +45,7 @@ public abstract class ConcurrentSequencedCircularArrayQueue<E> extends Concurren
         super(capacity);
         int actualCapacity = (int) (this.mask + 1);
         // pad data on either end with some empty slots. Note that actualCapacity is <= MAX_POW2_INT
-        sequenceBuffer = new long[actualCapacity + SEQ_BUFFER_PAD * 2];
+        sequenceBuffer = new long[actualCapacity];
         for (long i = 0; i < actualCapacity; i++)
         {
             soSequence(sequenceBuffer, calcSequenceOffset(i), i);
