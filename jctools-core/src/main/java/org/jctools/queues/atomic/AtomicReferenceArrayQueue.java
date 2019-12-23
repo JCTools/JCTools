@@ -23,8 +23,8 @@ import org.jctools.util.Pow2;
 import java.util.AbstractQueue;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
+import java.util.concurrent.atomic.AtomicLongArray;
 import java.util.concurrent.atomic.AtomicReferenceArray;
-
 
 abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> implements IndexedQueue, QueueProgressIndicators, MessagePassingQueue<E>, SupportsIterator
 {
@@ -53,54 +53,69 @@ abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> implements 
         }
     }
 
-    protected static final int calcCircularElementOffset(long index, int mask)
+    static int calcCircularElementOffset(long index, int mask)
     {
         return (int) index & mask;
     }
 
-    public static <E> E lvElement(AtomicReferenceArray<E> buffer, int offset)
+    static <E> E lvElement(AtomicReferenceArray<E> buffer, int offset)
     {
         return buffer.get(offset);
     }
 
-    public static <E> E lpElement(AtomicReferenceArray<E> buffer, int offset)
+    static <E> E lpElement(AtomicReferenceArray<E> buffer, int offset)
     {
         return buffer.get(offset); // no weaker form available
     }
 
-    protected final E lpElement(int offset)
-    {
-        return buffer.get(offset); // no weaker form available
-    }
-
-    public static <E> void spElement(AtomicReferenceArray<E> buffer, int offset, E value)
+    static <E> void spElement(AtomicReferenceArray<E> buffer, int offset, E value)
     {
         buffer.lazySet(offset, value);  // no weaker form available
     }
 
-    protected final void spElement(int offset, E value)
-    {
-        buffer.lazySet(offset, value);  // no weaker form available
-    }
-
-    public static <E> void soElement(AtomicReferenceArray<E> buffer, int offset, E value)
+    static <E> void soElement(AtomicReferenceArray<E> buffer, int offset, E value)
     {
         buffer.lazySet(offset, value);
     }
 
-    protected final void soElement(int offset, E value)
-    {
-        buffer.lazySet(offset, value);
-    }
-
-    public static <E> void svElement(AtomicReferenceArray<E> buffer, int offset, E value)
+    static <E> void svElement(AtomicReferenceArray<E> buffer, int offset, E value)
     {
         buffer.set(offset, value);
     }
 
-    protected final E lvElement(int offset)
+    static void spLongElement(AtomicLongArray buffer, int offset, long e)
     {
-        return lvElement(buffer, offset);
+        buffer.lazySet(offset, e);
+    }
+
+    static void soLongElement(AtomicLongArray buffer, int offset, long e)
+    {
+        buffer.lazySet(offset, e);
+    }
+
+    static long lpLongElement(AtomicLongArray buffer, int offset)
+    {
+        return buffer.get(offset);
+    }
+
+    static long lvLongElement(AtomicLongArray buffer, int offset)
+    {
+        return buffer.get(offset);
+    }
+
+    static long calcLongElementOffset(long index)
+    {
+        return index;
+    }
+
+    static long calcCircularLongElementOffset(long index, long mask)
+    {
+        return index & mask;
+    }
+
+    static AtomicLongArray allocateLongArray(int capacity)
+    {
+        return new AtomicLongArray(capacity);
     }
 
     @Override

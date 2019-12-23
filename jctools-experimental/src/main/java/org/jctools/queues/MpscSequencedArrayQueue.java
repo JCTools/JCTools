@@ -15,6 +15,7 @@ package org.jctools.queues;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeAccess.fieldOffset;
+import static org.jctools.util.UnsafeLongArrayAccess.*;
 import static org.jctools.util.UnsafeRefArrayAccess.calcCircularElementOffset;
 
 import org.jctools.util.UnsafeRefArrayAccess;
@@ -104,8 +105,8 @@ public class MpscSequencedArrayQueue<E> extends MpscSequencedArrayQueueConsumerF
 
         while (true) {
             currentProducerIndex = lvProducerIndex(); // LoadLoad
-            seqOffset = calcSequenceOffset(currentProducerIndex);
-            final long seq = lvSequence(lSequenceBuffer, seqOffset); // LoadLoad
+            seqOffset = calcCircularLongElementOffset(currentProducerIndex, mask);
+            final long seq = lvLongElement(lSequenceBuffer, seqOffset); // LoadLoad
             final long delta = seq - currentProducerIndex;
 
             if (delta == 0) {
@@ -129,7 +130,8 @@ public class MpscSequencedArrayQueue<E> extends MpscSequencedArrayQueueConsumerF
 
         // increment sequence by 1, the value expected by consumer
         // (seeing this value from a producer will lead to retry 2)
-        soSequence(lSequenceBuffer, seqOffset, currentProducerIndex + 1); // StoreStore
+        // StoreStore
+        soLongElement(lSequenceBuffer, seqOffset, currentProducerIndex + 1);
 
         return true;
     }
@@ -140,8 +142,8 @@ public class MpscSequencedArrayQueue<E> extends MpscSequencedArrayQueueConsumerF
         final long[] lSequenceBuffer = sequenceBuffer;
 
         long consumerIndex = lvConsumerIndex();// LoadLoad
-        final long seqOffset = calcSequenceOffset(consumerIndex);
-        final long seq = lvSequence(lSequenceBuffer, seqOffset);// LoadLoad
+        final long seqOffset = calcCircularLongElementOffset(consumerIndex, mask);
+        final long seq = lvLongElement(lSequenceBuffer, seqOffset);// LoadLoad
         final long delta = seq - (consumerIndex + 1);
 
         if (delta < 0) {
@@ -155,7 +157,8 @@ public class MpscSequencedArrayQueue<E> extends MpscSequencedArrayQueueConsumerF
         UnsafeRefArrayAccess.spElement(buffer, offset, null);
         // Move sequence ahead by capacity, preparing it for next offer
         // (seeing this value from a consumer will lead to retry 2)
-        soSequence(lSequenceBuffer, seqOffset, consumerIndex + mask + 1);// StoreStore
+        // StoreStore
+        soLongElement(lSequenceBuffer, seqOffset, consumerIndex + mask + 1);
         soConsumerIndex(consumerIndex+1);
         return e;
     }
