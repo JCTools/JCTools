@@ -15,20 +15,6 @@ package org.jctools.util;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 
-/**
- * A concurrent access enabling class used by circular array based queues this class exposes an offset computation
- * method along with differently memory fenced load/store methods into the underlying array. The class is pre-padded and
- * the array is padded on either side to help with False sharing prvention. It is expected theat subclasses handle post
- * padding.
- * <p>
- * Offset calculation is separate from access to enable the reuse of a give compute offset.
- * <p>
- * Load/Store methods using a <i>buffer</i> parameter are provided to allow the prevention of final field reload after a
- * LoadLoad barrier.
- * <p>
- *
- * @author nitsanw
- */
 @InternalAPI
 public final class UnsafeRefArrayAccess
 {
@@ -66,7 +52,7 @@ public final class UnsafeRefArrayAccess
     }
 
     /**
-     * An ordered store(store + StoreStore barrier) of an element to a given offset
+     * An ordered store of an element to a given offset
      *
      * @param buffer this.buffer
      * @param offset computed via {@link UnsafeRefArrayAccess#calcCircularElementOffset}
@@ -91,7 +77,7 @@ public final class UnsafeRefArrayAccess
     }
 
     /**
-     * A volatile load (load + LoadLoad barrier) of an element from a given offset.
+     * A volatile load of an element from a given offset.
      *
      * @param buffer this.buffer
      * @param offset computed via {@link UnsafeRefArrayAccess#calcElementOffset(long)}
@@ -105,7 +91,7 @@ public final class UnsafeRefArrayAccess
 
     /**
      * @param index desirable element index
-     * @return the offset in bytes within the array for a given index.
+     * @return the offset in bytes within the array for a given index
      */
     public static long calcElementOffset(long index)
     {
@@ -113,9 +99,11 @@ public final class UnsafeRefArrayAccess
     }
 
     /**
+     * Note: circular arrays are assumed a power of 2 in length and the `mask` is (length - 1).
+     *
      * @param index desirable element index
      * @param mask (length - 1)
-     * @return the offset in bytes within the array for a given index.
+     * @return the offset in bytes within the circular array for a given index
      */
     public static long calcCircularElementOffset(long index, long mask)
     {
