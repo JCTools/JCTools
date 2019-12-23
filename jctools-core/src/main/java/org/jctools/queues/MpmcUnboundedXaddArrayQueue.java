@@ -17,145 +17,17 @@ import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
 import org.jctools.util.PortableJvmInfo;
 import org.jctools.util.Pow2;
 import org.jctools.util.UnsafeAccess;
-import org.jctools.util.UnsafeRefArrayAccess;
 
 import java.util.AbstractQueue;
-import java.util.Arrays;
 import java.util.Iterator;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeAccess.fieldOffset;
-import static org.jctools.util.UnsafeRefArrayAccess.allocate;
-
 
 abstract class MpmcUnboundedXaddArrayQueuePad1<E> extends AbstractQueue<E> implements IndexedQueue
 {
     long p01, p02, p03, p04, p05, p06, p07;
     long p10, p11, p12, p13, p14, p15, p16, p17;
-
-    static final class AtomicChunk<E>
-    {
-        private static final long ARRAY_BASE;
-        private static final int ELEMENT_SHIFT;
-
-        static
-        {
-            final int scale = UnsafeAccess.UNSAFE.arrayIndexScale(long[].class);
-            if (8 == scale)
-            {
-                ELEMENT_SHIFT = 3;
-            }
-            else
-            {
-                throw new IllegalStateException("Unexpected long[] element size");
-            }
-            // Including the buffer pad in the array base offset
-            ARRAY_BASE = UnsafeAccess.UNSAFE.arrayBaseOffset(long[].class);
-        }
-
-        final static int NIL_CHUNK_INDEX = -1;
-        private static final long PREV_OFFSET = fieldOffset(AtomicChunk.class, "prev");
-        private static final long NEXT_OFFSET = fieldOffset(AtomicChunk.class, "next");
-        private static final long INDEX_OFFSET = fieldOffset(AtomicChunk.class, "index");
-        private volatile AtomicChunk<E> prev;
-        private volatile long index;
-        private volatile AtomicChunk<E> next;
-        private final long[] sequence;
-        private final E[] buffer;
-
-        AtomicChunk(long index, AtomicChunk<E> prev, int size, boolean pooled)
-        {
-            buffer = allocate(size);
-            spNext(null);
-            spPrev(prev);
-            spIndex(index);
-            if (pooled)
-            {
-                sequence = new long[size];
-                Arrays.fill(sequence, AtomicChunk.NIL_CHUNK_INDEX);
-            }
-            else
-            {
-                sequence = null;
-            }
-        }
-
-        final boolean isPooled()
-        {
-            return sequence != null;
-        }
-
-        private static long calcSequenceOffset(long index)
-        {
-            return ARRAY_BASE + (index << ELEMENT_SHIFT);
-        }
-
-        final void soSequence(int index, long e)
-        {
-            UNSAFE.putOrderedLong(sequence, calcSequenceOffset(index), e);
-        }
-
-        final long lvSequence(int index)
-        {
-            return UNSAFE.getLongVolatile(sequence, calcSequenceOffset(index));
-        }
-
-        final AtomicChunk<E> lvNext()
-        {
-            return next;
-        }
-
-        final AtomicChunk<E> lpPrev()
-        {
-            return (AtomicChunk<E>) UNSAFE.getObject(this, PREV_OFFSET);
-        }
-
-        final long lvIndex()
-        {
-            return index;
-        }
-
-        final void soIndex(long index)
-        {
-            UNSAFE.putOrderedLong(this, INDEX_OFFSET, index);
-        }
-
-        final void spIndex(long index)
-        {
-            UNSAFE.putLong(this, INDEX_OFFSET, index);
-        }
-
-        final void soNext(AtomicChunk<E> value)
-        {
-            UNSAFE.putOrderedObject(this, NEXT_OFFSET, value);
-        }
-
-        final void spNext(AtomicChunk<E> value)
-        {
-            UNSAFE.putObject(this, NEXT_OFFSET, value);
-        }
-
-        final void spPrev(AtomicChunk<E> value)
-        {
-            UNSAFE.putObject(this, PREV_OFFSET, value);
-        }
-
-        final void soElement(int index, E e)
-        {
-            UnsafeRefArrayAccess.soElement(buffer, UnsafeRefArrayAccess.calcElementOffset(index), e);
-        }
-
-        final void spElement(int index, E e)
-        {
-            UnsafeRefArrayAccess.spElement(buffer, UnsafeRefArrayAccess.calcElementOffset(index), e);
-        }
-
-        final E lvElement(int index)
-        {
-            return UnsafeRefArrayAccess.lvElement(buffer, UnsafeRefArrayAccess.calcElementOffset(index));
-        }
-
-    }
 }
 
 // $gen:ordered-fields
@@ -196,7 +68,7 @@ abstract class MpmcUnboundedXaddArrayQueueProducerBuffer<E> extends MpmcUnbounde
     private static final long P_CHUNK_INDEX_OFFSET =
         fieldOffset(MpmcUnboundedXaddArrayQueueProducerBuffer.class, "producerChunkIndex");
 
-    private volatile AtomicChunk<E> producerBuffer;
+    private volatile MpmcUnboundedXaddChunk<E> producerBuffer;
     private volatile long producerChunkIndex;
 
 
@@ -215,12 +87,12 @@ abstract class MpmcUnboundedXaddArrayQueueProducerBuffer<E> extends MpmcUnbounde
         UNSAFE.putOrderedLong(this, P_CHUNK_INDEX_OFFSET, value);
     }
 
-    final AtomicChunk<E> lvProducerBuffer()
+    final MpmcUnboundedXaddChunk<E> lvProducerBuffer()
     {
         return this.producerBuffer;
     }
 
-    final void soProducerBuffer(AtomicChunk<E> buffer)
+    final void soProducerBuffer(MpmcUnboundedXaddChunk<E> buffer)
     {
         UNSAFE.putOrderedObject(this, P_BUFFER_OFFSET, buffer);
     }
@@ -241,7 +113,7 @@ abstract class MpmcUnboundedXaddArrayQueueConsumerFields<E> extends MpmcUnbounde
         fieldOffset(MpmcUnboundedXaddArrayQueueConsumerFields.class, "consumerBuffer");
 
     private volatile long consumerIndex;
-    private volatile AtomicChunk<E> consumerBuffer;
+    private volatile MpmcUnboundedXaddChunk<E> consumerBuffer;
 
     @Override
     public final long lvConsumerIndex()
@@ -254,16 +126,15 @@ abstract class MpmcUnboundedXaddArrayQueueConsumerFields<E> extends MpmcUnbounde
         return UNSAFE.compareAndSwapLong(this, C_INDEX_OFFSET, expect, newValue);
     }
 
-    final AtomicChunk<E> lvConsumerBuffer()
+    final MpmcUnboundedXaddChunk<E> lvConsumerBuffer()
     {
         return this.consumerBuffer;
     }
 
-    final void soConsumerBuffer(AtomicChunk<E> newValue)
+    final void soConsumerBuffer(MpmcUnboundedXaddChunk<E> newValue)
     {
         UNSAFE.putOrderedObject(this, C_BUFFER_OFFSET, newValue);
     }
-
 }
 
 abstract class MpmcUnboundedXaddArrayQueuePad5<E> extends MpmcUnboundedXaddArrayQueueConsumerFields<E>
@@ -286,21 +157,25 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
     private static final long ROTATION = -2;
     private final int chunkMask;
     private final int chunkShift;
-    private final SpscArrayQueue<AtomicChunk<E>> freeBuffer;
+    private final SpscArrayQueue<MpmcUnboundedXaddChunk<E>> freeBuffer;
 
     public MpmcUnboundedXaddArrayQueue(int chunkSize, int maxPooledChunks)
     {
+        if (!UnsafeAccess.SUPPORTS_GET_AND_ADD_LONG)
+        {
+            throw new IllegalStateException("Unsafe::getAndAddLong support (JDK 8+) is required for this queue to work");
+        }
         chunkSize = Pow2.roundToPowerOfTwo(chunkSize);
-        final AtomicChunk<E> first = new AtomicChunk(0, null, chunkSize, true);
+        final MpmcUnboundedXaddChunk<E> first = new MpmcUnboundedXaddChunk(0, null, chunkSize, true);
         soProducerBuffer(first);
         soProducerChunkIndex(0);
         soConsumerBuffer(first);
         chunkMask = chunkSize - 1;
         chunkShift = Integer.numberOfTrailingZeros(chunkSize);
-        freeBuffer = new SpscArrayQueue<AtomicChunk<E>>(maxPooledChunks + 1);
+        freeBuffer = new SpscArrayQueue<MpmcUnboundedXaddChunk<E>>(maxPooledChunks + 1);
         for (int i = 0; i < maxPooledChunks; i++)
         {
-            freeBuffer.offer(new AtomicChunk(AtomicChunk.NIL_CHUNK_INDEX, null, chunkSize, true));
+            freeBuffer.offer(new MpmcUnboundedXaddChunk(MpmcUnboundedXaddChunk.NIL_CHUNK_INDEX, null, chunkSize, true));
         }
     }
 
@@ -309,7 +184,7 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
         this(chunkSize, 1);
     }
 
-    private AtomicChunk<E> producerBufferOf(AtomicChunk<E> producerBuffer, long expectedChunkIndex)
+    private MpmcUnboundedXaddChunk<E> producerBufferOf(MpmcUnboundedXaddChunk<E> producerBuffer, long expectedChunkIndex)
     {
         long jumpBackward;
         while (true)
@@ -319,7 +194,7 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
                 producerBuffer = lvProducerBuffer();
             }
             final long producerChunkIndex = producerBuffer.lvIndex();
-            if (producerChunkIndex == AtomicChunk.NIL_CHUNK_INDEX)
+            if (producerChunkIndex == MpmcUnboundedXaddChunk.NIL_CHUNK_INDEX)
             {
                 //force an attempt to fetch it another time
                 producerBuffer = null;
@@ -350,15 +225,15 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
         return producerBuffer;
     }
 
-    private AtomicChunk<E> appendNextChunks(AtomicChunk<E> producerBuffer, long chunkIndex, int chunkSize, long chunks)
+    private MpmcUnboundedXaddChunk<E> appendNextChunks(MpmcUnboundedXaddChunk<E> producerBuffer, long chunkIndex, int chunkSize, long chunks)
     {
-        assert chunkIndex != AtomicChunk.NIL_CHUNK_INDEX;
+        assert chunkIndex != MpmcUnboundedXaddChunk.NIL_CHUNK_INDEX;
         //prevent other concurrent attempts on appendNextChunk
         if (!casProducerChunkIndex(chunkIndex, ROTATION))
         {
             return null;
         }
-        AtomicChunk<E> newChunk = null;
+        MpmcUnboundedXaddChunk<E> newChunk = null;
         for (long i = 1; i <= chunks; i++)
         {
             final long nextChunkIndex = chunkIndex + i;
@@ -373,7 +248,7 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
             }
             else
             {
-                newChunk = new AtomicChunk<E>(nextChunkIndex, producerBuffer, chunkSize, false);
+                newChunk = new MpmcUnboundedXaddChunk<E>(nextChunkIndex, producerBuffer, chunkSize, false);
             }
             soProducerBuffer(newChunk);
             //link the next chunk only when finished
@@ -408,7 +283,7 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
         final long producerSeq = getAndIncrementProducerIndex();
         final int pOffset = (int) (producerSeq & chunkMask);
         final long chunkIndex = producerSeq >> chunkShift;
-        AtomicChunk<E> producerBuffer = lvProducerBuffer();
+        MpmcUnboundedXaddChunk<E> producerBuffer = lvProducerBuffer();
         if (producerBuffer.lvIndex() != chunkIndex)
         {
             producerBuffer = producerBufferOf(producerBuffer, chunkIndex);
@@ -430,7 +305,7 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
         return true;
     }
 
-    private static <E> E spinForElement(AtomicChunk<E> chunk, int offset)
+    private static <E> E spinForElement(MpmcUnboundedXaddChunk<E> chunk, int offset)
     {
         E e;
         while ((e = chunk.lvElement(offset)) == null)
@@ -440,7 +315,7 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
         return e;
     }
 
-    private E rotateConsumerBuffer(AtomicChunk<E> consumerBuffer, AtomicChunk<E> next, int consumerOffset, long expectedChunkIndex)
+    private E rotateConsumerBuffer(MpmcUnboundedXaddChunk<E> consumerBuffer, MpmcUnboundedXaddChunk<E> next, int consumerOffset, long expectedChunkIndex)
     {
         while (next == null)
         {
@@ -477,12 +352,12 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
         final int chunkMask = this.chunkMask;
         final int chunkShift = this.chunkShift;
         long consumerIndex;
-        AtomicChunk<E> consumerBuffer;
+        MpmcUnboundedXaddChunk<E> consumerBuffer;
         int consumerOffset;
         final int chunkSize = chunkMask + 1;
         boolean firstElementOfNewChunk;
         E e = null;
-        AtomicChunk<E> next = null;
+        MpmcUnboundedXaddChunk<E> next = null;
         long pIndex = -1; // start with bogus value, hope we don't need it
         long chunkIndex;
         do
@@ -607,7 +482,7 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
         {
             e = null;
             consumerIndex = this.lvConsumerIndex();
-            AtomicChunk<E> consumerBuffer = this.lvConsumerBuffer();
+            MpmcUnboundedXaddChunk<E> consumerBuffer = this.lvConsumerBuffer();
             final int consumerOffset = (int) (consumerIndex & chunkMask);
             final long chunkIndex = consumerIndex >> chunkShift;
             final boolean firstElementOfNewChunk = consumerOffset == 0 && consumerIndex >= chunkSize;
@@ -618,7 +493,7 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
                 {
                     continue;
                 }
-                final AtomicChunk<E> next = consumerBuffer.lvNext();
+                final MpmcUnboundedXaddChunk<E> next = consumerBuffer.lvNext();
                 if (next == null)
                 {
                     continue;
@@ -674,14 +549,14 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
         final int chunkShift = this.chunkShift;
         final int chunkSize = chunkMask + 1;
         final long consumerIndex = this.lvConsumerIndex();
-        final AtomicChunk<E> consumerBuffer = this.lvConsumerBuffer();
+        final MpmcUnboundedXaddChunk<E> consumerBuffer = this.lvConsumerBuffer();
         final int consumerOffset = (int) (consumerIndex & chunkMask);
         final long chunkIndex = consumerIndex >> chunkShift;
         final boolean firstElementOfNewChunk = consumerOffset == 0 && consumerIndex >= chunkSize;
         if (firstElementOfNewChunk)
         {
             final long expectedChunkIndex = chunkIndex - 1;
-            final AtomicChunk<E> next;
+            final MpmcUnboundedXaddChunk<E> next;
             if (expectedChunkIndex != consumerBuffer.lvIndex() || (next = consumerBuffer.lvNext()) == null)
             {
                 return null;
@@ -769,7 +644,7 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
         final int chunkShift = this.chunkShift;
         final int chunkSize = chunkMask + 1;
         final long consumerIndex = this.lvConsumerIndex();
-        AtomicChunk<E> consumerBuffer = this.lvConsumerBuffer();
+        MpmcUnboundedXaddChunk<E> consumerBuffer = this.lvConsumerBuffer();
         final int consumerOffset = (int) (consumerIndex & chunkMask);
         final long chunkIndex = consumerIndex >> chunkShift;
         final boolean firstElementOfNewChunk = consumerOffset == 0 && consumerIndex >= chunkSize;
@@ -780,7 +655,7 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
             {
                 return null;
             }
-            final AtomicChunk<E> next = consumerBuffer.lvNext();
+            final MpmcUnboundedXaddChunk<E> next = consumerBuffer.lvNext();
             if (next == null)
             {
                 return null;
@@ -837,7 +712,7 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
         final int chunkShift = this.chunkShift;
         final int chunkMask = this.chunkMask;
         long producerSeq = getAndAddProducerIndex(limit);
-        AtomicChunk<E> producerBuffer = null;
+        MpmcUnboundedXaddChunk<E> producerBuffer = null;
         for (int i = 0; i < limit; i++)
         {
             final int pOffset = (int) (producerSeq & chunkMask);
