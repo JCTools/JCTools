@@ -14,13 +14,15 @@ final class MpscUnboundedXaddChunk<E>
     private static final long NEXT_OFFSET = fieldOffset(MpscUnboundedXaddChunk.class, "next");
     private static final long INDEX_OFFSET = fieldOffset(MpscUnboundedXaddChunk.class, "index");
 
-    final static int NIL_CHUNK_INDEX = -1;
+    final static long CHUNK_CONSUMED = -1;
 
     private final E[] buffer;
     private final boolean pooled;
 
-    private volatile MpscUnboundedXaddChunk<E> prev;
+    // index is a positive monotonic number, unless set to CHUNK_CONSUMED
     private volatile long index;
+
+    private volatile MpscUnboundedXaddChunk<E> prev;
     private volatile MpscUnboundedXaddChunk<E> next;
 
     MpscUnboundedXaddChunk(long index, MpscUnboundedXaddChunk<E> prev, int size, boolean pooled)
@@ -37,9 +39,19 @@ final class MpscUnboundedXaddChunk<E>
         return next;
     }
 
+    void soNext(MpscUnboundedXaddChunk<E> value)
+    {
+        UNSAFE.putOrderedObject(this, NEXT_OFFSET, value);
+    }
+
     MpscUnboundedXaddChunk<E> lpPrev()
     {
         return (MpscUnboundedXaddChunk<E>) UNSAFE.getObject(this, PREV_OFFSET);
+    }
+
+    void spPrev(MpscUnboundedXaddChunk<E> value)
+    {
+        UNSAFE.putObject(this, PREV_OFFSET, value);
     }
 
     long lvIndex()
@@ -57,24 +69,14 @@ final class MpscUnboundedXaddChunk<E>
         UNSAFE.putLong(this, INDEX_OFFSET, index);
     }
 
-    void soNext(MpscUnboundedXaddChunk<E> value)
-    {
-        UNSAFE.putOrderedObject(this, NEXT_OFFSET, value);
-    }
-
-    void spPrev(MpscUnboundedXaddChunk<E> value)
-    {
-        UNSAFE.putObject(this, PREV_OFFSET, value);
-    }
-
     void soElement(int index, E e)
     {
-        UnsafeRefArrayAccess.soRefElement(buffer, UnsafeRefArrayAccess.calcRefElementOffset(index), e);
+        soRefElement(buffer, calcRefElementOffset(index), e);
     }
 
     E lvElement(int index)
     {
-        return UnsafeRefArrayAccess.lvRefElement(buffer, UnsafeRefArrayAccess.calcRefElementOffset(index));
+        return lvRefElement(buffer, calcRefElementOffset(index));
     }
 
     boolean isPooled()
