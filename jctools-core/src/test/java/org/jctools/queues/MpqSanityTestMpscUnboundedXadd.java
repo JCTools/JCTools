@@ -23,6 +23,8 @@ public class MpqSanityTestMpscUnboundedXadd extends MpqSanityTest
         ArrayList<Object[]> list = new ArrayList<Object[]>();
         list.add(makeMpq(0, 1, 0, Ordering.FIFO, new MpscUnboundedXaddArrayQueue<>(1)));
         list.add(makeMpq(0, 1, 0, Ordering.FIFO, new MpscUnboundedXaddArrayQueue<>(64)));
+        list.add(makeMpq(0, 1, 0, Ordering.FIFO, new MpscUnboundedXaddArrayQueue<>(1, 2)));
+        list.add(makeMpq(0, 1, 0, Ordering.FIFO, new MpscUnboundedXaddArrayQueue<>(64, 2)));
         return list;
     }
 }
