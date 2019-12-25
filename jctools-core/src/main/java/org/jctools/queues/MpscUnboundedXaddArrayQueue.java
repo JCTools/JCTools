@@ -64,12 +64,12 @@ abstract class MpscUnboundedXaddArrayQueuePad2<E> extends MpscUnboundedXaddArray
 // $gen:ordered-fields
 abstract class MpscUnboundedXaddArrayQueueProducerBuffer<E> extends MpscUnboundedXaddArrayQueuePad2<E>
 {
-    private static final long P_BUFFER_OFFSET =
-        fieldOffset(MpscUnboundedXaddArrayQueueProducerBuffer.class, "producerBuffer");
+    private static final long P_CHUNK_OFFSET =
+        fieldOffset(MpscUnboundedXaddArrayQueueProducerBuffer.class, "producerChunk");
     private static final long P_CHUNK_INDEX_OFFSET =
         fieldOffset(MpscUnboundedXaddArrayQueueProducerBuffer.class, "producerChunkIndex");
 
-    private volatile MpscUnboundedXaddChunk<E> producerBuffer;
+    private volatile MpscUnboundedXaddChunk<E> producerChunk;
     private volatile long producerChunkIndex;
 
 
@@ -90,12 +90,12 @@ abstract class MpscUnboundedXaddArrayQueueProducerBuffer<E> extends MpscUnbounde
 
     final MpscUnboundedXaddChunk<E> lvProducerChunk()
     {
-        return this.producerBuffer;
+        return this.producerChunk;
     }
 
-    final void soProducerBuffer(MpscUnboundedXaddChunk<E> buffer)
+    final void soProducerChunk(MpscUnboundedXaddChunk<E> chunk)
     {
-        UNSAFE.putOrderedObject(this, P_BUFFER_OFFSET, buffer);
+        UNSAFE.putOrderedObject(this, P_CHUNK_OFFSET, chunk);
     }
 }
 
@@ -161,7 +161,7 @@ public class MpscUnboundedXaddArrayQueue<E> extends MpscUnboundedXaddArrayQueueP
         }
         chunkSize = Pow2.roundToPowerOfTwo(chunkSize);
         final MpscUnboundedXaddChunk<E> first = new MpscUnboundedXaddChunk(0, null, chunkSize, true);
-        soProducerBuffer(first);
+        soProducerChunk(first);
         soProducerChunkIndex(0);
         consumerChunk = first;
         chunkMask = chunkSize - 1;
@@ -237,7 +237,7 @@ public class MpscUnboundedXaddArrayQueue<E> extends MpscUnboundedXaddArrayQueueP
                 currentChunk = lvProducerChunk();
             }
             final long currentChunkIndex = currentChunk.lvIndex();
-            // Consumer will set the chunk index to NIL_CHUNK_INDEX when it is consumed, we should only see this case
+            // Consumer will set the chunk index to CHUNK_CONSUMED when it is consumed, we should only see this case
             // if the consumer has done so concurrent to our attempts to use it.
             if (currentChunkIndex == MpscUnboundedXaddChunk.CHUNK_CONSUMED)
             {
@@ -298,7 +298,7 @@ public class MpscUnboundedXaddArrayQueue<E> extends MpscUnboundedXaddArrayQueueP
             for (long i = 1; i <= chunksToAppend; i++)
             {
                 newChunk = newChunk(currentChunk, currentChunkIndex + i);
-                soProducerBuffer(newChunk);
+                soProducerChunk(newChunk);
                 //link the next chunk only when finished
                 currentChunk.soNext(newChunk);
                 currentChunk = newChunk;
@@ -414,7 +414,7 @@ public class MpscUnboundedXaddArrayQueue<E> extends MpscUnboundedXaddArrayQueueP
         // avoid GC nepotism
         cChunk.soNext(null);
 
-        // change the chunkIndex to a non valid value to stop offering threads to use this buffer
+        // change the chunkIndex to a non valid value to stop offering threads to use this chunk
         cChunk.soIndex(MpscUnboundedXaddChunk.CHUNK_CONSUMED);
         if (cChunk.isPooled())
         {
