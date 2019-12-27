@@ -26,6 +26,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  *
  * @author nitsanw
  */
+@Deprecated//(since = "3.0.0")
 public class QueueFactory
 {
 

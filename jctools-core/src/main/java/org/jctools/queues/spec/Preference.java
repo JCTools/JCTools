@@ -13,6 +13,7 @@
  */
 package org.jctools.queues.spec;
 
+@Deprecated//(since = "3.0.0")
 public enum Preference
 {
     LATENCY, THROUGHPUT, NONE

@@ -15,9 +15,7 @@ package org.jctools.queues.spec;
 
 import org.jctools.queues.MessagePassingQueue;
 
-/**
- * @author nitsanw
- */
+@Deprecated//(since = "3.0.0")
 public final class ConcurrentQueueSpec
 {
     public final int producers;
