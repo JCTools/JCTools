@@ -25,6 +25,8 @@ public class QueueSanityTestMpscUnboundedXadd extends QueueSanityTest
         list.add(makeQueue(0, 1, 0, Ordering.FIFO, new MpscUnboundedXaddArrayQueue<>(64)));
         list.add(makeQueue(0, 1, 0, Ordering.FIFO, new MpscUnboundedXaddArrayQueue<>(1, 2)));
         list.add(makeQueue(0, 1, 0, Ordering.FIFO, new MpscUnboundedXaddArrayQueue<>(64, 2)));
+        list.add(makeQueue(0, 1, 0, Ordering.FIFO, new MpscUnboundedXaddArrayQueue<>(1, 0)));
+        list.add(makeQueue(0, 1, 0, Ordering.FIFO, new MpscUnboundedXaddArrayQueue<>(64, 0)));
         return list;
     }
 }
