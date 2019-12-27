@@ -31,9 +31,6 @@ abstract class ConcurrentCircularArrayQueueL0Pad<E> extends AbstractQueue<E>
 /**
  * Common functionality for array backed queues. The class is pre-padded and the array is padded on either side to help
  * with False Sharing prevention. It is expected that subclasses handle post padding.
- *
- * @param <E>
- * @author nitsanw
  */
 abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircularArrayQueueL0Pad<E>
     implements MessagePassingQueue<E>, IndexedQueue, QueueProgressIndicators, SupportsIterator

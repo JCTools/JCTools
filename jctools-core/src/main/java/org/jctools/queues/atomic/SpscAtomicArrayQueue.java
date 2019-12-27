@@ -147,13 +147,12 @@ abstract class SpscAtomicArrayQueueL3Pad<E> extends SpscAtomicArrayQueueConsumer
  * algorithm with an optimization of the offer method taken from the <a
  * href="http://staff.ustc.edu.cn/~bhua/publications/IJPP_draft.pdf">BQueue</a> algorithm (a variation on Fast
  * Flow), and adjusted to comply with Queue.offer semantics with regards to capacity.<br>
- * For convenience the relevant papers are available in the resources folder:<br>
- * <i>2010 - Pisa - SPSC Queues on Shared Cache Multi-Core Systems.pdf<br>
- * 2012 - Junchang- BQueue- Efﬁcient and Practical Queuing.pdf <br>
- * </i> This implementation is wait free.
- *
- * @param <E>
- * @author nitsanw
+ * For convenience the relevant papers are available in the `resources` folder:<br>
+ * <i>
+ *     2010 - Pisa - SPSC Queues on Shared Cache Multi-Core Systems.pdf<br>
+ *     2012 - Junchang- BQueue- Efﬁcient and Practical Queuing.pdf <br>
+ * </i>
+ * This implementation is wait free.
  */
 public class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueL3Pad<E> {
 
@@ -179,7 +178,6 @@ public class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueL3Pad<E> {
             return false;
         }
         final int offset = calcCircularRefElementOffset(producerIndex, mask);
-        // StoreStore
         soRefElement(buffer, offset, e);
         // ordered store -> atomic and ordered for size()
         soProducerIndex(producerIndex + 1);
@@ -189,7 +187,6 @@ public class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueL3Pad<E> {
     private boolean offerSlowPath(final AtomicReferenceArray<E> buffer, final int mask, final long producerIndex) {
         final int lookAheadStep = this.lookAheadStep;
         if (null == lvRefElement(buffer, calcCircularRefElementOffset(producerIndex + lookAheadStep, mask))) {
-            // LoadLoad
             producerLimit = producerIndex + lookAheadStep;
         } else {
             final int offset = calcCircularRefElementOffset(producerIndex, mask);
@@ -211,12 +208,10 @@ public class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueL3Pad<E> {
         final int offset = calcCircularRefElementOffset(consumerIndex, mask);
         // local load of field to avoid repeated loads after volatile reads
         final AtomicReferenceArray<E> buffer = this.buffer;
-        // LoadLoad
         final E e = lvRefElement(buffer, offset);
         if (null == e) {
             return null;
         }
-        // StoreStore
         soRefElement(buffer, offset, null);
         // ordered store -> atomic and ordered for size()
         soConsumerIndex(consumerIndex + 1);
@@ -272,12 +267,10 @@ public class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueL3Pad<E> {
         for (int i = 0; i < limit; i++) {
             final long index = consumerIndex + i;
             final int offset = calcCircularRefElementOffset(index, mask);
-            // LoadLoad
             final E e = lvRefElement(buffer, offset);
             if (null == e) {
                 return i;
             }
-            // StoreStore
             soRefElement(buffer, offset, null);
             // ordered store -> atomic and ordered for size()
             soConsumerIndex(index + 1);
@@ -302,11 +295,9 @@ public class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueL3Pad<E> {
             final long index = producerIndex + i;
             final int lookAheadElementOffset = calcCircularRefElementOffset(index + lookAheadStep, mask);
             if (null == lvRefElement(buffer, lookAheadElementOffset)) {
-                // LoadLoad
                 int lookAheadLimit = Math.min(lookAheadStep, limit - i);
                 for (int j = 0; j < lookAheadLimit; j++) {
                     final int offset = calcCircularRefElementOffset(index + j, mask);
-                    // StoreStore
                     soRefElement(buffer, offset, s.get());
                     // ordered store -> atomic and ordered for size()
                     soProducerIndex(index + j + 1);
@@ -317,7 +308,6 @@ public class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueL3Pad<E> {
                 if (null != lvRefElement(buffer, offset)) {
                     return i;
                 }
-                // StoreStore
                 soRefElement(buffer, offset, s.get());
                 // ordered store -> atomic and ordered for size()
                 soProducerIndex(index + 1);
@@ -341,7 +331,6 @@ public class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueL3Pad<E> {
         while (exit.keepRunning()) {
             for (int i = 0; i < 4096; i++) {
                 final int offset = calcCircularRefElementOffset(consumerIndex, mask);
-                // LoadLoad
                 final E e = lvRefElement(buffer, offset);
                 if (null == e) {
                     counter = w.idle(counter);
@@ -349,7 +338,6 @@ public class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueL3Pad<E> {
                 }
                 consumerIndex++;
                 counter = 0;
-                // StoreStore
                 soRefElement(buffer, offset, null);
                 // ordered store -> atomic and ordered for size()
                 soConsumerIndex(consumerIndex);
@@ -374,11 +362,9 @@ public class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueL3Pad<E> {
         while (e.keepRunning()) {
             final int lookAheadElementOffset = calcCircularRefElementOffset(producerIndex + lookAheadStep, mask);
             if (null == lvRefElement(buffer, lookAheadElementOffset)) {
-                // LoadLoad
                 for (int j = 0; j < lookAheadStep; j++) {
                     final int offset = calcCircularRefElementOffset(producerIndex, mask);
                     producerIndex++;
-                    // StoreStore
                     soRefElement(buffer, offset, s.get());
                     // ordered store -> atomic and ordered for size()
                     soProducerIndex(producerIndex);
@@ -386,13 +372,11 @@ public class SpscAtomicArrayQueue<E> extends SpscAtomicArrayQueueL3Pad<E> {
             } else {
                 final int offset = calcCircularRefElementOffset(producerIndex, mask);
                 if (null != lvRefElement(buffer, offset)) {
-                    // LoadLoad
                     counter = w.idle(counter);
                     continue;
                 }
                 producerIndex++;
                 counter = 0;
-                // StoreStore
                 soRefElement(buffer, offset, s.get());
                 // ordered store -> atomic and ordered for size()
                 soProducerIndex(producerIndex);

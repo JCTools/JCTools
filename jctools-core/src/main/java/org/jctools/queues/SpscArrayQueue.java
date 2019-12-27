@@ -131,13 +131,12 @@ abstract class SpscArrayQueueL3Pad<E> extends SpscArrayQueueConsumerIndexField<E
  * algorithm with an optimization of the offer method taken from the <a
  * href="http://staff.ustc.edu.cn/~bhua/publications/IJPP_draft.pdf">BQueue</a> algorithm (a variation on Fast
  * Flow), and adjusted to comply with Queue.offer semantics with regards to capacity.<br>
- * For convenience the relevant papers are available in the resources folder:<br>
- * <i>2010 - Pisa - SPSC Queues on Shared Cache Multi-Core Systems.pdf<br>
- * 2012 - Junchang- BQueue- Efﬁcient and Practical Queuing.pdf <br>
- * </i> This implementation is wait free.
- *
- * @param <E>
- * @author nitsanw
+ * For convenience the relevant papers are available in the `resources` folder:<br>
+ * <i>
+ *     2010 - Pisa - SPSC Queues on Shared Cache Multi-Core Systems.pdf<br>
+ *     2012 - Junchang- BQueue- Efﬁcient and Practical Queuing.pdf <br>
+ * </i>
+ * This implementation is wait free.
  */
 public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>
 {
@@ -171,7 +170,7 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>
         }
         final long offset = calcCircularRefElementOffset(producerIndex, mask);
 
-        soRefElement(buffer, offset, e); // StoreStore
+        soRefElement(buffer, offset, e);
         soProducerIndex(producerIndex + 1); // ordered store -> atomic and ordered for size()
         return true;
     }
@@ -181,7 +180,7 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>
         final int lookAheadStep = this.lookAheadStep;
         if (null == lvRefElement(buffer,
             calcCircularRefElementOffset(producerIndex + lookAheadStep, mask)))
-        {// LoadLoad
+        {
             producerLimit = producerIndex + lookAheadStep;
         }
         else
@@ -207,12 +206,12 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>
         final long offset = calcCircularRefElementOffset(consumerIndex, mask);
         // local load of field to avoid repeated loads after volatile reads
         final E[] buffer = this.buffer;
-        final E e = lvRefElement(buffer, offset);// LoadLoad
+        final E e = lvRefElement(buffer, offset);
         if (null == e)
         {
             return null;
         }
-        soRefElement(buffer, offset, null);// StoreStore
+        soRefElement(buffer, offset, null);
         soConsumerIndex(consumerIndex + 1); // ordered store -> atomic and ordered for size()
         return e;
     }
@@ -276,12 +275,12 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>
         {
             final long index = consumerIndex + i;
             final long offset = calcCircularRefElementOffset(index, mask);
-            final E e = lvRefElement(buffer, offset);// LoadLoad
+            final E e = lvRefElement(buffer, offset);
             if (null == e)
             {
                 return i;
             }
-            soRefElement(buffer, offset, null);// StoreStore
+            soRefElement(buffer, offset, null);
             soConsumerIndex(index + 1); // ordered store -> atomic and ordered for size()
             c.accept(e);
         }
@@ -309,12 +308,12 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>
             final long lookAheadElementOffset =
                 calcCircularRefElementOffset(index + lookAheadStep, mask);
             if (null == lvRefElement(buffer, lookAheadElementOffset))
-            {// LoadLoad
+            {
                 int lookAheadLimit = Math.min(lookAheadStep, limit - i);
                 for (int j = 0; j < lookAheadLimit; j++)
                 {
                     final long offset = calcCircularRefElementOffset(index + j, mask);
-                    soRefElement(buffer, offset, s.get()); // StoreStore
+                    soRefElement(buffer, offset, s.get());
                     soProducerIndex(index + j + 1); // ordered store -> atomic and ordered for size()
                 }
                 i += lookAheadLimit - 1;
@@ -326,7 +325,7 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>
                 {
                     return i;
                 }
-                soRefElement(buffer, offset, s.get()); // StoreStore
+                soRefElement(buffer, offset, s.get());
                 soProducerIndex(index + 1); // ordered store -> atomic and ordered for size()
             }
 
@@ -354,7 +353,7 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>
             for (int i = 0; i < 4096; i++)
             {
                 final long offset = calcCircularRefElementOffset(consumerIndex, mask);
-                final E e = lvRefElement(buffer, offset);// LoadLoad
+                final E e = lvRefElement(buffer, offset);
                 if (null == e)
                 {
                     counter = w.idle(counter);
@@ -362,7 +361,7 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>
                 }
                 consumerIndex++;
                 counter = 0;
-                soRefElement(buffer, offset, null);// StoreStore
+                soRefElement(buffer, offset, null);
                 soConsumerIndex(consumerIndex); // ordered store -> atomic and ordered for size()
                 c.accept(e);
             }
@@ -389,12 +388,12 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>
             final long lookAheadElementOffset =
                 calcCircularRefElementOffset(producerIndex + lookAheadStep, mask);
             if (null == lvRefElement(buffer, lookAheadElementOffset))
-            {// LoadLoad
+            {
                 for (int j = 0; j < lookAheadStep; j++)
                 {
                     final long offset = calcCircularRefElementOffset(producerIndex, mask);
                     producerIndex++;
-                    soRefElement(buffer, offset, s.get()); // StoreStore
+                    soRefElement(buffer, offset, s.get());
                     soProducerIndex(producerIndex); // ordered store -> atomic and ordered for size()
                 }
             }
@@ -402,13 +401,13 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>
             {
                 final long offset = calcCircularRefElementOffset(producerIndex, mask);
                 if (null != lvRefElement(buffer, offset))
-                {// LoadLoad
+                {
                     counter = w.idle(counter);
                     continue;
                 }
                 producerIndex++;
                 counter = 0;
-                soRefElement(buffer, offset, s.get()); // StoreStore
+                soRefElement(buffer, offset, s.get());
                 soProducerIndex(producerIndex); // ordered store -> atomic and ordered for size()
             }
         }

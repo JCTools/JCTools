@@ -166,10 +166,7 @@ abstract class MpscAtomicArrayQueueL3Pad<E> extends MpscAtomicArrayQueueConsumer
  * This implementation follows patterns documented on the package level for False Sharing protection.<br>
  * This implementation is using the <a href="http://sourceforge.net/projects/mc-fastflow/">Fast Flow</a>
  * method for polling from the queue (with minor change to correctly publish the index) and an extension of
- * the Leslie Lamport concurrent queue algorithm (originated by Martin Thompson) on the producer side.<br>
- *
- * @param <E>
- * @author nitsanw
+ * the Leslie Lamport concurrent queue algorithm (originated by Martin Thompson) on the producer side.
  */
 public class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
 
@@ -191,16 +188,13 @@ public class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
         }
         final int mask = this.mask;
         final long capacity = mask + 1;
-        // LoadLoad
         long producerLimit = lvProducerLimit();
         long pIndex;
         do {
-            // LoadLoad
             pIndex = lvProducerIndex();
             long available = producerLimit - pIndex;
             long size = capacity - available;
             if (size >= threshold) {
-                // LoadLoad
                 final long cIndex = lvConsumerIndex();
                 size = pIndex - cIndex;
                 if (size >= threshold) {
@@ -220,7 +214,6 @@ public class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
          */
         // Won CAS, move on to storing
         final int offset = calcCircularRefElementOffset(pIndex, mask);
-        // StoreStore
         soRefElement(buffer, offset, e);
         // AWESOME :)
         return true;
@@ -243,14 +236,11 @@ public class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
         }
         // use a cached view on consumer index (potentially updated in loop)
         final int mask = this.mask;
-        // LoadLoad
         long producerLimit = lvProducerLimit();
         long pIndex;
         do {
-            // LoadLoad
             pIndex = lvProducerIndex();
             if (pIndex >= producerLimit) {
-                // LoadLoad
                 final long cIndex = lvConsumerIndex();
                 producerLimit = cIndex + mask + 1;
                 if (pIndex >= producerLimit) {
@@ -269,7 +259,6 @@ public class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
          */
         // Won CAS, move on to storing
         final int offset = calcCircularRefElementOffset(pIndex, mask);
-        // StoreStore
         soRefElement(buffer, offset, e);
         // AWESOME :)
         return true;
@@ -287,12 +276,9 @@ public class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
         }
         final int mask = this.mask;
         final long capacity = mask + 1;
-        // LoadLoad
         final long pIndex = lvProducerIndex();
-        // LoadLoad
         long producerLimit = lvProducerLimit();
         if (pIndex >= producerLimit) {
-            // LoadLoad
             final long cIndex = lvConsumerIndex();
             producerLimit = cIndex + capacity;
             if (pIndex >= producerLimit) {
@@ -300,7 +286,6 @@ public class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
                 return 1;
             } else {
                 // update producer limit to the next index that we must recheck the consumer index
-                // StoreLoad
                 soProducerLimit(producerLimit);
             }
         }
@@ -332,7 +317,6 @@ public class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
         // Copy field to avoid re-reading after volatile load
         final AtomicReferenceArray<E> buffer = this.buffer;
         // If we can't see the next available element we can't poll
-        // LoadLoad
         E e = lvRefElement(buffer, offset);
         if (null == e) {
             /*
@@ -349,7 +333,6 @@ public class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
             }
         }
         soRefElement(buffer, offset, null);
-        // StoreStore
         soConsumerIndex(cIndex + 1);
         return e;
     }
@@ -367,7 +350,6 @@ public class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
     public E peek() {
         // Copy field to avoid re-reading after volatile load
         final AtomicReferenceArray<E> buffer = this.buffer;
-        // LoadLoad
         final long cIndex = lpConsumerIndex();
         final int offset = calcCircularRefElementOffset(cIndex, mask);
         E e = lvRefElement(buffer, offset);
@@ -399,13 +381,11 @@ public class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
         final long cIndex = lpConsumerIndex();
         final int offset = calcCircularRefElementOffset(cIndex, mask);
         // If we can't see the next available element we can't poll
-        // LoadLoad
         E e = lvRefElement(buffer, offset);
         if (null == e) {
             return null;
         }
         soRefElement(buffer, offset, null);
-        // StoreStore
         soConsumerIndex(cIndex + 1);
         return e;
     }
@@ -432,7 +412,6 @@ public class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
         for (int i = 0; i < limit; i++) {
             final long index = cIndex + i;
             final int offset = calcCircularRefElementOffset(index, mask);
-            // LoadLoad
             final E e = lvRefElement(buffer, offset);
             if (null == e) {
                 return i;
@@ -455,16 +434,13 @@ public class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
             return 0;
         final int mask = this.mask;
         final long capacity = mask + 1;
-        // LoadLoad
         long producerLimit = lvProducerLimit();
         long pIndex;
         int actualLimit = 0;
         do {
-            // LoadLoad
             pIndex = lvProducerIndex();
             long available = producerLimit - pIndex;
             if (available <= 0) {
-                // LoadLoad
                 final long cIndex = lvConsumerIndex();
                 producerLimit = cIndex + capacity;
                 available = producerLimit - pIndex;
@@ -473,7 +449,6 @@ public class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
                     return 0;
                 } else {
                     // update producer limit to the next index that we must recheck the consumer index
-                    // StoreLoad
                     soProducerLimit(producerLimit);
                 }
             }

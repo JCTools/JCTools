@@ -352,7 +352,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E>
                 return i;
             }
             producerIndex++;
-            soRefElement(buffer, offset, s.get()); // StoreStore
+            soRefElement(buffer, offset, s.get());
             soProducerIndex(producerIndex); // ordered store -> atomic and ordered for size()
         }
         return limit;

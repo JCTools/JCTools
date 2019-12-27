@@ -31,9 +31,6 @@ import static org.jctools.util.UnsafeAccess.UNSAFE;
  * </ol>
  * The queue is initialized with a stub node which is set to both the producer and consumer node references.
  * From this point follow the notes on offer/poll.
- *
- * @param <E> the type of elements in this queue
- * @author nitsanw
  */
 public class MpscLinkedQueue<E> extends BaseLinkedQueue<E>
 {

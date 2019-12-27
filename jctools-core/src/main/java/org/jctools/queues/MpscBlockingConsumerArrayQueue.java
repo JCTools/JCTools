@@ -373,7 +373,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
 
         final long cIndex = lpConsumerIndex();
         final long offset = modifiedCalcCircularRefElementOffset(cIndex, mask);
-        Object e = lvRefElement(buffer, offset);// LoadLoad
+        Object e = lvRefElement(buffer, offset);
         if (e == null)
         {
             final long pIndex = lvProducerIndex();
@@ -431,7 +431,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
 
         final long cIndex = lpConsumerIndex();
         final long offset = modifiedCalcCircularRefElementOffset(cIndex, mask);
-        Object e = lvRefElement(buffer, offset);// LoadLoad
+        Object e = lvRefElement(buffer, offset);
         if (e == null)
         {
             if (remainingNanos <= 0)
@@ -521,7 +521,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
 
         final long index = lpConsumerIndex();
         final long offset = modifiedCalcCircularRefElementOffset(index, mask);
-        Object e = lvRefElement(buffer, offset);// LoadLoad
+        Object e = lvRefElement(buffer, offset);
         if (e == null)
         {
             // consumer can't see the odd producer index
@@ -568,7 +568,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
 
         final long index = lpConsumerIndex();
         final long offset = modifiedCalcCircularRefElementOffset(index, mask);
-        Object e = lvRefElement(buffer, offset);// LoadLoad
+        Object e = lvRefElement(buffer, offset);
         if (e == null && index != lvProducerIndex())
         {
             // peek() == null iff queue is empty, null element is not strong enough indicator, so we must
@@ -612,7 +612,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         final long mask = consumerMask;
 
         final long offset = modifiedCalcCircularRefElementOffset(index, mask);
-        E e = lvRefElement(buffer, offset);// LoadLoad
+        E e = lvRefElement(buffer, offset);
         if (e == null)
         {
             return null;
@@ -630,7 +630,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         final long mask = consumerMask;
 
         final long offset = modifiedCalcCircularRefElementOffset(index, mask);
-        E e = lvRefElement(buffer, offset);// LoadLoad
+        E e = lvRefElement(buffer, offset);
         return e;
     }
 

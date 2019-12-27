@@ -23,9 +23,7 @@ import static org.jctools.queues.LinkedArrayQueueUtil.length;
  * An MPSC array queue which starts at <i>initialCapacity</i> and grows to <i>maxCapacity</i> in linked chunks,
  * doubling theirs size every time until the full blown backing array is used.
  * The queue grows only when the current chunk is full and elements are not copied on
- * resize, instead a link to the new chunk is stored in the old chunk for the consumer to follow.<br>
- *
- * @param <E>
+ * resize, instead a link to the new chunk is stored in the old chunk for the consumer to follow.
  */
 public class MpscGrowableArrayQueue<E> extends MpscChunkedArrayQueue<E>
 {

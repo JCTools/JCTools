@@ -94,9 +94,6 @@ abstract class BaseLinkedQueuePad2<E> extends BaseLinkedQueueConsumerNodeRef<E>
 /**
  * A base data structure for concurrent linked queues. For convenience also pulled in common single consumer
  * methods since at this time there's no plan to implement MC.
- *
- * @param <E>
- * @author nitsanw
  */
 abstract class BaseLinkedQueue<E> extends BaseLinkedQueuePad2<E>
 {

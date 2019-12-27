@@ -324,7 +324,6 @@ public class SpmcAtomicArrayQueue<E> extends SpmcAtomicArrayQueueL3Pad<E> {
                 return i;
             }
             producerIndex++;
-            // StoreStore
             soRefElement(buffer, offset, s.get());
             // ordered store -> atomic and ordered for size()
             soProducerIndex(producerIndex);

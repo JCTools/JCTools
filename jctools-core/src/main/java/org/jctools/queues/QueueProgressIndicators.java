@@ -4,8 +4,6 @@ package org.jctools.queues;
  * This interface is provided for monitoring purposes only and is only available on queues where it is easy to
  * provide it. The producer/consumer progress indicators usually correspond with the number of elements
  * offered/polled, but they are not guaranteed to maintain that semantic.
- *
- * @author nitsanw
  */
 public interface QueueProgressIndicators
 {
