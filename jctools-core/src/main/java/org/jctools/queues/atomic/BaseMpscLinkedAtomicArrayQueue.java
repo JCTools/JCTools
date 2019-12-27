@@ -148,11 +148,9 @@ abstract class BaseMpscLinkedAtomicArrayQueueColdProducerFields<E> extends BaseM
  *
  * An MPSC array queue which starts at <i>initialCapacity</i> and grows to <i>maxCapacity</i> in linked chunks
  * of the initial size. The queue grows only when the current buffer is full and elements are not copied on
- * resize, instead a link to the new buffer is stored in the old buffer for the consumer to follow.<br>
- *
- * @param <E>
+ * resize, instead a link to the new buffer is stored in the old buffer for the consumer to follow.
  */
-public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAtomicArrayQueueColdProducerFields<E> implements MessagePassingQueue<E>, QueueProgressIndicators {
+abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAtomicArrayQueueColdProducerFields<E> implements MessagePassingQueue<E>, QueueProgressIndicators {
 
     // No post padding here, subclasses must add
     private static final Object JUMP = new Object();
@@ -282,7 +280,6 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
         final long index = lpConsumerIndex();
         final long mask = consumerMask;
         final int offset = modifiedCalcCircularRefElementOffset(index, mask);
-        // LoadLoad
         Object e = lvRefElement(buffer, offset);
         if (e == null) {
             if (index != lvProducerIndex()) {
@@ -317,7 +314,6 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
         final long index = lpConsumerIndex();
         final long mask = consumerMask;
         final int offset = modifiedCalcCircularRefElementOffset(index, mask);
-        // LoadLoad
         Object e = lvRefElement(buffer, offset);
         if (e == null && index != lvProducerIndex()) {
             // check the producer index. If the queue is indeed not empty we spin until element is visible.
@@ -380,12 +376,10 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
 
     private E newBufferPoll(AtomicReferenceArray<E> nextBuffer, long index) {
         final int offset = modifiedCalcCircularRefElementOffset(index, consumerMask);
-        // LoadLoad
         final E n = lvRefElement(nextBuffer, offset);
         if (n == null) {
             throw new IllegalStateException("new buffer must have at least one element");
         }
-        // StoreStore
         soRefElement(nextBuffer, offset, null);
         soConsumerIndex(index + 2);
         return n;
@@ -393,7 +387,6 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
 
     private E newBufferPeek(AtomicReferenceArray<E> nextBuffer, long index) {
         final int offset = modifiedCalcCircularRefElementOffset(index, consumerMask);
-        // LoadLoad
         final E n = lvRefElement(nextBuffer, offset);
         if (null == n) {
             throw new IllegalStateException("new buffer must have at least one element");
@@ -426,7 +419,6 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
         final long index = lpConsumerIndex();
         final long mask = consumerMask;
         final int offset = modifiedCalcCircularRefElementOffset(index, mask);
-        // LoadLoad
         Object e = lvRefElement(buffer, offset);
         if (e == null) {
             return null;
@@ -447,7 +439,6 @@ public abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAt
         final long index = lpConsumerIndex();
         final long mask = consumerMask;
         final int offset = modifiedCalcCircularRefElementOffset(index, mask);
-        // LoadLoad
         Object e = lvRefElement(buffer, offset);
         if (e == JUMP) {
             return newBufferPeek(nextBuffer(buffer, mask), index);
