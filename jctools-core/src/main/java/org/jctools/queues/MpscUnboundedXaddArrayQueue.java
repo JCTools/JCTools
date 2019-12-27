@@ -142,7 +142,6 @@ abstract class MpscUnboundedXaddArrayQueuePad4<E> extends MpscUnboundedXaddArray
  * Differently from {@link MpscUnboundedArrayQueue} it is designed to provide a better scaling when more
  * producers are concurrently offering.
  *
- * @param <E>
  * @author https://github.com/franz1981
  */
 public class MpscUnboundedXaddArrayQueue<E> extends MpscUnboundedXaddArrayQueuePad4<E>
