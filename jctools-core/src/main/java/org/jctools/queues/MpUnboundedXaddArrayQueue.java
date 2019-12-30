@@ -8,6 +8,7 @@ import org.jctools.util.UnsafeAccess;
 import java.util.AbstractQueue;
 import java.util.Iterator;
 
+import static org.jctools.queues.MpUnboundedXaddChunk.CHUNK_CONSUMED;
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeAccess.fieldOffset;
 
@@ -176,7 +177,7 @@ abstract class MpUnboundedXaddArrayQueue<R extends MpUnboundedXaddChunk<R,E>, E>
         soConsumerChunk(first);
         for (int i = 0; i < maxPooledChunks; i++)
         {
-            freeChunksPool.offer(newChunk(MpUnboundedXaddChunk.CHUNK_CONSUMED, null, chunkSize, true));
+            freeChunksPool.offer(newChunk(CHUNK_CONSUMED, null, chunkSize, true));
         }
     }
 
@@ -217,7 +218,7 @@ abstract class MpUnboundedXaddArrayQueue<R extends MpUnboundedXaddChunk<R,E>, E>
             final long currentChunkIndex = currentChunk.lvIndex();
             // Consumer will set the chunk index to CHUNK_CONSUMED when it is consumed, we should only see this case
             // if the consumer has done so concurrent to our attempts to use it.
-            if (currentChunkIndex == MpmcUnboundedXaddChunk.CHUNK_CONSUMED)
+            if (currentChunkIndex == CHUNK_CONSUMED)
             {
                 //force an attempt to fetch it another time
                 currentChunk = null;
@@ -257,7 +258,7 @@ abstract class MpUnboundedXaddArrayQueue<R extends MpUnboundedXaddChunk<R,E>, E>
         long currentChunkIndex,
         long chunksToAppend)
     {
-        assert currentChunkIndex != MpUnboundedXaddChunk.CHUNK_CONSUMED;
+        assert currentChunkIndex != CHUNK_CONSUMED;
         //prevent other concurrent attempts on appendNextChunk
         if (!casProducerChunkIndex(currentChunkIndex, ROTATION))
         {
@@ -268,7 +269,7 @@ abstract class MpUnboundedXaddArrayQueue<R extends MpUnboundedXaddChunk<R,E>, E>
             long lvIndex;
             // it is valid for the currentChunk to be consumed while appending is in flight, but it's not valid for the
             // current chunk ordering to change otherwise.
-            assert ((lvIndex = currentChunk.lvIndex()) == MpscUnboundedXaddChunk.CHUNK_CONSUMED ||
+            assert ((lvIndex = currentChunk.lvIndex()) == CHUNK_CONSUMED ||
                 currentChunkIndex == lvIndex);
 
             for (long i = 1; i <= chunksToAppend; i++)
@@ -343,7 +344,7 @@ abstract class MpUnboundedXaddArrayQueue<R extends MpUnboundedXaddChunk<R,E>, E>
     {
         // avoid GC nepotism
         cChunk.soNext(null);// change the chunkIndex to a non valid value to stop offering threads to use this chunk
-        cChunk.soIndex(MpscUnboundedXaddChunk.CHUNK_CONSUMED);
+        cChunk.soIndex(CHUNK_CONSUMED);
         if (cChunk.isPooled())
         {
             final boolean pooled = freeChunksPool.offer(cChunk);
