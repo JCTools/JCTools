@@ -18,6 +18,8 @@ package org.jctools.queues;
  * An MPMC array queue which starts at <i>initialCapacity</i> and grows unbounded in linked chunks.<br>
  * Differently from {@link MpmcArrayQueue} it is designed to provide a better scaling when more
  * producers are concurrently offering.
+ *
+ * @author https://github.com/franz1981
  */
 public class MpmcUnboundedXaddArrayQueue<E> extends MpUnboundedXaddArrayQueue<MpmcUnboundedXaddChunk<E>, E>
 {

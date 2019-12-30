@@ -150,6 +150,11 @@ abstract class MpUnboundedXaddArrayQueuePad5<R extends MpUnboundedXaddChunk<R,E>
     long p10, p11, p12, p13, p14, p15, p16;
 }
 
+/**
+ * Common infrastructure for the XADD queues.
+ *
+ * @author https://github.com/franz1981
+ */
 abstract class MpUnboundedXaddArrayQueue<R extends MpUnboundedXaddChunk<R,E>, E>
     extends MpUnboundedXaddArrayQueuePad5<R, E>
     implements MessagePassingQueue<E>, QueueProgressIndicators
