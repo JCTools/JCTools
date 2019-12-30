@@ -13,184 +13,28 @@
  */
 package org.jctools.queues;
 
-import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
-import org.jctools.util.PortableJvmInfo;
-import org.jctools.util.Pow2;
-import org.jctools.util.UnsafeAccess;
-
-import java.util.AbstractQueue;
-import java.util.Iterator;
-
-import static org.jctools.util.UnsafeAccess.UNSAFE;
-import static org.jctools.util.UnsafeAccess.fieldOffset;
-
-abstract class MpmcUnboundedXaddArrayQueuePad1<E> extends AbstractQueue<E> implements IndexedQueue
-{
-    long p01, p02, p03, p04, p05, p06, p07;
-    long p10, p11, p12, p13, p14, p15, p16, p17;
-}
-
-// $gen:ordered-fields
-abstract class MpmcUnboundedXaddArrayQueueProducerFields<E> extends MpmcUnboundedXaddArrayQueuePad1<E>
-{
-    private final static long P_INDEX_OFFSET =
-        fieldOffset(MpmcUnboundedXaddArrayQueueProducerFields.class, "producerIndex");
-    private volatile long producerIndex;
-
-    @Override
-    public final long lvProducerIndex()
-    {
-        return producerIndex;
-    }
-
-    final long getAndIncrementProducerIndex()
-    {
-        return UNSAFE.getAndAddLong(this, P_INDEX_OFFSET, 1);
-    }
-
-    final long getAndAddProducerIndex(long delta)
-    {
-        return UNSAFE.getAndAddLong(this, P_INDEX_OFFSET, delta);
-    }
-}
-
-abstract class MpmcUnboundedXaddArrayQueuePad2<E> extends MpmcUnboundedXaddArrayQueueProducerFields<E>
-{
-    long p01, p02, p03, p04, p05, p06, p07, p08;
-    long p10, p11, p12, p13, p14, p15, p16;
-}
-
-// $gen:ordered-fields
-abstract class MpmcUnboundedXaddArrayQueueProducerChunk<E> extends MpmcUnboundedXaddArrayQueuePad2<E>
-{
-    private static final long P_CHUNK_OFFSET =
-        fieldOffset(MpmcUnboundedXaddArrayQueueProducerChunk.class, "producerChunk");
-    private static final long P_CHUNK_INDEX_OFFSET =
-        fieldOffset(MpmcUnboundedXaddArrayQueueProducerChunk.class, "producerChunkIndex");
-
-    private volatile MpmcUnboundedXaddChunk<E> producerChunk;
-    private volatile long producerChunkIndex;
-
-
-    final long lvProducerChunkIndex()
-    {
-        return producerChunkIndex;
-    }
-
-    final boolean casProducerChunkIndex(long expected, long value)
-    {
-        return UNSAFE.compareAndSwapLong(this, P_CHUNK_INDEX_OFFSET, expected, value);
-    }
-
-    final void soProducerChunkIndex(long value)
-    {
-        UNSAFE.putOrderedLong(this, P_CHUNK_INDEX_OFFSET, value);
-    }
-
-    final MpmcUnboundedXaddChunk<E> lvProducerChunk()
-    {
-        return this.producerChunk;
-    }
-
-    final void soProducerChunk(MpmcUnboundedXaddChunk<E> buffer)
-    {
-        UNSAFE.putOrderedObject(this, P_CHUNK_OFFSET, buffer);
-    }
-}
-
-abstract class MpmcUnboundedXaddArrayQueuePad3<E> extends MpmcUnboundedXaddArrayQueueProducerChunk<E>
-{
-    long p0, p1, p2, p3, p4, p5, p6, p7;
-    long p10, p11, p12, p13, p14, p15, p16;
-}
-
-// $gen:ordered-fields
-abstract class MpmcUnboundedXaddArrayQueueConsumerFields<E> extends MpmcUnboundedXaddArrayQueuePad3<E>
-{
-    private final static long C_INDEX_OFFSET =
-        fieldOffset(MpmcUnboundedXaddArrayQueueConsumerFields.class, "consumerIndex");
-    private final static long C_CHUNK_OFFSET =
-        fieldOffset(MpmcUnboundedXaddArrayQueueConsumerFields.class, "consumerChunk");
-
-    private volatile long consumerIndex;
-    private volatile MpmcUnboundedXaddChunk<E> consumerChunk;
-
-    @Override
-    public final long lvConsumerIndex()
-    {
-        return consumerIndex;
-    }
-
-    final boolean casConsumerIndex(long expect, long newValue)
-    {
-        return UNSAFE.compareAndSwapLong(this, C_INDEX_OFFSET, expect, newValue);
-    }
-
-    final MpmcUnboundedXaddChunk<E> lvConsumerChunk()
-    {
-        return this.consumerChunk;
-    }
-
-    final void soConsumerBuffer(MpmcUnboundedXaddChunk<E> newValue)
-    {
-        UNSAFE.putOrderedObject(this, C_CHUNK_OFFSET, newValue);
-    }
-}
-
-abstract class MpmcUnboundedXaddArrayQueuePad5<E> extends MpmcUnboundedXaddArrayQueueConsumerFields<E>
-{
-    long p0, p1, p2, p3, p4, p5, p6, p7;
-    long p10, p11, p12, p13, p14, p15, p16;
-}
 
 /**
  * An MPMC array queue which starts at <i>initialCapacity</i> and grows unbounded in linked chunks.<br>
  * Differently from {@link MpmcArrayQueue} it is designed to provide a better scaling when more
  * producers are concurrently offering.
  */
-public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueuePad5<E>
-    implements MessagePassingQueue<E>, QueueProgressIndicators
+public class MpmcUnboundedXaddArrayQueue<E> extends MpUnboundedXaddArrayQueue<MpmcUnboundedXaddChunk<E>, E>
 {
-    private static final long ROTATION = -2;
-    private final int chunkMask;
-    private final int chunkShift;
-    private final SpscArrayQueue<MpmcUnboundedXaddChunk<E>> freeChunksPool;
 
     public MpmcUnboundedXaddArrayQueue(int chunkSize, int maxPooledChunks)
     {
-        if (!UnsafeAccess.SUPPORTS_GET_AND_ADD_LONG)
-        {
-            throw new IllegalStateException("Unsafe::getAndAddLong support (JDK 8+) is required for this queue to work");
-        }
-        chunkSize = Pow2.roundToPowerOfTwo(chunkSize);
-        final MpmcUnboundedXaddChunk<E> first = new MpmcUnboundedXaddChunk(0, null, chunkSize, true);
-        soProducerChunk(first);
-        soProducerChunkIndex(0);
-        soConsumerBuffer(first);
-        chunkMask = chunkSize - 1;
-        chunkShift = Integer.numberOfTrailingZeros(chunkSize);
-        freeChunksPool = new SpscArrayQueue<MpmcUnboundedXaddChunk<E>>(maxPooledChunks + 1);
-        for (int i = 0; i < maxPooledChunks; i++)
-        {
-            freeChunksPool.offer(new MpmcUnboundedXaddChunk(MpmcUnboundedXaddChunk.CHUNK_CONSUMED, null, chunkSize, true));
-        }
+        super(chunkSize, maxPooledChunks);
+    }
+
+    protected MpmcUnboundedXaddChunk<E> newChunk(long index, MpmcUnboundedXaddChunk<E> prev, int chunkSize, boolean pooled)
+    {
+        return new MpmcUnboundedXaddChunk(index, prev, chunkSize, pooled);
     }
 
     public MpmcUnboundedXaddArrayQueue(int chunkSize)
     {
         this(chunkSize, 1);
-    }
-
-    @Override
-    public long currentProducerIndex()
-    {
-        return lvProducerIndex();
-    }
-
-    @Override
-    public long currentConsumerIndex()
-    {
-        return lvConsumerIndex();
     }
 
     @Override
@@ -217,7 +61,7 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
         }
 
         final boolean isPooled = pChunk.isPooled();
-        // ???
+
         if (isPooled)
         {
             //wait any previous consumer to finish its job
@@ -229,118 +73,6 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
             pChunk.soSequence(piChunkOffset, piChunkIndex);
         }
         return true;
-    }
-
-    /**
-     * We're here because currentChunk.index doesn't match the expectedChunkIndex. To resolve we must now chase the linked
-     * chunks to the appropriate chunk. More than one producer may end up racing to add or discover new chunks.
-     *
-     * @param initialChunk the starting point chunk, which does not match the required chunk index
-     * @param requiredChunkIndex the chunk index we need
-     * @return the chunk matching the required index
-     */
-    private MpmcUnboundedXaddChunk<E> producerChunkForIndex(
-        final MpmcUnboundedXaddChunk<E> initialChunk,
-        final long requiredChunkIndex)
-    {
-        MpmcUnboundedXaddChunk<E> currentChunk = initialChunk;
-        long jumpBackward;
-        while (true)
-        {
-            if (currentChunk == null)
-            {
-                currentChunk = lvProducerChunk();
-            }
-            final long currentChunkIndex = currentChunk.lvIndex();
-            // Consumer will set the chunk index to CHUNK_CONSUMED when it is consumed, we should only see this case
-            // if the consumer has done so concurrent to our attempts to use it.
-            if (currentChunkIndex == MpmcUnboundedXaddChunk.CHUNK_CONSUMED)
-            {
-                //force an attempt to fetch it another time
-                currentChunk = null;
-                continue;
-            }
-            // if the required chunk index is less than the current chunk index then we need to walk the linked list of
-            // chunks back to the required index
-            jumpBackward = currentChunkIndex - requiredChunkIndex;
-            if (jumpBackward >= 0)
-            {
-                break;
-            }
-            //try validate against the last producer chunk index
-            if (lvProducerChunkIndex() == currentChunkIndex)
-            {
-                long requiredChunks = -jumpBackward;
-                currentChunk = appendNextChunks(currentChunk, currentChunkIndex, -jumpBackward);
-            }
-            else
-            {
-                currentChunk = null;
-            }
-        }
-        for (long i = 0; i < jumpBackward; i++)
-        {
-            // prev cannot be null, because the consumer cannot null it without consuming the element for which we are
-            // trying to get the chunk.
-            currentChunk = currentChunk.lpPrev();
-            assert currentChunk != null;
-        }
-        assert currentChunk.lvIndex() == requiredChunkIndex;
-        return currentChunk;
-    }
-
-    private MpmcUnboundedXaddChunk<E> appendNextChunks(
-        MpmcUnboundedXaddChunk<E> currentChunk,
-        long currentChunkIndex,
-        long chunksToAppend)
-    {
-        assert currentChunkIndex != MpmcUnboundedXaddChunk.CHUNK_CONSUMED;
-        //prevent other concurrent attempts on appendNextChunk
-        if (!casProducerChunkIndex(currentChunkIndex, ROTATION))
-        {
-            return null;
-        }
-        /* LOCKED FOR APPEND */
-        {
-            long lvIndex;
-            // it is valid for the currentChunk to be consumed while appending is in flight, but it's not valid for the
-            // current chunk ordering to change otherwise.
-            assert ((lvIndex = currentChunk.lvIndex()) == MpscUnboundedXaddChunk.CHUNK_CONSUMED ||
-                currentChunkIndex == lvIndex);
-
-            for (long i = 1; i <= chunksToAppend; i++)
-            {
-                MpmcUnboundedXaddChunk<E> newChunk = newChunk(currentChunk, currentChunkIndex + i);
-                soProducerChunk(newChunk);
-                //link the next chunk only when finished
-                currentChunk.soNext(newChunk);
-                currentChunk = newChunk;
-            }
-
-            // release appending
-            soProducerChunkIndex(currentChunkIndex + chunksToAppend);
-        }
-        /* UNLOCKED FOR APPEND */
-        return currentChunk;
-    }
-
-    private MpmcUnboundedXaddChunk<E> newChunk(MpmcUnboundedXaddChunk<E> prevChunk, long nextChunkIndex)
-    {
-        MpmcUnboundedXaddChunk<E> newChunk;
-        newChunk = freeChunksPool.poll();
-        if (newChunk != null)
-        {
-            //single-writer: prevChunk::index == nextChunkIndex is protecting it
-            assert newChunk.lvIndex() < prevChunk.lvIndex();
-            newChunk.soPrev(prevChunk);
-            //index set is releasing prev, allowing other pending offers to continue
-            newChunk.soIndex(nextChunkIndex);
-        }
-        else
-        {
-            newChunk = new MpmcUnboundedXaddChunk<E>(nextChunkIndex, prevChunk, chunkMask + 1, false);
-        }
-        return newChunk;
     }
 
     @Override
@@ -491,20 +223,7 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
         }
         next.soElement(0, null);
 
-        // save from GC nepotism
-        next.soPrev(null);
-        cChunk.soNext(null);
-
-        if (cChunk.isPooled())
-        {
-            // When is it OK to recycle? notionally only once all the consumers have consumed the elements within and
-            // moved on. How do we know?
-            final boolean offered = freeChunksPool.offer(cChunk);
-            assert offered;
-        }
-        // expose next to the other consumers. Because the CAS loop is predicated on matching:
-        // (ciChunkIndex == ccChunkIndex) this in effect blocks concurrent access to this method
-        soConsumerBuffer(next);
+        moveToNextConsumerChunk(expectedChunkIndex, cChunk, next);
         return e;
     }
 
@@ -556,36 +275,6 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
     }
 
     @Override
-    public Iterator<E> iterator()
-    {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public int size()
-    {
-        return IndexedQueueSizeUtil.size(this);
-    }
-
-    @Override
-    public boolean isEmpty()
-    {
-        return IndexedQueueSizeUtil.isEmpty(this);
-    }
-
-    @Override
-    public int capacity()
-    {
-        return MessagePassingQueue.UNBOUNDED_CAPACITY;
-    }
-
-    @Override
-    public boolean relaxedOffer(E e)
-    {
-        return offer(e);
-    }
-
-    @Override
     public E relaxedPoll()
     {
         final int chunkMask = this.chunkMask;
@@ -632,18 +321,8 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
                 e = next.lvElement(ciChunkOffset);
             }
             assert e != null;
-            //perform the rotation
-            next.soElement(ciChunkOffset, null);
-            next.soPrev(null);
-            // avoid GC nepotism
-            cChunk.soNext(null);
-            if (cChunk.isPooled())
-            {
-                final boolean offered = freeChunksPool.offer(cChunk);
-                assert offered;
-            }
-            //expose next to the other consumers
-            soConsumerBuffer(next);
+
+            moveToNextConsumerChunk(cIndex, cChunk, next);
             return e;
         }
         else
@@ -675,8 +354,7 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
                 e = cChunk.lvElement(ciChunkOffset);
                 assert e != null;
             }
-            assert !pooled ||
-                (pooled && cChunk.lvSequence(ciChunkOffset) == ciChunkIndex);
+            assert !pooled || (pooled && cChunk.lvSequence(ciChunkOffset) == ciChunkIndex);
             cChunk.soElement(ciChunkOffset, null);
             return e;
         }
@@ -727,26 +405,6 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
     }
 
     @Override
-    public int drain(Consumer<E> c)
-    {
-        return MessagePassingQueueUtil.drain(this, c);
-    }
-
-    @Override
-    public int fill(Supplier<E> s)
-    {
-        final int chunkCapacity = chunkMask + 1;
-        final int offerBatch = Math.min(PortableJvmInfo.RECOMENDED_OFFER_BATCH, chunkCapacity);
-        return MessagePassingQueueUtil.fillInBatchesToLimit(this, s, offerBatch, chunkCapacity);
-    }
-
-    @Override
-    public int drain(Consumer<E> c, int limit)
-    {
-        return MessagePassingQueueUtil.drain(this, c, limit);
-    }
-
-    @Override
     public int fill(Supplier<E> s, int limit)
     {
         if (null == s)
@@ -787,24 +445,6 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpmcUnboundedXaddArrayQueueP
             producerSeq++;
         }
         return limit;
-    }
-
-    @Override
-    public void drain(Consumer<E> c, WaitStrategy wait, ExitCondition exit)
-    {
-        MessagePassingQueueUtil.drain(this, c, wait, exit);
-    }
-
-    @Override
-    public void fill(Supplier<E> s, WaitStrategy wait, ExitCondition exit)
-    {
-        MessagePassingQueueUtil.fill(this, s, wait, exit);
-    }
-
-    @Override
-    public String toString()
-    {
-        return this.getClass().getName();
     }
 
 }

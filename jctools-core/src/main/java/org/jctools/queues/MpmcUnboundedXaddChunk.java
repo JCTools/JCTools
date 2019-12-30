@@ -17,33 +17,16 @@ import org.jctools.util.InternalAPI;
 
 import java.util.Arrays;
 
-import static org.jctools.util.UnsafeAccess.UNSAFE;
-import static org.jctools.util.UnsafeAccess.fieldOffset;
 import static org.jctools.util.UnsafeLongArrayAccess.*;
-import static org.jctools.util.UnsafeRefArrayAccess.*;
 
 @InternalAPI
-final class MpmcUnboundedXaddChunk<E>
+final class MpmcUnboundedXaddChunk<E> extends MpUnboundedXaddChunk<MpmcUnboundedXaddChunk<E>, E>
 {
-    private static final long PREV_OFFSET = fieldOffset(MpmcUnboundedXaddChunk.class, "prev");
-    private static final long NEXT_OFFSET = fieldOffset(MpmcUnboundedXaddChunk.class, "next");
-    private static final long INDEX_OFFSET = fieldOffset(MpmcUnboundedXaddChunk.class, "index");
-
-    final static int CHUNK_CONSUMED = -1;
-
-    private final E[] buffer;
     private final long[] sequence;
-
-    private volatile MpmcUnboundedXaddChunk<E> prev;
-    private volatile long index;
-    private volatile MpmcUnboundedXaddChunk<E> next;
 
     MpmcUnboundedXaddChunk(long index, MpmcUnboundedXaddChunk<E> prev, int size, boolean pooled)
     {
-        buffer = allocateRefArray(size);
-        // next is null
-        soPrev(prev);
-        spIndex(index);
+        super(index, prev, size, pooled);
         if (pooled)
         {
             sequence = allocateLongArray(size);
@@ -55,11 +38,6 @@ final class MpmcUnboundedXaddChunk<E>
         }
     }
 
-    boolean isPooled()
-    {
-        return sequence != null;
-    }
-
     void soSequence(int index, long e)
     {
         soLongElement(sequence, calcLongElementOffset(index), e);
@@ -68,63 +46,5 @@ final class MpmcUnboundedXaddChunk<E>
     long lvSequence(int index)
     {
         return lvLongElement(sequence, calcLongElementOffset(index));
-    }
-
-    MpmcUnboundedXaddChunk<E> lvNext()
-    {
-        return next;
-    }
-
-    MpmcUnboundedXaddChunk<E> lpPrev()
-    {
-        return (MpmcUnboundedXaddChunk<E>) UNSAFE.getObject(this, PREV_OFFSET);
-    }
-
-    long lvIndex()
-    {
-        return index;
-    }
-
-    void soIndex(long index)
-    {
-        UNSAFE.putOrderedLong(this, INDEX_OFFSET, index);
-    }
-
-    void spIndex(long index)
-    {
-        UNSAFE.putLong(this, INDEX_OFFSET, index);
-    }
-
-    void soNext(MpmcUnboundedXaddChunk<E> value)
-    {
-        UNSAFE.putOrderedObject(this, NEXT_OFFSET, value);
-    }
-
-    void soPrev(MpmcUnboundedXaddChunk<E> value)
-    {
-        UNSAFE.putObject(this, PREV_OFFSET, value);
-    }
-
-    void soElement(int index, E e)
-    {
-        soRefElement(buffer, calcRefElementOffset(index), e);
-    }
-
-    E lvElement(int index)
-    {
-        return lvRefElement(buffer, calcRefElementOffset(index));
-    }
-
-    E spinForElement(int index, boolean isNull)
-    {
-        E[] buffer = this.buffer;
-        long offset = calcRefElementOffset(index);
-        E e;
-        do
-        {
-            e = lvRefElement(buffer, offset);
-        }
-        while (isNull != (e == null));
-        return e;
     }
 }
