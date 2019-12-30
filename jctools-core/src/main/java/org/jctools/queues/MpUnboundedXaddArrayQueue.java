@@ -164,29 +164,37 @@ abstract class MpUnboundedXaddArrayQueue<R extends MpUnboundedXaddChunk<R,E>, E>
     final int chunkShift;
     final SpscArrayQueue<R> freeChunksPool;
 
-    public MpUnboundedXaddArrayQueue(int chunkSize, int maxPooledChunks)
+    /**
+     * @param chunkSize The buffer size to be used in each chunk of this queue
+     * @param maxPooledChunks The maximum number of reused chunks kept around to avoid allocation, chunks are pre-allocated
+     */
+    MpUnboundedXaddArrayQueue(int chunkSize, int maxPooledChunks)
     {
         if (!UnsafeAccess.SUPPORTS_GET_AND_ADD_LONG)
         {
             throw new IllegalStateException("Unsafe::getAndAddLong support (JDK 8+) is required for this queue to work");
         }
+        if (maxPooledChunks < 0)
+        {
+            throw new IllegalArgumentException("Expecting a positive maxPooledChunks, but got:"+maxPooledChunks);
+        }
+        chunkSize = Pow2.roundToPowerOfTwo(chunkSize);
 
         this.chunkMask = chunkSize - 1;
         this.chunkShift = Integer.numberOfTrailingZeros(chunkSize);
         freeChunksPool = new SpscArrayQueue<R>(maxPooledChunks + 1);
 
-        chunkSize = Pow2.roundToPowerOfTwo(chunkSize);
-        final R first = newChunk(0, null, chunkSize, true);
+        final R first = newChunk(0, null, chunkSize, maxPooledChunks > 0);
         soProducerChunk(first);
         soProducerChunkIndex(0);
         soConsumerChunk(first);
-        for (int i = 0; i < maxPooledChunks; i++)
+        for (int i = 1; i < maxPooledChunks; i++)
         {
             freeChunksPool.offer(newChunk(CHUNK_CONSUMED, null, chunkSize, true));
         }
     }
 
-    protected abstract R newChunk(long index, R prev, int chunkSize, boolean pooled);
+    abstract R newChunk(long index, R prev, int chunkSize, boolean pooled);
 
     @Override
     public long currentProducerIndex()
@@ -208,7 +216,7 @@ abstract class MpUnboundedXaddArrayQueue<R extends MpUnboundedXaddChunk<R,E>, E>
      * @param requiredChunkIndex the chunk index we need
      * @return the chunk matching the required index
      */
-    protected R producerChunkForIndex(
+    R producerChunkForIndex(
         final R initialChunk,
         final long requiredChunkIndex)
     {
@@ -313,7 +321,7 @@ abstract class MpUnboundedXaddArrayQueue<R extends MpUnboundedXaddChunk<R,E>, E>
     }
 
 
-    protected R pollNextBuffer(R cChunk, long cIndex)
+    R pollNextBuffer(R cChunk, long cIndex)
     {
         final R next = spinForNextIfNotEmpty(cChunk, cIndex);
 
@@ -327,7 +335,7 @@ abstract class MpUnboundedXaddArrayQueue<R extends MpUnboundedXaddChunk<R,E>, E>
         return next;
     }
 
-    protected R spinForNextIfNotEmpty(R cChunk, long cIndex)
+    R spinForNextIfNotEmpty(R cChunk, long cIndex)
     {
         R next = cChunk.lvNext();
         if (next == null)
@@ -349,7 +357,7 @@ abstract class MpUnboundedXaddArrayQueue<R extends MpUnboundedXaddChunk<R,E>, E>
     /**
      * Does not null out the first element of `next`, callers must do that
      */
-    protected void moveToNextConsumerChunk(R cChunk, R next)
+    void moveToNextConsumerChunk(R cChunk, R next)
     {
         // avoid GC nepotism
         cChunk.soNext(null);// change the chunkIndex to a non valid value to stop offering threads to use this chunk

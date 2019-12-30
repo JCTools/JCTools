@@ -24,19 +24,23 @@ import org.jctools.util.PortableJvmInfo;
  */
 public class MpscUnboundedXaddArrayQueue<E> extends MpUnboundedXaddArrayQueue<MpscUnboundedXaddChunk<E>, E>
 {
+    /**
+     * @param chunkSize The buffer size to be used in each chunk of this queue
+     * @param maxPooledChunks The maximum number of reused chunks kept around to avoid allocation, chunks are pre-allocated
+     */
     public MpscUnboundedXaddArrayQueue(int chunkSize, int maxPooledChunks)
     {
         super(chunkSize, maxPooledChunks);
     }
 
-    protected MpscUnboundedXaddChunk<E> newChunk(long index, MpscUnboundedXaddChunk<E> prev, int chunkSize, boolean pooled)
-    {
-        return new MpscUnboundedXaddChunk(index, prev, chunkSize, pooled);
-    }
-
     public MpscUnboundedXaddArrayQueue(int chunkSize)
     {
-        this(chunkSize, 1);
+        this(chunkSize, 2);
+    }
+
+    MpscUnboundedXaddChunk<E> newChunk(long index, MpscUnboundedXaddChunk<E> prev, int chunkSize, boolean pooled)
+    {
+        return new MpscUnboundedXaddChunk(index, prev, chunkSize, pooled);
     }
 
     @Override

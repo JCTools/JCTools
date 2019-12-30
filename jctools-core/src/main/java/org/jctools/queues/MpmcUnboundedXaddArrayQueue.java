@@ -24,19 +24,23 @@ package org.jctools.queues;
 public class MpmcUnboundedXaddArrayQueue<E> extends MpUnboundedXaddArrayQueue<MpmcUnboundedXaddChunk<E>, E>
 {
 
+    /**
+     * @param chunkSize The buffer size to be used in each chunk of this queue
+     * @param maxPooledChunks The maximum number of reused chunks kept around to avoid allocation, chunks are pre-allocated
+     */
     public MpmcUnboundedXaddArrayQueue(int chunkSize, int maxPooledChunks)
     {
         super(chunkSize, maxPooledChunks);
     }
 
-    protected MpmcUnboundedXaddChunk<E> newChunk(long index, MpmcUnboundedXaddChunk<E> prev, int chunkSize, boolean pooled)
-    {
-        return new MpmcUnboundedXaddChunk(index, prev, chunkSize, pooled);
-    }
-
     public MpmcUnboundedXaddArrayQueue(int chunkSize)
     {
-        this(chunkSize, 1);
+        this(chunkSize, 2);
+    }
+
+    MpmcUnboundedXaddChunk<E> newChunk(long index, MpmcUnboundedXaddChunk<E> prev, int chunkSize, boolean pooled)
+    {
+        return new MpmcUnboundedXaddChunk(index, prev, chunkSize, pooled);
     }
 
     @Override
