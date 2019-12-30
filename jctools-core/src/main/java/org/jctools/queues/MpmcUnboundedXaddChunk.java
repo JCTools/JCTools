@@ -1,14 +1,26 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.jctools.queues;
 
 import org.jctools.util.InternalAPI;
-import org.jctools.util.UnsafeRefArrayAccess;
 
 import java.util.Arrays;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeAccess.fieldOffset;
 import static org.jctools.util.UnsafeLongArrayAccess.*;
-import static org.jctools.util.UnsafeRefArrayAccess.allocateRefArray;
+import static org.jctools.util.UnsafeRefArrayAccess.*;
 
 @InternalAPI
 final class MpmcUnboundedXaddChunk<E>
@@ -17,7 +29,7 @@ final class MpmcUnboundedXaddChunk<E>
     private static final long NEXT_OFFSET = fieldOffset(MpmcUnboundedXaddChunk.class, "next");
     private static final long INDEX_OFFSET = fieldOffset(MpmcUnboundedXaddChunk.class, "index");
 
-    final static int NIL_CHUNK_INDEX = -1;
+    final static int CHUNK_CONSUMED = -1;
 
     private final E[] buffer;
     private final long[] sequence;
@@ -30,12 +42,12 @@ final class MpmcUnboundedXaddChunk<E>
     {
         buffer = allocateRefArray(size);
         // next is null
-        spPrev(prev);
+        soPrev(prev);
         spIndex(index);
         if (pooled)
         {
             sequence = allocateLongArray(size);
-            Arrays.fill(sequence, MpmcUnboundedXaddChunk.NIL_CHUNK_INDEX);
+            Arrays.fill(sequence, MpmcUnboundedXaddChunk.CHUNK_CONSUMED);
         }
         else
         {
@@ -48,19 +60,14 @@ final class MpmcUnboundedXaddChunk<E>
         return sequence != null;
     }
 
-    private static long calcSequenceOffset(long index)
-    {
-        return calcLongElementOffset(index);
-    }
-
     void soSequence(int index, long e)
     {
-        soLongElement(sequence, calcSequenceOffset(index), e);
+        soLongElement(sequence, calcLongElementOffset(index), e);
     }
 
     long lvSequence(int index)
     {
-        return lvLongElement(sequence, calcSequenceOffset(index));
+        return lvLongElement(sequence, calcLongElementOffset(index));
     }
 
     MpmcUnboundedXaddChunk<E> lvNext()
@@ -93,18 +100,18 @@ final class MpmcUnboundedXaddChunk<E>
         UNSAFE.putOrderedObject(this, NEXT_OFFSET, value);
     }
 
-    void spPrev(MpmcUnboundedXaddChunk<E> value)
+    void soPrev(MpmcUnboundedXaddChunk<E> value)
     {
         UNSAFE.putObject(this, PREV_OFFSET, value);
     }
 
     void soElement(int index, E e)
     {
-        UnsafeRefArrayAccess.soRefElement(buffer, UnsafeRefArrayAccess.calcRefElementOffset(index), e);
+        soRefElement(buffer, calcRefElementOffset(index), e);
     }
 
     E lvElement(int index)
     {
-        return UnsafeRefArrayAccess.lvRefElement(buffer, UnsafeRefArrayAccess.calcRefElementOffset(index));
+        return lvRefElement(buffer, calcRefElementOffset(index));
     }
 }
