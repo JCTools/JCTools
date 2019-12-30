@@ -201,17 +201,18 @@ public class MpscUnboundedXaddArrayQueue<E> extends MpscUnboundedXaddArrayQueueP
         final int chunkShift = this.chunkShift;
 
         final long pIndex = getAndIncrementProducerIndex();
-        final int pChunkOffset = (int) (pIndex & chunkMask);
-        final long pChunkIndex = pIndex >> chunkShift;
+
+        final int piChunkOffset = (int) (pIndex & chunkMask);
+        final long piChunkIndex = pIndex >> chunkShift;
 
         MpscUnboundedXaddChunk<E> pChunk = lvProducerChunk();
-        // Other producers may have advanced the producer chunk as we claimed a slot in a prev chunk, or we may have
-        // now stepped into a brand new chunk which needs appending.
-        if (pChunk.lvIndex() != pChunkIndex)
+        if (pChunk.lvIndex() != piChunkIndex)
         {
-            pChunk = producerChunkForIndex(pChunk, pChunkIndex);
+            // Other producers may have advanced the producer chunk as we claimed a slot in a prev chunk, or we may have
+            // now stepped into a brand new chunk which needs appending.
+            pChunk = producerChunkForIndex(pChunk, piChunkIndex);
         }
-        pChunk.soElement(pChunkOffset, e);
+        pChunk.soElement(piChunkOffset, e);
         return true;
     }
 
@@ -220,7 +221,7 @@ public class MpscUnboundedXaddArrayQueue<E> extends MpscUnboundedXaddArrayQueueP
      * chunks to the appropriate chunk. More than one producer may end up racing to add or discover new chunks.
      *
      * @param initialChunk the starting point chunk, which does not match the required chunk index
-     * @param requiredChunkIndex
+     * @param requiredChunkIndex the chunk index we need
      * @return the chunk matching the required index
      */
     private MpscUnboundedXaddChunk<E> producerChunkForIndex(
@@ -251,7 +252,7 @@ public class MpscUnboundedXaddArrayQueue<E> extends MpscUnboundedXaddArrayQueueP
             {
                 break;
             }
-            // is this the last chunk, as reported by the producerChunkIndex?
+            //try validate against the last producer chunk index
             if (lvProducerChunkIndex() == currentChunkIndex)
             {
                 long requiredChunks = -jumpBackward;
@@ -279,7 +280,6 @@ public class MpscUnboundedXaddArrayQueue<E> extends MpscUnboundedXaddArrayQueueP
         long chunksToAppend)
     {
         assert currentChunkIndex != MpscUnboundedXaddChunk.CHUNK_CONSUMED;
-
         // prevent other concurrent attempts on appendNextChunk
         if (!casProducerChunkIndex(currentChunkIndex, ROTATION))
         {
@@ -337,21 +337,21 @@ public class MpscUnboundedXaddArrayQueue<E> extends MpscUnboundedXaddArrayQueueP
     {
         final int chunkMask = this.chunkMask;
         final long cIndex = this.lpConsumerIndex();
-        final int cChunkOffset = (int) (cIndex & chunkMask);
+        final int ciChunkOffset = (int) (cIndex & chunkMask);
 
         MpscUnboundedXaddChunk<E> cChunk = this.consumerChunk;
         // start of new chunk?
-        if (cChunkOffset == 0 && cIndex != 0)
+        if (ciChunkOffset == 0 && cIndex != 0)
         {
             // pollNextBuffer will verify emptiness check
-            cChunk = pollNextBuffer(cChunk, cIndex, false);
+            cChunk = pollNextBuffer(cChunk, cIndex);
             if (cChunk == null)
             {
                 return null;
             }
         }
 
-        E e = cChunk.lvElement(cChunkOffset);
+        E e = cChunk.lvElement(ciChunkOffset);
         if (e == null)
         {
             if (lvProducerIndex() == cIndex)
@@ -360,10 +360,10 @@ public class MpscUnboundedXaddArrayQueue<E> extends MpscUnboundedXaddArrayQueueP
             }
             else
             {
-                e = spinForElement(cChunk, cChunkOffset);
+                e = cChunk.spinForElement(ciChunkOffset, false);
             }
         }
-        cChunk.soElement(cChunkOffset, null);
+        cChunk.soElement(ciChunkOffset, null);
         soConsumerIndex(cIndex + 1);
         return e;
     }
@@ -373,11 +373,11 @@ public class MpscUnboundedXaddArrayQueue<E> extends MpscUnboundedXaddArrayQueueP
     {
         final int chunkMask = this.chunkMask;
         final long cIndex = this.lpConsumerIndex();
-        final int cChunkOffset = (int) (cIndex & chunkMask);
+        final int ciChunkOffset = (int) (cIndex & chunkMask);
 
         MpscUnboundedXaddChunk<E> cChunk = this.consumerChunk;
         // start of new chunk?
-        if (cChunkOffset == 0 && cIndex != 0)
+        if (ciChunkOffset == 0 && cIndex != 0)
         {
             cChunk = spinForNextIfNotEmpty(cChunk, cIndex);
             if (cChunk == null)
@@ -386,7 +386,7 @@ public class MpscUnboundedXaddArrayQueue<E> extends MpscUnboundedXaddArrayQueueP
             }
         }
 
-        E e = cChunk.lvElement(cChunkOffset);
+        E e = cChunk.lvElement(ciChunkOffset);
         if (e == null)
         {
             if (lvProducerIndex() == cIndex)
@@ -395,34 +395,22 @@ public class MpscUnboundedXaddArrayQueue<E> extends MpscUnboundedXaddArrayQueueP
             }
             else
             {
-                e = spinForElement(cChunk, cChunkOffset);
+                e = cChunk.spinForElement(ciChunkOffset, false);
             }
         }
         return e;
     }
 
-    private MpscUnboundedXaddChunk<E> pollNextBuffer(MpscUnboundedXaddChunk<E> cChunk, long cIndex, boolean relaxed)
+    private MpscUnboundedXaddChunk<E> pollNextBuffer(MpscUnboundedXaddChunk<E> cChunk, long cIndex)
     {
-        final MpscUnboundedXaddChunk<E> next = relaxed ?
-            cChunk.lvNext() : spinForNextIfNotEmpty(cChunk, cIndex);
+        final MpscUnboundedXaddChunk<E> next = spinForNextIfNotEmpty(cChunk, cIndex);
 
         if (next == null)
         {
             return null;
         }
-        // avoid GC nepotism
-        cChunk.soNext(null);
 
-        // change the chunkIndex to a non valid value to stop offering threads to use this chunk
-        cChunk.soIndex(MpscUnboundedXaddChunk.CHUNK_CONSUMED);
-        if (cChunk.isPooled())
-        {
-            final boolean pooled = freeChunksPool.offer(cChunk);
-            assert pooled;
-        }
-        next.spPrev(null);
-        assert next.lvIndex() == cIndex >> chunkShift;
-        this.consumerChunk = next;
+        moveToNextChunk(cIndex, cChunk, next);
         return next;
     }
 
@@ -443,15 +431,21 @@ public class MpscUnboundedXaddArrayQueue<E> extends MpscUnboundedXaddArrayQueueP
         return next;
     }
 
-    private static <E> E spinForElement(MpscUnboundedXaddChunk<E> chunk, int offset)
+    private void moveToNextChunk(long cIndex, MpscUnboundedXaddChunk<E> cChunk, MpscUnboundedXaddChunk<E> next)
     {
-        E e;
-        while ((e = chunk.lvElement(offset)) == null)
+        // avoid GC nepotism
+        cChunk.soNext(null);// change the chunkIndex to a non valid value to stop offering threads to use this chunk
+        cChunk.soIndex(MpscUnboundedXaddChunk.CHUNK_CONSUMED);
+        if (cChunk.isPooled())
         {
-
+            final boolean pooled = freeChunksPool.offer(cChunk);
+            assert pooled;
         }
-        return e;
+        next.spPrev(null);
+        assert next.lvIndex() == cIndex >> chunkShift;
+        this.consumerChunk = next;
     }
+
     @Override
     public Iterator<E> iterator()
     {
@@ -487,32 +481,39 @@ public class MpscUnboundedXaddArrayQueue<E> extends MpscUnboundedXaddArrayQueueP
     {
         final int chunkMask = this.chunkMask;
         final long cIndex = this.lpConsumerIndex();
-        final int cChunkOffset = (int) (cIndex & chunkMask);
+        final int ciChunkOffset = (int) (cIndex & chunkMask);
 
         MpscUnboundedXaddChunk<E> cChunk = this.consumerChunk;
         E e;
         // start of new chunk?
-        if (cChunkOffset == 0 && cIndex != 0)
+        if (ciChunkOffset == 0 && cIndex != 0)
         {
-            cChunk = pollNextBuffer(cChunk, cIndex, true);
-            if (cChunk == null)
+            final MpscUnboundedXaddChunk<E> next = cChunk.lvNext();
+            if (next == null)
             {
                 return null;
             }
+            e = next.lvElement(0);
 
-            // First element in the new chunk cannot be `relaxed` because it would confuse the way we handle chunk
-            // transition.
-            e = spinForElement(cChunk, 0);
+            // if the next chunk doesn't have the first element set we give up
+            if (e == null)
+            {
+                return null;
+            }
+            moveToNextChunk(cIndex, cChunk, next);
+
+            cChunk = next;
         }
         else
         {
-            e = cChunk.lvElement(cChunkOffset);
+            e = cChunk.lvElement(ciChunkOffset);
             if (e == null)
             {
                 return null;
             }
         }
-        cChunk.soElement(cChunkOffset, null);
+
+        cChunk.soElement(ciChunkOffset, null);
         soConsumerIndex(cIndex + 1);
         return e;
     }
@@ -585,14 +586,21 @@ public class MpscUnboundedXaddArrayQueue<E> extends MpscUnboundedXaddArrayQueueP
             E e;
             if (consumerOffset == 0 && cIndex != 0)
             {
-                cChunk = pollNextBuffer(cChunk, cIndex, true);
-                if (cChunk == null)
+                final MpscUnboundedXaddChunk<E> next = cChunk.lvNext();
+                if (next == null)
                 {
                     return i;
                 }
-                // First element in the new chunk cannot be `relaxed` because it would confuse the way we handle chunk
-                // transition.
-                e = spinForElement(cChunk, 0);
+                e = next.lvElement(0);
+
+                // if the next chunk doesn't have the first element set we give up
+                if (e == null)
+                {
+                    return i;
+                }
+                moveToNextChunk(cIndex, cChunk, next);
+
+                cChunk = next;
             }
             else
             {

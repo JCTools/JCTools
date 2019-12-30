@@ -46,6 +46,11 @@ final class MpscUnboundedXaddChunk<E>
         this.pooled = pooled;
     }
 
+    boolean isPooled()
+    {
+        return pooled;
+    }
+
     MpscUnboundedXaddChunk<E> lvNext()
     {
         return next;
@@ -91,8 +96,16 @@ final class MpscUnboundedXaddChunk<E>
         return lvRefElement(buffer, calcRefElementOffset(index));
     }
 
-    boolean isPooled()
+    E spinForElement(int index, boolean isNull)
     {
-        return pooled;
+        E[] buffer = this.buffer;
+        long offset = calcRefElementOffset(index);
+        E e;
+        do
+        {
+            e = lvRefElement(buffer, offset);
+        }
+        while (isNull != (e == null));
+        return e;
     }
 }
