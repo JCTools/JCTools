@@ -158,7 +158,7 @@ public class MpscUnboundedXaddArrayQueue<E> extends MpUnboundedXaddArrayQueue<Mp
             {
                 return null;
             }
-            moveToNextConsumerChunk(cIndex, cChunk, next);
+            moveToNextConsumerChunk(cChunk, next);
 
             cChunk = next;
         }
@@ -250,7 +250,7 @@ public class MpscUnboundedXaddArrayQueue<E> extends MpUnboundedXaddArrayQueue<Mp
                 {
                     return i;
                 }
-                moveToNextConsumerChunk(cIndex, cChunk, next);
+                moveToNextConsumerChunk(cChunk, next);
 
                 cChunk = next;
             }

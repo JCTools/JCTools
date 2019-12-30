@@ -317,7 +317,8 @@ abstract class MpUnboundedXaddArrayQueue<R extends MpUnboundedXaddChunk<R,E>, E>
             return null;
         }
 
-        moveToNextConsumerChunk(cIndex, cChunk, next);
+        moveToNextConsumerChunk(cChunk, next);
+        assert next.lvIndex() == cIndex >> chunkShift;
         return next;
     }
 
@@ -340,18 +341,20 @@ abstract class MpUnboundedXaddArrayQueue<R extends MpUnboundedXaddChunk<R,E>, E>
         return next;
     }
 
-    protected void moveToNextConsumerChunk(long cIndex, R cChunk, R next)
+    /**
+     * Does not null out the first element of `next`, callers must do that
+     */
+    protected void moveToNextConsumerChunk(R cChunk, R next)
     {
         // avoid GC nepotism
         cChunk.soNext(null);// change the chunkIndex to a non valid value to stop offering threads to use this chunk
+        next.soPrev(null);
         cChunk.soIndex(CHUNK_CONSUMED);
         if (cChunk.isPooled())
         {
             final boolean pooled = freeChunksPool.offer(cChunk);
             assert pooled;
         }
-        next.soPrev(null);
-        assert next.lvIndex() == cIndex >> chunkShift;
         this.soConsumerChunk(next);
     }
 

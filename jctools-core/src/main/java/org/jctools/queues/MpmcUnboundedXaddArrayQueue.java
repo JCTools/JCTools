@@ -192,8 +192,7 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpUnboundedXaddArrayQueue<Mp
             {
                 e = cChunk.lvElement(ciChunkOffset);
             }
-            assert !cChunk.isPooled() ||
-                (cChunk.isPooled() && cChunk.lvSequence(ciChunkOffset) == ciChunkIndex);
+            assert !cChunk.isPooled() ||  (cChunk.isPooled() && cChunk.lvSequence(ciChunkOffset) == ciChunkIndex);
 
             cChunk.soElement(ciChunkOffset, null);
         }
@@ -221,9 +220,9 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpUnboundedXaddArrayQueue<Mp
 
             }
         }
-        next.soElement(0, null);
 
-        moveToNextConsumerChunk(expectedChunkIndex, cChunk, next);
+        next.soElement(0, null);
+        moveToNextConsumerChunk(cChunk, next);
         return e;
     }
 
@@ -322,7 +321,8 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpUnboundedXaddArrayQueue<Mp
             }
             assert e != null;
 
-            moveToNextConsumerChunk(cIndex, cChunk, next);
+            next.soElement(0, null);
+            moveToNextConsumerChunk(cChunk, next);
             return e;
         }
         else
