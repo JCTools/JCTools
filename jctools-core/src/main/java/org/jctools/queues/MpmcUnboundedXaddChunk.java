@@ -114,4 +114,17 @@ final class MpmcUnboundedXaddChunk<E>
     {
         return lvRefElement(buffer, calcRefElementOffset(index));
     }
+
+    E spinForElement(int index, boolean isNull)
+    {
+        E[] buffer = this.buffer;
+        long offset = calcRefElementOffset(index);
+        E e;
+        do
+        {
+            e = lvRefElement(buffer, offset);
+        }
+        while (isNull != (e == null));
+        return e;
+    }
 }
