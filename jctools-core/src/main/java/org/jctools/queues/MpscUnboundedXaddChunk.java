@@ -18,8 +18,6 @@ import org.jctools.util.InternalAPI;
 @InternalAPI
 final class MpscUnboundedXaddChunk<E> extends MpUnboundedXaddChunk<MpscUnboundedXaddChunk<E>, E>
 {
-    final static long CHUNK_CONSUMED = -1;
-
     MpscUnboundedXaddChunk(long index, MpscUnboundedXaddChunk<E> prev, int size, boolean pooled)
     {
         super(index, prev, size, pooled);

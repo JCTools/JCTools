@@ -30,7 +30,7 @@ final class MpmcUnboundedXaddChunk<E> extends MpUnboundedXaddChunk<MpmcUnbounded
         if (pooled)
         {
             sequence = allocateLongArray(size);
-            Arrays.fill(sequence, MpmcUnboundedXaddChunk.CHUNK_CONSUMED);
+            Arrays.fill(sequence, MpmcUnboundedXaddChunk.NOT_USED);
         }
         else
         {
