@@ -16,8 +16,6 @@ package org.jctools.queues;
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeAccess.fieldOffset;
 import static org.jctools.util.UnsafeRefArrayAccess.*;
-import static org.jctools.util.UnsafeRefArrayAccess.lvRefElement;
-import static org.jctools.util.UnsafeRefArrayAccess.soRefElement;
 
 abstract class SpscArrayQueueColdField<E> extends ConcurrentCircularArrayQueue<E>
 {
