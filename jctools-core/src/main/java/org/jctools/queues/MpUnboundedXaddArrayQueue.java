@@ -8,7 +8,7 @@ import org.jctools.util.UnsafeAccess;
 import java.util.AbstractQueue;
 import java.util.Iterator;
 
-import static org.jctools.queues.MpUnboundedXaddChunk.CHUNK_CONSUMED;
+import static org.jctools.queues.MpUnboundedXaddChunk.NOT_USED;
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeAccess.fieldOffset;
 
@@ -159,6 +159,7 @@ abstract class MpUnboundedXaddArrayQueue<R extends MpUnboundedXaddChunk<R,E>, E>
     extends MpUnboundedXaddArrayQueuePad5<R, E>
     implements MessagePassingQueue<E>, QueueProgressIndicators
 {
+    // it must be != MpUnboundedXaddChunk.NOT_USED
     private static final long ROTATION = -2;
     final int chunkMask;
     final int chunkShift;
@@ -182,7 +183,7 @@ abstract class MpUnboundedXaddArrayQueue<R extends MpUnboundedXaddChunk<R,E>, E>
 
         this.chunkMask = chunkSize - 1;
         this.chunkShift = Integer.numberOfTrailingZeros(chunkSize);
-        freeChunksPool = new SpscArrayQueue<R>(maxPooledChunks + 1);
+        freeChunksPool = new SpscArrayQueue<R>(maxPooledChunks);
 
         final R first = newChunk(0, null, chunkSize, maxPooledChunks > 0);
         soProducerChunk(first);
@@ -190,7 +191,7 @@ abstract class MpUnboundedXaddArrayQueue<R extends MpUnboundedXaddChunk<R,E>, E>
         soConsumerChunk(first);
         for (int i = 1; i < maxPooledChunks; i++)
         {
-            freeChunksPool.offer(newChunk(CHUNK_CONSUMED, null, chunkSize, true));
+            freeChunksPool.offer(newChunk(NOT_USED, null, chunkSize, true));
         }
     }
 
@@ -216,7 +217,7 @@ abstract class MpUnboundedXaddArrayQueue<R extends MpUnboundedXaddChunk<R,E>, E>
      * @param requiredChunkIndex the chunk index we need
      * @return the chunk matching the required index
      */
-    R producerChunkForIndex(
+    final R producerChunkForIndex(
         final R initialChunk,
         final long requiredChunkIndex)
     {
@@ -229,14 +230,7 @@ abstract class MpUnboundedXaddArrayQueue<R extends MpUnboundedXaddChunk<R,E>, E>
                 currentChunk = lvProducerChunk();
             }
             final long currentChunkIndex = currentChunk.lvIndex();
-            // Consumer will set the chunk index to CHUNK_CONSUMED when it is consumed, we should only see this case
-            // if the consumer has done so concurrent to our attempts to use it.
-            if (currentChunkIndex == CHUNK_CONSUMED)
-            {
-                //force an attempt to fetch it another time
-                currentChunk = null;
-                continue;
-            }
+            assert currentChunkIndex != NOT_USED;
             // if the required chunk index is less than the current chunk index then we need to walk the linked list of
             // chunks back to the required index
             jumpBackward = currentChunkIndex - requiredChunkIndex;
@@ -244,10 +238,9 @@ abstract class MpUnboundedXaddArrayQueue<R extends MpUnboundedXaddChunk<R,E>, E>
             {
                 break;
             }
-            //try validate against the last producer chunk index
+            // try validate against the last producer chunk index
             if (lvProducerChunkIndex() == currentChunkIndex)
             {
-                long requiredChunks = -jumpBackward;
                 currentChunk = appendNextChunks(currentChunk, currentChunkIndex, -jumpBackward);
             }
             else
@@ -259,7 +252,7 @@ abstract class MpUnboundedXaddArrayQueue<R extends MpUnboundedXaddChunk<R,E>, E>
         {
             // prev cannot be null, because the consumer cannot null it without consuming the element for which we are
             // trying to get the chunk.
-            currentChunk = (R) currentChunk.lvPrev();
+            currentChunk = currentChunk.lvPrev();
             assert currentChunk != null;
         }
         assert currentChunk.lvIndex() == requiredChunkIndex;
@@ -271,19 +264,17 @@ abstract class MpUnboundedXaddArrayQueue<R extends MpUnboundedXaddChunk<R,E>, E>
         long currentChunkIndex,
         long chunksToAppend)
     {
-        assert currentChunkIndex != CHUNK_CONSUMED;
-        //prevent other concurrent attempts on appendNextChunk
+        assert currentChunkIndex != NOT_USED;
+        // prevent other concurrent attempts on appendNextChunk
         if (!casProducerChunkIndex(currentChunkIndex, ROTATION))
         {
             return null;
         }
         /* LOCKED FOR APPEND */
         {
-            long lvIndex;
             // it is valid for the currentChunk to be consumed while appending is in flight, but it's not valid for the
             // current chunk ordering to change otherwise.
-            assert ((lvIndex = currentChunk.lvIndex()) == CHUNK_CONSUMED ||
-                currentChunkIndex == lvIndex);
+            assert currentChunkIndex == currentChunk.lvIndex();
 
             for (long i = 1; i <= chunksToAppend; i++)
             {
@@ -303,14 +294,13 @@ abstract class MpUnboundedXaddArrayQueue<R extends MpUnboundedXaddChunk<R,E>, E>
 
     private R newOrPooledChunk(R prevChunk, long nextChunkIndex)
     {
-        R newChunk;
-        newChunk = freeChunksPool.poll();
+        R newChunk = freeChunksPool.poll();
         if (newChunk != null)
         {
-            //single-writer: prevChunk::index == nextChunkIndex is protecting it
+            // single-writer: prevChunk::index == nextChunkIndex is protecting it
             assert newChunk.lvIndex() < prevChunk.lvIndex();
             newChunk.soPrev(prevChunk);
-            //index set is releasing prev, allowing other pending offers to continue
+            // index set is releasing prev, allowing other pending offers to continue
             newChunk.soIndex(nextChunkIndex);
         }
         else
@@ -321,7 +311,7 @@ abstract class MpUnboundedXaddArrayQueue<R extends MpUnboundedXaddChunk<R,E>, E>
     }
 
 
-    R pollNextBuffer(R cChunk, long cIndex)
+    final R pollNextBuffer(R cChunk, long cIndex)
     {
         final R next = spinForNextIfNotEmpty(cChunk, cIndex);
 
@@ -335,7 +325,7 @@ abstract class MpUnboundedXaddArrayQueue<R extends MpUnboundedXaddChunk<R,E>, E>
         return next;
     }
 
-    R spinForNextIfNotEmpty(R cChunk, long cIndex)
+    final R spinForNextIfNotEmpty(R cChunk, long cIndex)
     {
         R next = cChunk.lvNext();
         if (next == null)
@@ -357,12 +347,12 @@ abstract class MpUnboundedXaddArrayQueue<R extends MpUnboundedXaddChunk<R,E>, E>
     /**
      * Does not null out the first element of `next`, callers must do that
      */
-    void moveToNextConsumerChunk(R cChunk, R next)
+    final void moveToNextConsumerChunk(R cChunk, R next)
     {
         // avoid GC nepotism
-        cChunk.soNext(null);// change the chunkIndex to a non valid value to stop offering threads to use this chunk
+        cChunk.soNext(null);
         next.soPrev(null);
-        cChunk.soIndex(CHUNK_CONSUMED);
+        // no need to cChunk.soIndex(NOT_USED)
         if (cChunk.isPooled())
         {
             final boolean pooled = freeChunksPool.offer(cChunk);

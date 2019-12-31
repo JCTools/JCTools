@@ -38,7 +38,8 @@ public class MpscUnboundedXaddArrayQueue<E> extends MpUnboundedXaddArrayQueue<Mp
         this(chunkSize, 2);
     }
 
-    MpscUnboundedXaddChunk<E> newChunk(long index, MpscUnboundedXaddChunk<E> prev, int chunkSize, boolean pooled)
+    @Override
+    final MpscUnboundedXaddChunk<E> newChunk(long index, MpscUnboundedXaddChunk<E> prev, int chunkSize, boolean pooled)
     {
         return new MpscUnboundedXaddChunk(index, prev, chunkSize, pooled);
     }

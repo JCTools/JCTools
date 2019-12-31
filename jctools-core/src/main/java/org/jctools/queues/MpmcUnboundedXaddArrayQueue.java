@@ -38,7 +38,8 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpUnboundedXaddArrayQueue<Mp
         this(chunkSize, 2);
     }
 
-    MpmcUnboundedXaddChunk<E> newChunk(long index, MpmcUnboundedXaddChunk<E> prev, int chunkSize, boolean pooled)
+    @Override
+    final MpmcUnboundedXaddChunk<E> newChunk(long index, MpmcUnboundedXaddChunk<E> prev, int chunkSize, boolean pooled)
     {
         return new MpmcUnboundedXaddChunk(index, prev, chunkSize, pooled);
     }
@@ -70,7 +71,7 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpUnboundedXaddArrayQueue<Mp
 
         if (isPooled)
         {
-            //wait any previous consumer to finish its job
+            // wait any previous consumer to finish its job
             pChunk.spinForElement(piChunkOffset, true);
         }
         pChunk.soElement(piChunkOffset, e);
@@ -109,15 +110,13 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpUnboundedXaddArrayQueue<Mp
             if (ciChunkIndex != ccChunkIndex)
             {
                 // we are looking at the first element of the next chunk
-                // NOTE: The check is different from the single consumer case as the MC case requires checking this
-                //       is indeed the next chunk where as in the SC case this is always true.
                 if (ciChunkOffset == 0 && ciChunkIndex - ccChunkIndex == 1)
                 {
                     isFirstElementOfNextChunk = true;
                     next = cChunk.lvNext();
-                    //next could have been modified by another racing consumer, but:
-                    //- if null: it still needs to check q empty + casConsumerIndex
-                    //- if !null: it will fail on casConsumerIndex
+                    // next could have been modified by another racing consumer, but:
+                    // - if null: it still needs to check q empty + casConsumerIndex
+                    // - if !null: it will fail on casConsumerIndex
                     if (next == null)
                     {
                         if (cIndex >= pIndex && // test against cached pIndex
@@ -132,6 +131,16 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpUnboundedXaddArrayQueue<Mp
                     if (casConsumerIndex(cIndex, cIndex + 1))
                     {
                         break;
+                    }
+                } else if (ccChunkIndex < ciChunkIndex) {
+                    // it allows to fail fast if the q is empty after the first element on the new chunk:
+                    // it can happen if consumerIndex is being already moved forward, but
+                    // the consumerChunk isn't yet rotated
+                    if (cIndex >= pIndex && // test against cached pIndex
+                        cIndex == (pIndex = lvProducerIndex())) // update pIndex if we must
+                    {
+                        // strict empty check, this ensures [Queue.poll() == null iff isEmpty()]
+                        return null;
                     }
                 }
                 // The chunk doesn't match the consumer index view of the required chunk index. This is where consumers
@@ -150,10 +159,10 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpUnboundedXaddArrayQueue<Mp
                 final long sequence = cChunk.lvSequence(ciChunkOffset);
                 if (sequence != ciChunkIndex)
                 {
-                    //it covers both cases:
-                    //- right chunk, awaiting element to be set
-                    //- old chunk, awaiting rotation
-                    //it allows to fail fast if the q is empty after the first element on the new chunk.
+                    // it covers both cases:
+                    // - right chunk, awaiting element to be set
+                    // - old chunk, awaiting rotation
+                    // it allows to fail fast if the q is empty after the first element on the new chunk
                     if (sequence < ciChunkIndex &&
                         cIndex >= pIndex && // test against cached pIndex
                         cIndex == (pIndex = lvProducerIndex())) // update pIndex if we must
@@ -187,7 +196,7 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpUnboundedXaddArrayQueue<Mp
             }
         }
 
-        //if we are the isFirstElementOfNextChunk we need to get the consumer chunk
+        // if we are the isFirstElementOfNextChunk we need to get the consumer chunk
         if (isFirstElementOfNextChunk)
         {
             e = linkNextConsumerChunkAndPoll(cChunk, next, ciChunkIndex);
@@ -214,8 +223,8 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpUnboundedXaddArrayQueue<Mp
         {
             next = cChunk.lvNext();
         }
-        //we can freely spin awaiting producer, because we are the only one in charge to
-        //rotate the consumer buffer and use next
+        // we can freely spin awaiting producer, because we are the only one in charge to
+        // rotate the consumer buffer and use next
         final E e = next.spinForElement(0, false);
 
         final boolean pooled = next.isPooled();
