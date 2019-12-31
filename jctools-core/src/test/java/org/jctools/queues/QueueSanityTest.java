@@ -25,7 +25,7 @@ public abstract class QueueSanityTest
 {
 
     public static final int SIZE = 8192 * 2;
-    static final int CONCURRENT_TEST_DURATION = 500;
+    static final int CONCURRENT_TEST_DURATION = Integer.getInteger("org.jctools.concTestDurationMs", 500);
     static final int TEST_TIMEOUT = 30000;
 
     protected final Queue<Integer> queue;
