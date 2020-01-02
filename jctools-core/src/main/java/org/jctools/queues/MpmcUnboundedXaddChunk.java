@@ -40,11 +40,27 @@ final class MpmcUnboundedXaddChunk<E> extends MpUnboundedXaddChunk<MpmcUnbounded
 
     void soSequence(int index, long e)
     {
+        assert isPooled();
         soLongElement(sequence, calcLongElementOffset(index), e);
     }
 
     long lvSequence(int index)
     {
+        assert isPooled();
         return lvLongElement(sequence, calcLongElementOffset(index));
+    }
+
+    void spinForSequence(int index, long e)
+    {
+        assert isPooled();
+        final long[] sequence = this.sequence;
+        final long offset = calcLongElementOffset(index);
+        while (true)
+        {
+            if (lvLongElement(sequence, offset) == e)
+            {
+                break;
+            }
+        }
     }
 }
