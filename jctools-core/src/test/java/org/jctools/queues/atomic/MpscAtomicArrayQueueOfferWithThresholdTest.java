@@ -35,5 +35,4 @@ public class MpscAtomicArrayQueueOfferWithThresholdTest
         Assert.assertTrue(this.queue.offerIfBelowThreshold(i, 9));
         Assert.assertTrue(this.queue.offerIfBelowThreshold(i, 16));
     }
-
 }

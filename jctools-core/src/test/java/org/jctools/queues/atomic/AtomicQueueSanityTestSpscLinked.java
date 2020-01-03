@@ -26,5 +26,4 @@ public class AtomicQueueSanityTestSpscLinked extends QueueSanityTestSpscLinked
         list.add(makeAtomic(1, 1, 0, Ordering.FIFO, null));
         return list;
     }
-
 }

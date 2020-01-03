@@ -28,5 +28,4 @@ public class AtomicQueueSanityTestSpscGrowable extends QueueSanityTestSpscGrowab
         list.add(makeAtomic(1, 1, SIZE, Ordering.FIFO, new SpscGrowableAtomicArrayQueue<>(8, SIZE)));
         return list;
     }
-
 }

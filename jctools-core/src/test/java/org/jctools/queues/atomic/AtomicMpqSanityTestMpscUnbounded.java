@@ -28,5 +28,4 @@ public class AtomicMpqSanityTestMpscUnbounded extends MpqSanityTestMpscUnbounded
         list.add(makeAtomic(0, 1, 0, Ordering.FIFO, new MpscUnboundedArrayQueue<>(64)));
         return list;
     }
-
 }

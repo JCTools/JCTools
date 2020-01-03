@@ -27,5 +27,4 @@ public class AtomicQueueSanityTestMpscChunked extends QueueSanityTestMpscChunked
         list.add(makeQueue(0, 1, SIZE, Ordering.FIFO, new MpscChunkedAtomicArrayQueue<>(8, SIZE)));// MPSC size SIZE
         return list;
     }
-
 }

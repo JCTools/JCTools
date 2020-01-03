@@ -28,5 +28,4 @@ public class AtomicQueueSanityTestSpmcArray extends QueueSanityTestSpmcArray
         list.add(makeAtomic(1, 0, SIZE, Ordering.FIFO, null));
         return list;
     }
-
 }

@@ -26,5 +26,4 @@ public class AtomicQueueSanityTestMpscLinked extends QueueSanityTestMpscLinked
         list.add(makeAtomic(0, 1, 0, Ordering.FIFO, null));
         return list;
     }
-
 }

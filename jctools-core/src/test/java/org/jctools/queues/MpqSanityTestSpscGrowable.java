@@ -26,5 +26,4 @@ public class MpqSanityTestSpscGrowable extends MpqSanityTest
         list.add(makeMpq(1, 1, SIZE, Ordering.FIFO, new SpscGrowableArrayQueue<>(8, SIZE)));
         return list;
     }
-
 }

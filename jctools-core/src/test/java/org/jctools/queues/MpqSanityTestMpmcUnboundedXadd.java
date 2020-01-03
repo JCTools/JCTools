@@ -30,6 +30,4 @@ public class MpqSanityTestMpmcUnboundedXadd extends MpqSanityTest
         list.add(makeMpq(0, 0, 0, Ordering.FIFO, new MpmcUnboundedXaddArrayQueue<>(64, 3)));
         return list;
     }
-
-
 }

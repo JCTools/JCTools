@@ -29,5 +29,4 @@ public class AtomicMpqSanityTestSpscGrowable extends MpqSanityTestSpscGrowable
         list.add(makeAtomic(1, 1, SIZE, Ordering.FIFO, new SpscGrowableArrayQueue<>(8, SIZE)));
         return list;
     }
-
 }

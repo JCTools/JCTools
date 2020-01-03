@@ -28,5 +28,4 @@ public class AtomicQueueSanityTestMpscArray extends QueueSanityTestMpscArray
         list.add(makeQueue(0, 1, SIZE, Ordering.FIFO, new MpscAtomicArrayQueue<>(SIZE)));
         return list;
     }
-
 }

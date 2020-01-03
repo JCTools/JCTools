@@ -27,5 +27,4 @@ public class AtomicQueueSanityTestMpscUnboundedArray extends QueueSanityTestMpsc
         list.add(makeQueue(0, 1, 0, Ordering.FIFO, new MpscUnboundedAtomicArrayQueue<Integer>(64)));// MPSC size SIZE
         return list;
     }
-
 }
