@@ -189,7 +189,7 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpUnboundedXaddArrayQueue<Mp
             }
         }
 
-        // if we are the isFirstElementOfNextChunk we need to get the consumer chunk
+        // if we are the isFirstElementOfNewChunk we need to get the consumer chunk
         if (isFirstElementOfNewChunk)
         {
             e = linkNextConsumerChunkAndPoll(cChunk, next, ciChunkIndex);
