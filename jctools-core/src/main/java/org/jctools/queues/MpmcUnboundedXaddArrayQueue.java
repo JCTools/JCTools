@@ -90,7 +90,7 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpUnboundedXaddArrayQueue<Mp
         long cIndex;
         MpmcUnboundedXaddChunk<E> cChunk;
         int ciChunkOffset;
-        boolean isFirstElementOfNextChunk;
+        boolean isFirstElementOfNewChunk;
         boolean pooled = false;
         E e = null;
         MpmcUnboundedXaddChunk<E> next = null;
@@ -98,6 +98,7 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpUnboundedXaddArrayQueue<Mp
         long ciChunkIndex;
         while (true)
         {
+            isFirstElementOfNewChunk = false;
             cIndex = this.lvConsumerIndex();
             // chunk is in sync with the index, and is safe to mutate after CAS of index (because we pre-verify it
             // matched the indicate ciChunkIndex)
@@ -107,12 +108,12 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpUnboundedXaddArrayQueue<Mp
             ciChunkIndex = cIndex >> chunkShift;
 
             final long ccChunkIndex = cChunk.lvIndex();
-            isFirstElementOfNextChunk = ciChunkOffset == 0 && cIndex != 0;
-            if (isFirstElementOfNextChunk) {
+            if (ciChunkOffset == 0 && cIndex != 0) {
                 if (ciChunkIndex - ccChunkIndex != 1)
                 {
                     continue;
                 }
+                isFirstElementOfNewChunk = true;
                 next = cChunk.lvNext();
                 // next could have been modified by another racing consumer, but:
                 // - if null: it still needs to check q empty + casConsumerIndex
@@ -140,7 +141,7 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpUnboundedXaddArrayQueue<Mp
                 continue;
             }
             // mid chunk elements
-            assert !isFirstElementOfNextChunk && ccChunkIndex <= ciChunkIndex;
+            assert !isFirstElementOfNewChunk && ccChunkIndex <= ciChunkIndex;
             pooled = cChunk.isPooled();
             if (ccChunkIndex == ciChunkIndex)
             {
@@ -189,7 +190,7 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpUnboundedXaddArrayQueue<Mp
         }
 
         // if we are the isFirstElementOfNextChunk we need to get the consumer chunk
-        if (isFirstElementOfNextChunk)
+        if (isFirstElementOfNewChunk)
         {
             e = linkNextConsumerChunkAndPoll(cChunk, next, ciChunkIndex);
         }
