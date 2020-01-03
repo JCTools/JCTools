@@ -1,3 +1,33 @@
+3.0.0
+=========
+This is a major version as there are some minor API breaking changes which may effect users. Please apply with care and provide feedback. The breaking changes:
+
+Removed MpscLinkedQueue7 and MpscLinkedQueue8 and consolidate into parent. This removes the need for the builder method on MpscLinkedQueue.
+Deprecated QueueFactory and spec package classes. These are not used by any users AFAICT and are only used for testing internally.
+Removed some internal classes and reduced visibility of internal utilities where practical. The @InternalAPI tagging annotation is also used more extensively to discourage dependency.
+We also have some great new queues for y'all to try:
+- #226: XADD unbounded mpsc/mpmc queue: highly scalable linked array queues
+ (from @franz1981)
+- New blocking consumer MPSC (with contributions and bug fixes from @njhill)
+
+Bug fixes:
+- #209: On Arm7, non-volatile long can have unaligned address leading to error
+- #216: Size of SpscGrowableArrayQueue can exceeds max capacity (from @franz1981 PR #218)
+- #241: Protect the producer index in case of OutOfMemoryError (from @franz1981)
+- #244: Long NBHM AssertionError when replacing missing key (thanks @fvlad for reporting and @cliffclick for assistance and review)
+- Fix argument checks on fill/drain methods
+- Fix LGTM warning, potential int overflow bug b467d29, 15d944c, 6367951
+
+Improvements:
+- Don't mark generated linked atomic queues as final (from @kay 9db418c)
+- #211: Implement batching methods on MpmcArrayQueue (from @franz1981)
+- #228: Iterator for MpscArrayQueue and MpscUnboundedArrayQueue (PR #229 from @srdo)
+- Iterator support also available for the *ArrayQueue classes
+- #208: MpscLinkedAtomicQueue can be made not final
+- #237: Add scale to exception message to help debug netty/netty#8916 (from @johnou)
+
+Many other improvements to testing, javadoc, formatting were made with some contributions from @Hearen @JanStureNielsen @nastra thanks!
+
 2.1.2
 =========
 - PR #202 : Fix NBHM bug in remove/replace where ref equality was used to report val match instead of equals (thanks @henri-tremblay)

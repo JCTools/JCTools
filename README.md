@@ -21,7 +21,8 @@ the JDK:
   
 There's more to come and contributions/suggestions are most welcome. JCTools has enjoyed support from the community
 and contributions in the form of issues/tests/documentation/code have helped it grow.
-JCTools offers excellent performance at a reasonable price (FREE! under the Apache 2.0 License). It's stable and in use by such distinguished frameworks as Netty, RxJava and others. JCTools is also used by commercial products to great result.
+JCTools offers excellent performance at a reasonable price (FREE! under the Apache 2.0 License). It's stable and in
+use by such distinguished frameworks as Netty, RxJava and others. JCTools is also used by commercial products to great result.
 
 Get it NOW!
 ==========
@@ -30,7 +31,7 @@ Add the latest version as a dependency using Maven:
         <dependency>
             <groupId>org.jctools</groupId>
             <artifactId>jctools-core</artifactId>
-            <version>2.1.1</version>
+            <version>3.0.0</version>
         </dependency>
 ```
 
@@ -47,11 +48,11 @@ And setup the following dependency:
         <dependency>
             <groupId>com.github.JCTools.JCTools</groupId>
             <artifactId>jctools-core</artifactId>
-            <version>v2.1.1</version>
+            <version>v3.0.0</version>
         </dependency>
 ```
 
-You can also depend on latest snapshot from this repository (live on the edge) by setting the version to '2.2-SNAPSHOT'.
+You can also depend on latest snapshot from this repository (live on the edge) by setting the version to '3.0.1-SNAPSHOT'.
 
 
 Build it from source
