@@ -359,6 +359,9 @@ abstract class MpUnboundedXaddArrayQueue<R extends MpUnboundedXaddChunk<R,E>, E>
             assert pooled;
         }
         this.soConsumerChunk(next);
+        // MC case:
+        // from now on the code is not single-threaded anymore and
+        // other consumers can move forward consumerIndex
     }
 
     @Override
