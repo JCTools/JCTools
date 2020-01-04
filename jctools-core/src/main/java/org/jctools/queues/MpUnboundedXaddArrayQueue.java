@@ -311,39 +311,6 @@ abstract class MpUnboundedXaddArrayQueue<R extends MpUnboundedXaddChunk<R,E>, E>
     }
 
 
-    final R pollNextBuffer(R cChunk, long cIndex)
-    {
-        final R next = spinForNextIfNotEmpty(cChunk, cIndex);
-
-        if (next == null)
-        {
-            return null;
-        }
-
-        moveToNextConsumerChunk(cChunk, next);
-        assert next.lvIndex() == cIndex >> chunkShift;
-        return next;
-    }
-
-    final R spinForNextIfNotEmpty(R cChunk, long cIndex)
-    {
-        R next = cChunk.lvNext();
-        if (next == null)
-        {
-            if (lvProducerIndex() == cIndex)
-            {
-                return null;
-            }
-
-            do
-            {
-                next = cChunk.lvNext();
-            }
-            while (next == null);
-        }
-        return next;
-    }
-
     /**
      * Does not null out the first element of `next`, callers must do that
      */
