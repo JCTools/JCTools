@@ -61,11 +61,12 @@ public class MpqBurstCost
             final Event event = new Event();
 
             // stretch the queue to the limit, working through resizing and full
-            for (int i = 0; i < 128 + 100; i++)
+            // 128 * 2 account for the xadd qs that pool by default 2 chunks
+            for (int i = 0; i < ((128 * 2) + 100); i++)
             {
                 q.offer(event);
             }
-            for (int i = 0; i < 128 + 100; i++)
+            for (int i = 0; i < ((128 * 2) + 100); i++)
             {
                 q.poll();
             }
