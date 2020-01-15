@@ -70,6 +70,39 @@ public class MpscUnboundedXaddArrayQueue<E> extends MpUnboundedXaddArrayQueue<Mp
         return true;
     }
 
+    private MpscUnboundedXaddChunk<E> pollNextBuffer(MpscUnboundedXaddChunk<E> cChunk, long cIndex)
+    {
+        final MpscUnboundedXaddChunk<E> next = spinForNextIfNotEmpty(cChunk, cIndex);
+
+        if (next == null)
+        {
+            return null;
+        }
+
+        moveToNextConsumerChunk(cChunk, next);
+        assert next.lvIndex() == cIndex >> chunkShift;
+        return next;
+    }
+
+    private MpscUnboundedXaddChunk<E> spinForNextIfNotEmpty(MpscUnboundedXaddChunk<E> cChunk, long cIndex)
+    {
+        MpscUnboundedXaddChunk<E> next = cChunk.lvNext();
+        if (next == null)
+        {
+            if (lvProducerIndex() == cIndex)
+            {
+                return null;
+            }
+
+            do
+            {
+                next = cChunk.lvNext();
+            }
+            while (next == null);
+        }
+        return next;
+    }
+
     @Override
     public E poll()
     {
