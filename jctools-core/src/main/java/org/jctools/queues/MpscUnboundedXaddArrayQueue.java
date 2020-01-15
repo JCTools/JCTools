@@ -16,9 +16,12 @@ package org.jctools.queues;
 import org.jctools.util.PortableJvmInfo;
 
 /**
- * An MPSC array queue which starts at <i>initialCapacity</i> and grows unbounded in linked chunks.<br>
+ * An MPSC array queue which grows unbounded in linked chunks.<br>
  * Differently from {@link MpscUnboundedArrayQueue} it is designed to provide a better scaling when more
- * producers are concurrently offering.
+ * producers are concurrently offering.<br>
+ * Users should be aware that {@link #poll()} could spin while awaiting a new element to be available:
+ * to avoid this behaviour {@link #relaxedPoll()} should be used instead, accounting for the semantic differences
+ * between the twos.
  *
  * @author https://github.com/franz1981
  */
