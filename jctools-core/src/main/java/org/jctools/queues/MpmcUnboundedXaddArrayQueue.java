@@ -14,10 +14,14 @@
 package org.jctools.queues;
 
 
+
 /**
- * An MPMC array queue which starts at <i>initialCapacity</i> and grows unbounded in linked chunks.<br>
+ * An MPMC array queue which grows unbounded in linked chunks.<br>
  * Differently from {@link MpmcArrayQueue} it is designed to provide a better scaling when more
- * producers are concurrently offering.
+ * producers are concurrently offering.<br>
+ * Users should be aware that {@link #poll()} could spin while awaiting a new element to be available:
+ * to avoid this behaviour {@link #relaxedPoll()} should be used instead, accounting for the semantic differences
+ * between the twos.
  *
  * @author https://github.com/franz1981
  */
@@ -303,14 +307,14 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpUnboundedXaddArrayQueue<Mp
             final boolean pooled = next.isPooled();
             if (pooled)
             {
-                if (next.lvSequence(ciChunkOffset) != ciChunkIndex)
+                if (next.lvSequence(0) != ciChunkIndex)
                 {
                     return null;
                 }
             }
             else
             {
-                e = next.lvElement(ciChunkOffset);
+                e = next.lvElement(0);
                 if (e == null)
                 {
                     return null;
@@ -322,7 +326,7 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpUnboundedXaddArrayQueue<Mp
             }
             if (pooled)
             {
-                e = next.lvElement(ciChunkOffset);
+                e = next.lvElement(0);
             }
             assert e != null;
 
