@@ -98,8 +98,10 @@ public class QueueByTypeFactory {
     @SuppressWarnings({ "rawtypes", "unchecked" })
     public static <T> Queue<T> createQueue(String queueType, final int chunkSize, final int queueCapacity) {
         Class qClass = queueClass(queueType);
-        if (!(BaseMpscLinkedArrayQueue.class.isAssignableFrom(qClass) || BaseSpscLinkedArrayQueue.class.isAssignableFrom(qClass)) )
-            throw new IllegalArgumentException("Failed to construct queue, does not expect chunkSize:"+qClass.getName());
+        if (!(BaseMpscLinkedArrayQueue.class.isAssignableFrom(qClass) ||
+              BaseSpscLinkedArrayQueue.class.isAssignableFrom(qClass) ||
+              MpUnboundedXaddArrayQueue.class.isAssignableFrom(qClass)) )
+            throw new IllegalArgumentException("Failed to construct queue, does not expect dual param constructor: " + qClass.getName());
         Constructor constructor;
         Exception ex;
         try {
