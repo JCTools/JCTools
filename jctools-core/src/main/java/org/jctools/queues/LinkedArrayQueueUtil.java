@@ -1,11 +1,14 @@
 package org.jctools.queues;
 
+import org.jctools.util.InternalAPI;
+
 import static org.jctools.util.UnsafeRefArrayAccess.REF_ARRAY_BASE;
 import static org.jctools.util.UnsafeRefArrayAccess.REF_ELEMENT_SHIFT;
 
 /**
  * This is used for method substitution in the LinkedArray classes code generation.
  */
+@InternalAPI
 final class LinkedArrayQueueUtil
 {
     static int length(Object[] buf)
