@@ -50,7 +50,7 @@
  * <ol>
  * <li>Hot counters (or write locations) are padded.
  * <li>Read-Only shared fields are padded.
- * <li>Array edges are padded.
+ * <li>Array edges are NOT padded (though doing so is entirely legitimate).
  * </ol>
  * <p>
  * <br>
