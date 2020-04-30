@@ -24,12 +24,6 @@ import org.jctools.util.PortableJvmInfo;
 @InternalAPI
 public final class MessagePassingQueueUtil
 {
-
-    private MessagePassingQueueUtil()
-    {
-
-    }
-
     public static <E> int drain(MessagePassingQueue<E> queue, Consumer<E> c, int limit)
     {
         if (null == c)
