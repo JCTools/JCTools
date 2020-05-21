@@ -272,17 +272,29 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E>
     @Override
     public E peek()
     {
+        final long[] sBuffer = sequenceBuffer;
         long cIndex;
         E e;
+        long seq;
+        long seqOffset;
         do
         {
             cIndex = lvConsumerIndex();
-            // other consumers may have grabbed the element, or queue might be empty
             e = lpRefElement(buffer, calcCircularRefElementOffset(cIndex, mask));
-            // only return null if queue is empty
+
+            if (e != null) {
+                seqOffset = calcCircularLongElementOffset(cIndex, mask);
+                seq = lvLongElement(sBuffer, seqOffset);
+                // check sequence
+                if (seq == cIndex + 1) {
+                    return e;
+                }
+                // The element may be newly filled or even head
+            }
         }
-        while (e == null && cIndex != lvProducerIndex());
-        return e;
+        while (cIndex != lvProducerIndex());
+        // only return null if queue is empty
+        return null;
     }
 
     @Override
@@ -350,8 +362,19 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E>
     @Override
     public E relaxedPeek()
     {
-        long currConsumerIndex = lvConsumerIndex();
-        return lpRefElement(buffer, calcCircularRefElementOffset(currConsumerIndex, mask));
+        final long[] sBuffer = sequenceBuffer;
+        final long currConsumerIndex = lvConsumerIndex();
+        final E e = lpRefElement(buffer, calcCircularRefElementOffset(currConsumerIndex, mask));
+        if (e != null) {
+            long seqOffset = calcCircularLongElementOffset(currConsumerIndex, mask);
+            long seq = lvLongElement(sBuffer, seqOffset);
+            // check sequence
+            if (seq == currConsumerIndex + 1) {
+                return e;
+            }
+            // The element may be newly filled or even head
+        }
+        return null;
     }
 
     @Override
