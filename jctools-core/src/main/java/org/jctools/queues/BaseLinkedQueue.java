@@ -15,6 +15,7 @@ package org.jctools.queues;
 
 import java.util.AbstractQueue;
 import java.util.Iterator;
+import java.util.Queue;
 
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeAccess.fieldOffset;
@@ -45,20 +46,23 @@ abstract class BaseLinkedQueueProducerNodeRef<E> extends BaseLinkedQueuePad0<E>
 {
     final static long P_NODE_OFFSET = fieldOffset(BaseLinkedQueueProducerNodeRef.class, "producerNode");
 
-    private LinkedQueueNode<E> producerNode;
+    private volatile LinkedQueueNode<E> producerNode;
 
     final void spProducerNode(LinkedQueueNode<E> newValue)
     {
-        producerNode = newValue;
+        UNSAFE.putObject(this, P_NODE_OFFSET, newValue);
     }
 
-    @SuppressWarnings("unchecked")
+    final void soProducerNode(LinkedQueueNode<E> newValue)
+    {
+        UNSAFE.putOrderedObject(this, P_NODE_OFFSET, newValue);
+    }
+
     final LinkedQueueNode<E> lvProducerNode()
     {
-        return (LinkedQueueNode<E>) UNSAFE.getObjectVolatile(this, P_NODE_OFFSET);
+        return producerNode;
     }
 
-    @SuppressWarnings("unchecked")
     final boolean casProducerNode(LinkedQueueNode<E> expect, LinkedQueueNode<E> newValue)
     {
         return UNSAFE.compareAndSwapObject(this, P_NODE_OFFSET, expect, newValue);
@@ -212,7 +216,9 @@ abstract class BaseLinkedQueue<E> extends BaseLinkedQueuePad2<E>
     @Override
     public boolean isEmpty()
     {
-        return lvConsumerNode() == lvProducerNode();
+        LinkedQueueNode<E> consumerNode = lvConsumerNode();
+        LinkedQueueNode<E> producerNode = lvProducerNode();
+        return consumerNode == producerNode;
     }
 
     protected E getSingleConsumerNodeValue(LinkedQueueNode<E> currConsumerNode, LinkedQueueNode<E> nextNode)
@@ -227,6 +233,91 @@ abstract class BaseLinkedQueue<E> extends BaseLinkedQueuePad2<E>
         spConsumerNode(nextNode);
         // currConsumerNode is now no longer referenced and can be collected
         return nextValue;
+    }
+
+    /**
+     * {@inheritDoc} <br>
+     * <p>
+     * IMPLEMENTATION NOTES:<br>
+     * Poll is allowed from a SINGLE thread.<br>
+     * Poll is potentially blocking here as the {@link Queue#poll()} does not allow returning {@code null} if the queue is not
+     * empty. This is very different from the original Vyukov guarantees. See {@link #relaxedPoll()} for the original
+     * semantics.<br>
+     * Poll reads {@code consumerNode.next} and:
+     * <ol>
+     * <li>If it is {@code null} AND the queue is empty return {@code null}, <b>if queue is not empty spin wait for
+     * value to become visible</b>.
+     * <li>If it is not {@code null} set it as the consumer node and return it's now evacuated value.
+     * </ol>
+     * This means the consumerNode.value is always {@code null}, which is also the starting point for the queue.
+     * Because {@code null} values are not allowed to be offered this is the only node with it's value set to
+     * {@code null} at any one time.
+     *
+     * @see MessagePassingQueue#poll()
+     * @see java.util.Queue#poll()
+     */
+    @Override
+    public E poll()
+    {
+        final LinkedQueueNode<E> currConsumerNode = lpConsumerNode();
+        LinkedQueueNode<E> nextNode = currConsumerNode.lvNext();
+        if (nextNode != null)
+        {
+            return getSingleConsumerNodeValue(currConsumerNode, nextNode);
+        }
+        else if (currConsumerNode != lvProducerNode())
+        {
+            nextNode = spinWaitForNextNode(currConsumerNode);
+            // got the next node...
+            return getSingleConsumerNodeValue(currConsumerNode, nextNode);
+        }
+        return null;
+    }
+
+    /**
+     * {@inheritDoc} <br>
+     * <p>
+     * IMPLEMENTATION NOTES:<br>
+     * Peek is allowed from a SINGLE thread.<br>
+     * Peek is potentially blocking here as the {@link Queue#peek()} does not allow returning {@code null} if the queue is not
+     * empty. This is very different from the original Vyukov guarantees. See {@link #relaxedPeek()} for the original
+     * semantics.<br>
+     * Poll reads the next node from the consumerNode and:
+     * <ol>
+     * <li>If it is {@code null} AND the queue is empty return {@code null}, <b>if queue is not empty spin wait for
+     * value to become visible</b>.
+     * <li>If it is not {@code null} return it's value.
+     * </ol>
+     *
+     * @see MessagePassingQueue#peek()
+     * @see java.util.Queue#peek()
+     */
+    @Override
+    public E peek()
+    {
+        final LinkedQueueNode<E> currConsumerNode = lpConsumerNode();
+        LinkedQueueNode<E> nextNode = currConsumerNode.lvNext();
+        if (nextNode != null)
+        {
+            return nextNode.lpValue();
+        }
+        else if (currConsumerNode != lvProducerNode())
+        {
+            nextNode = spinWaitForNextNode(currConsumerNode);
+            // got the next node...
+            return nextNode.lpValue();
+        }
+        return null;
+    }
+
+    LinkedQueueNode<E> spinWaitForNextNode(LinkedQueueNode<E> currNode)
+    {
+        LinkedQueueNode<E> nextNode;
+        while ((nextNode = currNode.lvNext()) == null)
+        {
+            // spin, we are no longer wait free
+        }
+        return nextNode;
     }
 
     @Override

@@ -15,6 +15,22 @@ package org.jctools.queues;
 
 import org.jctools.util.InternalAPI;
 
+/**
+ * A note to maintainers on index assumptions: in a single threaded world it would seem intuitive to assume:
+ * <pre>
+ * <code>producerIndex >= consumerIndex</code>
+ * </pre>
+ * As an invariant, but in a concurrent, long running settings all of the following need to be considered:
+ * <ul>
+ *     <li> <code>consumerIndex > producerIndex</code> : due to counter overflow (unlikey with longs, but easy to reason)
+ *     <li> <code>consumerIndex > producerIndex</code> : due to consumer FastFlow like implementation discovering the
+ *     element before the counter is updated.
+ *     <li> <code>producerIndex - consumerIndex < 0</code> : due to above.
+ *     <li> <code>producerIndex - consumerIndex > Integer.MAX_VALUE</code> : as linked buffers allow constructing queues
+ *     with more than <code>Integer.MAX_VALUE</code> elements.
+ *
+ * </ul>
+ */
 @InternalAPI
 public final class IndexedQueueSizeUtil
 {
@@ -45,6 +61,10 @@ public final class IndexedQueueSizeUtil
         {
             return Integer.MAX_VALUE;
         }
+        else if (size < 0)
+        {
+            return 0;
+        }
         else
         {
             return (int) size;
@@ -57,7 +77,7 @@ public final class IndexedQueueSizeUtil
         // Loading consumer before producer allows for producer increments after consumer index is read.
         // This ensures this method is conservative in it's estimate. Note that as this is an MPMC there is
         // nothing we can do to make this an exact method.
-        return (iq.lvConsumerIndex() == iq.lvProducerIndex());
+        return (iq.lvConsumerIndex() >= iq.lvProducerIndex());
     }
 
     @InternalAPI

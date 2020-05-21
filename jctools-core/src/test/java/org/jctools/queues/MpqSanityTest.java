@@ -1,5 +1,6 @@
 package org.jctools.queues;
 
+import org.jctools.queues.QueueSanityTest.Val;
 import org.jctools.queues.atomic.AtomicQueueFactory;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
@@ -804,4 +805,226 @@ public abstract class MpqSanityTest
         public int value;
     }
 
+
+    @Test(timeout = TEST_TIMEOUT)
+    public void testPeekAfterIsEmpty1() throws Exception
+    {
+        final AtomicBoolean stop = new AtomicBoolean();
+        final MessagePassingQueue<Integer> q = queue;
+        final QueueSanityTest.Val fail = new QueueSanityTest.Val();
+        Runnable consumerLoop = new Runnable()
+        {
+            @Override
+            public void run()
+            {
+                while (!stop.get())
+                {
+                    if (!q.isEmpty() && q.peek() == null)
+                    {
+                        fail.value++;
+                    }
+                    q.poll();
+                }
+            }
+        };
+        testIsEmptyInvariant(stop, q, fail, consumerLoop);
+    }
+
+    @Test(timeout = TEST_TIMEOUT)
+    public void testPeekAfterIsEmpty2() throws Exception
+    {
+        final AtomicBoolean stop = new AtomicBoolean();
+        final MessagePassingQueue<Integer> q = queue;
+        final QueueSanityTest.Val fail = new QueueSanityTest.Val();
+        Runnable consumerLoop = new Runnable()
+        {
+            @Override
+            public void run()
+            {
+                while (!stop.get())
+                {
+                    // can the consumer progress "passed" the producer and confuse `isEmpty`?
+                    q.poll();
+                    if (!q.isEmpty() && q.peek() == null)
+                    {
+                        fail.value++;
+                    }
+                }
+            }
+        };
+        testIsEmptyInvariant(stop, q, fail, consumerLoop);
+    }
+
+    @Test(timeout = TEST_TIMEOUT)
+    public void testPeekAfterIsEmpty3() throws Exception
+    {
+        final AtomicBoolean stop = new AtomicBoolean();
+        final MessagePassingQueue<Integer> q = queue;
+        final QueueSanityTest.Val fail = new QueueSanityTest.Val();
+        Runnable consumerLoop = new Runnable()
+        {
+            @Override
+            public void run()
+            {
+                while (!stop.get())
+                {
+                    // can the consumer progress "passed" the producer and confuse `size`?
+                    q.poll();
+                    if (q.size() != 0 && q.peek() == null)
+                    {
+                        fail.value++;
+                    }
+                }
+            }
+        };
+        testIsEmptyInvariant(stop, q, fail, consumerLoop);
+    }
+
+    @Test(timeout = TEST_TIMEOUT)
+    public void testPollAfterIsEmpty1() throws Exception
+    {
+        final AtomicBoolean stop = new AtomicBoolean();
+        final MessagePassingQueue<Integer> q = queue;
+        final QueueSanityTest.Val fail = new QueueSanityTest.Val();
+        Runnable consumerLoop = new Runnable()
+        {
+            @Override
+            public void run()
+            {
+                while (!stop.get())
+                {
+                    if (!q.isEmpty() && q.poll() == null)
+                    {
+                        fail.value++;
+                    }
+                }
+            }
+        };
+        testIsEmptyInvariant(stop, q, fail, consumerLoop);
+    }
+
+    @Test(timeout = TEST_TIMEOUT)
+    public void testPollAfterIsEmpty2() throws Exception
+    {
+        final AtomicBoolean stop = new AtomicBoolean();
+        final MessagePassingQueue<Integer> q = queue;
+        final QueueSanityTest.Val fail = new QueueSanityTest.Val();
+        Runnable consumerLoop = new Runnable()
+        {
+            @Override
+            public void run()
+            {
+                while (!stop.get())
+                {
+                    // can the consumer progress "passed" the producer and confuse `isEmpty`?
+                    q.poll();
+                    if (!q.isEmpty() && q.poll() == null)
+                    {
+                        fail.value++;
+                    }
+                }
+            }
+        };
+        testIsEmptyInvariant(stop, q, fail, consumerLoop);
+    }
+
+    @Test(timeout = TEST_TIMEOUT)
+    public void testPollAfterIsEmpty3() throws Exception
+    {
+        final AtomicBoolean stop = new AtomicBoolean();
+        final MessagePassingQueue<Integer> q = queue;
+        final QueueSanityTest.Val fail = new QueueSanityTest.Val();
+        Runnable consumerLoop = new Runnable()
+        {
+            @Override
+            public void run()
+            {
+                while (!stop.get())
+                {
+                    // can the consumer progress "passed" the producer and confuse `size`?
+                    q.poll();
+                    if (q.size() != 0 && q.poll() == null)
+                    {
+                        fail.value++;
+                    }
+                }
+            }
+        };
+        testIsEmptyInvariant(stop, q, fail, consumerLoop);
+    }
+
+    private void testIsEmptyInvariant(AtomicBoolean stop, MessagePassingQueue<Integer> q, QueueSanityTest.Val fail, Runnable consumerLoop)
+        throws InterruptedException
+    {
+        testIsEmptyInvariant(stop, fail, consumerLoop, () -> {
+            while (!stop.get())
+            {
+                q.relaxedOffer(1);
+                // slow down the producer, this will make the queue mostly empty encouraging visibility issues.
+                Thread.yield();
+            }
+        });
+
+        testIsEmptyInvariant(stop, fail, consumerLoop, () -> {
+            while (!stop.get())
+            {
+                q.fill(() -> 1);
+                // slow down the producer, this will make the queue mostly empty encouraging visibility issues.
+                Thread.yield();
+            }
+        });
+
+        testIsEmptyInvariant(stop, fail, consumerLoop, () -> {
+            while (!stop.get())
+            {
+                q.fill(() -> 1, 1);
+                // slow down the producer, this will make the queue mostly empty encouraging visibility issues.
+                Thread.yield();
+            }
+        });
+        testIsEmptyInvariant(stop, fail, consumerLoop, () -> {
+            q.fill(() -> 1, i -> {Thread.yield(); return i;}, () -> !stop.get());
+        });
+
+        int capacity = q.capacity();
+        if (capacity == MessagePassingQueue.UNBOUNDED_CAPACITY || capacity == 1)
+            return;
+        int limit = Math.max(capacity/8, 2);
+        testIsEmptyInvariant(stop, fail, consumerLoop, () -> {
+            while (!stop.get())
+            {
+                q.fill(() -> 1, 1);
+                // slow down the producer, this will make the queue mostly empty encouraging visibility issues.
+                Thread.yield();
+            }
+        });
+
+    }
+
+    private void testIsEmptyInvariant(
+        AtomicBoolean stop,
+        QueueSanityTest.Val fail,
+        Runnable consumerLoop,
+        Runnable producerLoop)
+        throws InterruptedException
+    {
+        Thread[] producers = producers(producerLoop);
+
+        Thread consumer = new Thread(consumerLoop);
+
+        startWaitJoin(stop, producers, consumer);
+
+        assertEquals("Observed no element in non-empty queue", 0, fail.value);
+        stop.set(false);
+    }
+
+    private void startWaitJoin(AtomicBoolean stop, Thread[] producers, Thread consumer) throws InterruptedException
+    {
+        for (Thread t : producers) t.start();
+        consumer.start();
+        Thread.sleep(CONCURRENT_TEST_DURATION);
+        stop.set(true);
+        for (Thread t : producers)  t.join();
+        consumer.join();
+    }
 }

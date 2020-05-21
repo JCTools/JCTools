@@ -15,6 +15,7 @@ package org.jctools.queues.atomic;
 
 import java.util.AbstractQueue;
 import java.util.Iterator;
+import java.util.Queue;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceArray;
@@ -91,12 +92,14 @@ abstract class BaseLinkedAtomicQueueProducerNodeRef<E> extends BaseLinkedAtomicQ
         P_NODE_UPDATER.lazySet(this, newValue);
     }
 
-    @SuppressWarnings("unchecked")
+    final void soProducerNode(LinkedQueueAtomicNode<E> newValue) {
+        P_NODE_UPDATER.lazySet(this, newValue);
+    }
+
     final LinkedQueueAtomicNode<E> lvProducerNode() {
         return producerNode;
     }
 
-    @SuppressWarnings("unchecked")
     final boolean casProducerNode(LinkedQueueAtomicNode<E> expect, LinkedQueueAtomicNode<E> newValue) {
         return P_NODE_UPDATER.compareAndSet(this, expect, newValue);
     }
@@ -179,7 +182,6 @@ abstract class BaseLinkedAtomicQueueConsumerNodeRef<E> extends BaseLinkedAtomicQ
         C_NODE_UPDATER.lazySet(this, newValue);
     }
 
-    @SuppressWarnings("unchecked")
     final LinkedQueueAtomicNode<E> lvConsumerNode() {
         return consumerNode;
     }
@@ -317,7 +319,9 @@ abstract class BaseLinkedAtomicQueue<E> extends BaseLinkedAtomicQueuePad2<E> {
      */
     @Override
     public boolean isEmpty() {
-        return lvConsumerNode() == lvProducerNode();
+        LinkedQueueAtomicNode<E> consumerNode = lvConsumerNode();
+        LinkedQueueAtomicNode<E> producerNode = lvProducerNode();
+        return consumerNode == producerNode;
     }
 
     protected E getSingleConsumerNodeValue(LinkedQueueAtomicNode<E> currConsumerNode, LinkedQueueAtomicNode<E> nextNode) {
@@ -330,6 +334,81 @@ abstract class BaseLinkedAtomicQueue<E> extends BaseLinkedAtomicQueuePad2<E> {
         spConsumerNode(nextNode);
         // currConsumerNode is now no longer referenced and can be collected
         return nextValue;
+    }
+
+    /**
+     * {@inheritDoc} <br>
+     * <p>
+     * IMPLEMENTATION NOTES:<br>
+     * Poll is allowed from a SINGLE thread.<br>
+     * Poll is potentially blocking here as the {@link Queue#poll()} does not allow returning {@code null} if the queue is not
+     * empty. This is very different from the original Vyukov guarantees. See {@link #relaxedPoll()} for the original
+     * semantics.<br>
+     * Poll reads {@code consumerNode.next} and:
+     * <ol>
+     * <li>If it is {@code null} AND the queue is empty return {@code null}, <b>if queue is not empty spin wait for
+     * value to become visible</b>.
+     * <li>If it is not {@code null} set it as the consumer node and return it's now evacuated value.
+     * </ol>
+     * This means the consumerNode.value is always {@code null}, which is also the starting point for the queue.
+     * Because {@code null} values are not allowed to be offered this is the only node with it's value set to
+     * {@code null} at any one time.
+     *
+     * @see MessagePassingQueue#poll()
+     * @see java.util.Queue#poll()
+     */
+    @Override
+    public E poll() {
+        final LinkedQueueAtomicNode<E> currConsumerNode = lpConsumerNode();
+        LinkedQueueAtomicNode<E> nextNode = currConsumerNode.lvNext();
+        if (nextNode != null) {
+            return getSingleConsumerNodeValue(currConsumerNode, nextNode);
+        } else if (currConsumerNode != lvProducerNode()) {
+            nextNode = spinWaitForNextNode(currConsumerNode);
+            // got the next node...
+            return getSingleConsumerNodeValue(currConsumerNode, nextNode);
+        }
+        return null;
+    }
+
+    /**
+     * {@inheritDoc} <br>
+     * <p>
+     * IMPLEMENTATION NOTES:<br>
+     * Peek is allowed from a SINGLE thread.<br>
+     * Peek is potentially blocking here as the {@link Queue#peek()} does not allow returning {@code null} if the queue is not
+     * empty. This is very different from the original Vyukov guarantees. See {@link #relaxedPeek()} for the original
+     * semantics.<br>
+     * Poll reads the next node from the consumerNode and:
+     * <ol>
+     * <li>If it is {@code null} AND the queue is empty return {@code null}, <b>if queue is not empty spin wait for
+     * value to become visible</b>.
+     * <li>If it is not {@code null} return it's value.
+     * </ol>
+     *
+     * @see MessagePassingQueue#peek()
+     * @see java.util.Queue#peek()
+     */
+    @Override
+    public E peek() {
+        final LinkedQueueAtomicNode<E> currConsumerNode = lpConsumerNode();
+        LinkedQueueAtomicNode<E> nextNode = currConsumerNode.lvNext();
+        if (nextNode != null) {
+            return nextNode.lpValue();
+        } else if (currConsumerNode != lvProducerNode()) {
+            nextNode = spinWaitForNextNode(currConsumerNode);
+            // got the next node...
+            return nextNode.lpValue();
+        }
+        return null;
+    }
+
+    LinkedQueueAtomicNode<E> spinWaitForNextNode(LinkedQueueAtomicNode<E> currNode) {
+        LinkedQueueAtomicNode<E> nextNode;
+        while ((nextNode = currNode.lvNext()) == null) {
+        // spin, we are no longer wait free
+        }
+        return nextNode;
     }
 
     @Override

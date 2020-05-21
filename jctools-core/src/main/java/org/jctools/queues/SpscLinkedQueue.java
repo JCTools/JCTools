@@ -46,8 +46,8 @@ public class SpscLinkedQueue<E> extends BaseLinkedQueue<E>
      * Offer is allowed from a SINGLE thread.<br>
      * Offer allocates a new node (holding the offered value) and:
      * <ol>
-     * <li>Sets that node as the producerNode.next
      * <li>Sets the new node as the producerNode
+     * <li>Sets that node as the lastProducerNode.next
      * </ol>
      * From this follows that producerNode.next is always null and for all other nodes node.next is not null.
      *
@@ -62,35 +62,13 @@ public class SpscLinkedQueue<E> extends BaseLinkedQueue<E>
             throw new NullPointerException();
         }
         final LinkedQueueNode<E> nextNode = newNode(e);
-        lpProducerNode().soNext(nextNode);
-        spProducerNode(nextNode);
+        LinkedQueueNode<E> oldNode = lpProducerNode();
+        soProducerNode(nextNode);
+        // Should a producer thread get interrupted here the chain WILL be broken until that thread is resumed
+        // and completes the store in prev.next. This is a "bubble".
+        // Inverting the order here will break the `isEmpty` invariant, and will require matching adjustments elsewhere.
+        oldNode.soNext(nextNode);
         return true;
-    }
-
-    /**
-     * {@inheritDoc} <br>
-     * <p>
-     * IMPLEMENTATION NOTES:<br>
-     * Poll is allowed from a SINGLE thread.<br>
-     * Poll reads the next node from the consumerNode and:
-     * <ol>
-     * <li>If it is null, the queue is empty.
-     * <li>If it is not null set it as the consumer node and return it's now evacuated value.
-     * </ol>
-     * This means the consumerNode.value is always null, which is also the starting point for the queue.
-     * Because null values are not allowed to be offered this is the only node with it's value set to null at
-     * any one time.
-     */
-    @Override
-    public E poll()
-    {
-        return relaxedPoll();
-    }
-
-    @Override
-    public E peek()
-    {
-        return relaxedPeek();
     }
 
     @Override
@@ -118,31 +96,15 @@ public class SpscLinkedQueue<E> extends BaseLinkedQueue<E>
             tail = temp;
         }
         final LinkedQueueNode<E> oldPNode = lpProducerNode();
-        oldPNode.soNext(head);
         spProducerNode(tail);
+        // same bubble as offer, and for the same reasons.
+        oldPNode.soNext(head);
         return limit;
     }
 
     @Override
     public void fill(Supplier<E> s, WaitStrategy wait, ExitCondition exit)
     {
-        if (null == wait)
-            throw new IllegalArgumentException("waiter is null");
-        if (null == exit)
-            throw new IllegalArgumentException("exit condition is null");
-        if (null == s)
-            throw new IllegalArgumentException("supplier is null");
-
-        LinkedQueueNode<E> chaserNode = lpProducerNode();
-        while (exit.keepRunning())
-        {
-            for (int i = 0; i < 4096; i++)
-            {
-                final LinkedQueueNode<E> nextNode = newNode(s.get());
-                chaserNode.soNext(nextNode);
-                chaserNode = nextNode;
-                this.spProducerNode(chaserNode);
-            }
-        }
+        MessagePassingQueueUtil.fill(this, s, wait, exit);
     }
 }

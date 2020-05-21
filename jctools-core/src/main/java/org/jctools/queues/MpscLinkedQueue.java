@@ -73,81 +73,6 @@ public class MpscLinkedQueue<E> extends BaseLinkedQueue<E>
     }
 
     /**
-     * {@inheritDoc} <br>
-     * <p>
-     * IMPLEMENTATION NOTES:<br>
-     * Poll is allowed from a SINGLE thread.<br>
-     * Poll is potentially blocking here as the {@link Queue#poll()} does not allow returning {@code null} if the queue is not
-     * empty. This is very different from the original Vyukov guarantees. See {@link #relaxedPoll()} for the original
-     * semantics.<br>
-     * Poll reads {@code consumerNode.next} and:
-     * <ol>
-     * <li>If it is {@code null} AND the queue is empty return {@code null}, <b>if queue is not empty spin wait for
-     * value to become visible</b>.
-     * <li>If it is not {@code null} set it as the consumer node and return it's now evacuated value.
-     * </ol>
-     * This means the consumerNode.value is always {@code null}, which is also the starting point for the queue.
-     * Because {@code null} values are not allowed to be offered this is the only node with it's value set to
-     * {@code null} at any one time.
-     *
-     * @see MessagePassingQueue#poll()
-     * @see java.util.Queue#poll()
-     */
-    @Override
-    public E poll()
-    {
-        final LinkedQueueNode<E> currConsumerNode = lpConsumerNode();
-        LinkedQueueNode<E> nextNode = currConsumerNode.lvNext();
-        if (nextNode != null)
-        {
-            return getSingleConsumerNodeValue(currConsumerNode, nextNode);
-        }
-        else if (currConsumerNode != lvProducerNode())
-        {
-            nextNode = spinWaitForNextNode(currConsumerNode);
-            // got the next node...
-            return getSingleConsumerNodeValue(currConsumerNode, nextNode);
-        }
-        return null;
-    }
-
-    /**
-     * {@inheritDoc} <br>
-     * <p>
-     * IMPLEMENTATION NOTES:<br>
-     * Peek is allowed from a SINGLE thread.<br>
-     * Peek is potentially blocking here as the {@link Queue#peek()} does not allow returning {@code null} if the queue is not
-     * empty. This is very different from the original Vyukov guarantees. See {@link #relaxedPeek()} for the original
-     * semantics.<br>
-     * Poll reads the next node from the consumerNode and:
-     * <ol>
-     * <li>If it is {@code null} AND the queue is empty return {@code null}, <b>if queue is not empty spin wait for
-     * value to become visible</b>.
-     * <li>If it is not {@code null} return it's value.
-     * </ol>
-     *
-     * @see MessagePassingQueue#peek()
-     * @see java.util.Queue#peek()
-     */
-    @Override
-    public E peek()
-    {
-        final LinkedQueueNode<E> currConsumerNode = lpConsumerNode();
-        LinkedQueueNode<E> nextNode = currConsumerNode.lvNext();
-        if (nextNode != null)
-        {
-            return nextNode.lpValue();
-        }
-        else if (currConsumerNode != lvProducerNode())
-        {
-            nextNode = spinWaitForNextNode(currConsumerNode);
-            // got the next node...
-            return nextNode.lpValue();
-        }
-        return null;
-    }
-
-    /**
      * {@inheritDoc}
      * <p>
      * This method is only safe to call from the (single) consumer thread, and is subject to best effort when racing
@@ -248,13 +173,13 @@ public class MpscLinkedQueue<E> extends BaseLinkedQueue<E>
         }
         else
         {
-            Object oldVal;
+            LinkedQueueNode<E> oldVal;
             do
             {
                 oldVal = lvProducerNode();
             }
             while (!UNSAFE.compareAndSwapObject(this, P_NODE_OFFSET, oldVal, newVal));
-            return (LinkedQueueNode<E>) oldVal;
+            return oldVal;
         }
     }
 
@@ -268,13 +193,4 @@ public class MpscLinkedQueue<E> extends BaseLinkedQueue<E>
         return nextNode;
     }
 
-    private LinkedQueueNode<E> spinWaitForNextNode(LinkedQueueNode<E> currNode)
-    {
-        LinkedQueueNode<E> nextNode;
-        while ((nextNode = currNode.lvNext()) == null)
-        {
-            // spin, we are no longer wait free
-        }
-        return nextNode;
-    }
 }
