@@ -398,21 +398,27 @@ public class SpmcAtomicArrayQueue<E> extends SpmcAtomicArrayQueueL3Pad<E> {
 
     @Override
     public E peek() {
+        final AtomicReferenceArray<E> buffer = this.buffer;
         final int mask = this.mask;
-        final long currProducerIndexCache = lvProducerIndexCache();
+        long currProducerIndexCache = lvProducerIndexCache();
         long currentConsumerIndex;
+        long nextConsumerIndex = lvConsumerIndex();
         E e;
         do {
-            currentConsumerIndex = lvConsumerIndex();
+            currentConsumerIndex = nextConsumerIndex;
             if (currentConsumerIndex >= currProducerIndexCache) {
                 long currProducerIndex = lvProducerIndex();
                 if (currentConsumerIndex >= currProducerIndex) {
                     return null;
                 } else {
+                    currProducerIndexCache = currProducerIndex;
                     svProducerIndexCache(currProducerIndex);
                 }
             }
-        } while (null == (e = lvRefElement(buffer, calcCircularRefElementOffset(currentConsumerIndex, mask))));
+            e = lvRefElement(buffer, calcCircularRefElementOffset(currentConsumerIndex, mask));
+            // sandwich the element load between 2 consumer index loads
+            nextConsumerIndex = lvConsumerIndex();
+        } while (null == e || nextConsumerIndex != currentConsumerIndex);
         return e;
     }
 
@@ -444,8 +450,16 @@ public class SpmcAtomicArrayQueue<E> extends SpmcAtomicArrayQueueL3Pad<E> {
     public E relaxedPeek() {
         final AtomicReferenceArray<E> buffer = this.buffer;
         final int mask = this.mask;
-        final long consumerIndex = lvConsumerIndex();
-        return lvRefElement(buffer, calcCircularRefElementOffset(consumerIndex, mask));
+        long currentConsumerIndex;
+        long nextConsumerIndex = lvConsumerIndex();
+        E e;
+        do {
+            currentConsumerIndex = nextConsumerIndex;
+            e = lvRefElement(buffer, calcCircularRefElementOffset(currentConsumerIndex, mask));
+            // sandwich the element load between 2 consumer index loads
+            nextConsumerIndex = lvConsumerIndex();
+        } while (nextConsumerIndex != currentConsumerIndex);
+        return e;
     }
 
     @Override

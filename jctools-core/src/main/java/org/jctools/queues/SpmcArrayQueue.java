@@ -223,6 +223,7 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E>
             }
             else
             {
+                // Bubble: This can happen because `poll` moves index before placing element.
                 // spin wait for slot to clear, buggers wait freedom
                 while (null != lvRefElement(buffer, offset))
                 {
@@ -278,13 +279,15 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E>
     @Override
     public E peek()
     {
+        final E[] buffer = this.buffer;
         final long mask = this.mask;
-        final long currProducerIndexCache = lvProducerIndexCache();
+        long currProducerIndexCache = lvProducerIndexCache();
         long currentConsumerIndex;
+        long nextConsumerIndex = lvConsumerIndex();
         E e;
         do
         {
-            currentConsumerIndex = lvConsumerIndex();
+            currentConsumerIndex = nextConsumerIndex;
             if (currentConsumerIndex >= currProducerIndexCache)
             {
                 long currProducerIndex = lvProducerIndex();
@@ -294,12 +297,15 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E>
                 }
                 else
                 {
+                    currProducerIndexCache = currProducerIndex;
                     svProducerIndexCache(currProducerIndex);
                 }
             }
+            e = lvRefElement(buffer, calcCircularRefElementOffset(currentConsumerIndex, mask));
+            // sandwich the element load between 2 consumer index loads
+            nextConsumerIndex = lvConsumerIndex();
         }
-        while (null == (e = lvRefElement(buffer,
-            calcCircularRefElementOffset(currentConsumerIndex, mask))));
+        while (null == e || nextConsumerIndex != currentConsumerIndex);
         return e;
     }
 
@@ -336,8 +342,18 @@ public class SpmcArrayQueue<E> extends SpmcArrayQueueL3Pad<E>
     {
         final E[] buffer = this.buffer;
         final long mask = this.mask;
-        final long consumerIndex = lvConsumerIndex();
-        return lvRefElement(buffer, calcCircularRefElementOffset(consumerIndex, mask));
+        long currentConsumerIndex;
+        long nextConsumerIndex = lvConsumerIndex();
+        E e;
+        do
+        {
+            currentConsumerIndex = nextConsumerIndex;
+            e = lvRefElement(buffer, calcCircularRefElementOffset(currentConsumerIndex, mask));
+            // sandwich the element load between 2 consumer index loads
+            nextConsumerIndex = lvConsumerIndex();
+        }
+        while (nextConsumerIndex != currentConsumerIndex);
+        return e;
     }
 
     @Override

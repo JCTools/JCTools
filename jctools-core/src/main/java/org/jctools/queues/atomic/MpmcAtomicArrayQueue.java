@@ -341,7 +341,8 @@ public class MpmcAtomicArrayQueue<E> extends MpmcAtomicArrayQueueL3Pad<E> {
             if (seq < expectedSeq) {
                 // slot has not been moved by producer
                 if (// test against cached pIndex
-                cIndex >= pIndex && cIndex == (pIndex = lvProducerIndex())) {
+                cIndex >= pIndex && // update pIndex if we must
+                cIndex == (pIndex = lvProducerIndex())) {
                     // strict empty check, this ensures [Queue.poll() == null iff isEmpty()]
                     return null;
                 } else {
@@ -362,15 +363,36 @@ public class MpmcAtomicArrayQueue<E> extends MpmcAtomicArrayQueueL3Pad<E> {
 
     @Override
     public E peek() {
+        // local load of field to avoid repeated loads after volatile reads
+        final AtomicLongArray sBuffer = sequenceBuffer;
+        final int mask = this.mask;
         long cIndex;
+        long seq;
+        int seqOffset;
+        long expectedSeq;
+        // start with bogus value, hope we don't need it
+        long pIndex = -1;
         E e;
         do {
             cIndex = lvConsumerIndex();
-            // other consumers may have grabbed the element, or queue might be empty
-            e = lpRefElement(buffer, calcCircularRefElementOffset(cIndex, mask));
-        // only return null if queue is empty
-        } while (e == null && cIndex != lvProducerIndex());
-        return e;
+            seqOffset = calcCircularLongElementOffset(cIndex, mask);
+            seq = lvLongElement(sBuffer, seqOffset);
+            expectedSeq = cIndex + 1;
+            if (seq < expectedSeq) {
+                // slot has not been moved by producer
+                if (// test against cached pIndex
+                cIndex >= pIndex && // update pIndex if we must
+                cIndex == (pIndex = lvProducerIndex())) {
+                    // strict empty check, this ensures [Queue.poll() == null iff isEmpty()]
+                    return null;
+                }
+            } else if (seq == expectedSeq) {
+                final int offset = calcCircularRefElementOffset(cIndex, mask);
+                e = lvRefElement(buffer, offset);
+                if (lvConsumerIndex() == cIndex)
+                    return e;
+            }
+        } while (true);
     }
 
     @Override
@@ -427,8 +449,28 @@ public class MpmcAtomicArrayQueue<E> extends MpmcAtomicArrayQueueL3Pad<E> {
 
     @Override
     public E relaxedPeek() {
-        long currConsumerIndex = lvConsumerIndex();
-        return lpRefElement(buffer, calcCircularRefElementOffset(currConsumerIndex, mask));
+        // local load of field to avoid repeated loads after volatile reads
+        final AtomicLongArray sBuffer = sequenceBuffer;
+        final int mask = this.mask;
+        long cIndex;
+        long seq;
+        int seqOffset;
+        long expectedSeq;
+        E e;
+        do {
+            cIndex = lvConsumerIndex();
+            seqOffset = calcCircularLongElementOffset(cIndex, mask);
+            seq = lvLongElement(sBuffer, seqOffset);
+            expectedSeq = cIndex + 1;
+            if (seq < expectedSeq) {
+                return null;
+            } else if (seq == expectedSeq) {
+                final int offset = calcCircularRefElementOffset(cIndex, mask);
+                e = lvRefElement(buffer, offset);
+                if (lvConsumerIndex() == cIndex)
+                    return e;
+            }
+        } while (true);
     }
 
     @Override

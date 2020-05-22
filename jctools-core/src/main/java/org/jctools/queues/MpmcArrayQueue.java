@@ -245,10 +245,11 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E>
             seq = lvLongElement(sBuffer, seqOffset);
             expectedSeq = cIndex + 1;
             if (seq < expectedSeq)
-            { // slot has not been moved by producer
+            {
+                // slot has not been moved by producer
                 if (cIndex >= pIndex && // test against cached pIndex
-                    cIndex == (pIndex = lvProducerIndex()))
-                { // update pIndex if we must
+                    cIndex == (pIndex = lvProducerIndex())) // update pIndex if we must
+                {
                     // strict empty check, this ensures [Queue.poll() == null iff isEmpty()]
                     return null;
                 }
@@ -272,17 +273,41 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E>
     @Override
     public E peek()
     {
+        // local load of field to avoid repeated loads after volatile reads
+        final long[] sBuffer = sequenceBuffer;
+        final long mask = this.mask;
+
         long cIndex;
+        long seq;
+        long seqOffset;
+        long expectedSeq;
+        long pIndex = -1; // start with bogus value, hope we don't need it
         E e;
         do
         {
             cIndex = lvConsumerIndex();
-            // other consumers may have grabbed the element, or queue might be empty
-            e = lpRefElement(buffer, calcCircularRefElementOffset(cIndex, mask));
-            // only return null if queue is empty
+            seqOffset = calcCircularLongElementOffset(cIndex, mask);
+            seq = lvLongElement(sBuffer, seqOffset);
+            expectedSeq = cIndex + 1;
+            if (seq < expectedSeq)
+            {
+                // slot has not been moved by producer
+                if (cIndex >= pIndex && // test against cached pIndex
+                    cIndex == (pIndex = lvProducerIndex())) // update pIndex if we must
+                {
+                    // strict empty check, this ensures [Queue.poll() == null iff isEmpty()]
+                    return null;
+                }
+            }
+            else if (seq == expectedSeq)
+            {
+                final long offset = calcCircularRefElementOffset(cIndex, mask);
+                e = lvRefElement(buffer, offset);
+                if (lvConsumerIndex() == cIndex)
+                    return e;
+            }
         }
-        while (e == null && cIndex != lvProducerIndex());
-        return e;
+        while (true);
     }
 
     @Override
@@ -350,8 +375,34 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E>
     @Override
     public E relaxedPeek()
     {
-        long currConsumerIndex = lvConsumerIndex();
-        return lpRefElement(buffer, calcCircularRefElementOffset(currConsumerIndex, mask));
+        // local load of field to avoid repeated loads after volatile reads
+        final long[] sBuffer = sequenceBuffer;
+        final long mask = this.mask;
+
+        long cIndex;
+        long seq;
+        long seqOffset;
+        long expectedSeq;
+        E e;
+        do
+        {
+            cIndex = lvConsumerIndex();
+            seqOffset = calcCircularLongElementOffset(cIndex, mask);
+            seq = lvLongElement(sBuffer, seqOffset);
+            expectedSeq = cIndex + 1;
+            if (seq < expectedSeq)
+            {
+                return null;
+            }
+            else if (seq == expectedSeq)
+            {
+                final long offset = calcCircularRefElementOffset(cIndex, mask);
+                e = lvRefElement(buffer, offset);
+                if (lvConsumerIndex() == cIndex)
+                    return e;
+            }
+        }
+        while (true);
     }
 
     @Override

@@ -182,6 +182,7 @@ abstract class BaseLinkedAtomicQueueConsumerNodeRef<E> extends BaseLinkedAtomicQ
         C_NODE_UPDATER.lazySet(this, newValue);
     }
 
+    @SuppressWarnings("unchecked")
     final LinkedQueueAtomicNode<E> lvConsumerNode() {
         return consumerNode;
     }
