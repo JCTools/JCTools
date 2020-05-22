@@ -273,16 +273,30 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E>
     public E peek()
     {
         long cIndex;
+        long pIndex;
         E e;
         do
         {
+            // Order matters!
             cIndex = lvConsumerIndex();
-            // other consumers may have grabbed the element, or queue might be empty
-            e = lpRefElement(buffer, calcCircularRefElementOffset(cIndex, mask));
-            // only return null if queue is empty
+            // Volatile Mode: Loading element must be completed before loading pIndex.
+            e = lvRefElement(buffer, calcCircularRefElementOffset(cIndex, mask));
+            pIndex = lvProducerIndex();
+
+            if (e != null) {
+                // We can check pIndex or seq to ensure that the element is the one we expect.
+                // Checking pIndex is better than checking seq, because we can ignore the impact of other consumers.
+
+                // Because the producer updates(CAS) pIndex first, then fills the element,
+                // so if pIndex is less than or equal to (cIndex + capacity), we can determine that the element is the one we expect.
+                if (pIndex <= cIndex + capacity()) {
+                    return e;
+                }
+            }
         }
-        while (e == null && cIndex != lvProducerIndex());
-        return e;
+        while (cIndex != pIndex);
+        // only return null if queue is empty
+        return null;
     }
 
     @Override
@@ -350,8 +364,24 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E>
     @Override
     public E relaxedPeek()
     {
-        long currConsumerIndex = lvConsumerIndex();
-        return lpRefElement(buffer, calcCircularRefElementOffset(currConsumerIndex, mask));
+        // Order matters!
+        long cIndex = lvConsumerIndex();
+        // Volatile Mode: Loading element must be completed before loading pIndex.
+        E e = lvRefElement(buffer, calcCircularRefElementOffset(cIndex, mask));
+        long pIndex = lvProducerIndex();
+
+        if (e != null) {
+            // We can check pIndex or seq to ensure that the element is the one we expect.
+            // Checking pIndex is better than checking seq, because we can ignore the impact of other consumers.
+
+            // Because the producer updates(CAS) pIndex first, then fills the element,
+            // so if pIndex is less than or equal to (cIndex + capacity), we can determine that the element is the one we expect.
+            if (pIndex <= cIndex + capacity()) {
+                return e;
+            }
+        }
+
+        return null;
     }
 
     @Override
