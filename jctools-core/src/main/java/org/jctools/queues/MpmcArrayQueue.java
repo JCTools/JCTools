@@ -264,7 +264,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E>
 
         final long offset = calcCircularRefElementOffset(cIndex, mask);
         final E e = lpRefElement(buffer, offset);
-        soRefElement(buffer, offset, null);
+        spRefElement(buffer, offset, null);
         // i.e. seq += capacity
         soLongElement(sBuffer, seqOffset, cIndex + mask + 1);
         return e;
@@ -366,7 +366,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E>
 
         final long offset = calcCircularRefElementOffset(cIndex, mask);
         final E e = lpRefElement(buffer, offset);
-        soRefElement(buffer, offset, null);
+        spRefElement(buffer, offset, null);
         soLongElement(sBuffer, seqOffset, cIndex + mask + 1);
         return e;
     }
@@ -442,7 +442,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E>
 
                     }
                     final E e = lpRefElement(buffer, offset);
-                    soRefElement(buffer, offset, null);
+                    spRefElement(buffer, offset, null);
                     soLongElement(sBuffer, seqOffset, index + mask + 1);
                     c.accept(e);
                 }

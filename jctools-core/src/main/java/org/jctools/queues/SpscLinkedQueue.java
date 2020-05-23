@@ -92,11 +92,12 @@ public class SpscLinkedQueue<E> extends BaseLinkedQueue<E>
         for (int i = 1; i < limit; i++)
         {
             final LinkedQueueNode<E> temp = newNode(s.get());
-            tail.soNext(temp);
+            // spNext : soProducerNode ensures correct construction
+            tail.spNext(temp);
             tail = temp;
         }
         final LinkedQueueNode<E> oldPNode = lpProducerNode();
-        spProducerNode(tail);
+        soProducerNode(tail);
         // same bubble as offer, and for the same reasons.
         oldPNode.soNext(head);
         return limit;

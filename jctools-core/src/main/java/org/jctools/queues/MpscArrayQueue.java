@@ -403,7 +403,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
             }
         }
 
-        soRefElement(buffer, offset, null);
+        spRefElement(buffer, offset, null);
         soConsumerIndex(cIndex + 1);
         return e;
     }
@@ -469,7 +469,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
             return null;
         }
 
-        soRefElement(buffer, offset, null);
+        spRefElement(buffer, offset, null);
         soConsumerIndex(cIndex + 1);
         return e;
     }
@@ -506,7 +506,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
             {
                 return i;
             }
-            soRefElement(buffer, offset, null);
+            spRefElement(buffer, offset, null);
             soConsumerIndex(index + 1); // ordered store -> atomic and ordered for size()
             c.accept(e);
         }
