@@ -60,6 +60,11 @@ final class LinkedQueueNode<E>
         UNSAFE.putOrderedObject(this, NEXT_OFFSET, n);
     }
 
+    public void spNext(LinkedQueueNode<E> n)
+    {
+        UNSAFE.putObject(this, NEXT_OFFSET, n);
+    }
+
     public LinkedQueueNode<E> lvNext()
     {
         return next;

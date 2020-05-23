@@ -150,7 +150,8 @@ public class MpscLinkedQueue<E> extends BaseLinkedQueue<E>
         for (int i = 1; i < limit; i++)
         {
             final LinkedQueueNode<E> temp = newNode(s.get());
-            tail.soNext(temp);
+            // spNext: xchgProducerNode ensures correct construction
+            tail.spNext(temp);
             tail = temp;
         }
         final LinkedQueueNode<E> oldPNode = xchgProducerNode(tail);
