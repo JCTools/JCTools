@@ -214,7 +214,8 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E>
         while (seq > pIndex || // another producer has moved the sequence(or +)
             !casProducerIndex(pIndex, pIndex + 1)); // failed to increment
 
-        soRefElement(buffer, calcCircularRefElementOffset(pIndex, mask), e);
+        // casProducerIndex ensures correct construction
+        spRefElement(buffer, calcCircularRefElementOffset(pIndex, mask), e);
         // seq++;
         soLongElement(sBuffer, seqOffset, pIndex + 1);
         return true;
@@ -336,7 +337,8 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E>
         while (seq > pIndex || // another producer has moved the sequence
             !casProducerIndex(pIndex, pIndex + 1)); // failed to increment
 
-        soRefElement(buffer, calcCircularRefElementOffset(pIndex, mask), e);
+        // casProducerIndex ensures correct construction
+        spRefElement(buffer, calcCircularRefElementOffset(pIndex, mask), e);
         soLongElement(sBuffer, seqOffset, pIndex + 1);
         return true;
     }
@@ -492,7 +494,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E>
 
             final long offset = calcCircularRefElementOffset(cIndex, mask);
             final E e = lpRefElement(buffer, offset);
-            soRefElement(buffer, offset, null);
+            spRefElement(buffer, offset, null);
             soLongElement(sBuffer, seqOffset, cIndex + mask + 1);
             c.accept(e);
         }
@@ -535,6 +537,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E>
                     {
 
                     }
+                    // Ordered store ensures correct construction
                     soRefElement(buffer, offset, s.get());
                     soLongElement(sBuffer, seqOffset, index + 1);
                 }
@@ -589,6 +592,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E>
             }
             while (seq > pIndex || // another producer has moved the sequence
                 !casProducerIndex(pIndex, pIndex + 1)); // failed to increment
+            // Ordered store ensures correct construction
             soRefElement(buffer, calcCircularRefElementOffset(pIndex, mask), s.get());
             soLongElement(sBuffer, seqOffset, pIndex + 1);
         }
