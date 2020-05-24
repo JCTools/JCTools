@@ -61,9 +61,15 @@ public final class IndexedQueueSizeUtil
         {
             return Integer.MAX_VALUE;
         }
+        // concurrent updates to cIndex and pIndex may lag behind other progress enablers (e.g. FastFlow), so we need
+        // to check bounds
         else if (size < 0)
         {
             return 0;
+        }
+        else if (iq.capacity() != MessagePassingQueue.UNBOUNDED_CAPACITY && size > iq.capacity())
+        {
+            return iq.capacity();
         }
         else
         {
@@ -86,5 +92,7 @@ public final class IndexedQueueSizeUtil
         long lvConsumerIndex();
 
         long lvProducerIndex();
+
+        int capacity();
     }
 }
