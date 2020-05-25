@@ -13,6 +13,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.LockSupport;
 
 import static org.hamcrest.Matchers.*;
@@ -522,6 +523,111 @@ public abstract class QueueSanityTest
     static final class Val
     {
         public int value;
+    }
+
+
+    @Test(timeout = TEST_TIMEOUT)
+    public void testPollOrderContendedFull() throws Exception
+    {
+        assumeThat(spec.isBounded() && spec.ordering == Ordering.FIFO, is(Boolean.TRUE));
+        final AtomicBoolean stop = new AtomicBoolean();
+        final Queue<Integer> q = queue;
+        final Val fail = new Val();
+        List<Thread> threads = new ArrayList<>();
+
+        final AtomicInteger pThreadId = new AtomicInteger();
+        threads(() -> {
+            // store the thread id in the top 8 bits
+            int pId = pThreadId.getAndIncrement() << 24;
+
+            int i=0;
+            while (!stop.get())
+            {
+                // clear the top 8 bits
+                int nextVal = (i++ << 8) >> 8;
+                // set the pid in the top 8 bits
+                q.offer(nextVal ^ pId);
+            }
+        }, spec.producers, threads);
+        int producers = threads.size();
+        assertThat("The thread ID scheme above doesn't work for more than 256 threads", producers, lessThan(256));
+        threads(() -> {
+            Integer[] lastPolledSequence = new Integer[producers];
+            while (!stop.get()) {
+                LockSupport.parkNanos(1000);
+                final Integer polledSequence = q.poll();
+                if (polledSequence == null) {
+                    continue;
+                }
+                int pTid = polledSequence >> 24;
+                if (lastPolledSequence[pTid] != null && polledSequence - lastPolledSequence[pTid] < 0) {
+                    fail.value++;
+                }
+
+                lastPolledSequence[pTid] = polledSequence;
+            }
+        }, spec.consumers, threads);
+
+        startWaitJoin(stop, threads);
+
+        assertEquals("Polled elements out of order", 0, fail.value);
+    }
+
+    @Test(timeout = TEST_TIMEOUT)
+    public void testPeekOrderContendedFull() throws Exception
+    {
+        // only for multi consumers as we need a separate peek/poll thread here
+        assumeThat(spec.isBounded() && spec.isMpmc() || spec.isSpmc(), is(Boolean.TRUE));
+        final AtomicBoolean stop = new AtomicBoolean();
+        final Queue<Integer> q = queue;
+        final Val fail = new Val();
+        List<Thread> threads = new ArrayList<>();
+
+        final AtomicInteger pThreadId = new AtomicInteger();
+        threads(() -> {
+            // store the thread id in the top 8 bits
+            int pId = pThreadId.getAndIncrement() << 24;
+
+            int i=0;
+            while (!stop.get())
+            {
+                // clear the top 8 bits
+                int nextVal = (i++ << 8) >> 8;
+                // set the pid in the top 8 bits
+                q.offer(nextVal ^ pId);
+            }
+        }, spec.producers, threads);
+        int producers = threads.size();
+        assertThat("The thread ID scheme above doesn't work for more than 256 threads", producers, lessThan(256));
+
+        threads(() -> {
+            while (!stop.get())
+            {
+                q.poll();
+                // slow down the consumer, this will make the queue mostly full
+                LockSupport.parkNanos(1000);
+            }
+        }, spec.consumers, threads);
+        // observer
+        threads(() -> {
+            Integer[] lastPeekedSequence = new Integer[producers];
+            while (!stop.get()) {
+                final Integer peekedSequence = q.peek();
+                if (peekedSequence == null) {
+                    continue;
+                }
+                int pTid = peekedSequence >> 24;
+                if (lastPeekedSequence[pTid] != null && peekedSequence - lastPeekedSequence[pTid] < 0) {
+                    fail.value++;
+                }
+
+                lastPeekedSequence[pTid] = peekedSequence;
+            }
+        }, 1, threads);
+
+        startWaitJoin(stop, threads);
+
+        assertEquals("Peeked elements out of order", 0, fail.value);
     }
 
     @Test
