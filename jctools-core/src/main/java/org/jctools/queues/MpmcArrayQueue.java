@@ -201,8 +201,8 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E>
             {
                 // Extra check required to ensure [Queue.offer == false iff queue is full]
                 if (pIndex - capacity >= cIndex && // test against cached cIndex
-                    pIndex - capacity >= (cIndex = lvConsumerIndex()))
-                { // test against latest cIndex
+                    pIndex - capacity >= (cIndex = lvConsumerIndex())) // test against latest cIndex
+                {
                     return false;
                 }
                 else
@@ -283,7 +283,7 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E>
         long expectedSeq;
         long pIndex = -1; // start with bogus value, hope we don't need it
         E e;
-        do
+        while (true)
         {
             cIndex = lvConsumerIndex();
             seqOffset = calcCircularLongElementOffset(cIndex, mask);
@@ -307,7 +307,6 @@ public class MpmcArrayQueue<E> extends MpmcArrayQueueL3Pad<E>
                     return e;
             }
         }
-        while (true);
     }
 
     @Override
