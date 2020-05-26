@@ -1,11 +1,11 @@
 package org.jctools.queues;
 
-import org.jctools.queues.QueueSanityTest.Val;
 import org.jctools.queues.atomic.AtomicQueueFactory;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
 import org.jctools.queues.spec.Preference;
 import org.jctools.util.Pow2;
+import org.jctools.util.TestUtil;
 import org.junit.After;
 import org.junit.Test;
 
@@ -1015,7 +1015,6 @@ public abstract class MpqSanityTest
         startWaitJoin(stop, producers, consumer);
 
         assertEquals("Observed no element in non-empty queue", 0, fail.value);
-        stop.set(false);
     }
 
     private void startWaitJoin(AtomicBoolean stop, Thread[] producers, Thread consumer) throws InterruptedException
@@ -1026,5 +1025,157 @@ public abstract class MpqSanityTest
         stop.set(true);
         for (Thread t : producers)  t.join();
         consumer.join();
+    }
+
+    @Test(timeout = TEST_TIMEOUT)
+    public void testSizeLtZero() throws Exception
+    {
+        final AtomicBoolean stop = new AtomicBoolean();
+        final MessagePassingQueue<Integer> q = queue;
+
+        // producer check size and offer
+        final Val pFail = new Val();
+        final Thread[] producers = producers(() -> {
+            while (!stop.get()) {
+                if (q.size() < 0) {
+                    pFail.value++;
+                }
+
+                q.offer(1);
+                TestUtil.sleepQuietly(1);
+            }
+        });
+
+        // consumer poll and check size
+        final Val cFail = new Val();
+        Thread consumer = new Thread(() -> {
+            while (!stop.get())
+            {
+                q.poll();
+
+                if (q.size() < 0) {
+                    cFail.value++;
+                }
+            }
+        });
+
+        // observer check size
+        final Val oFail = new Val();
+        Thread observer = new Thread(() -> {
+            while (!stop.get())
+            {
+                if (q.size() < 0) {
+                    oFail.value++;
+                }
+                TestUtil.sleepQuietly(1);
+            }
+        });
+
+        startWaitJoin(stop, producers, consumer, observer);
+
+        assertEquals("Observed producer size < 0", 0, pFail.value);
+        assertEquals("Observed consumer size < 0", 0, cFail.value);
+        assertEquals("Observed observer size < 0", 0, oFail.value);
+    }
+
+    @Test(timeout = TEST_TIMEOUT)
+    public void testSizeGtCapacity() throws Exception
+    {
+        assumeThat(spec.isBounded(), is(Boolean.TRUE));
+
+        final int capacity = spec.capacity;
+        final AtomicBoolean stop = new AtomicBoolean();
+        final MessagePassingQueue<Integer> q = queue;
+
+        // producer offer and check size
+        final Val pFail = new Val();
+        final Thread[] producers = producers(() -> {
+            while (!stop.get()) {
+                q.offer(1);
+
+                if (q.size() > capacity) {
+                    pFail.value++;
+                }
+            }
+        });
+
+        // consumer check size and poll
+        final Val cFail = new Val();
+        final Thread consumer = new Thread(() -> {
+            while (!stop.get())
+            {
+                if (q.size() > capacity) {
+                    cFail.value++;
+                }
+
+                q.poll();
+                TestUtil.sleepQuietly(1);
+            }
+        });
+
+        // observer check size
+        final Val oFail = new Val();
+        final Thread observer = new Thread(() -> {
+            while (!stop.get())
+            {
+                if (q.size() > capacity) {
+                    oFail.value++;
+                }
+                TestUtil.sleepQuietly(1);
+            }
+        });
+
+        startWaitJoin(stop, producers, consumer, observer);
+
+        assertEquals("Observed producer size > capacity", 0, pFail.value);
+        assertEquals("Observed consumer size > capacity", 0, cFail.value);
+        assertEquals("Observed observer size > capacity", 0, oFail.value);
+    }
+
+    private void startWaitJoin(AtomicBoolean stop, Thread[] producers, Thread consumer, Thread observer) throws InterruptedException
+    {
+        for (Thread t : producers) t.start();
+        consumer.start();
+        observer.start();
+
+        Thread.sleep(CONCURRENT_TEST_DURATION);
+        stop.set(true);
+
+        for (Thread t : producers)  t.join();
+        consumer.join();
+        observer.join();
+    }
+
+    @Test(timeout = TEST_TIMEOUT)
+    public void testPeekEqualsPoll() throws InterruptedException {
+        final AtomicBoolean stop = new AtomicBoolean();
+        final MessagePassingQueue<Integer> q = queue;
+
+        final Thread[] producers = producers(() -> {
+            int sequence = 0;
+            while (!stop.get()) {
+                if (q.offer(sequence)) {
+                    sequence++;
+                }
+                Thread.yield();
+            }
+        });
+
+        final Val fail = new Val();
+        final Thread consumer = new Thread(() -> {
+            while (!stop.get()) {
+                final Integer peekedSequence = q.peek();
+                if (peekedSequence == null) {
+                    continue;
+                }
+                if (!peekedSequence.equals(q.poll())) {
+                    fail.value++;
+                }
+            }
+        });
+
+        startWaitJoin(stop, producers, consumer);
+
+        assertEquals("Observed peekedSequence is not equal to polledSequence", 0, fail.value);
     }
 }
