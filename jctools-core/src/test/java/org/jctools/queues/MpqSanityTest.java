@@ -1157,7 +1157,7 @@ public abstract class MpqSanityTest
                 if (q.offer(sequence)) {
                     sequence++;
                 }
-                TestUtil.sleepQuietly(1);
+                Thread.yield();
             }
         });
 
