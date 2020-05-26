@@ -5,6 +5,7 @@ import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
 import org.jctools.queues.spec.Preference;
 import org.jctools.util.Pow2;
+import org.jctools.util.TestUtil;
 import org.junit.After;
 import org.junit.Test;
 
@@ -682,4 +683,114 @@ public abstract class QueueSanityTest
         iter.forEachRemaining(list::add);
         return list;
     }
+
+    @Test(timeout = TEST_TIMEOUT)
+    public void testSizeLtZero() throws Exception
+    {
+        final AtomicBoolean stop = new AtomicBoolean();
+        final Queue<Integer> q = queue;
+        final List<Thread> threads = new ArrayList<>();
+
+        // producer check size and offer
+        final Val pFail = new Val();
+        threads(() -> {
+            while (!stop.get())
+            {
+                if (q.size() < 0) {
+                    pFail.value++;
+                }
+
+                q.offer(1);
+                TestUtil.sleepQuietly(1);
+            }
+        }, spec.producers, threads);
+
+        // consumer poll and check size
+        final Val cFail = new Val();
+        threads(() -> {
+            while (!stop.get())
+            {
+                q.poll();
+
+                if (q.size() < 0) {
+                    cFail.value++;
+                }
+            }
+        }, spec.consumers, threads);
+
+        // observer check size
+        final Val oFail = new Val();
+        threads(() -> {
+            while (!stop.get())
+            {
+                if (q.size() < 0) {
+                    oFail.value++;
+                }
+                TestUtil.sleepQuietly(1);
+            }
+        }, 1, threads);
+
+        startWaitJoin(stop, threads);
+
+        assertEquals("Observed producer size < 0", 0, pFail.value);
+        assertEquals("Observed consumer size < 0", 0, cFail.value);
+        assertEquals("Observed observer size < 0", 0, oFail.value);
+    }
+
+    @Test(timeout = TEST_TIMEOUT)
+    public void testSizeGtCapacity() throws Exception
+    {
+        assumeThat(spec.isBounded(), is(Boolean.TRUE));
+
+        final int capacity = spec.capacity;
+        final AtomicBoolean stop = new AtomicBoolean();
+        final Queue<Integer> q = queue;
+        final List<Thread> threads = new ArrayList<>();
+
+        // producer offer and check size
+        final Val pFail = new Val();
+        threads(() -> {
+            while (!stop.get())
+            {
+                q.offer(1);
+
+                if (q.size() > capacity) {
+                    pFail.value++;
+                }
+            }
+        }, spec.producers, threads);
+
+        // consumer check size and poll
+        final Val cFail = new Val();
+        threads(() -> {
+            while (!stop.get())
+            {
+                if (q.size() > capacity) {
+                    cFail.value++;
+                }
+
+                q.poll();
+                TestUtil.sleepQuietly(1);
+            }
+        }, spec.consumers, threads);
+
+        // observer check size
+        final Val oFail = new Val();
+        threads(() -> {
+            while (!stop.get())
+            {
+                if (q.size() > capacity) {
+                    oFail.value++;
+                }
+                TestUtil.sleepQuietly(1);
+            }
+        }, 1, threads);
+
+        startWaitJoin(stop, threads);
+
+        assertEquals("Observed producer size > capacity", 0, pFail.value);
+        assertEquals("Observed consumer size > capacity", 0, cFail.value);
+        assertEquals("Observed observer size > capacity", 0, oFail.value);
+    }
+
 }
