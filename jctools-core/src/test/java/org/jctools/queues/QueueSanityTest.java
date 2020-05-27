@@ -545,7 +545,7 @@ public abstract class QueueSanityTest
             while (!stop.get())
             {
                 // clear the top 8 bits
-                int nextVal = (i++ << 8) >> 8;
+                int nextVal = (i++ << 8) >>> 8;
                 // set the pid in the top 8 bits
                 q.offer(nextVal ^ pId);
             }
@@ -560,7 +560,7 @@ public abstract class QueueSanityTest
                 if (polledSequence == null) {
                     continue;
                 }
-                int pTid = polledSequence >> 24;
+                int pTid = polledSequence >>> 24;
                 if (lastPolledSequence[pTid] != null && polledSequence - lastPolledSequence[pTid] < 0) {
                     fail.value++;
                 }
@@ -593,7 +593,7 @@ public abstract class QueueSanityTest
             while (!stop.get())
             {
                 // clear the top 8 bits
-                int nextVal = (i++ << 8) >> 8;
+                int nextVal = (i++ << 8) >>> 8;
                 // set the pid in the top 8 bits
                 q.offer(nextVal ^ pId);
             }
@@ -617,7 +617,7 @@ public abstract class QueueSanityTest
                 if (peekedSequence == null) {
                     continue;
                 }
-                int pTid = peekedSequence >> 24;
+                int pTid = peekedSequence >>> 24;
                 if (lastPeekedSequence[pTid] != null && peekedSequence - lastPeekedSequence[pTid] < 0) {
                     fail.value++;
                 }
