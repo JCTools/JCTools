@@ -1015,6 +1015,7 @@ public abstract class MpqSanityTest
         startWaitJoin(stop, producers, consumer);
 
         assertEquals("Observed no element in non-empty queue", 0, fail.value);
+        stop.set(false);
     }
 
     private void startWaitJoin(AtomicBoolean stop, Thread[] producers, Thread consumer) throws InterruptedException
