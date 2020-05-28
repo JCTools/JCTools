@@ -351,7 +351,7 @@ abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQueueColdP
             return newBufferPoll(nextBuffer, index);
         }
 
-        soRefElement(buffer, offset, null); // release element null
+        spRefElement(buffer, offset, null); // release element null
         soConsumerIndex(index + 2); // release cIndex
         return (E) e;
     }
@@ -457,7 +457,7 @@ abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQueueColdP
         {
             throw new IllegalStateException("new buffer must have at least one element");
         }
-        soRefElement(nextBuffer, offset, null);
+        spRefElement(nextBuffer, offset, null);
         soConsumerIndex(index + 2);
         return n;
     }
@@ -513,7 +513,7 @@ abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQueueColdP
             final E[] nextBuffer = nextBuffer(buffer, mask);
             return newBufferPoll(nextBuffer, index);
         }
-        soRefElement(buffer, offset, null);
+        spRefElement(buffer, offset, null);
         soConsumerIndex(index + 2);
         return (E) e;
     }
@@ -753,7 +753,7 @@ abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQueueColdP
 
     private void resize(long oldMask, E[] oldBuffer, long pIndex, E e, Supplier<E> s)
     {
-        assert (e != null && s == null) || (e == null || s != null);
+        assert (e != null && s == null) || (e == null && s != null);
         int newBufferLength = getNextBufferSize(oldBuffer);
         final E[] newBuffer;
         try
@@ -774,8 +774,9 @@ abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQueueColdP
         final long offsetInOld = modifiedCalcCircularRefElementOffset(pIndex, oldMask);
         final long offsetInNew = modifiedCalcCircularRefElementOffset(pIndex, newMask);
 
-        soRefElement(newBuffer, offsetInNew, e == null ? s.get() : e);// element in new array
-        soRefElement(oldBuffer, nextArrayOffset(oldMask), newBuffer);// buffer linked
+        // Plain Mode: unreachable until soProducerIndex
+        spRefElement(newBuffer, offsetInNew, e == null ? s.get() : e);// element in new array
+        spRefElement(oldBuffer, nextArrayOffset(oldMask), newBuffer);// buffer linked
 
         // ASSERT code
         final long cIndex = lvConsumerIndex();

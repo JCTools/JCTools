@@ -172,10 +172,10 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
         return lvConsumerIndex();
     }
 
-    protected final void soNext(E[] curr, E[] next)
+    protected final void spNext(E[] curr, E[] next)
     {
         long offset = nextArrayOffset(curr);
-        soRefElement(curr, offset, next);
+        spRefElement(curr, offset, next);
     }
 
     @SuppressWarnings("unchecked")
@@ -374,9 +374,11 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
         final E[] newBuffer, final long offsetInNew,
         final E e)
     {
-        soRefElement(newBuffer, offsetInNew, e);
+        // Plain Mode: unreachable until JUMP is published
+        spRefElement(newBuffer, offsetInNew, e);
         // link to next buffer and add next indicator as element of old buffer
-        soNext(oldBuffer, newBuffer);
+        spNext(oldBuffer, newBuffer);
+
         soRefElement(oldBuffer, offset, JUMP);
         // index is visible after elements (isEmpty/poll ordering)
         soProducerIndex(currIndex + 1);// this ensures atomic write of long on 32bit platforms
