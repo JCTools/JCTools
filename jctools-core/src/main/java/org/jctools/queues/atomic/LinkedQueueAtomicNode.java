@@ -57,6 +57,11 @@ public final class LinkedQueueAtomicNode<E> extends AtomicReference<LinkedQueueA
         lazySet(n);
     }
 
+    public void spNext(LinkedQueueAtomicNode<E> n)
+    {
+        lazySet(n);
+    }
+
     public LinkedQueueAtomicNode<E> lvNext()
     {
         return get();

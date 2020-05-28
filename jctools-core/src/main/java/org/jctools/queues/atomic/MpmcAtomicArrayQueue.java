@@ -299,8 +299,8 @@ public class MpmcAtomicArrayQueue<E> extends MpmcAtomicArrayQueueL3Pad<E> {
             if (seq < pIndex) {
                 // Extra check required to ensure [Queue.offer == false iff queue is full]
                 if (// test against cached cIndex
-                pIndex - capacity >= cIndex && pIndex - capacity >= (cIndex = lvConsumerIndex())) {
-                    // test against latest cIndex
+                pIndex - capacity >= cIndex && // test against latest cIndex
+                pIndex - capacity >= (cIndex = lvConsumerIndex())) {
                     return false;
                 } else {
                     // (+) hack to make it go around again without CAS
@@ -310,7 +310,8 @@ public class MpmcAtomicArrayQueue<E> extends MpmcAtomicArrayQueueL3Pad<E> {
         } while (// another producer has moved the sequence(or +)
         seq > pIndex || // failed to increment
         !casProducerIndex(pIndex, pIndex + 1));
-        soRefElement(buffer, calcCircularRefElementOffset(pIndex, mask), e);
+        // casProducerIndex ensures correct construction
+        spRefElement(buffer, calcCircularRefElementOffset(pIndex, mask), e);
         // seq++;
         soLongElement(sBuffer, seqOffset, pIndex + 1);
         return true;
@@ -355,7 +356,7 @@ public class MpmcAtomicArrayQueue<E> extends MpmcAtomicArrayQueueL3Pad<E> {
         !casConsumerIndex(cIndex, cIndex + 1));
         final int offset = calcCircularRefElementOffset(cIndex, mask);
         final E e = lpRefElement(buffer, offset);
-        soRefElement(buffer, offset, null);
+        spRefElement(buffer, offset, null);
         // i.e. seq += capacity
         soLongElement(sBuffer, seqOffset, cIndex + mask + 1);
         return e;
@@ -373,7 +374,7 @@ public class MpmcAtomicArrayQueue<E> extends MpmcAtomicArrayQueueL3Pad<E> {
         // start with bogus value, hope we don't need it
         long pIndex = -1;
         E e;
-        do {
+        while (true) {
             cIndex = lvConsumerIndex();
             seqOffset = calcCircularLongElementOffset(cIndex, mask);
             seq = lvLongElement(sBuffer, seqOffset);
@@ -392,7 +393,7 @@ public class MpmcAtomicArrayQueue<E> extends MpmcAtomicArrayQueueL3Pad<E> {
                 if (lvConsumerIndex() == cIndex)
                     return e;
             }
-        } while (true);
+        }
     }
 
     @Override
@@ -416,7 +417,8 @@ public class MpmcAtomicArrayQueue<E> extends MpmcAtomicArrayQueueL3Pad<E> {
         } while (// another producer has moved the sequence
         seq > pIndex || // failed to increment
         !casProducerIndex(pIndex, pIndex + 1));
-        soRefElement(buffer, calcCircularRefElementOffset(pIndex, mask), e);
+        // casProducerIndex ensures correct construction
+        spRefElement(buffer, calcCircularRefElementOffset(pIndex, mask), e);
         soLongElement(sBuffer, seqOffset, pIndex + 1);
         return true;
     }
@@ -442,7 +444,7 @@ public class MpmcAtomicArrayQueue<E> extends MpmcAtomicArrayQueueL3Pad<E> {
         !casConsumerIndex(cIndex, cIndex + 1));
         final int offset = calcCircularRefElementOffset(cIndex, mask);
         final E e = lpRefElement(buffer, offset);
-        soRefElement(buffer, offset, null);
+        spRefElement(buffer, offset, null);
         soLongElement(sBuffer, seqOffset, cIndex + mask + 1);
         return e;
     }
@@ -503,7 +505,7 @@ public class MpmcAtomicArrayQueue<E> extends MpmcAtomicArrayQueueL3Pad<E> {
                     while (lvLongElement(sBuffer, seqOffset) != expectedSeq) {
                     }
                     final E e = lpRefElement(buffer, offset);
-                    soRefElement(buffer, offset, null);
+                    spRefElement(buffer, offset, null);
                     soLongElement(sBuffer, seqOffset, index + mask + 1);
                     c.accept(e);
                 }
@@ -542,7 +544,7 @@ public class MpmcAtomicArrayQueue<E> extends MpmcAtomicArrayQueueL3Pad<E> {
             !casConsumerIndex(cIndex, cIndex + 1));
             final int offset = calcCircularRefElementOffset(cIndex, mask);
             final E e = lpRefElement(buffer, offset);
-            soRefElement(buffer, offset, null);
+            spRefElement(buffer, offset, null);
             soLongElement(sBuffer, seqOffset, cIndex + mask + 1);
             c.accept(e);
         }
@@ -577,6 +579,7 @@ public class MpmcAtomicArrayQueue<E> extends MpmcAtomicArrayQueueL3Pad<E> {
                     final int offset = calcCircularRefElementOffset(index, mask);
                     while (lvLongElement(sBuffer, seqOffset) != index) {
                     }
+                    // Ordered store ensures correct construction
                     soRefElement(buffer, offset, s.get());
                     soLongElement(sBuffer, seqOffset, index + 1);
                 }
@@ -621,6 +624,7 @@ public class MpmcAtomicArrayQueue<E> extends MpmcAtomicArrayQueueL3Pad<E> {
             } while (// another producer has moved the sequence
             seq > pIndex || // failed to increment
             !casProducerIndex(pIndex, pIndex + 1));
+            // Ordered store ensures correct construction
             soRefElement(buffer, calcCircularRefElementOffset(pIndex, mask), s.get());
             soLongElement(sBuffer, seqOffset, pIndex + 1);
         }
