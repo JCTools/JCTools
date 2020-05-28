@@ -1,12 +1,11 @@
 package org.jctools.queues;
 
-import java.util.Queue;
-import java.util.concurrent.atomic.AtomicBoolean;
-
+import org.jctools.util.TestUtil.Val;
 import org.junit.Assert;
 import org.junit.Test;
 
-import org.jctools.queues.QueueSanityTest.Val;
+import java.util.Queue;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.Assert.assertEquals;
 

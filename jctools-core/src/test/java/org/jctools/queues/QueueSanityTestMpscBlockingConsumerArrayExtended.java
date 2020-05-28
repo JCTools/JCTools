@@ -5,9 +5,8 @@ import java.util.Queue;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.jctools.util.TestUtil.Val;
 import org.junit.Test;
-
-import org.jctools.queues.QueueSanityTest.Val;
 
 import static java.util.concurrent.TimeUnit.*;
 import static org.junit.Assert.*;

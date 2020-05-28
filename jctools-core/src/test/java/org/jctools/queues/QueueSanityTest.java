@@ -20,6 +20,7 @@ import java.util.concurrent.locks.LockSupport;
 import static org.hamcrest.Matchers.*;
 import static org.jctools.queues.MessagePassingQueue.UNBOUNDED_CAPACITY;
 import static org.jctools.queues.matchers.Matchers.emptyAndZeroSize;
+import static org.jctools.util.TestUtil.*;
 import static org.junit.Assert.*;
 import static org.junit.Assume.assumeThat;
 
@@ -27,8 +28,6 @@ public abstract class QueueSanityTest
 {
 
     public static final int SIZE = 8192 * 2;
-    static final int CONCURRENT_TEST_DURATION = Integer.getInteger("org.jctools.concTestDurationMs", 500);
-    static final int TEST_TIMEOUT = 30000;
 
     protected final Queue<Integer> queue;
     protected final ConcurrentQueueSpec spec;
@@ -286,7 +285,7 @@ public abstract class QueueSanityTest
     @Test(timeout = TEST_TIMEOUT)
     public void testSize() throws Exception
     {
-        final int capacity = spec.capacity == UNBOUNDED_CAPACITY ? Integer.MAX_VALUE : spec.capacity;
+        final int capacity = !spec.isBounded() ? Integer.MAX_VALUE : spec.capacity;
 
         final AtomicBoolean stop = new AtomicBoolean();
         final Queue<Integer> q = queue;
@@ -298,8 +297,9 @@ public abstract class QueueSanityTest
             {
                 while (!stop.get())
                 {
-                    q.offer(1);
-                    q.poll();
+                    // conditional is required when threads > capacity
+                    if(q.offer(1));
+                        while (q.poll() == null && !stop.get());
                 }
             }
             catch (Throwable t)
@@ -350,7 +350,7 @@ public abstract class QueueSanityTest
             {
                 q.poll();
                 // slow down the consumer, this will make the queue mostly full
-                LockSupport.parkNanos(1000);
+                sleepQuietly(1);
             }
         }, spec.consumers, threads);
         // observer
@@ -501,36 +501,12 @@ public abstract class QueueSanityTest
         assertEquals("Observed no element in non-empty queue", 0, fail.value);
     }
 
-    private void startWaitJoin(AtomicBoolean stop, List<Thread> threads) throws InterruptedException
-    {
-        for (Thread t : threads) t.start();
-        Thread.sleep(CONCURRENT_TEST_DURATION);
-        stop.set(true);
-        for (Thread t : threads)  t.join();
-    }
-
-
-    private void threads(Runnable runnable, int count, List<Thread> threads)
-    {
-        if (count <= 0)
-            count = Runtime.getRuntime().availableProcessors() - 1;
-
-        for (int i = 0; i < count; i++)
-        {
-            threads.add(new Thread(runnable));
-        }
-    }
-
-    static final class Val
-    {
-        public int value;
-    }
-
-
     @Test(timeout = TEST_TIMEOUT)
     public void testPollOrderContendedFull() throws Exception
     {
-        assumeThat(spec.isBounded() && spec.ordering == Ordering.FIFO, is(Boolean.TRUE));
+        assumeThat(spec.isBounded() , is(Boolean.TRUE));
+        assumeThat(spec.ordering, is(Ordering.FIFO));
+
         final AtomicBoolean stop = new AtomicBoolean();
         final Queue<Integer> q = queue;
         final Val fail = new Val();
@@ -545,9 +521,10 @@ public abstract class QueueSanityTest
             while (!stop.get())
             {
                 // clear the top 8 bits
-                int nextVal = (i++ << 8) >> 8;
+                int nextVal = (i << 8) >>> 8;
                 // set the pid in the top 8 bits
-                q.offer(nextVal ^ pId);
+                if(q.offer(nextVal ^ pId))
+                    i++;
             }
         }, spec.producers, threads);
         int producers = threads.size();
@@ -555,12 +532,13 @@ public abstract class QueueSanityTest
         threads(() -> {
             Integer[] lastPolledSequence = new Integer[producers];
             while (!stop.get()) {
-                LockSupport.parkNanos(1000);
-                final Integer polledSequence = q.poll();
-                if (polledSequence == null) {
+                sleepQuietly(1);
+                final Integer polledSequenceAndTid = q.poll();
+                if (polledSequenceAndTid == null) {
                     continue;
                 }
-                int pTid = polledSequence >> 24;
+                int pTid = polledSequenceAndTid >>> 24;
+                int polledSequence = (polledSequenceAndTid << 8) >>> 8;
                 if (lastPolledSequence[pTid] != null && polledSequence - lastPolledSequence[pTid] < 0) {
                     fail.value++;
                 }
@@ -578,7 +556,7 @@ public abstract class QueueSanityTest
     public void testPeekOrderContendedFull() throws Exception
     {
         // only for multi consumers as we need a separate peek/poll thread here
-        assumeThat(spec.isBounded() && spec.isMpmc() || spec.isSpmc(), is(Boolean.TRUE));
+        assumeThat(spec.isBounded() && (spec.isMpmc() || spec.isSpmc()), is(Boolean.TRUE));
         final AtomicBoolean stop = new AtomicBoolean();
         final Queue<Integer> q = queue;
         final Val fail = new Val();
@@ -593,9 +571,10 @@ public abstract class QueueSanityTest
             while (!stop.get())
             {
                 // clear the top 8 bits
-                int nextVal = (i++ << 8) >> 8;
+                int nextVal = (i << 8) >>> 8;
                 // set the pid in the top 8 bits
-                q.offer(nextVal ^ pId);
+                if(q.offer(nextVal ^ pId))
+                    i++;
             }
         }, spec.producers, threads);
         int producers = threads.size();
@@ -606,18 +585,20 @@ public abstract class QueueSanityTest
             {
                 q.poll();
                 // slow down the consumer, this will make the queue mostly full
-                LockSupport.parkNanos(1000);
+                sleepQuietly(1);
             }
         }, spec.consumers, threads);
         // observer
         threads(() -> {
             Integer[] lastPeekedSequence = new Integer[producers];
             while (!stop.get()) {
-                final Integer peekedSequence = q.peek();
-                if (peekedSequence == null) {
+                final Integer peekedSequenceAndTid = q.poll();
+                if (peekedSequenceAndTid == null) {
                     continue;
                 }
-                int pTid = peekedSequence >> 24;
+                int pTid = peekedSequenceAndTid >>> 24;
+                int peekedSequence = (peekedSequenceAndTid << 8) >>> 8;
+
                 if (lastPeekedSequence[pTid] != null && peekedSequence - lastPeekedSequence[pTid] < 0) {
                     fail.value++;
                 }
@@ -634,6 +615,7 @@ public abstract class QueueSanityTest
     @Test
     public void testIterator() {
         assumeThat(queue, instanceOf(SupportsIterator.class));
+        assumeThat(queue, instanceOf(MessagePassingQueue.class));
 
         int capacity = ((MessagePassingQueue)queue).capacity();
         int insertLimit = (capacity == UNBOUNDED_CAPACITY) ? 128 : capacity;
@@ -660,6 +642,7 @@ public abstract class QueueSanityTest
     @Test
     public void testIteratorHasNextConcurrentModification() {
         assumeThat(queue, instanceOf(SupportsIterator.class));
+        assumeThat(queue, instanceOf(MessagePassingQueue.class));
         int capacity = ((MessagePassingQueue)queue).capacity();
         if (capacity != UNBOUNDED_CAPACITY)
             assumeThat(capacity, greaterThanOrEqualTo(2));
@@ -675,13 +658,6 @@ public abstract class QueueSanityTest
         assertThat(iter.hasNext(), is(true));
         assertThat(iter.next(), is(0));
         assertThat(iter.hasNext(), is(false));
-    }
-
-    private List<Integer> iteratorToList() {
-        List<Integer> list = new ArrayList<>();
-        Iterator<Integer> iter = queue.iterator();
-        iter.forEachRemaining(list::add);
-        return list;
     }
 
     @Test(timeout = TEST_TIMEOUT)
