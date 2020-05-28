@@ -140,7 +140,8 @@ public class MpscLinkedAtomicQueue<E> extends BaseLinkedAtomicQueue<E> {
         final LinkedQueueAtomicNode<E> head = tail;
         for (int i = 1; i < limit; i++) {
             final LinkedQueueAtomicNode<E> temp = newNode(s.get());
-            tail.soNext(temp);
+            // spNext: xchgProducerNode ensures correct construction
+            tail.spNext(temp);
             tail = temp;
         }
         final LinkedQueueAtomicNode<E> oldPNode = xchgProducerNode(tail);
