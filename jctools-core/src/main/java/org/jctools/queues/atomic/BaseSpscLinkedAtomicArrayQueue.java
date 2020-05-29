@@ -242,15 +242,16 @@ abstract class BaseSpscLinkedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArr
         return lvConsumerIndex();
     }
 
-    protected final void soNext(AtomicReferenceArray<E> curr, AtomicReferenceArray<E> next) {
+    protected final void spNext(AtomicReferenceArray<E> curr, AtomicReferenceArray<E> next) {
         int offset = nextArrayOffset(curr);
-        soRefElement(curr, offset, next);
+        spRefElement(curr, offset, next);
     }
 
     @SuppressWarnings("unchecked")
-    protected final AtomicReferenceArray<E> lvNextArrayAndUnlink(AtomicReferenceArray<E> curr) {
+    protected final AtomicReferenceArray<E> lpNextArrayAndUnlink(AtomicReferenceArray<E> curr) {
+        // this access after loadVolatile JUMP
         final int offset = nextArrayOffset(curr);
-        final AtomicReferenceArray<E> nextBuffer = (AtomicReferenceArray<E>) lvRefElement(curr, offset);
+        final AtomicReferenceArray<E> nextBuffer = (AtomicReferenceArray<E>) lpRefElement(curr, offset);
         // prevent GC nepotism
         soRefElement(curr, offset, null);
         return nextBuffer;
@@ -404,9 +405,10 @@ abstract class BaseSpscLinkedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArr
     }
 
     final void linkOldToNew(final long currIndex, final AtomicReferenceArray<E> oldBuffer, final int offset, final AtomicReferenceArray<E> newBuffer, final int offsetInNew, final E e) {
-        soRefElement(newBuffer, offsetInNew, e);
+        // Plain Mode: unreachable until JUMP is published
+        spRefElement(newBuffer, offsetInNew, e);
         // link to next buffer and add next indicator as element of old buffer
-        soNext(oldBuffer, newBuffer);
+        spNext(oldBuffer, newBuffer);
         soRefElement(oldBuffer, offset, JUMP);
         // index is visible after elements (isEmpty/poll ordering)
         // this ensures atomic write of long on 32bit platforms
@@ -420,21 +422,23 @@ abstract class BaseSpscLinkedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArr
     }
 
     private E newBufferPeek(final AtomicReferenceArray<E> buffer, final long index) {
-        AtomicReferenceArray<E> nextBuffer = lvNextArrayAndUnlink(buffer);
+        AtomicReferenceArray<E> nextBuffer = lpNextArrayAndUnlink(buffer);
         consumerBuffer = nextBuffer;
         final long mask = length(nextBuffer) - 2;
         consumerMask = mask;
+        // this access after loadVolatile JUMP
         final int offset = calcCircularRefElementOffset(index, mask);
-        return lvRefElement(nextBuffer, offset);
+        return lpRefElement(nextBuffer, offset);
     }
 
     private E newBufferPoll(final AtomicReferenceArray<E> buffer, final long index) {
-        AtomicReferenceArray<E> nextBuffer = lvNextArrayAndUnlink(buffer);
+        AtomicReferenceArray<E> nextBuffer = lpNextArrayAndUnlink(buffer);
         consumerBuffer = nextBuffer;
         final long mask = length(nextBuffer) - 2;
         consumerMask = mask;
+        // this access after loadVolatile JUMP
         final int offset = calcCircularRefElementOffset(index, mask);
-        final E n = lvRefElement(nextBuffer, offset);
+        final E n = lpRefElement(nextBuffer, offset);
         if (null == n) {
             throw new IllegalStateException("new buffer must have at least one element");
         } else {
