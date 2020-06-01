@@ -308,7 +308,7 @@ abstract class MpUnboundedXaddArrayQueue<R extends MpUnboundedXaddChunk<R,E>, E>
         {
             // prev cannot be null, because the consumer cannot null it without consuming the element for which we are
             // trying to get the chunk.
-            currentChunk = currentChunk.lvPrev();
+            currentChunk = currentChunk.lpPrev();
             assert currentChunk != null;
         }
         assert currentChunk.lvIndex() == requiredChunkIndex;
@@ -355,7 +355,7 @@ abstract class MpUnboundedXaddArrayQueue<R extends MpUnboundedXaddChunk<R,E>, E>
         {
             // single-writer: prevChunk::index == nextChunkIndex is protecting it
             assert newChunk.lvIndex() < prevChunk.lvIndex();
-            newChunk.soPrev(prevChunk);
+            newChunk.spPrev(prevChunk);
             // index set is releasing prev, allowing other pending offers to continue
             newChunk.soIndex(nextChunkIndex);
         }
@@ -374,7 +374,7 @@ abstract class MpUnboundedXaddArrayQueue<R extends MpUnboundedXaddChunk<R,E>, E>
     {
         // avoid GC nepotism
         cChunk.soNext(null);
-        next.soPrev(null);
+        next.spPrev(null);
         // no need to cChunk.soIndex(NOT_USED)
         if (cChunk.isPooled())
         {

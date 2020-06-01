@@ -11,21 +11,20 @@ class MpUnboundedXaddChunk<R,E>
 {
     final static int NOT_USED = -1;
 
-    private static final long PREV_OFFSET = fieldOffset(MpUnboundedXaddChunk.class, "prev");
     private static final long NEXT_OFFSET = fieldOffset(MpUnboundedXaddChunk.class, "next");
     private static final long INDEX_OFFSET = fieldOffset(MpUnboundedXaddChunk.class, "index");
 
     private final boolean pooled;
     private final E[] buffer;
 
-    private volatile R prev;
+    private R prev;
     private volatile long index;
     private volatile R next;
     MpUnboundedXaddChunk(long index, R prev, int size, boolean pooled)
     {
         buffer = allocateRefArray(size);
         // next is null
-        soPrev(prev);
+        spPrev(prev);
         spIndex(index);
         this.pooled = pooled;
     }
@@ -60,14 +59,14 @@ class MpUnboundedXaddChunk<R,E>
         UNSAFE.putOrderedObject(this, NEXT_OFFSET, value);
     }
 
-    final R lvPrev()
+    final R lpPrev()
     {
-        return prev;
+        return this.prev;
     }
 
-    final void soPrev(R value)
+    final void spPrev(R value)
     {
-        UNSAFE.putObject(this, PREV_OFFSET, value);
+        this.prev = value;
     }
 
     final void soElement(int index, E e)
