@@ -137,7 +137,8 @@ public class MpscUnboundedXaddArrayQueue<E> extends MpUnboundedXaddArrayQueue<Mp
                 e = cChunk.spinForElement(ciChunkOffset, false);
             }
         }
-        cChunk.soElement(ciChunkOffset, null);
+        // consumer free the chunk happens-before producer reuse the chunk
+        cChunk.spElement(ciChunkOffset, null);
         soConsumerIndex(cIndex + 1);
         return e;
     }
@@ -212,7 +213,8 @@ public class MpscUnboundedXaddArrayQueue<E> extends MpUnboundedXaddArrayQueue<Mp
             }
         }
 
-        cChunk.soElement(ciChunkOffset, null);
+        // consumer free the chunk happens-before producer reuse the chunk
+        cChunk.spElement(ciChunkOffset, null);
         soConsumerIndex(cIndex + 1);
         return e;
     }
@@ -303,7 +305,8 @@ public class MpscUnboundedXaddArrayQueue<E> extends MpUnboundedXaddArrayQueue<Mp
                     return i;
                 }
             }
-            cChunk.soElement(consumerOffset, null);
+            // consumer free the chunk happens-before producer reuse the chunk
+            cChunk.spElement(consumerOffset, null);
             final long nextConsumerIndex = cIndex + 1;
             soConsumerIndex(nextConsumerIndex);
             c.accept(e);
