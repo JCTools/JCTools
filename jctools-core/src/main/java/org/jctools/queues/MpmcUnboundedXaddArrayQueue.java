@@ -278,7 +278,9 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpUnboundedXaddArrayQueue<Mp
             }
             e = cChunk.lvElement(ciChunkOffset);
         }
-        while (e == null && cIndex != lvProducerIndex());
+        // checking again vs consumerIndex changes is necessary to verify that e is still valid
+        while ((e == null && cIndex != lvProducerIndex()) ||
+            (e != null && cIndex != lvConsumerIndex()));
         return e;
     }
 
@@ -410,7 +412,13 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpUnboundedXaddArrayQueue<Mp
                 return null;
             }
         }
-        return consumerBuffer.lvElement(ciChunkOffset);
+        final E e = consumerBuffer.lvElement(ciChunkOffset);
+        // checking again vs consumerIndex changes is necessary to verify that e is still valid
+        if (cIndex != lvConsumerIndex())
+        {
+            return null;
+        }
+        return e;
     }
 
     @Override
