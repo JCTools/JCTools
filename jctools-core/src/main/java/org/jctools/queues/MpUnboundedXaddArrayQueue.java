@@ -219,6 +219,7 @@ abstract class MpUnboundedXaddArrayQueue<R extends MpUnboundedXaddChunk<R,E>, E>
     private static final long ROTATION = -2;
     final int chunkMask;
     final int chunkShift;
+    final int maxPooledChunks;
     final SpscArrayQueue<R> freeChunksPool;
 
     /**
@@ -249,6 +250,17 @@ abstract class MpUnboundedXaddArrayQueue<R extends MpUnboundedXaddChunk<R,E>, E>
         {
             freeChunksPool.offer(newChunk(NOT_USED, null, chunkSize, true));
         }
+        this.maxPooledChunks = maxPooledChunks;
+    }
+
+    public final int chunkSize()
+    {
+        return chunkMask + 1;
+    }
+
+    public final int maxPooledChunks()
+    {
+        return maxPooledChunks;
     }
 
     abstract R newChunk(long index, R prev, int chunkSize, boolean pooled);

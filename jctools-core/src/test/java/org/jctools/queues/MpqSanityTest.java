@@ -24,7 +24,7 @@ public abstract class MpqSanityTest
 
     public static final int SIZE = 8192 * 2;
 
-    private final MessagePassingQueue<Integer> queue;
+    protected final MessagePassingQueue<Integer> queue;
     private final ConcurrentQueueSpec spec;
     int count = 0;
     Integer p;
