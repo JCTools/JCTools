@@ -13,6 +13,7 @@
  */
 package org.jctools.stacks;
 
+import org.jctools.stacks.WFIStack.Node;
 import org.jctools.util.UnsafeAccess;
 
 import java.util.Iterator;
@@ -36,7 +37,7 @@ import java.util.NoSuchElementException;
  * @param <T> The type of node in this stack.
  */
 @SuppressWarnings({"unchecked", "NullableProblems"})
-public class WFIStack<T extends WFIStack.Node> implements Iterable<T>
+public class WFIStack<T extends WFIStack.Node> extends PadAfter implements Iterable<T>
 {
     /**
      * The super-class of all nodes, or entries, for {@link WFIStack wait-free intrusive stacks}.
@@ -49,10 +50,10 @@ public class WFIStack<T extends WFIStack.Node> implements Iterable<T>
         final Node next()
         {
             Node n = next;
+            //noinspection IdempotentLoopBody
             while (n == null)
             {
                 // TODO: Thread.onSpinWait
-                Thread.yield();
                 n = next;
             }
             return n;
@@ -135,10 +136,6 @@ public class WFIStack<T extends WFIStack.Node> implements Iterable<T>
             return null;
         }
     };
-    private static final long HEAD_OFFSET = UnsafeAccess.fieldOffset(WFIStack.class, "head");
-
-    @SuppressWarnings( {"FieldCanBeLocal", "FieldMayBeFinal"})
-    private volatile Node head; // Accessed via UNSAFE.
 
     /**
      * Create an empty wait-free intrusive stack.
@@ -326,4 +323,41 @@ public class WFIStack<T extends WFIStack.Node> implements Iterable<T>
     {
         return UnsafeAccess.UNSAFE.compareAndSwapObject(this, HEAD_OFFSET, expected, update);
     }
+}
+
+@SuppressWarnings("unused")
+abstract class PadBefore
+{
+    // Assuming 12-byte object header and 64-byte cache lines, we force the object header and the 'head' field onto
+    // separate cache lines.
+    byte p01, p02, p03, p04, p05, p06, p07, p08;
+    byte p09, p10, p11, p12, p13, p14, p15, p16;
+    byte p17, p18, p19, p20, p21, p22, p23, p24;
+    byte p25, p26, p27, p28, p29, p30, p31, p32;
+    byte p33, p34, p35, p36, p37, p38, p39, p40;
+    byte p41, p42, p43, p44, p45, p46, p47, p48;
+    byte p49, p50, p51, p52;
+}
+
+abstract class HeadField extends PadBefore
+{
+    static final long HEAD_OFFSET = UnsafeAccess.fieldOffset(HeadField.class, "head");
+
+    @SuppressWarnings( {"FieldCanBeLocal", "FieldMayBeFinal"})
+    volatile Node head; // Accessed via UNSAFE.
+}
+
+@SuppressWarnings("unused")
+abstract class PadAfter extends HeadField
+{
+    // Isolate the 'head' field on its own cache line.
+    // This brings the object instance size to 128 bytes, assuming 12-byte header
+    // and 4-byte object reference size.
+    byte p53, p54, p55, p56, p57, p58, p59, p60;
+    byte p61, p62, p63, p64, p65, p66, p67, p68;
+    byte p69, p70, p71, p72, p73, p74, p75, p76;
+    byte p77, p78, p79, p80, p81, p82, p83, p84;
+    byte p85, p86, p87, p88, p89, p90, p91, p92;
+    byte p93, p94, p95, p96, p97, p98, p99, p100;
+    byte p101, p102, p103, p104, p105, p106, p107, p108;
 }

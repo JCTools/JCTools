@@ -16,9 +16,10 @@ package org.jctools.stacks;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.Iterator;
-import java.util.NoSuchElementException;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.jctools.util.TestUtil.TEST_TIMEOUT;
 import static org.junit.Assert.*;
 
 public class WFIStackTest
@@ -390,6 +391,117 @@ public class WFIStackTest
         catch (NoSuchElementException ignore)
         {
             // Good.
+        }
+    }
+
+    @Test(timeout = TEST_TIMEOUT)
+    public void sanityCheckMultiPushMultiPop() throws Exception
+    {
+        int pusherCount = Math.max(1, (Runtime.getRuntime().availableProcessors() - 1) / 3);
+        int popperCount = Math.max(1, (Runtime.getRuntime().availableProcessors() - 1) - pusherCount);
+        AtomicInteger doneCounter = new AtomicInteger();
+
+        class Pusher implements Runnable
+        {
+            final int from;
+            final int to;
+
+            Pusher(int from, int to)
+            {
+                this.from = from;
+                this.to = to;
+            }
+
+            @Override
+            public void run()
+            {
+                for (int i = from; i < to; i++)
+                {
+                    stack.push(new IntNode(i));
+                }
+                doneCounter.getAndIncrement();
+            }
+        }
+
+        class Popper implements Runnable
+        {
+            final Set<Integer> ints;
+
+            Popper()
+            {
+                ints = new HashSet<>();
+            }
+
+            @Override
+            public void run()
+            {
+                while (doneCounter.get() < pusherCount)
+                {
+                    IntNode in;
+                    while ((in = stack.pop()) != null)
+                    {
+                        ints.add(in.value);
+                    }
+                }
+            }
+        }
+
+        int max = 0;
+        int valuesPerThread = 1000000;
+        List<Popper> poppers = new ArrayList<>();
+        List<Thread> ts = new ArrayList<>();
+        for (int i = 0; i < pusherCount; i++)
+        {
+            int from = i * valuesPerThread;
+            int to = from + valuesPerThread;
+            max = Math.max(max, to - 1); // Account for truncation in integer division. And 'to' is not inclusive.
+            ts.add(new Thread(new Pusher(from, to), "Pusher-" + i));
+        }
+        for (int i = 0; i < popperCount; i++)
+        {
+            Popper popper = new Popper();
+            poppers.add(popper);
+            ts.add(new Thread(popper, "Popper-" + i));
+        }
+        for (Thread t : ts)
+        {
+            t.start();
+        }
+        for (Thread t : ts)
+        {
+            t.join();
+        }
+
+        // Make sure stack really is empty.
+        IntNode in;
+        while ((in = stack.pop()) != null)
+        {
+            poppers.get(0).ints.add(in.value);
+        }
+
+        // Collect all values.
+        int valueCount = 0;
+        for (Popper popper : poppers)
+        {
+            valueCount += popper.ints.size();
+        }
+        int[] values = new int[valueCount];
+        int index = 0;
+        for (Popper popper : poppers)
+        {
+            for (Integer x : popper.ints)
+            {
+                values[index] = x;
+                index++;
+            }
+        }
+
+        Arrays.sort(values);
+        assertEquals(max, values[values.length - 1]);
+        assertEquals(values.length, valuesPerThread * pusherCount);
+        for (int i = 1; i < values.length; i++)
+        {
+            assertEquals(values[i - 1] + 1, values[i]);
         }
     }
 }
