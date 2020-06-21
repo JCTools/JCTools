@@ -75,8 +75,14 @@ public class WFIStackTest
     @Test
     public void pushAndPop()
     {
+        assertTrue(stack.isEmpty());
+        assertEquals(stack.size(), 0);
         assertNull(stack.pop());
+        assertTrue(stack.isEmpty());
+        assertEquals(stack.size(), 0);
         stack.push(new IntNode(1));
+        assertFalse(stack.isEmpty());
+        assertEquals(stack.size(), 1);
         stack.push(new IntNode(2));
         assertEquals(stack.pop(), new IntNode(2));
         assertEquals(stack.pop(), new IntNode(1));
@@ -84,6 +90,8 @@ public class WFIStackTest
         stack.push(new IntNode(1));
         assertEquals(stack.pop(), new IntNode(1));
         assertNull(stack.pop());
+        assertTrue(stack.isEmpty());
+        assertEquals(stack.size(), 0);
     }
 
     @Test

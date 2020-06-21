@@ -165,6 +165,16 @@ public class WFIStack<T extends WFIStack.Node> extends PadAfter implements Itera
     }
 
     /**
+     * Returns {@code true} if the stack contains no elements.
+     *
+     * @return {@code true} if the stack contains no elements.
+     */
+    public boolean isEmpty()
+    {
+        return head == END;
+    }
+
+    /**
      * Peek at the head of the stack.
      * This returns the most recently added element, if any.
      * Note that this method is inherently racy, and the value can be outdated as soon as it is returned.
