@@ -506,7 +506,7 @@ public class WFIStackTest
 
         Arrays.sort(values);
         assertEquals(max, values[values.length - 1]);
-        assertEquals(values.length, valuesPerThread * pusherCount);
+        assertEquals(values.length, valuesPerThread * (long) pusherCount);
         for (int i = 1; i < values.length; i++)
         {
             assertEquals(values[i - 1] + 1, values[i]);
