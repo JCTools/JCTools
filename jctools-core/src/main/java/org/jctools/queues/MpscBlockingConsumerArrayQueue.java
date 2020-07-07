@@ -293,6 +293,75 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         return this.getClass().getName();
     }
 
+    /**
+     * {@link #offer} if {@link #size()} is less than threshold.
+     *
+     * @param e         the object to offer onto the queue, not null
+     * @param threshold the maximum allowable size; [1 <= threshold <= capacity].
+     * @return true if the offer is successful, false if queue size exceeds threshold
+     * @since 3.0.1
+     */
+    public boolean offerIfBelowThreshold(final E e, int threshold)
+    {
+        if (null == e)
+        {
+            throw new NullPointerException();
+        }
+
+        final long mask = this.producerMask;
+        final long capacity = mask + 2;
+        final E[] buffer = this.producerBuffer;
+        long pIndex;
+        while (true)
+        {
+            pIndex = lvProducerIndex();
+            // lower bit is indicative of blocked consumer
+            if ((pIndex & 1) == 1)
+            {
+                if (offerAndWakeup(buffer, mask, pIndex, e)) {
+                    return true;
+                }
+                continue;
+            }
+            // pIndex is even (lower bit is 0) -> actual index is (pIndex >> 1), consumer is awake
+            final long producerLimit = lvProducerLimit();
+
+            // Use producer limit to save a read of the more rapidly mutated consumer index.
+            // Assumption: queue is usually empty or near empty
+
+            final long available = (producerLimit - pIndex) >> 1;
+            // sizeEstimate <= size
+            final long sizeEstimate = capacity - available;
+
+            if (sizeEstimate >= threshold)
+            {
+                final long cIndex = lvConsumerIndex();
+                final long size = (pIndex - cIndex) >> 1;
+
+                if (size >= threshold)
+                {
+                    return false;
+                }
+
+                if (!recalculateProducerLimit(mask, pIndex, producerLimit, cIndex))
+                {
+                    return false;
+                }
+            }
+            // else pIndex < producerLimit since (capacity - threshold) >= 0
+
+            // Claim the index
+            if (casProducerIndex(pIndex, pIndex + 2))
+            {
+                break;
+            }
+        }
+        final long offset = modifiedCalcCircularRefElementOffset(pIndex, mask);
+        // INDEX visible before ELEMENT
+        soRefElement(buffer, offset, e); // release element e
+        return true;
+    }
+
     @Override
     public boolean offer(final E e)
     {
@@ -380,7 +449,11 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
 
     private boolean recalculateProducerLimit(long mask, long pIndex, long producerLimit)
     {
-        final long cIndex = lvConsumerIndex();
+        return recalculateProducerLimit(mask, pIndex, producerLimit, lvConsumerIndex());
+    }
+
+    private boolean recalculateProducerLimit(long mask, long pIndex, long producerLimit, long cIndex)
+    {
         final long bufferCapacity = mask + 2;
 
         if (cIndex + bufferCapacity > pIndex)
