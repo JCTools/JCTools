@@ -297,7 +297,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
      * {@link #offer} if {@link #size()} is less than threshold.
      *
      * @param e         the object to offer onto the queue, not null
-     * @param threshold the maximum allowable size; [1 <= threshold <= capacity].
+     * @param threshold the maximum allowable size
      * @return true if the offer is successful, false if queue size exceeds threshold
      * @since 3.0.1
      */
@@ -333,7 +333,9 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
             // sizeEstimate <= size
             final long sizeEstimate = capacity - available;
 
-            if (sizeEstimate >= threshold)
+            if (sizeEstimate >= threshold ||
+                // producerLimit check allows for threshold >= capacity
+                producerLimit <= pIndex)
             {
                 final long cIndex = lvConsumerIndex();
                 final long size = (pIndex - cIndex) >> 1;
@@ -348,7 +350,6 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
                     return false;
                 }
             }
-            // else pIndex < producerLimit since (capacity - threshold) >= 0
 
             // Claim the index
             if (casProducerIndex(pIndex, pIndex + 2))
