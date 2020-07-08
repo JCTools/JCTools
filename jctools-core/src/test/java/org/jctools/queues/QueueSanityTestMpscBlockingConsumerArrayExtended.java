@@ -247,4 +247,42 @@ public class QueueSanityTestMpscBlockingConsumerArrayExtended
         assertTrue(wasInterrupted.get());
         assertEquals(someElements, v.value);
     }
+
+    @Test
+    public void testOfferIfBelowThresholdSemantics() throws Exception
+    {
+        final AtomicBoolean stop = new AtomicBoolean();
+        final MpscBlockingConsumerArrayQueue<Integer> q =
+            new MpscBlockingConsumerArrayQueue<>(8);
+
+        final Val fail = new Val();
+
+        Thread t1 = new Thread(() -> {
+            while (!stop.get())
+            {
+                q.poll();
+
+                if (q.size() > 5)
+                {
+                    fail.value++;
+                }
+            }
+        });
+
+        Thread t2 = new Thread(() -> {
+            while (!stop.get())
+            {
+                q.offerIfBelowThreshold(1, 5);
+            }
+        });
+
+        t1.start();
+        t2.start();
+        Thread.sleep(1000);
+        stop.set(true);
+        t1.join();
+        t2.join();
+        assertEquals("Unexpected size observed", 0, fail.value);
+
+    }
 }
