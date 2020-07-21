@@ -490,40 +490,38 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
             final long pIndex = lvProducerIndex();
             if (cIndex == pIndex && casProducerIndex(pIndex, pIndex + 1))
             {
-                boolean unblocked = false;
-                try
+                // producers only try a wakeup when both the index and the blocked thread are visible
+                final Thread currentThread = Thread.currentThread();
+                soBlocked(currentThread);
+                final long deadlineNanos = System.nanoTime() + remainingNanos;
+                while (true)
                 {
-                    // producers only try a wakeup when both the index and the blocked thread are visible
-                    soBlocked(Thread.currentThread());
-                    final long deadlineNanos = System.nanoTime() + remainingNanos;
-                    while (true)
+                    LockSupport.parkNanos(this, remainingNanos);
+                    if (currentThread.isInterrupted())
                     {
-                        LockSupport.parkNanos(this, remainingNanos);
-                        if (Thread.interrupted())
+                        if (!casProducerIndex(pIndex + 1, pIndex))
                         {
-                            throw new InterruptedException();
+                            spinWaitForUnblock();
+                            break; // return element but leave interrupt flag set
                         }
-                        if (lvBlocked() == null)
-                        {
-                            break;
-                        }
-                        remainingNanos = deadlineNanos - System.nanoTime();
-                        if (remainingNanos <= 0)
-                        {
-                            return null;
-                        }
+                        soBlocked(null);
+                        Thread.interrupted(); // clear interrupt flag
+                        throw new InterruptedException();
                     }
-                    unblocked = true;
-                }
-                finally
-                {
-                    if (!unblocked)
+                    if (lvBlocked() == null)
                     {
-                        // revert blocking state
-                        if (casProducerIndex(pIndex + 1, pIndex))
+                        break;
+                    }
+                    remainingNanos = deadlineNanos - System.nanoTime();
+                    if (remainingNanos <= 0)
+                    {
+                        if (!casProducerIndex(pIndex + 1, pIndex))
                         {
-                            soBlocked(null);
+                            spinWaitForUnblock();
+                            break; // just in the nick of time
                         }
+                        soBlocked(null);
+                        return null;
                     }
                 }
             }
@@ -603,6 +601,12 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         return e;
     }
 
+    private void spinWaitForUnblock()
+    {
+        while (lvBlocked() != null) {}
+        return;
+    }
+
     /**
      * {@inheritDoc}
      * <p>
@@ -652,7 +656,6 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         return offer(e);
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public E relaxedPoll()
     {
