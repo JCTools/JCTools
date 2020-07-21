@@ -367,14 +367,15 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         }
 
         // Claim the slot and the responsibility of unparking
-        if(!casProducerIndex(pIndex, pIndex + 1))
+        if (!casProducerIndex(pIndex, -1))
         {
             return false;
         }
 
-        soBlocked(null); // releases the consumer from the park loop
-        LockSupport.unpark(consumerThread);
         soRefElement(buffer, offset, e);
+        soBlocked(null); // releases the consumer from the park loop
+        soProducerIndex(pIndex + 1); // allow consumer to block again
+        LockSupport.unpark(consumerThread);
         return true;
     }
 
