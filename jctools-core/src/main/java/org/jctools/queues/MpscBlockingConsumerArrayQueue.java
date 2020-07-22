@@ -221,18 +221,14 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
     byte b150,b151,b152,b153,b154,b155,b156,b157;//112b
     byte b160,b161,b162,b163,b164,b165,b166,b167;//120b
     byte b170,b171,b172,b173,b174,b175,b176,b177;//128b
-    private static final int CONTINUE_TO_P_INDEX_CAS = 0;
-    private static final int RETRY = 1;
-    private static final int QUEUE_FULL = 2;
-
 
     public MpscBlockingConsumerArrayQueue(final int capacity)
     {
         // leave lower bit of mask clear
-        super((long) ((Pow2.roundToPowerOfTwo(capacity) - 1) << 1), (E[]) allocateRefArray(Pow2.roundToPowerOfTwo(capacity)));
+        super((Pow2.roundToPowerOfTwo(capacity) - 1) << 1, (E[]) allocateRefArray(Pow2.roundToPowerOfTwo(capacity)));
 
         RangeUtil.checkGreaterThanOrEqual(capacity, 1, "capacity");
-        soProducerLimit((long) ((Pow2.roundToPowerOfTwo(capacity) - 1) << 1)); // we know it's all empty to start with
+        soProducerLimit((Pow2.roundToPowerOfTwo(capacity) - 1) << 1); // we know it's all empty to start with
     }
 
     @Override
@@ -580,7 +576,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         return (E) e;
     }
 
-    private Object spinWaitForElement(E[] buffer, long offset)
+    private static <E> Object spinWaitForElement(E[] buffer, long offset)
     {
         Object e;
         do
