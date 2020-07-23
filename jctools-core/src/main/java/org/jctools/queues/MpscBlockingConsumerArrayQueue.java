@@ -436,6 +436,9 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
                         {
                             soBlocked(null);
                         }
+                        else {
+                            spinWaitForUnblock();
+                        }
                         throw new InterruptedException();
                     }
                 }
