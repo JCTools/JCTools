@@ -480,21 +480,20 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
             if (cIndex == pIndex && casProducerIndex(pIndex, pIndex + 1))
             {
                 // producers only try a wakeup when both the index and the blocked thread are visible
-                final Thread currentThread = Thread.currentThread();
-                soBlocked(currentThread);
+                soBlocked(Thread.currentThread());
                 final long deadlineNanos = System.nanoTime() + remainingNanos;
                 while (true)
                 {
                     LockSupport.parkNanos(this, remainingNanos);
-                    if (currentThread.isInterrupted())
+                    if (Thread.interrupted())
                     {
-                        if (!casProducerIndex(pIndex + 1, pIndex))
-                        {
-                            spinWaitForUnblock();
-                            break; // return element but leave interrupt flag set
+                        // revert blocking state
+                        if (casProducerIndex(pIndex + 1, pIndex)) {
+                            soBlocked(null);
                         }
-                        soBlocked(null);
-                        Thread.interrupted(); // clear interrupt flag
+                        else {
+                            spinWaitForUnblock();
+                        }
                         throw new InterruptedException();
                     }
                     if (lvBlocked() == null)
