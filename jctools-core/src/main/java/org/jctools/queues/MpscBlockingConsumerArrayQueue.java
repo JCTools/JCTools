@@ -503,13 +503,14 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
                     remainingNanos = deadlineNanos - System.nanoTime();
                     if (remainingNanos <= 0)
                     {
-                        if (!casProducerIndex(pIndex + 1, pIndex))
-                        {
+                        if (casProducerIndex(pIndex + 1, pIndex)) {
+                            soBlocked(null);
+                            return null;
+                        }
+                        else {
                             spinWaitForUnblock();
                             break; // just in the nick of time
                         }
-                        soBlocked(null);
-                        return null;
                     }
                 }
             }
