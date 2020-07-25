@@ -19,6 +19,54 @@ import org.jctools.util.UnsafeAccess;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
+@SuppressWarnings({ "unused", "MultipleTopLevelClassesInFile", "ClassNameDiffersFromFileName" })
+abstract class WFIStackL0Pad
+{
+    // Assuming 12-byte object header and 64-byte cache lines, we force the object header and the 'head' field onto
+    // separate cache lines.
+    byte b001, b002, b003, b004, b005, b006, b007, b008;
+    byte b009, b010, b011, b012, b013, b014, b015, b016;
+    byte b017, b018, b019, b020, b021, b022, b023, b024;
+    byte b025, b026, b027, b028, b029, b030, b031, b032;
+    byte b033, b034, b035, b036, b037, b038, b039, b040;
+    byte b041, b042, b043, b044, b045, b046, b047, b048;
+    byte b049, b050, b051, b052;
+}
+
+@SuppressWarnings({ "unused", "MultipleTopLevelClassesInFile", "ClassNameDiffersFromFileName" })
+abstract class WFIStackHeadField extends WFIStackL0Pad
+{
+    static final long HEAD_OFFSET = UnsafeAccess.fieldOffset(WFIStackHeadField.class, "head");
+
+    @SuppressWarnings( {"FieldCanBeLocal", "FieldMayBeFinal"})
+    volatile Node head; // Accessed via UNSAFE.
+
+    Node xchgHead(Node node)
+    {
+        return (Node) UnsafeAccess.UNSAFE.getAndSetObject(this, HEAD_OFFSET, node);
+    }
+
+    boolean casHead(Node expected, Node update)
+    {
+        return UnsafeAccess.UNSAFE.compareAndSwapObject(this, HEAD_OFFSET, expected, update);
+    }
+}
+
+@SuppressWarnings({ "unused", "MultipleTopLevelClassesInFile", "ClassNameDiffersFromFileName" })
+abstract class WFIStackL1Pad extends WFIStackHeadField
+{
+    // Isolate the 'head' field on its own cache line.
+    // This brings the object instance size to 128 bytes, assuming 12-byte header
+    // and 4-byte object reference size.
+    byte b053, b054, b055, b056, b057, b058, b059, b060;
+    byte b061, b062, b063, b064, b065, b066, b067, b068;
+    byte b069, b070, b071, b072, b073, b074, b075, b076;
+    byte b077, b078, b079, b080, b081, b082, b083, b084;
+    byte b085, b086, b087, b088, b089, b090, b091, b092;
+    byte b093, b094, b095, b096, b097, b098, b099, b100;
+    byte b101, b102, b103, b104, b105, b106, b107, b108;
+}
+
 /**
  * A Wait-Free Intrusive Stack (Last-In, First-Out).
  * <p>
@@ -36,13 +84,13 @@ import java.util.NoSuchElementException;
  *
  * @param <T> The type of node in this stack.
  */
-@SuppressWarnings({"unchecked", "NullableProblems"})
-public class WFIStack<T extends WFIStack.Node> extends PadAfter implements Iterable<T>
+@SuppressWarnings({ "unchecked", "AssignmentToSuperclassField", "MultipleTopLevelClassesInFile" })
+public class WFIStack<T extends Node> extends WFIStackL1Pad implements Iterable<T>
 {
     /**
      * The super-class of all nodes, or entries, for {@link WFIStack wait-free intrusive stacks}.
      */
-    public static abstract class Node
+    public abstract static class Node
     {
         volatile Node next;
         int count;
@@ -100,7 +148,7 @@ public class WFIStack<T extends WFIStack.Node> extends PadAfter implements Itera
     {
         Node next;
 
-        public NodeIterator(Node start)
+        private NodeIterator(Node start)
         {
             next = start.self();
         }
@@ -196,7 +244,7 @@ public class WFIStack<T extends WFIStack.Node> extends PadAfter implements Itera
     public void push(T node)
     {
         checkPush(node);
-        T n = xchgHead(node);
+        T n = (T) xchgHead(node);
         node.count = n.count + 1; // Update 'count' before volatile store to 'next'.
         node.next = n;
     }
@@ -214,7 +262,7 @@ public class WFIStack<T extends WFIStack.Node> extends PadAfter implements Itera
     public T peekAndPush(T node)
     {
         checkPush(node);
-        T n = xchgHead(node);
+        T n = (T) xchgHead(node);
         node.count = n.count + 1; // Update 'count' before volatile store to 'next'.
         node.next = n;
         return n.self();
@@ -323,51 +371,4 @@ public class WFIStack<T extends WFIStack.Node> extends PadAfter implements Itera
     {
         assert node.next == null : "WFIStack.Nodes cannot be reused.";
     }
-
-    private T xchgHead(Node node)
-    {
-        return (T) UnsafeAccess.UNSAFE.getAndSetObject(this, HEAD_OFFSET, node);
-    }
-
-    private boolean casHead(Node expected, Node update)
-    {
-        return UnsafeAccess.UNSAFE.compareAndSwapObject(this, HEAD_OFFSET, expected, update);
-    }
-}
-
-@SuppressWarnings("unused")
-abstract class PadBefore
-{
-    // Assuming 12-byte object header and 64-byte cache lines, we force the object header and the 'head' field onto
-    // separate cache lines.
-    byte p01, p02, p03, p04, p05, p06, p07, p08;
-    byte p09, p10, p11, p12, p13, p14, p15, p16;
-    byte p17, p18, p19, p20, p21, p22, p23, p24;
-    byte p25, p26, p27, p28, p29, p30, p31, p32;
-    byte p33, p34, p35, p36, p37, p38, p39, p40;
-    byte p41, p42, p43, p44, p45, p46, p47, p48;
-    byte p49, p50, p51, p52;
-}
-
-abstract class HeadField extends PadBefore
-{
-    static final long HEAD_OFFSET = UnsafeAccess.fieldOffset(HeadField.class, "head");
-
-    @SuppressWarnings( {"FieldCanBeLocal", "FieldMayBeFinal"})
-    volatile Node head; // Accessed via UNSAFE.
-}
-
-@SuppressWarnings("unused")
-abstract class PadAfter extends HeadField
-{
-    // Isolate the 'head' field on its own cache line.
-    // This brings the object instance size to 128 bytes, assuming 12-byte header
-    // and 4-byte object reference size.
-    byte p53, p54, p55, p56, p57, p58, p59, p60;
-    byte p61, p62, p63, p64, p65, p66, p67, p68;
-    byte p69, p70, p71, p72, p73, p74, p75, p76;
-    byte p77, p78, p79, p80, p81, p82, p83, p84;
-    byte p85, p86, p87, p88, p89, p90, p91, p92;
-    byte p93, p94, p95, p96, p97, p98, p99, p100;
-    byte p101, p102, p103, p104, p105, p106, p107, p108;
 }
