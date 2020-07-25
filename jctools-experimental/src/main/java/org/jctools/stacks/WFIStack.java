@@ -342,7 +342,7 @@ public class WFIStack<T extends Node> extends WFIStackL1Pad implements Iterable<
     /**
      * Pop, or remove, the most recently pushed node, or return {@code null} if the stack is empty.
      * <p>
-     * This operation is non-blocking, but not wait-free. It has constant time-complexity.
+     * This operation is lock-free, but not wait-free.
      *
      * @return The most recently pushed node, if any, or {@code null}.
      */
