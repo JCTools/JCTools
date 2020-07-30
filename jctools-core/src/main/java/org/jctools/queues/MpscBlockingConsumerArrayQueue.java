@@ -29,6 +29,7 @@ import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeAccess.fieldOffset;
 import static org.jctools.util.UnsafeRefArrayAccess.*;
 
+@SuppressWarnings("unused")
 abstract class MpscBlockingConsumerArrayQueuePad1<E> extends AbstractQueue<E> implements IndexedQueue
 {
     byte b000,b001,b002,b003,b004,b005,b006,b007;//  8b
@@ -79,6 +80,7 @@ abstract class MpscBlockingConsumerArrayQueueColdProducerFields<E> extends MpscB
     }
 }
 
+@SuppressWarnings("unused")
 abstract class MpscBlockingConsumerArrayQueuePad2<E> extends MpscBlockingConsumerArrayQueueColdProducerFields<E>
 {
     byte b000,b001,b002,b003,b004,b005,b006,b007;//  8b
@@ -125,6 +127,7 @@ abstract class MpscBlockingConsumerArrayQueueProducerFields<E> extends MpscBlock
     }
 }
 
+@SuppressWarnings("unused")
 abstract class MpscBlockingConsumerArrayQueuePad3<E> extends MpscBlockingConsumerArrayQueueProducerFields<E>
 {
     byte b000,b001,b002,b003,b004,b005,b006,b007;//  8b
@@ -202,6 +205,7 @@ abstract class MpscBlockingConsumerArrayQueueConsumerFields<E> extends MpscBlock
  * of the mechanics described in {@link BaseMpscLinkedArrayQueue}, but with the reservation bit used for blocking rather
  * than resizing in this instance.
  */
+@SuppressWarnings("unused")
 public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArrayQueueConsumerFields<E>
     implements MessagePassingQueue<E>, QueueProgressIndicators, BlockingQueue<E>
 {
@@ -369,8 +373,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         }
 
         soRefElement(buffer, offset, e);
-        soBlocked(null); // releases the consumer from the park loop
-        LockSupport.unpark(consumerThread);
+        releaseParkedConsumer(consumerThread);
         return true;
     }
 
@@ -401,6 +404,16 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         {
             consumerThread = lvBlocked();
         } while (consumerThread == null);
+
+        releaseParkedConsumer(consumerThread);
+    }
+
+    /**
+     * A consumer is trapped in `parking` until the field is nulled, and this code can only be executed after it
+     * is no longer in that state. This in effect means there can be no racing here, whoever wins the CAS to make
+     * pIndex even again owns the field.
+     */
+    private void releaseParkedConsumer(Thread consumerThread) {
         soBlocked(null);
         LockSupport.unpark(consumerThread);
     }
@@ -410,7 +423,6 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
      * <p>
      * This implementation is correct for single consumer thread use only.
      */
-    @SuppressWarnings("unchecked")
     public E take() throws InterruptedException
     {
         final E[] buffer = consumerBuffer;
@@ -418,41 +430,16 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
 
         final long cIndex = lpConsumerIndex();
         final long offset = modifiedCalcCircularRefElementOffset(cIndex, mask);
-        Object e = lvRefElement(buffer, offset);
+        E e = lvRefElement(buffer, offset);
         if (e == null)
         {
-            final long pIndex = lvProducerIndex();
-            if (cIndex == pIndex && casProducerIndex(pIndex, pIndex + 1))
-            {
-                // producers only try a wakeup when both the index and the blocked thread are visible
-                soBlocked(Thread.currentThread());
-                do
-                {
-                    LockSupport.park();
-                    if (Thread.interrupted())
-                    {
-                        // revert blocking state
-                        if (casProducerIndex(pIndex + 1, pIndex))
-                        {
-                            soBlocked(null);
-                        }
-                        else {
-                            spinWaitForUnblock();
-                        }
-                        throw new InterruptedException();
-                    }
-                }
-                while (lvBlocked() != null);
-            }
-            // producer index is visible before element, so if we wake up between the index moving and the element
-            // store we could see a null.
-            e = spinWaitForElement(buffer, offset);
+            return parkUntilNext(buffer, cIndex, offset, Long.MAX_VALUE);
         }
 
         soRefElement(buffer, offset, null); // release element null
         soConsumerIndex(cIndex + 2); // release cIndex
 
-        return (E) e;
+        return e;
     }
 
     /**
@@ -460,69 +447,92 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
      * <p>
      * This implementation is correct for single consumer thread use only.
      */
-    @SuppressWarnings("unchecked")
     public E poll(long timeout, TimeUnit unit) throws InterruptedException
     {
-        long remainingNanos = unit.toNanos(timeout);
         final E[] buffer = consumerBuffer;
         final long mask = consumerMask;
 
         final long cIndex = lpConsumerIndex();
         final long offset = modifiedCalcCircularRefElementOffset(cIndex, mask);
-        Object e = lvRefElement(buffer, offset);
+        E e = lvRefElement(buffer, offset);
         if (e == null)
         {
-            if (remainingNanos <= 0)
+            long timeoutNs = unit.toNanos(timeout);
+            if (timeoutNs <= 0)
             {
                 return null;
             }
-            final long pIndex = lvProducerIndex();
-            if (cIndex == pIndex && casProducerIndex(pIndex, pIndex + 1))
-            {
-                // producers only try a wakeup when both the index and the blocked thread are visible
-                soBlocked(Thread.currentThread());
-                final long deadlineNanos = System.nanoTime() + remainingNanos;
-                while (true)
-                {
-                    LockSupport.parkNanos(this, remainingNanos);
-                    if (Thread.interrupted())
-                    {
-                        // revert blocking state
-                        if (casProducerIndex(pIndex + 1, pIndex)) {
-                            soBlocked(null);
-                        }
-                        else {
-                            spinWaitForUnblock();
-                        }
-                        throw new InterruptedException();
-                    }
-                    if (lvBlocked() == null)
-                    {
-                        break;
-                    }
-                    remainingNanos = deadlineNanos - System.nanoTime();
-                    if (remainingNanos <= 0)
-                    {
-                        if (casProducerIndex(pIndex + 1, pIndex)) {
-                            soBlocked(null);
-                            return null;
-                        }
-                        else {
-                            spinWaitForUnblock();
-                            break; // just in the nick of time
-                        }
-                    }
-                }
-            }
-            // producer index is visible before element, so if we wake up between the index moving and the element
-            // store we could see a null.
-            e = spinWaitForElement(buffer, offset);
+            return parkUntilNext(buffer, cIndex, offset, timeoutNs);
         }
 
         soRefElement(buffer, offset, null); // release element null
         soConsumerIndex(cIndex + 2); // release cIndex
 
-        return (E) e;
+        return e;
+    }
+
+    private E parkUntilNext(E[] buffer, long cIndex, long offset, long timeoutNs) throws InterruptedException {
+        E e;
+        final long pIndex = lvProducerIndex();
+        if (cIndex == pIndex && // queue is empty
+            casProducerIndex(pIndex, pIndex + 1)) // we announce ourselves as parked
+        {
+            // producers only try a wakeup when both the index and the blocked thread are visible, otherwise they spin
+            soBlocked(Thread.currentThread());
+            // ignore deadline when it's forever
+            final long deadlineNs = timeoutNs == Long.MAX_VALUE ? 0 : System.nanoTime() + timeoutNs;
+            while (true)
+            {
+                LockSupport.parkNanos(this, timeoutNs);
+                if (Thread.interrupted())
+                {
+                    // revert blocking state
+                    revertParkedState(pIndex);
+                    throw new InterruptedException();
+                }
+                if (lvBlocked() == null)
+                {
+                    break;
+                }
+                // ignore deadline when it's forever
+                timeoutNs = timeoutNs == Long.MAX_VALUE ? Long.MAX_VALUE : deadlineNs - System.nanoTime();
+                if (timeoutNs <= 0)
+                {
+                    if (revertParkedState(pIndex)) {
+                        // ran out of time and the producer has not moved the index
+                        return null;
+                    }
+                    else {
+                        break; // just in the nick of time
+                    }
+                }
+            }
+        }
+        // producer index is visible before element, so if we wake up between the index moving and the element
+        // store we could see a null.
+        e = spinWaitForElement(buffer, offset);
+
+        soRefElement(buffer, offset, null); // release element null
+        soConsumerIndex(cIndex + 2); // release cIndex
+
+        return e;
+    }
+
+    /**
+     * Consumer must revert the `parked` state when interrupted or thewhen returning after a timeout. This means
+     * reverting the pIndex state to it's pre-parking value AND nulling out the blocked field.
+     *
+     * If a producer has beat us to moving the pIndex that may mean an unparking is in flight, in which case we wait for
+     * the unparking producer to null out the blocker field.
+     */
+    private boolean revertParkedState(long pIndex) {
+        if (casProducerIndex(pIndex + 1, pIndex))
+        {
+            soBlocked(null);
+            return true;
+        }
+        spinWaitForUnblock();
+        return false;
     }
 
     @Override
@@ -548,7 +558,6 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
      * <p>
      * This implementation is correct for single consumer thread use only.
      */
-    @SuppressWarnings("unchecked")
     @Override
     public E poll()
     {
@@ -557,7 +566,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
 
         final long index = lpConsumerIndex();
         final long offset = modifiedCalcCircularRefElementOffset(index, mask);
-        Object e = lvRefElement(buffer, offset);
+        E e = lvRefElement(buffer, offset);
         if (e == null)
         {
             // consumer can't see the odd producer index
@@ -576,12 +585,12 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
 
         soRefElement(buffer, offset, null); // release element null
         soConsumerIndex(index + 2); // release cIndex
-        return (E) e;
+        return e;
     }
 
-    private static <E> Object spinWaitForElement(E[] buffer, long offset)
+    private static <E> E spinWaitForElement(E[] buffer, long offset)
     {
-        Object e;
+        E e;
         do
         {
             e = lvRefElement(buffer, offset);
@@ -601,7 +610,6 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
      * <p>
      * This implementation is correct for single consumer thread use only.
      */
-    @SuppressWarnings("unchecked")
     @Override
     public E peek()
     {
@@ -610,7 +618,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
 
         final long index = lpConsumerIndex();
         final long offset = modifiedCalcCircularRefElementOffset(index, mask);
-        Object e = lvRefElement(buffer, offset);
+        E e = lvRefElement(buffer, offset);
         if (e == null && index != lvProducerIndex())
         {
             // peek() == null iff queue is empty, null element is not strong enough indicator, so we must
@@ -618,7 +626,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
             e = spinWaitForElement(buffer, offset);
         }
 
-        return (E) e;
+        return e;
     }
 
     @Override
