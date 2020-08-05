@@ -310,6 +310,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
 
         final long mask = this.producerMask;
         final long capacity = mask + 2;
+        threshold = threshold << 1;
         final E[] buffer = this.producerBuffer;
         long pIndex;
         while (true)
@@ -329,7 +330,8 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
             // Use producer limit to save a read of the more rapidly mutated consumer index.
             // Assumption: queue is usually empty or near empty
 
-            final long available = (producerLimit - pIndex) >> 1;
+            // available is also << 1
+            final long available = producerLimit - pIndex;
             // sizeEstimate <= size
             final long sizeEstimate = capacity - available;
 
@@ -337,15 +339,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
                 // producerLimit check allows for threshold >= capacity
                 producerLimit <= pIndex)
             {
-                final long cIndex = lvConsumerIndex();
-                final long size = (pIndex - cIndex) >> 1;
-
-                if (size >= threshold)
-                {
-                    return false;
-                }
-
-                if (!recalculateProducerLimit(mask, pIndex, producerLimit, cIndex))
+                if (!recalculateProducerLimit(pIndex, producerLimit, lvConsumerIndex(), capacity, threshold))
                 {
                     return false;
                 }
@@ -449,26 +443,19 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
 
     private boolean recalculateProducerLimit(long mask, long pIndex, long producerLimit)
     {
-        return recalculateProducerLimit(mask, pIndex, producerLimit, lvConsumerIndex());
+        return recalculateProducerLimit(pIndex, producerLimit, lvConsumerIndex(), mask + 2, mask + 2);
     }
 
-    private boolean recalculateProducerLimit(long mask, long pIndex, long producerLimit, long cIndex)
+    private boolean recalculateProducerLimit(long pIndex, long producerLimit, long cIndex, long bufferCapacity, long threshold)
     {
-        final long bufferCapacity = mask + 2;
-
+        // try to update the limit with our new found knowledge on cIndex
         if (cIndex + bufferCapacity > pIndex)
         {
             casProducerLimit(producerLimit, cIndex + bufferCapacity);
         }
-        // full and cannot grow
-        else if (pIndex - cIndex == bufferCapacity)
-        {
-            // offer should return false;
-            return false;
-        }
-        else
-            throw new IllegalStateException();
-        return true;
+        // full and cannot grow, or hit threshold
+        long size = pIndex - cIndex;
+        return size < threshold && size < bufferCapacity;
     }
 
     private void wakeupConsumer()
@@ -753,8 +740,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         final long mask = consumerMask;
 
         final long offset = modifiedCalcCircularRefElementOffset(index, mask);
-        E e = lvRefElement(buffer, offset);
-        return e;
+        return lvRefElement(buffer, offset);
     }
 
     @Override
@@ -768,13 +754,12 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
             return 0;
 
         final long mask = this.producerMask;
-        final E[] buffer = this.producerBuffer;
 
         long pIndex;
         int claimedSlots;
         boolean wakeup = false;
         long batchIndex = 0;
-        final long shiftedBatchSize = 2l * limit;
+        final long shiftedBatchSize = 2L * limit;
 
         while (true)
         {
@@ -818,10 +803,11 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         }
         claimedSlots = (int) ((batchIndex - pIndex) / 2);
 
+        final E[] buffer = this.producerBuffer;
         // first element offset might be a wakeup, so peeled from loop
         for (int i = 0; i < claimedSlots; i++)
         {
-            long offset = modifiedCalcCircularRefElementOffset(pIndex + 2l * i, mask);
+            long offset = modifiedCalcCircularRefElementOffset(pIndex + 2L * i, mask);
             soRefElement(buffer, offset, s.get());
         }
 
