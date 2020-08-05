@@ -6,6 +6,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.jctools.util.TestUtil.Val;
+import org.junit.Assert;
 import org.junit.Test;
 
 import static java.util.concurrent.TimeUnit.*;
@@ -283,6 +284,27 @@ public class QueueSanityTestMpscBlockingConsumerArrayExtended
         t1.join();
         t2.join();
         assertEquals("Unexpected size observed", 0, fail.value);
+    }
 
+    @Test
+    public void testOfferWithThreshold()
+    {
+        MpscBlockingConsumerArrayQueue<Integer> queue = new MpscBlockingConsumerArrayQueue<Integer>(16);
+        int i;
+        for (i = 0; i < 8; ++i)
+        {
+            //Offers succeed because current size is below the HWM.
+            Assert.assertTrue(queue.offerIfBelowThreshold(i, 8));
+        }
+        //Not anymore, our offer got rejected.
+        Assert.assertFalse(queue.offerIfBelowThreshold(i, 8));
+        Assert.assertFalse(queue.offerIfBelowThreshold(i, 7));
+        Assert.assertFalse(queue.offerIfBelowThreshold(i, 1));
+        Assert.assertFalse(queue.offerIfBelowThreshold(i, 0));
+
+        //Also, the threshold is dynamic and different levels can be set for
+        //different task priorities.
+        Assert.assertTrue(queue.offerIfBelowThreshold(i, 9));
+        Assert.assertTrue(queue.offerIfBelowThreshold(i, 16));
     }
 }

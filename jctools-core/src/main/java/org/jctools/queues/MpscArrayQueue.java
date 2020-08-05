@@ -226,6 +226,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
         {
             throw new NullPointerException();
         }
+
         final long mask = this.mask;
         final long capacity = mask + 1;
 
@@ -527,7 +528,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
         final long capacity = mask + 1;
         long producerLimit = lvProducerLimit();
         long pIndex;
-        int actualLimit = 0;
+        int actualLimit;
         do
         {
             pIndex = lvProducerIndex();
