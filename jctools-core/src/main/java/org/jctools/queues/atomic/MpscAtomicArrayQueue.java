@@ -606,7 +606,7 @@ public class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
         final long capacity = mask + 1;
         long producerLimit = lvProducerLimit();
         long pIndex;
-        int actualLimit = 0;
+        int actualLimit;
         do {
             pIndex = lvProducerIndex();
             long available = producerLimit - pIndex;
