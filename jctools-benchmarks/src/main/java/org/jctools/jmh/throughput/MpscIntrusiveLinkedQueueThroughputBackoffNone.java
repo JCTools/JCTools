@@ -38,7 +38,7 @@ import java.util.concurrent.TimeUnit;
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @Warmup(iterations = 10, time = 1)
 @Measurement(iterations = 10, time = 1)
-public class IntrusiveQueueThroughputBackoffNone {
+public class MpscIntrusiveLinkedQueueThroughputBackoffNone {
     private static final long DELAY_PRODUCER = Long.getLong("delay.p", 0L);
     private static final long DELAY_CONSUMER = Long.getLong("delay.c", 0L);
 
