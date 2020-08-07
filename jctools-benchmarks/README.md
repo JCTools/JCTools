@@ -1,6 +1,6 @@
 JCTools Benchmarks
 -------
-This project contains performance tests designed to strech the queue implementations and expose contention as well
+This project contains performance tests designed to stretch the queue implementations and expose contention as well
 as providing some baseline quantities to consider when doing back of the envelope estimations. The benchmarks cover
 some basic operation costs, latency (for a SPSC usecase) and throughput.
 
@@ -36,7 +36,7 @@ Some JMH help:
     java -jar target/microbenchmarks.jar -h
 Example:
 
-To run the throughput benchmark for queue type 7 (queue type numbers are set in the TypeQueueFactory class):
+To run the throughput benchmark for queue type 7 (queue type numbers are set in the QueueByTypeFactory class):
 
     java -Dq.type=7 -jar target/microbenchmarks.jar ".*.QueueThroughput.*"
 
