@@ -52,7 +52,7 @@ And setup the following dependency:
         </dependency>
 ```
 
-You can also depend on latest snapshot from this repository (live on the edge) by setting the version to '3.0.1-SNAPSHOT'.
+You can also depend on latest snapshot from this repository (live on the edge) by setting the version to '3.1.1-SNAPSHOT'.
 
 
 Build it from source
