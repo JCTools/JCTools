@@ -4,7 +4,7 @@ import org.openjdk.jcstress.annotations.Actor;
 import org.openjdk.jcstress.annotations.JCStressTest;
 import org.openjdk.jcstress.annotations.Outcome;
 import org.openjdk.jcstress.annotations.State;
-import org.openjdk.jcstress.infra.results.IntResult1;
+import org.openjdk.jcstress.infra.results.I_Result;
 
 import static org.openjdk.jcstress.annotations.Expect.ACCEPTABLE;
 import static org.openjdk.jcstress.annotations.Expect.FORBIDDEN;
@@ -35,7 +35,7 @@ public class SingleWriterHashSetDuplicateReadsTest {
     }
 
     @Actor
-    public void actor2(IntResult1 result) {
+    public void actor2(I_Result r) {
         int counter = 0;
         for (Integer integer : set) {
             if (integer == 17) {
@@ -43,6 +43,6 @@ public class SingleWriterHashSetDuplicateReadsTest {
             }
         }
 
-        result.r1 = counter;
+        r.r1 = counter;
     }
 }

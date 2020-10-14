@@ -5,7 +5,7 @@ import org.openjdk.jcstress.annotations.Arbiter;
 import org.openjdk.jcstress.annotations.JCStressTest;
 import org.openjdk.jcstress.annotations.Outcome;
 import org.openjdk.jcstress.annotations.State;
-import org.openjdk.jcstress.infra.results.BooleanResult2;
+import org.openjdk.jcstress.infra.results.ZZ_Result;
 
 import static org.openjdk.jcstress.annotations.Expect.ACCEPTABLE;
 import static org.openjdk.jcstress.annotations.Expect.ACCEPTABLE_INTERESTING;
@@ -21,12 +21,12 @@ public class SpscArrayQueueProducerTest {
     private final SpscArrayQueue<Integer> queue = new SpscArrayQueue<>(3);
 
     @Actor
-    public void actor1(BooleanResult2 br2) {
-        br2.r1 = queue.offer(1);
+    public void actor1(ZZ_Result r) {
+        r.r1 = queue.offer(1);
     }
 
     @Arbiter
-    public void arbiter1(BooleanResult2 br2) {
-        br2.r2 = !queue.isEmpty();
+    public void arbiter1(ZZ_Result r) {
+        r.r2 = !queue.isEmpty();
     }
 }
