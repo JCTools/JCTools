@@ -5,7 +5,7 @@ import org.openjdk.jcstress.annotations.Arbiter;
 import org.openjdk.jcstress.annotations.JCStressTest;
 import org.openjdk.jcstress.annotations.Outcome;
 import org.openjdk.jcstress.annotations.State;
-import org.openjdk.jcstress.infra.results.IntResult1;
+import org.openjdk.jcstress.infra.results.I_Result;
 
 import static org.openjdk.jcstress.annotations.Expect.ACCEPTABLE;
 import static org.openjdk.jcstress.annotations.Expect.FORBIDDEN;
@@ -32,7 +32,7 @@ public class SpscArrayQueueProducerConsumerTest {
     }
 
     @Arbiter
-    public void arbiter1(IntResult1 result) {
-        result.r1 = queue.size();
+    public void arbiter(I_Result r) {
+        r.r1 = queue.size();
     }
 }

@@ -4,7 +4,7 @@ import org.openjdk.jcstress.annotations.Actor;
 import org.openjdk.jcstress.annotations.JCStressTest;
 import org.openjdk.jcstress.annotations.Outcome;
 import org.openjdk.jcstress.annotations.State;
-import org.openjdk.jcstress.infra.results.BooleanResult1;
+import org.openjdk.jcstress.infra.results.Z_Result;
 
 import static org.openjdk.jcstress.annotations.Expect.ACCEPTABLE;
 import static org.openjdk.jcstress.annotations.Expect.FORBIDDEN;
@@ -33,7 +33,7 @@ public class SingleWriterHashSetRemovalTest {
     }
 
     @Actor
-    public void actor2(BooleanResult1 result) {
-        result.r1 = set.contains(17);
+    public void actor2(Z_Result r) {
+        r.r1 = set.contains(17);
     }
 }
