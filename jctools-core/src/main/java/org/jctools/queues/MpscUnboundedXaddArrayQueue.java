@@ -96,12 +96,15 @@ public class MpscUnboundedXaddArrayQueue<E> extends MpUnboundedXaddArrayQueue<Mp
             {
                 return null;
             }
-
-            do
+            final long ccChunkIndex = cChunk.lvIndex();
+            if (lvProducerChunkIndex() == ccChunkIndex) {
+                // no need to help too much here or the consumer latency will be hurt
+                next = appendNextChunks(cChunk, ccChunkIndex, 1);
+            }
+            while (next == null)
             {
                 next = cChunk.lvNext();
             }
-            while (next == null);
         }
         return next;
     }

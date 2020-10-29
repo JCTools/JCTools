@@ -196,7 +196,7 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpUnboundedXaddArrayQueue<Mp
         // if we are the isFirstElementOfNewChunk we need to get the consumer chunk
         if (isFirstElementOfNewChunk)
         {
-            e = linkNextConsumerChunkAndPoll(cChunk, next, ciChunkIndex);
+            e = switchToNextConsumerChunkAndPoll(cChunk, next, ciChunkIndex);
         }
         else
         {
@@ -211,11 +211,19 @@ public class MpmcUnboundedXaddArrayQueue<E> extends MpUnboundedXaddArrayQueue<Mp
         return e;
     }
 
-    private E linkNextConsumerChunkAndPoll(
+    private E switchToNextConsumerChunkAndPoll(
         MpmcUnboundedXaddChunk<E> cChunk,
         MpmcUnboundedXaddChunk<E> next,
         long expectedChunkIndex)
     {
+        if (next == null) {
+            final long ccChunkIndex = expectedChunkIndex - 1;
+            assert cChunk.lvIndex() == ccChunkIndex;
+            if (lvProducerChunkIndex() == ccChunkIndex) {
+                // no need to help too much here or the consumer latency will be hurt
+                next = appendNextChunks(cChunk, ccChunkIndex, 1);
+            }
+        }
         while (next == null)
         {
             next = cChunk.lvNext();
