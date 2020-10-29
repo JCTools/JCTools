@@ -327,7 +327,7 @@ abstract class MpUnboundedXaddArrayQueue<R extends MpUnboundedXaddChunk<R,E>, E>
         return currentChunk;
     }
 
-    private R appendNextChunks(
+    protected final R appendNextChunks(
         R currentChunk,
         long currentChunkIndex,
         long chunksToAppend)
