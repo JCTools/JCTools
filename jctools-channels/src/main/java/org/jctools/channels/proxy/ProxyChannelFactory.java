@@ -177,7 +177,7 @@ public class ProxyChannelFactory {
             byte[] byteCode = classWriter.toByteArray();
             printClassBytes(byteCode);
             // Caveat: The interface and JCTools must be on the same class loader. Maybe class loader should be an argument? Overload?
-            Class<?> definedClass = UnsafeAccess.UNSAFE.defineClass(generatedName, byteCode, 0, byteCode.length, iFace.getClassLoader(), null);
+            Class<?> definedClass = DefineClassHelper.defineClass(iFace, generatedName, byteCode);
             return instantiate(definedClass, capacity, waitStrategy);
         }
     }
