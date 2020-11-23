@@ -67,7 +67,7 @@ import static org.jctools.util.UnsafeAccess.fieldOffset;
  * <em>not</em> throw {@link ConcurrentModificationException}.  However,
  * iterators are designed to be used by only one thread at a time.
  *
- * <p> Very full tables, or tables with high reprobe rates may trigger an
+ * <p> Very full tables, or tables with high re-probe rates may trigger an
  * internal resize operation to move into a larger table.  Resizing is not
  * terribly expensive, but it is not free either; during resize operations
  * table throughput may drop somewhat.  All threads that visit the table
@@ -1175,7 +1175,7 @@ public class NonBlockingHashMapLong<TypeV>
    *  iteration.  The {@link org.jctools.maps.NonBlockingHashMap}
    *  does not normally create or using {@link java.util.Map.Entry} objects so
    *  they will be created soley to support this iteration.  Iterating using
-   *  {@link #keySet} or {@link #values} will be more efficient.  In addition,
+   *  {@link Map#keySet} or {@link Map#values} will be more efficient.  In addition,
    *  this version requires <strong>auto-boxing</strong> the keys.
    */
   public Set<Map.Entry<Long,TypeV>> entrySet() {
