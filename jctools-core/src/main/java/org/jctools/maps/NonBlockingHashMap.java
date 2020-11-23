@@ -749,13 +749,14 @@ public class NonBlockingHashMap<TypeK, TypeV>
            // delayed (or the read of _newkvs was so accelerated) that they
            // swapped and we still read a null _newkvs.  The resize call below
            // will do a CAS on _newkvs forcing the read.
-           V instanceof Prime) )
-        newkvs = chm.resize(topmap,kvs); // Force the new table copy to start
+           V instanceof Prime) ) {
+        newkvs = chm.resize(topmap, kvs); // Force the new table copy to start
+      }
       // See if we are moving to a new table.
       // If so, copy our slot and retry in the new table.
-      if( newkvs != null )
+      if( newkvs != null ) {
         return putIfMatch0(topmap, chm.copy_slot_and_check(topmap, kvs, idx, expVal), key, putval, expVal);
-
+      }
       // ---
       // We are finally prepared to update the existing table
       assert !(V instanceof Prime);
@@ -768,8 +769,9 @@ public class NonBlockingHashMap<TypeK, TypeV>
           V != expVal &&            // No instant match already?
           (expVal != MATCH_ANY || V == TOMBSTONE || V == null) &&
           !(V==null && expVal == TOMBSTONE) &&    // Match on null/TOMBSTONE combo
-          (expVal == null || !expVal.equals(V)) ) // Expensive equals check at the last
-        return (V==null) ? TOMBSTONE : V;         // Do not update!
+          (expVal == null || !expVal.equals(V)) ) { // Expensive equals check at the last
+        return (V == null) ? TOMBSTONE : V;         // Do not update!
+      }
 
       // Actually change the Value in the Key,Value pair
       if( CAS_val(kvs, idx, V, putval ) ) break;
