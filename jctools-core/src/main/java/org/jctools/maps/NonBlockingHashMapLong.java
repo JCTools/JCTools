@@ -22,6 +22,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
+import static org.jctools.maps.NonBlockingHashMap.DUMMY_VOLATILE;
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeAccess.fieldOffset;
 
@@ -603,61 +604,78 @@ public class NonBlockingHashMapLong<TypeV>
         idx = (idx+1)&(len-1); // Reprobe!
       } // End of spinning till we get a Key slot
 
-      // ---
-      // Found the proper Key slot, now update the matching Value slot.  We
-      // never put a null, so Value slots monotonically move from null to
-      // not-null (deleted Values use Tombstone).  Thus if 'V' is null we
-      // fail this fast cutout and fall into the check for table-full.
-      if( putval == V ) return V; // Fast cutout for no-change
+      while ( true ) {              // Spin till we insert a value
+        // ---
+        // Found the proper Key slot, now update the matching Value slot.  We
+        // never put a null, so Value slots monotonically move from null to
+        // not-null (deleted Values use Tombstone).  Thus if 'V' is null we
+        // fail this fast cutout and fall into the check for table-full.
+        if( putval == V ) return V; // Fast cutout for no-change
 
-      // See if we want to move to a new table (to avoid high average re-probe
-      // counts).  We only check on the initial set of a Value from null to
-      // not-null (i.e., once per key-insert).
-      if( (V == null && tableFull(reprobe_cnt,len)) ||
-          // Or we found a Prime: resize is already in progress.  The resize
-          // call below will do a CAS on _newchm forcing the read.
-          V instanceof Prime) {
-        resize();               // Force the new table copy to start
-        return copy_slot_and_check(idx,expVal).putIfMatch(key,putval,expVal);
-      }
-
-      // ---
-      // We are finally prepared to update the existing table
-      //assert !(V instanceof Prime); // always true, so IDE warnings if uncommented
-
-      // Must match old, and we do not?  Then bail out now.  Note that either V
-      // or expVal might be TOMBSTONE.  Also V can be null, if we've never
-      // inserted a value before.  expVal can be null if we are called from
-      // copy_slot.
-
-      if( expVal != NO_MATCH_OLD && // Do we care about expected-Value at all?
-          V != expVal &&            // No instant match already?
-          (expVal != MATCH_ANY || V == TOMBSTONE || V == null) &&
-          !(V==null && expVal == TOMBSTONE) &&    // Match on null/TOMBSTONE combo
-          (expVal == null || !expVal.equals(V)) ) // Expensive equals check at the last
-        return (V==null) ? TOMBSTONE : V;         // Do not update!
-
-      // Actually change the Value in the Key,Value pair
-      if( CAS_val(idx, V, putval ) ) {
-        // CAS succeeded - we did the update!
-        // Both normal put's and table-copy calls putIfMatch, but table-copy
-        // does not (effectively) increase the number of live k/v pairs.
-        if( expVal != null ) {
-          // Adjust sizes - a striped counter
-          if(  (V == null || V == TOMBSTONE) && putval != TOMBSTONE ) _size.add( 1);
-          if( !(V == null || V == TOMBSTONE) && putval == TOMBSTONE ) _size.add(-1);
+        // See if we want to move to a new table (to avoid high average re-probe
+        // counts).  We only check on the initial set of a Value from null to
+        // not-null (i.e., once per key-insert).
+        if( (V == null && tableFull(reprobe_cnt,len)) ||
+            // Or we found a Prime: resize is already in progress.  The resize
+            // call below will do a CAS on _newchm forcing the read.
+            V instanceof Prime) {
+          resize();               // Force the new table copy to start
+          return copy_slot_and_check(idx,expVal).putIfMatch(key,putval,expVal);
         }
-      } else {                  // Else CAS failed
+
+        // ---
+        // We are finally prepared to update the existing table
+        //assert !(V instanceof Prime); // always true, so IDE warnings if uncommented
+
+        // Must match old, and we do not?  Then bail out now.  Note that either V
+        // or expVal might be TOMBSTONE.  Also V can be null, if we've never
+        // inserted a value before.  expVal can be null if we are called from
+        // copy_slot.
+
+        if( expVal != NO_MATCH_OLD && // Do we care about expected-Value at all?
+            V != expVal &&            // No instant match already?
+            (expVal != MATCH_ANY || V == TOMBSTONE || V == null) &&
+            !(V==null && expVal == TOMBSTONE) &&    // Match on null/TOMBSTONE combo
+            (expVal == null || !expVal.equals(V)) ) // Expensive equals check at the last
+          return (V==null) ? TOMBSTONE : V;         // Do not update!
+
+        // Actually change the Value in the Key,Value pair
+        if( CAS_val(idx, V, putval ) ) break;
+
+        // CAS failed
+        // Because we have no witness, we do not know why it failed.
+        // Indeed, by the time we look again the value under test might have flipped
+        // a thousand times and now be the expected value (despite the CAS failing).
+        // Check for the never-succeed condition of a Prime value and jump to any
+        // nested table, or else just re-run.
+
+        // We would not need this load at all if CAS returned the value on which
+        // the CAS failed (AKA witness). The new CAS semantics are supported via
+        // VarHandle in JDK9.
         V = _vals[idx];         // Get new value
+
         // If a Prime'd value got installed, we need to re-run the put on the
         // new table.  Otherwise we lost the CAS to another racing put.
         // Simply retry from the start.
         if( V instanceof Prime )
           return copy_slot_and_check(idx,expVal).putIfMatch(key,putval,expVal);
+
+        // Simply retry from the start.
+        // NOTE: need the fence, since otherwise '_vals[idx]' load could be hoisted
+        // out of loop.
+        int dummy = DUMMY_VOLATILE;
       }
-      // Win or lose the CAS, we are done.  If we won then we know the update
-      // happened as expected.  If we lost, it means "we won but another thread
-      // immediately stomped our update with no chance of a reader reading".
+
+      // CAS succeeded - we did the update!
+      // Both normal put's and table-copy calls putIfMatch, but table-copy
+      // does not (effectively) increase the number of live k/v pairs.
+      if( expVal != null ) {
+        // Adjust sizes - a striped counter
+        if(  (V == null || V == TOMBSTONE) && putval != TOMBSTONE ) _size.add( 1);
+        if( !(V == null || V == TOMBSTONE) && putval == TOMBSTONE ) _size.add(-1);
+      }
+
+      // We won; we know the update happened as expected.
       return (V==null && expVal!=null) ? TOMBSTONE : V;
     }
 
