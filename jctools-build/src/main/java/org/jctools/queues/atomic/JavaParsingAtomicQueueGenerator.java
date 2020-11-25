@@ -2,8 +2,6 @@ package org.jctools.queues.atomic;
 
 import java.io.File;
 import java.io.FileWriter;
-import java.util.Arrays;
-import java.util.EnumSet;
 import java.util.Optional;
 
 import com.github.javaparser.JavaParser;
@@ -40,7 +38,29 @@ import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 
+/**
+ * Base class of the atomic queue generators. These generators work by parsing a Java source file using
+ * {@link JavaParser}, and replacing idioms that use {@link sun.misc.Unsafe} to instead use atomic field updates,
+ * e.g.{@link java.util.concurrent.atomic.AtomicLongFieldUpdater}. They are coupled directly to the structure of the
+ * expected input Java source file and are used as a utility to maintain unsafe non-portable optimized code along side
+ * safe portable code for uses such as on Android, etc
+ * <p>
+ * These generators are coupled with the structure and naming of fields, variables and methods and are not suitable for
+ * general purpose use.
+ */
 abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter<Void> {
+
+    /**
+     * When set on a class using a single line comment, the class has fields that have unsafe 'ordered' reads and
+     * writes. These fields are candidates to be patched by the generator. Other classes the fields remain unadjusted.
+     */
+    protected static final String GEN_DIRECTIVE_CLASS_CONTAINS_ORDERED_FIELD_ACCESSORS = "$gen:ordered-fields";
+    
+    /**
+     * When set on a method using a single line comment, the method is not patched by the generator.
+     */
+    protected static final String GEN_DIRECTIVE_METHOD_IGNORE = "$gen:ignore";
+    
     protected static final String INDENT_LEVEL = "    ";
     protected final String sourceFileName;
 

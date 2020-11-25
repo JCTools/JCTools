@@ -17,7 +17,6 @@ import com.github.javaparser.ast.comments.JavadocComment;
 import com.github.javaparser.ast.expr.CastExpr;
 import com.github.javaparser.ast.expr.ClassExpr;
 import com.github.javaparser.ast.expr.MethodCallExpr;
-import com.github.javaparser.ast.expr.Name;
 import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
@@ -30,9 +29,14 @@ import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.PrimitiveType;
 import com.github.javaparser.ast.type.Type;
 
+/**
+ * This generator takes in an JCTools 'LinkedQueue' Java source file and patches {@link sun.misc.Unsafe} accesses into
+ * atomic {@link java.util.concurrent.atomic.AtomicLongFieldUpdater}. It outputs a Java source file with these patches.
+ * <p>
+ * An 'LinkedQueue' is one that is backed by a linked list and use a <code>producerNode</code> and a
+ * <code>consumerNode</code> field to track the positions of each.
+ */
 public final class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtomicQueueGenerator {
-    private static final String GEN_DIRECTIVE_CLASS_CONTAINS_ORDERED_FIELD_ACCESSORS = "$gen:ordered-fields";
-    private static final String GEN_DIRECTIVE_METHOD_IGNORE = "$gen:ignore";
     private static final String MPSC_LINKED_ATOMIC_QUEUE_NAME = "MpscLinkedAtomicQueue";
 
     public static void main(String[] args) throws Exception {
