@@ -118,6 +118,7 @@ public class NonBlockingIdentityHashMap<TypeK, TypeV>
   // --- hash ----------------------------------------------------------------
   // Helper function to spread lousy hashCodes
   private static final int hash(final Object key) {
+    if (key == null) throw new NullPointerException();
     int h = System.identityHashCode(key); // The real hashCode call
     // I assume that System.identityHashCode is well implemented with a good
     // spreader, and a second bit-spreader is redundant.
@@ -1250,7 +1251,7 @@ public class NonBlockingIdentityHashMap<TypeK, TypeV>
         if( !(o instanceof Map.Entry)) return false;
         final Map.Entry<?,?> e = (Map.Entry<?,?>)o;
         TypeV v = get(e.getKey());
-        return v.equals(e.getValue());
+        return v != null && v.equals(e.getValue());
       }
       @Override public Iterator<Map.Entry<TypeK,TypeV>> iterator() { return new SnapshotE(); }
     };

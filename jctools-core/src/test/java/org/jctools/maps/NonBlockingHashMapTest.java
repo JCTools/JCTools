@@ -41,6 +41,20 @@ public class NonBlockingHashMapTest extends TestCase
             }
         }, NonBlockingHashMap.class.getSimpleName());
 
+        TestSuite idMapSuite = mapTestSuite(new TestStringMapGenerator()
+        {
+            @Override
+            protected Map<String, String> create(Map.Entry<String, String>[] entries)
+            {
+                Map<String, String> map = new NonBlockingIdentityHashMap<>();
+                for (Map.Entry<String, String> entry : entries)
+                {
+                    map.put(entry.getKey(), entry.getValue());
+                }
+                return map;
+            }
+        }, NonBlockingIdentityHashMap.class.getSimpleName());
+
         TestSuite longMapSuite = mapTestSuite(new TestMapGenerator<Long, Long>()
         {
             @Override
@@ -92,6 +106,7 @@ public class NonBlockingHashMapTest extends TestCase
         }, NonBlockingHashMapLong.class.getSimpleName());
 
         suite.addTest(mapSuite);
+        suite.addTest(idMapSuite);
         suite.addTest(longMapSuite);
         return suite;
     }
@@ -120,4 +135,5 @@ public class NonBlockingHashMapTest extends TestCase
             .named(name)
             .createTestSuite();
     }
+
 }
