@@ -122,8 +122,6 @@ public class NonBlockingIdentityHashMap<TypeK, TypeV>
     int h = System.identityHashCode(key); // The real hashCode call
     // I assume that System.identityHashCode is well implemented with a good
     // spreader, and a second bit-spreader is redundant.
-    //h ^= (h>>>20) ^ (h>>>12);
-    //h ^= (h>>> 7) ^ (h>>> 4);
     return h;
   }
 
@@ -322,6 +320,7 @@ public class NonBlockingIdentityHashMap<TypeK, TypeV>
    *  @return the previous value associated with the specified key,
    *         or <tt>null</tt> if there was no mapping for the key
    *  @throws NullPointerException if the specified key or value is null  */
+  @Override
   public TypeV   putIfAbsent( TypeK  key, TypeV val ) { return putIfMatch( key,      val, TOMBSTONE   ); }
 
   /** Removes the key (and its corresponding value) from this map.
@@ -335,23 +334,30 @@ public class NonBlockingIdentityHashMap<TypeK, TypeV>
   /** Atomically do a {@link #remove(Object)} if-and-only-if the key is mapped
    *  to a value which is <code>equals</code> to the given value.
    *  @throws NullPointerException if the specified key or value is null */
-  public boolean remove     ( Object key,Object val ) { return putIfMatch( key,TOMBSTONE, val ) == val; }
+  public boolean remove     ( Object key,Object val ) {
+    return objectsEquals(putIfMatch( key,TOMBSTONE, val ), val);
+  }
 
   /** Atomically do a <code>put(key,val)</code> if-and-only-if the key is
    *  mapped to some value already.
    *  @throws NullPointerException if the specified key or value is null */
+  @Override
   public TypeV   replace    ( TypeK  key, TypeV val ) { return putIfMatch( key,      val,MATCH_ANY   ); }
 
   /** Atomically do a <code>put(key,newValue)</code> if-and-only-if the key is
    *  mapped a value which is <code>equals</code> to <code>oldValue</code>.
    *  @throws NullPointerException if the specified key or value is null */
+  @Override
   public boolean replace    ( TypeK  key, TypeV  oldValue, TypeV newValue ) {
-    return putIfMatch( key, newValue, oldValue ) == oldValue;
+    return objectsEquals(putIfMatch( key, newValue, oldValue ), oldValue);
+  }
+  private static boolean objectsEquals(Object a, Object b) {
+    return (a == b) || (a != null && a.equals(b));
   }
 
   private final TypeV putIfMatch( Object key, Object newVal, Object oldVal ) {
     if (oldVal == null || newVal == null) throw new NullPointerException();
-    final Object res = putIfMatch( this, _kvs, key, newVal, oldVal );
+    final Object res = putIfMatch0( this, _kvs, key, newVal, oldVal );
     assert !(res instanceof Prime);
     assert res != null;
     return res == TOMBSTONE ? null : (TypeV)res;
@@ -473,6 +479,7 @@ public class NonBlockingIdentityHashMap<TypeK, TypeV>
   public TypeV get( Object key ) {
     final Object V = get_impl(this,_kvs,key);
     assert !(V instanceof Prime); // Never return a Prime
+    assert V != TOMBSTONE;
     return (TypeV)V;
   }
 
@@ -494,7 +501,7 @@ public class NonBlockingIdentityHashMap<TypeK, TypeV>
 
       // We need a volatile-read here to preserve happens-before semantics on
       // newly inserted Keys.  If the Key body was written just before inserting
-      // into the table a Key-compare here might read the uninitalized Key body.
+      // into the table a Key-compare here might read the uninitialized Key body.
       // Annoyingly this means we have to volatile-read before EACH key compare.
       // .
       // We also need a volatile-read between reading a newly inserted Value
@@ -516,7 +523,7 @@ public class NonBlockingIdentityHashMap<TypeK, TypeV>
       // needs to force a table-resize for a too-long key-reprobe sequence.
       // Check for too-many-reprobes on get - and flip to the new table.
       if( ++reprobe_cnt >= reprobe_limit(len) || // too many probes
-          key == TOMBSTONE ) // found a TOMBSTONE key, means no more keys in this table
+          K == TOMBSTONE ) // found a TOMBSTONE key, means no more keys in this table
         return newkvs == null ? null : get_impl(topmap,topmap.help_copy(newkvs),key); // Retry in the new table
 
       idx = (idx+1)&(len-1);    // Reprobe by 1!  (could now prefetch)
@@ -529,7 +536,7 @@ public class NonBlockingIdentityHashMap<TypeK, TypeV>
   // assumed to work (although might have been immediately overwritten).  Only
   // the path through copy_slot passes in an expected value of null, and
   // putIfMatch only returns a null if passed in an expected null.
-  private static final Object putIfMatch( final NonBlockingIdentityHashMap topmap, final Object[] kvs, final Object key, final Object putval, final Object expVal ) {
+  private static final Object putIfMatch0(final NonBlockingIdentityHashMap topmap, final Object[] kvs, final Object key, final Object putval, final Object expVal ) {
     assert putval != null;
     assert !(putval instanceof Prime);
     assert !(expVal instanceof Prime);
@@ -549,7 +556,8 @@ public class NonBlockingIdentityHashMap<TypeK, TypeV>
       if( K == null ) {         // Slot is free?
         // Found an empty Key slot - which means this Key has never been in
         // this table.  No need to put a Tombstone - the Key is not here!
-        if( putval == TOMBSTONE ) return putval; // Not-now & never-been in this table
+        if( putval == TOMBSTONE ) return TOMBSTONE; // Not-now & never-been in this table
+        if( expVal == MATCH_ANY ) return TOMBSTONE; // Will not match, even after K inserts
         // Claim the null key-slot
         if( CAS_key(kvs,idx, null, key ) ) { // Claim slot for Key
           chm._slots.add(1);      // Raise key-slots-used count
@@ -559,8 +567,8 @@ public class NonBlockingIdentityHashMap<TypeK, TypeV>
         //
         // This re-read of the Key points out an annoying short-coming of Java
         // CAS.  Most hardware CAS's report back the existing value - so that
-        // if you fail you have a *witness* - the value which caused the CAS
-        // to fail.  The Java API turns this into a boolean destroying the
+        // if you fail you have a *witness* - the value which caused the CAS to
+        // fail.  The Java API turns this into a boolean destroying the
         // witness.  Re-reading does not recover the witness because another
         // thread can write over the memory after the CAS.  Hence we can be in
         // the unfortunate situation of having a CAS fail *for cause* but
@@ -568,14 +576,18 @@ public class NonBlockingIdentityHashMap<TypeK, TypeV>
         // non-spurious-failure CAS (such as Azul has) into one that can
         // apparently spuriously fail - and we avoid apparent spurious failure
         // by not allowing Keys to ever change.
-        K = key(kvs,idx);       // CAS failed, get updated value
-        assert K != null;       // If keys[idx] is null, CAS shoulda worked
+
+        // Volatile read, to force loads of K to retry despite JIT, otherwise
+        // it is legal to e.g. haul the load of "K = key(kvs,idx);" outside of
+        // this loop (since failed CAS ops have no memory ordering semantics).
+        int dummy = DUMMY_VOLATILE;
+        continue;
       }
       // Key slot was not null, there exists a Key here
 
       // We need a volatile-read here to preserve happens-before semantics on
       // newly inserted Keys.  If the Key body was written just before inserting
-      // into the table a Key-compare here might read the uninitalized Key body.
+      // into the table a Key-compare here might read the uninitialized Key body.
       // Annoyingly this means we have to volatile-read before EACH key compare.
       newkvs = chm._newkvs;     // VOLATILE READ before key compare
 
@@ -586,13 +598,13 @@ public class NonBlockingIdentityHashMap<TypeK, TypeV>
       // up looking too soon.
       //topmap._reprobes.add(1);
       if( ++reprobe_cnt >= reprobe_limit(len) || // too many probes or
-          key == TOMBSTONE ) { // found a TOMBSTONE key, means no more keys
+          K == TOMBSTONE ) { // found a TOMBSTONE key, means no more keys
         // We simply must have a new table to do a 'put'.  At this point a
         // 'get' will also go to the new table (if any).  We do not need
         // to claim a key slot (indeed, we cannot find a free one to claim!).
         newkvs = chm.resize(topmap,kvs);
         if( expVal != null ) topmap.help_copy(newkvs); // help along an existing copy
-        return putIfMatch(topmap,newkvs,key,putval,expVal);
+        return putIfMatch0(topmap, newkvs, key, putval, expVal);
       }
 
       idx = (idx+1)&(len-1); // Reprobe!
@@ -613,7 +625,7 @@ public class NonBlockingIdentityHashMap<TypeK, TypeV>
       // time we get here).
       if( newkvs == null &&       // New table-copy already spotted?
           // Once per fresh key-insert check the hard way
-          ((V == null && chm.tableFull(reprobe_cnt, len)) ||
+          ((V == null && chm.tableFull(reprobe_cnt,len)) ||
            // Or we found a Prime, but the JMM allowed reordering such that we
            // did not spot the new table (very rare race here: the writing
            // thread did a CAS of _newkvs then a store of a Prime.  This thread
@@ -621,13 +633,14 @@ public class NonBlockingIdentityHashMap<TypeK, TypeV>
            // delayed (or the read of _newkvs was so accelerated) that they
            // swapped and we still read a null _newkvs.  The resize call below
            // will do a CAS on _newkvs forcing the read.
-           V instanceof Prime))
-        newkvs = chm.resize(topmap,kvs); // Force the new table copy to start
+           V instanceof Prime) ) {
+        newkvs = chm.resize(topmap, kvs); // Force the new table copy to start
+      }
       // See if we are moving to a new table.
       // If so, copy our slot and retry in the new table.
-      if( newkvs != null )
-        return putIfMatch(topmap,chm.copy_slot_and_check(topmap, kvs, idx, expVal), key, putval, expVal);
-
+      if( newkvs != null ) {
+        return putIfMatch0(topmap, chm.copy_slot_and_check(topmap, kvs, idx, expVal), key, putval, expVal);
+      }
       // ---
       // We are finally prepared to update the existing table
       assert !(V instanceof Prime);
@@ -636,13 +649,13 @@ public class NonBlockingIdentityHashMap<TypeK, TypeV>
       // or expVal might be TOMBSTONE.  Also V can be null, if we've never
       // inserted a value before.  expVal can be null if we are called from
       // copy_slot.
-
-      if(expVal != NO_MATCH_OLD && // Do we care about expected-Value at all?
+      if( expVal != NO_MATCH_OLD && // Do we care about expected-Value at all?
           V != expVal &&            // No instant match already?
           (expVal != MATCH_ANY || V == TOMBSTONE || V == null) &&
           !(V==null && expVal == TOMBSTONE) &&    // Match on null/TOMBSTONE combo
-          (expVal == null || !expVal.equals(V))) // Expensive equals check at the last
-        return V;                                 // Do not update!
+          (expVal == null || !expVal.equals(V)) ) { // Expensive equals check at the last
+        return (V == null) ? TOMBSTONE : V;         // Do not update!
+      }
 
       // Actually change the Value in the Key,Value pair
       if( CAS_val(kvs, idx, V, putval ) ) break;
@@ -653,13 +666,16 @@ public class NonBlockingIdentityHashMap<TypeK, TypeV>
       // a thousand times and now be the expected value (despite the CAS failing).
       // Check for the never-succeed condition of a Prime value and jump to any
       // nested table, or else just re-run.
+
+      // We would not need this load at all if CAS returned the value on which
+      // the CAS failed (AKA witness). The new CAS semantics are supported via
+      // VarHandle in JDK9.
       V = val(kvs,idx);         // Get new value
 
       // If a Prime'd value got installed, we need to re-run the put on the
       // new table.  Otherwise we lost the CAS to another racing put.
-      // Simply retry from the start.
       if( V instanceof Prime )
-        return putIfMatch(topmap, chm.copy_slot_and_check(topmap, kvs, idx, expVal), key, putval, expVal);
+        return putIfMatch0(topmap, chm.copy_slot_and_check(topmap, kvs, idx, expVal), key, putval, expVal);
 
       // Simply retry from the start.
       // NOTE: need the fence, since otherwise 'val(kvs,idx)' load could be hoisted
@@ -670,10 +686,10 @@ public class NonBlockingIdentityHashMap<TypeK, TypeV>
     // CAS succeeded - we did the update!
     // Both normal put's and table-copy calls putIfMatch, but table-copy
     // does not (effectively) increase the number of live k/v pairs.
-    if (expVal != null) {
+    if( expVal != null ) {
       // Adjust sizes - a striped counter
-      if (  (V == null || V == TOMBSTONE) && putval != TOMBSTONE) chm._size.add(1);
-      if ( !(V == null || V == TOMBSTONE) && putval == TOMBSTONE) chm._size.add(-1);
+      if(  (V == null || V == TOMBSTONE) && putval != TOMBSTONE ) chm._size.add( 1);
+      if( !(V == null || V == TOMBSTONE) && putval == TOMBSTONE ) chm._size.add(-1);
     }
 
     // We won; we know the update happened as expected.
@@ -725,7 +741,7 @@ public class NonBlockingIdentityHashMap<TypeK, TypeV>
     // to get the required memory orderings.  It monotonically transits from
     // null to set (once).
     volatile Object[] _newkvs;
-    private final AtomicReferenceFieldUpdater<CHM,Object[]> _newkvsUpdater =
+    private static final AtomicReferenceFieldUpdater<CHM,Object[]> _newkvsUpdater =
       AtomicReferenceFieldUpdater.newUpdater(CHM.class,Object[].class, "_newkvs");
     // Set the _next field if we can.
     boolean CAS_newkvs( Object[] newkvs ) {
@@ -734,6 +750,7 @@ public class NonBlockingIdentityHashMap<TypeK, TypeV>
           return true;
       return false;
     }
+
     // Sometimes many threads race to create a new very large table.  Only 1
     // wins the race, but the losers all allocate a junk large table with
     // hefty allocation costs.  Attempt to control the overkill here by
@@ -980,35 +997,29 @@ public class NonBlockingIdentityHashMap<TypeK, TypeV>
           copyDone = _copyDone; // Reload, retry
           assert (copyDone+workdone) <= oldlen;
         }
-        //if( (10*copyDone/oldlen) != (10*(copyDone+workdone)/oldlen) )
-        //System.out.print(" "+(copyDone+workdone)*100/oldlen+"%"+"_"+(_copyIdx*100/oldlen)+"%");
       }
 
       // Check for copy being ALL done, and promote.  Note that we might have
       // nested in-progress copies and manage to finish a nested copy before
       // finishing the top-level copy.  We only promote top-level copies.
       if( copyDone+workdone == oldlen && // Ready to promote this table?
-          topmap._kvs == oldkvs && // Looking at the top-level table?
+          topmap._kvs == oldkvs &&       // Looking at the top-level table?
           // Attempt to promote
           topmap.CAS_kvs(oldkvs,_newkvs) ) {
         topmap._last_resize_milli = System.currentTimeMillis(); // Record resize time for next check
-        //long nano = System.nanoTime();
-        //System.out.println(" "+nano+" Promote table to "+len(_newkvs));
-        //if( System.out != null ) System.out.print("]");
       }
     }
 
     // --- copy_slot ---------------------------------------------------------
     // Copy one K/V pair from oldkvs[i] to newkvs.  Returns true if we can
-    // confirm that the new table guaranteed has a value for this old-table
-    // slot.  We need an accurate confirmed-copy count so that we know when we
-    // can promote (if we promote the new table too soon, other threads may
-    // 'miss' on values not-yet-copied from the old table).  We don't allow
-    // any direct updates on the new table, unless they first happened to the
-    // old table - so that any transition in the new table from null to
-    // not-null must have been from a copy_slot (or other old-table overwrite)
-    // and not from a thread directly writing in the new table.  Thus we can
-    // count null-to-not-null transitions in the new table.
+    // confirm that we set an old-table slot to TOMBPRIME, and only returns after
+    // updating the new table.  We need an accurate confirmed-copy count so
+    // that we know when we can promote (if we promote the new table too soon,
+    // other threads may 'miss' on values not-yet-copied from the old table).
+    // We don't allow any direct updates on the new table, unless they first
+    // happened to the old table - so that any transition in the new table from
+    // null to not-null must have been from a copy_slot (or other old-table
+    // overwrite) and not from a thread directly writing in the new table.
     private boolean copy_slot( NonBlockingIdentityHashMap topmap, int idx, Object[] oldkvs, Object[] newkvs ) {
       // Blindly set the key slot from null to TOMBSTONE, to eagerly stop
       // fresh put's from inserting new values in the old table when the old
@@ -1028,7 +1039,7 @@ public class NonBlockingIdentityHashMap<TypeK, TypeV>
         if( CAS_val(oldkvs,idx,oldval,box) ) { // CAS down a box'd version of oldval
           // If we made the Value slot hold a TOMBPRIME, then we both
           // prevented further updates here but also the (absent)
-          // oldval is vaccuously available in the new table.  We
+          // oldval is vacuously available in the new table.  We
           // return with true here: any thread looking for a value for
           // this key can correctly go straight to the new table and
           // skip looking in the old table.
@@ -1047,22 +1058,20 @@ public class NonBlockingIdentityHashMap<TypeK, TypeV>
       // Copy the value into the new table, but only if we overwrite a null.
       // If another value is already in the new table, then somebody else
       // wrote something there and that write is happens-after any value that
-      // appears in the old table.  If putIfMatch does not find a null in the
-      // new table - somebody else should have recorded the null-not_null
-      // transition in this copy.
+      // appears in the old table.
       Object old_unboxed = ((Prime)oldval)._V;
       assert old_unboxed != TOMBSTONE;
-      boolean copied_into_new = (putIfMatch(topmap, newkvs, key, old_unboxed, null) == null);
+      putIfMatch0(topmap, newkvs, key, old_unboxed, null);
 
       // ---
       // Finally, now that any old value is exposed in the new table, we can
       // forever hide the old-table value by slapping a TOMBPRIME down.  This
       // will stop other threads from uselessly attempting to copy this slot
       // (i.e., it's a speed optimization not a correctness issue).
-      while( !CAS_val(oldkvs,idx,oldval,TOMBPRIME) )
+      while( oldval != TOMBPRIME && !CAS_val(oldkvs,idx,oldval,TOMBPRIME) )
         oldval = val(oldkvs,idx);
 
-      return copied_into_new;
+      return oldval != TOMBPRIME; // True if we slammed the TOMBPRIME down
     } // end copy_slot
   } // End of CHM
 
@@ -1119,7 +1128,7 @@ public class NonBlockingIdentityHashMap<TypeK, TypeV>
     }
     public void remove() {
       if( _prevV == null ) throw new IllegalStateException();
-      putIfMatch( NonBlockingIdentityHashMap.this, _sskvs, _prevK, TOMBSTONE, _prevV );
+      putIfMatch0( NonBlockingIdentityHashMap.this, _sskvs, _prevK, TOMBSTONE, _prevV );
       _prevV = null;
     }
 
@@ -1234,8 +1243,8 @@ public class NonBlockingIdentityHashMap<TypeK, TypeV>
    *  requires the creation of {@link java.util.Map.Entry} objects with each
    *  iteration.  The {@link NonBlockingIdentityHashMap} does not normally create or
    *  using {@link java.util.Map.Entry} objects so they will be created soley
-   *  to support this iteration.  Iterating using {@link #keySet} or {@link
-   *  #values} will be more efficient.
+   *  to support this iteration.  Iterating using {@link Map#keySet} or {@link
+   *  Map##values} will be more efficient.
    */
   @Override
   public Set<Map.Entry<TypeK,TypeV>> entrySet() {
