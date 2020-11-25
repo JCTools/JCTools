@@ -25,9 +25,14 @@ import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.PrimitiveType;
 import com.github.javaparser.ast.type.Type;
 
+/**
+ * This generator takes in an JCTools 'ArrayQueue' Java source file and patches {@link sun.misc.Unsafe} accesses into
+ * atomic {@link java.util.concurrent.atomic.AtomicLongFieldUpdater}. It outputs a Java source file with these patches.
+ * <p>
+ * An 'ArrayQueue' is one that is backed by an circular
+ * array and use a <code>producerLimit</code> and a <code>consumerLimit</code> field to track the positions of each.
+ */
 public final class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomicQueueGenerator {
-    private static final String GEN_DIRECTIVE_CLASS_CONTAINS_ORDERED_FIELD_ACCESSORS = "$gen:ordered-fields";
-    private static final String GEN_DIRECTIVE_METHOD_IGNORE = "$gen:ignore";
 
     public static void main(String[] args) throws Exception {
         main(JavaParsingAtomicArrayQueueGenerator.class, args);
