@@ -41,7 +41,56 @@ abstract class PaddedAtomicLongL1Pad extends Number implements java.io.Serializa
 }
 
 abstract class PaddedAtomicLongL1Field extends PaddedAtomicLongL1Pad {
-    volatile long value;
+    private final static long VALUE_OFFSET = fieldOffset(PaddedAtomicLongL1Field.class, "value");
+    private volatile long value;
+
+    public void spVal(long v) {
+        UNSAFE.putLong(this, VALUE_OFFSET, v);
+    }
+    public void soVal(long v) {
+        UNSAFE.putOrderedLong(this, VALUE_OFFSET, v);
+    }
+
+    public void svVal(long v) {
+        value = v;
+    }
+
+    public long lvVal() {
+        return value;
+    }
+    public long lpVal() {
+        return UNSAFE.getLong(this, VALUE_OFFSET);
+    }
+
+    public boolean casVal(long expectedV, long newV) {
+        return UNSAFE.compareAndSwapLong(this, VALUE_OFFSET, expectedV, newV);
+    }
+
+    public long getAndSetVal(long v) {
+        if (UnsafeAccess.SUPPORTS_GET_AND_ADD_LONG) {
+            return UNSAFE.getAndSetLong(this, VALUE_OFFSET, v);
+        }
+        else {
+            long currV;
+            do {
+                currV = lvVal();
+            } while (!casVal(currV, v));
+            return currV;
+        }
+    }
+
+    public long getAndAddVal(long delta) {
+        if (UnsafeAccess.SUPPORTS_GET_AND_ADD_LONG) {
+            return UNSAFE.getAndAddLong(this, VALUE_OFFSET, delta);
+        }
+        else {
+            long currV;
+            do {
+                currV = lvVal();
+            } while (!casVal(currV, currV + delta));
+            return currV;
+        }
+    }
 }
 
 abstract class PaddedAtomicLongL2Pad extends PaddedAtomicLongL1Field {
@@ -68,10 +117,7 @@ abstract class PaddedAtomicLongL2Pad extends PaddedAtomicLongL1Field {
  * A padded version of the {@link java.util.concurrent.atomic.AtomicLong}.
  */
 public class PaddedAtomicLong extends PaddedAtomicLongL2Pad {
-
-    private static final long VALUE_OFFSET = fieldOffset(PaddedAtomicLongL1Field.class, "value");
-
-    /**
+   /**
      * Creates a new PaddedAtomicLong with initial value {@code 0}.
      */
     public PaddedAtomicLong() {
@@ -83,7 +129,7 @@ public class PaddedAtomicLong extends PaddedAtomicLongL2Pad {
      * @param initialValue the initial value
      */
     public PaddedAtomicLong(long initialValue) {
-        value = initialValue;
+        svVal(initialValue);
     }
 
     /**
@@ -93,7 +139,7 @@ public class PaddedAtomicLong extends PaddedAtomicLongL2Pad {
      * @see java.util.concurrent.atomic.AtomicLong#get()
      */
     public long get() {
-        return value;
+        return lvVal();
     }
 
     /**
@@ -103,7 +149,7 @@ public class PaddedAtomicLong extends PaddedAtomicLongL2Pad {
      * @see java.util.concurrent.atomic.AtomicLong#set(long)
      */
     public void set(long newValue) {
-        value = newValue;
+        svVal(newValue);
     }
 
     /**
@@ -113,7 +159,7 @@ public class PaddedAtomicLong extends PaddedAtomicLongL2Pad {
      * @see java.util.concurrent.atomic.AtomicLong#lazySet(long)
      */
     public void lazySet(long newValue) {
-        UNSAFE.putOrderedLong(this, VALUE_OFFSET, newValue);
+        soVal(newValue);
     }
 
     /**
@@ -124,7 +170,7 @@ public class PaddedAtomicLong extends PaddedAtomicLongL2Pad {
      * @see java.util.concurrent.atomic.AtomicLong#getAndSet(long)
      */
     public long getAndSet(long newValue) {
-        return getAndSet0(newValue);
+        return getAndSetVal(newValue);
     }
 
     /**
@@ -138,7 +184,7 @@ public class PaddedAtomicLong extends PaddedAtomicLongL2Pad {
      * @see java.util.concurrent.atomic.AtomicLong#compareAndSet(long, long)
      */
     public boolean compareAndSet(long expect, long update) {
-        return UNSAFE.compareAndSwapLong(this, VALUE_OFFSET, expect, update);
+        return casVal(expect, update);
     }
 
     /**
@@ -155,7 +201,7 @@ public class PaddedAtomicLong extends PaddedAtomicLongL2Pad {
      * @see java.util.concurrent.atomic.AtomicLong#weakCompareAndSet(long, long)
      */
     public boolean weakCompareAndSet(long expect, long update) {
-        return UNSAFE.compareAndSwapLong(this, VALUE_OFFSET, expect, update);
+        return casVal(expect, update);
     }
 
     /**
@@ -165,7 +211,7 @@ public class PaddedAtomicLong extends PaddedAtomicLongL2Pad {
      * @see java.util.concurrent.atomic.AtomicLong#getAndIncrement()
      */
     public long getAndIncrement() {
-        return getAndAdd0(1L);
+        return getAndAddVal(1L);
     }
 
     /**
@@ -175,7 +221,7 @@ public class PaddedAtomicLong extends PaddedAtomicLongL2Pad {
      * @see java.util.concurrent.atomic.AtomicLong#getAndDecrement()
      */
     public long getAndDecrement() {
-        return getAndAdd0(-1L);
+        return getAndAddVal(-1L);
     }
 
     /**
@@ -186,7 +232,7 @@ public class PaddedAtomicLong extends PaddedAtomicLongL2Pad {
      * @see java.util.concurrent.atomic.AtomicLong#getAndAdd(long)
      */
     public long getAndAdd(long delta) {
-        return getAndAdd0(delta);
+        return getAndAddVal(delta);
     }
 
     /**
@@ -196,7 +242,7 @@ public class PaddedAtomicLong extends PaddedAtomicLongL2Pad {
      * @see java.util.concurrent.atomic.AtomicLong#incrementAndGet()
      */
     public long incrementAndGet() {
-        return getAndAdd0(1L) + 1L;
+        return getAndAddVal(1L) + 1L;
     }
 
     /**
@@ -206,7 +252,7 @@ public class PaddedAtomicLong extends PaddedAtomicLongL2Pad {
      * @see java.util.concurrent.atomic.AtomicLong#decrementAndGet()
      */
     public long decrementAndGet() {
-        return getAndAdd0(-1L) - 1L;
+        return getAndAddVal(-1L) - 1L;
     }
 
     /**
@@ -217,7 +263,7 @@ public class PaddedAtomicLong extends PaddedAtomicLongL2Pad {
      * @see java.util.concurrent.atomic.AtomicLong#addAndGet(long)
      */
     public long addAndGet(long delta) {
-        return getAndAdd0( delta) + delta;
+        return getAndAddVal( delta) + delta;
     }
 
     /**
@@ -233,9 +279,9 @@ public class PaddedAtomicLong extends PaddedAtomicLongL2Pad {
     public long getAndUpdate(LongUnaryOperator updateFunction) {
         long prev, next;
         do {
-            prev = get();
+            prev = lvVal();
             next = updateFunction.applyAsLong(prev);
-        } while (!compareAndSet(prev, next));
+        } while (!casVal(prev, next));
         return prev;
     }
 
@@ -252,9 +298,9 @@ public class PaddedAtomicLong extends PaddedAtomicLongL2Pad {
     public long updateAndGet(LongUnaryOperator updateFunction) {
         long prev, next;
         do {
-            prev = get();
+            prev = lvVal();
             next = updateFunction.applyAsLong(prev);
-        } while (!compareAndSet(prev, next));
+        } while (!casVal(prev, next));
         return next;
     }
 
@@ -275,9 +321,9 @@ public class PaddedAtomicLong extends PaddedAtomicLongL2Pad {
     public long getAndAccumulate(long v, LongBinaryOperator f) {
         long prev, next;
         do {
-            prev = get();
+            prev = lvVal();
             next = f.applyAsLong(prev, v);
-        } while (!compareAndSet(prev, next));
+        } while (!casVal(prev, next));
         return prev;
     }
 
@@ -288,9 +334,9 @@ public class PaddedAtomicLong extends PaddedAtomicLongL2Pad {
     public long accumulateAndGet(long x, LongBinaryOperator f) {
         long prev, next;
         do {
-            prev = get();
+            prev = lvVal();
             next = f.applyAsLong(prev, x);
-        } while (!compareAndSet(prev, next));
+        } while (!casVal(prev, next));
         return next;
     }
 
@@ -301,7 +347,7 @@ public class PaddedAtomicLong extends PaddedAtomicLongL2Pad {
      */
     @Override
     public String toString() {
-        return Long.toString(get());
+        return Long.toString(lvVal());
     }
 
     /**
@@ -311,7 +357,7 @@ public class PaddedAtomicLong extends PaddedAtomicLongL2Pad {
      */
     @Override
     public int intValue() {
-        return (int) get();
+        return (int) lvVal();
     }
 
     /**
@@ -321,7 +367,7 @@ public class PaddedAtomicLong extends PaddedAtomicLongL2Pad {
      */
     @Override
     public long longValue() {
-        return get();
+        return lvVal();
     }
 
     /**
@@ -331,7 +377,7 @@ public class PaddedAtomicLong extends PaddedAtomicLongL2Pad {
      */
     @Override
     public float floatValue() {
-        return (float) get();
+        return (float) lvVal();
     }
 
     /**
@@ -341,43 +387,6 @@ public class PaddedAtomicLong extends PaddedAtomicLongL2Pad {
      */
     @Override
     public double doubleValue() {
-        return (double) get();
-    }
-
-
-    private long getAndSet0(long newVal)
-    {
-        if (UnsafeAccess.SUPPORTS_GET_AND_SET_REF)
-        {
-            return UNSAFE.getAndSetLong(this, VALUE_OFFSET , newVal);
-        }
-        else
-        {
-            long oldVal;
-            do
-            {
-                oldVal = value;
-            }
-            while (!UNSAFE.compareAndSwapLong(this, VALUE_OFFSET, oldVal, newVal));
-            return oldVal;
-        }
-    }
-
-    private long getAndAdd0(long inc)
-    {
-        if (UnsafeAccess.SUPPORTS_GET_AND_SET_REF)
-        {
-            return UNSAFE.getAndAddLong(this, VALUE_OFFSET , inc);
-        }
-        else
-        {
-            long oldVal;
-            do
-            {
-                oldVal = value;
-            }
-            while (!UNSAFE.compareAndSwapLong(this, VALUE_OFFSET, oldVal, oldVal + inc));
-            return oldVal;
-        }
+        return (double) lvVal();
     }
 }

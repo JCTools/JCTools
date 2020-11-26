@@ -13,15 +13,15 @@
  */
 package org.jctools.queues;
 
-import org.jctools.util.LongCell;
+import org.jctools.util.PaddedAtomicLong;
 import org.jctools.util.Pow2;
-import org.jctools.util.UnsafeAccess;
-import org.jctools.util.VolatileLongCell;
 
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Queue;
+
+import static org.jctools.util.UnsafeAccess.UNSAFE;
 
 abstract class FloatingCaqL0Pad {
     byte b000,b001,b002,b003,b004,b005,b006,b007;//  8b
@@ -48,11 +48,11 @@ abstract class FloatingCaqColdFields<E> extends InlinedRingBufferL0Pad {
     protected final int capacity;
     protected final long mask;
     protected final E[] buffer;
-    protected final VolatileLongCell tail = new VolatileLongCell(0);
-    protected final VolatileLongCell head = new VolatileLongCell(0);
+    protected final PaddedAtomicLong tail = new PaddedAtomicLong(0);
+    protected final PaddedAtomicLong head = new PaddedAtomicLong(0);
 
-    protected final LongCell tailCache = new LongCell();
-    protected final LongCell headCache = new LongCell();
+    protected final PaddedAtomicLong tailCache = new PaddedAtomicLong();
+    protected final PaddedAtomicLong headCache = new PaddedAtomicLong();
 
     @SuppressWarnings("unchecked")
     FloatingCaqColdFields(int capacity) {
@@ -87,7 +87,7 @@ public final class FloatingCountersSpscConcurrentArrayQueue<E> extends FloatingC
     private static final long ARRAY_BASE;
     private static final int ELEMENT_SHIFT;
     static {
-        final int scale = UnsafeAccess.UNSAFE.arrayIndexScale(Object[].class);
+        final int scale = UNSAFE.arrayIndexScale(Object[].class);
 
         if (4 == scale) {
             ELEMENT_SHIFT = 2 + SPARSE_SHIFT;
@@ -96,7 +96,7 @@ public final class FloatingCountersSpscConcurrentArrayQueue<E> extends FloatingC
         } else {
             throw new IllegalStateException("Unknown pointer size");
         }
-        ARRAY_BASE = UnsafeAccess.UNSAFE.arrayBaseOffset(Object[].class)
+        ARRAY_BASE = UNSAFE.arrayBaseOffset(Object[].class)
                 + (BUFFER_PAD << (ELEMENT_SHIFT - SPARSE_SHIFT));
     }
 
@@ -120,26 +120,26 @@ public final class FloatingCountersSpscConcurrentArrayQueue<E> extends FloatingC
             throw new NullPointerException("Null is not a valid element");
         }
 
-        final long currTail = tail.get();
+        final long currTail = tail.lvVal();
         final long wrapPoint = currTail - capacity + 32;
-        if (headCache.get() <= wrapPoint) {
-            final long currHead = head.get();
-            headCache.set(currHead);
+        if (headCache.lpVal() <= wrapPoint) {
+            final long currHead = head.lvVal();
+            headCache.spVal(currHead);
             if (currHead <= wrapPoint) {
                 return false;
             }
         }
-        UnsafeAccess.UNSAFE.putObject(buffer, offset(currTail), e);
-        tail.lazySet(currTail + 1);
+        UNSAFE.putObject(buffer, offset(currTail), e);
+        tail.soVal(currTail + 1);
 
         return true;
     }
 
     public E poll() {
-        final long currHead = head.get();
-        if (currHead >= tailCache.get()) {
-            final long currTail = tail.get();
-            tailCache.set(currTail);
+        final long currHead = head.lvVal();
+        if (currHead >= tailCache.lpVal()) {
+            final long currTail = tail.lvVal();
+            tailCache.spVal(currTail);
             if (currHead >= currTail) {
                 return null;
             }
@@ -147,10 +147,10 @@ public final class FloatingCountersSpscConcurrentArrayQueue<E> extends FloatingC
 
         final long offset = offset(currHead);
         @SuppressWarnings("unchecked")
-        final E e = (E) UnsafeAccess.UNSAFE.getObject(buffer, offset);
-        UnsafeAccess.UNSAFE.putObject(buffer, offset, null);
+        final E e = (E) UNSAFE.getObject(buffer, offset);
+        UNSAFE.putObject(buffer, offset, null);
 
-        head.lazySet(currHead + 1);
+        head.soVal(currHead + 1);
 
         return e;
     }
@@ -174,22 +174,22 @@ public final class FloatingCountersSpscConcurrentArrayQueue<E> extends FloatingC
     }
 
     public E peek() {
-        long currentHead = head.get();
+        long currentHead = head.lvVal();
         return getElement(currentHead);
     }
 
     @SuppressWarnings("unchecked")
     private E getElement(long index) {
         final long offset = offset(index);
-        return (E) UnsafeAccess.UNSAFE.getObject(buffer, offset);
+        return (E) UNSAFE.getObject(buffer, offset);
     }
 
     public int size() {
-        return (int) (tail.get() - head.get());
+        return (int) (tail.lvVal() - head.lvVal());
     }
 
     public boolean isEmpty() {
-        return tail.get() == head.get();
+        return tail.lvVal() == head.lvVal();
     }
 
     public boolean contains(final Object o) {
@@ -197,7 +197,7 @@ public final class FloatingCountersSpscConcurrentArrayQueue<E> extends FloatingC
             return false;
         }
 
-        for (long i = head.get(), limit = tail.get(); i < limit; i++) {
+        for (long i = head.lvVal(), limit = tail.lvVal(); i < limit; i++) {
             final E e = getElement(i);
             if (o.equals(e)) {
                 return true;
