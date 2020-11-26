@@ -136,7 +136,8 @@ public abstract class FixedSizeStripedLongCounter extends FixedSizeStripedLongCo
      */
     private int probe() {
         // Fast path for reliable well-distributed probe, available from JDK 7+.
-        // As long as PROBE is final this branch will be inlined.
+        // As long as PROBE is final static this branch will be constant folded
+        // (i.e removed).
         if (PROBE != -1) {
             int probe;
             if ((probe = UNSAFE.getInt(Thread.currentThread(), PROBE)) == 0) {
