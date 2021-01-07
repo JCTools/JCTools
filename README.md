@@ -12,8 +12,8 @@ the JDK:
   * SPMC - Single Producer Multi Consumer (Lock less, bounded)
   * MPMC - Multi Producer Multi Consumer (Lock less, bounded)
   
-- SPSC/MPSC linked array queues offer a balance between performance, allocation and footprint
-
+- SPSC/MPSC linked array queues (bounded and unbounded) offer a balance between performance, allocation and footprint
+- MPSC/MPMC XAdd based, unbounded linked array queues offer reduced contention costs for producers (using XADD instead of a CAS loop), and pooled queue chunks for reduced allocation.
 - An expanded queue interface (MessagePassingQueue):
   * relaxedOffer/Peek/Poll: trade off conflated guarantee on full/empty queue state with improved performance.
   * drain/fill: batch read and write methods for increased throughput and reduced contention
