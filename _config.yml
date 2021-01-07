@@ -1,0 +1,8 @@
+title: JCTools
+description: Java Concurrency Tools
+google_analytics: 
+show_downloads: true
+theme: jekyll-theme-minimal
+
+gems:
+  - jekyll-mentions
