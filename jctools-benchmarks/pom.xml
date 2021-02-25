@@ -12,7 +12,7 @@
     <name>Benchmarks</name>
 
     <properties>
-        <jmh-core.version>1.24</jmh-core.version>
+        <jmh-core.version>1.26</jmh-core.version>
     </properties>
 
     <dependencies>
