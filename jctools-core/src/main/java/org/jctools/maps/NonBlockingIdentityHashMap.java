@@ -1126,9 +1126,17 @@ public class NonBlockingIdentityHashMap<TypeK, TypeV>
       }                         // Else keep scanning
       return _prevV;            // Return current value.
     }
+
+    public void removeKey() {
+      if( _prevV == null ) throw new IllegalStateException();
+      NonBlockingIdentityHashMap.this.putIfMatch(_prevK, TOMBSTONE, NO_MATCH_OLD);
+      _prevV = null;
+    }
+
+    @Override
     public void remove() {
       if( _prevV == null ) throw new IllegalStateException();
-      putIfMatch0( NonBlockingIdentityHashMap.this, _sskvs, _prevK, TOMBSTONE, _prevV );
+      NonBlockingIdentityHashMap.this.putIfMatch(_prevK, TOMBSTONE, _prevV);
       _prevV = null;
     }
 
@@ -1169,7 +1177,7 @@ public class NonBlockingIdentityHashMap<TypeK, TypeV>
   private class SnapshotK implements Iterator<TypeK>, Enumeration<TypeK> {
     final SnapshotV _ss;
     public SnapshotK() { _ss = new SnapshotV(); }
-    public void remove() { _ss.remove(); }
+    public void remove() { _ss.removeKey(); }
     public TypeK next() { _ss.next(); return (TypeK)_ss._prevK; }
     public boolean hasNext() { return _ss.hasNext(); }
     public TypeK nextElement() { return next(); }
@@ -1220,7 +1228,7 @@ public class NonBlockingIdentityHashMap<TypeK, TypeV>
   private class SnapshotE implements Iterator<Map.Entry<TypeK,TypeV>> {
     final SnapshotV _ss;
     public SnapshotE() { _ss = new SnapshotV(); }
-    public void remove() { _ss.remove(); }
+    public void remove() { _ss.removeKey(); }
     public Map.Entry<TypeK,TypeV> next() { _ss.next(); return new NBHMEntry((TypeK)_ss._prevK,_ss._prevV); }
     public boolean hasNext() { return _ss.hasNext(); }
   }

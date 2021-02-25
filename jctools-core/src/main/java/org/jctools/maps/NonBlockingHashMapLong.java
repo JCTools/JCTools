@@ -1039,11 +1039,20 @@ public class NonBlockingHashMapLong<TypeV>
       }                         // Else keep scanning
       return _prevV;            // Return current value.
     }
-    public void remove() {
+
+    public void removeKey() {
       if( _prevV == null ) throw new IllegalStateException();
-      _sschm.putIfMatch( _prevK, TOMBSTONE, _prevV );
+      NonBlockingHashMapLong.this.putIfMatch( _prevK, TOMBSTONE, NO_MATCH_OLD);
       _prevV = null;
     }
+
+    @Override
+    public void remove() {
+      if( _prevV == null ) throw new IllegalStateException();
+      NonBlockingHashMapLong.this.putIfMatch( _prevK, TOMBSTONE, _prevV );
+      _prevV = null;
+    }
+
     public TypeV nextElement() { return next(); }
     public boolean hasMoreElements() { return hasNext(); }
   }
@@ -1085,7 +1094,7 @@ public class NonBlockingHashMapLong<TypeV>
     /** A new IteratorLong */
     public IteratorLong() { _ss = new SnapshotV(); }
     /** Remove last key returned by {@link #next} or {@link #nextLong}. */
-    public void remove() { _ss.remove(); }
+    public void remove() { _ss.removeKey(); }
     /** <strong>Auto-box</strong> and return the next key. */
     public Long next    () { _ss.next(); return _ss._prevK; }
     /** Return the next key as a primitive {@code long}. */
@@ -1151,7 +1160,7 @@ public class NonBlockingHashMapLong<TypeV>
   private class SnapshotE implements Iterator<Map.Entry<Long,TypeV>> {
     final SnapshotV _ss;
     public SnapshotE() { _ss = new SnapshotV(); }
-    public void remove() { _ss.remove(); }
+    public void remove() { _ss.removeKey(); }
     public Map.Entry<Long,TypeV> next() { _ss.next(); return new NBHMLEntry(_ss._prevK,_ss._prevV); }
     public boolean hasNext() { return _ss.hasNext(); }
   }
