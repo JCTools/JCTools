@@ -1,5 +1,6 @@
 package org.jctools.maps;
 
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -142,6 +143,22 @@ public class NBHMRemoveTest {
         map.put(key, v2);
         while (iterator.hasNext()) {
             if (v1.equals(iterator.next())) {
+                iterator.remove();
+                break;
+            }
+        }
+        assertFalse(map.containsValue(v1));
+        singleValueInMapAsserts(map, key, v2);
+    }
+
+    @Test
+    @Ignore
+    public void valuesIteratorRemoveAfterValChange2() {
+        installValue(map, key, v1);
+        Iterator<String> iterator = map.values().iterator();
+        while (iterator.hasNext()) {
+            if (v1.equals(iterator.next())) {
+                map.put(key, v2);
                 iterator.remove();
                 break;
             }
