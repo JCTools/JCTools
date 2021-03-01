@@ -348,4 +348,64 @@ public class QueueSanityTestMpscBlockingConsumerArrayExtended
         Assert.assertTrue(queue.offerIfBelowThreshold(i, 9));
         Assert.assertTrue(queue.offerIfBelowThreshold(i, 16));
     }
+
+    /**
+     * This test demonstrates a race where a producer wins the CAS and writes
+     * null to blocked, only to have the consumer overwrite its change. To have
+     * it fail consistently, add a 1ms sleep (or a breakpoint) to
+     * parkUntilNext(), just before the soBlocked(Thread.currentThread()). If it
+     * hits the race writing to the blocked field, one of the threads will spin
+     * forever in spinWaitForUnblock().
+     */
+    @Test(timeout = TEST_TIMEOUT)
+    public void testSpinWaitForUnblockForever() throws InterruptedException {
+
+        class Echo<T> implements Runnable{
+            private MpscBlockingConsumerArrayQueue<T> source;
+            private MpscBlockingConsumerArrayQueue<T> sink;
+            private int interations;
+
+            Echo(
+                MpscBlockingConsumerArrayQueue<T> source,
+                MpscBlockingConsumerArrayQueue<T> sink,
+                int interations) {
+                    this.source = source;
+                    this.sink = sink;
+                    this.interations = interations;
+            }
+
+            public void run() {
+                try {
+                    for (int i = 0; i < interations; ++i) {
+                        T t;
+                        do {
+                            t = source.poll(1,  TimeUnit.NANOSECONDS);
+                        }
+                        while (t == null);
+
+                        sink.put(t);
+                    }
+                }
+                catch (InterruptedException e) {
+                    throw new AssertionError(e);
+                }
+            }
+        }
+
+        final MpscBlockingConsumerArrayQueue<Object> q1 =
+            new MpscBlockingConsumerArrayQueue<>(1024);
+        final MpscBlockingConsumerArrayQueue<Object> q2 =
+            new MpscBlockingConsumerArrayQueue<>(1024);
+
+        final Thread t1 = new Thread(new Echo<>(q1, q2, 100000));
+        final Thread t2 = new Thread(new Echo<>(q2, q1, 100000));
+
+        t1.start();
+        t2.start();
+
+        q1.put("x");
+
+        t1.join();
+        t2.join();
+    }
 }
