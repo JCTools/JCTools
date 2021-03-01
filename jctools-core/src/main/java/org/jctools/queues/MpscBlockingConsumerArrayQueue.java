@@ -423,8 +423,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         final long offset = modifiedCalcCircularRefElementOffset(pIndex, mask);
         final Thread consumerThread = lvBlocked();
 
-        // We could see a null here through a race with the consumer not yet storing the reference, or through a race
-        // with another producer. Just retry.
+        // We could see a null here through a race with the consumer not yet storing the reference. Just retry.
         if (consumerThread == null)
         {
             return false;
@@ -437,7 +436,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         }
 
         soRefElement(buffer, offset, e);
-        releaseParkedConsumer(consumerThread);
+        LockSupport.unpark(consumerThread);
         return true;
     }
 
@@ -466,16 +465,6 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
             consumerThread = lvBlocked();
         } while (consumerThread == null);
 
-        releaseParkedConsumer(consumerThread);
-    }
-
-    /**
-     * A consumer is trapped in `parking` until the field is nulled, and this code can only be executed after it
-     * is no longer in that state. This in effect means there can be no racing here, whoever wins the CAS to make
-     * pIndex even again owns the field.
-     */
-    private void releaseParkedConsumer(Thread consumerThread) {
-        soBlocked(null);
         LockSupport.unpark(consumerThread);
     }
 
@@ -542,31 +531,35 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
             soBlocked(Thread.currentThread());
             // ignore deadline when it's forever
             final long deadlineNs = timeoutNs == Long.MAX_VALUE ? 0 : System.nanoTime() + timeoutNs;
-            while (true)
-            {
-                LockSupport.parkNanos(this, timeoutNs);
-                if (Thread.interrupted())
+
+            try {
+                while (true)
                 {
-                    // revert blocking state
-                    revertParkedState(pIndex);
-                    throw new InterruptedException();
-                }
-                if (lvBlocked() == null)
-                {
-                    break;
-                }
-                // ignore deadline when it's forever
-                timeoutNs = timeoutNs == Long.MAX_VALUE ? Long.MAX_VALUE : deadlineNs - System.nanoTime();
-                if (timeoutNs <= 0)
-                {
-                    if (revertParkedState(pIndex)) {
-                        // ran out of time and the producer has not moved the index
-                        return null;
+                    LockSupport.parkNanos(this, timeoutNs);
+                    if (Thread.interrupted())
+                    {
+                        casProducerIndex(pIndex + 1, pIndex);
+                        throw new InterruptedException();
                     }
-                    else {
-                        break; // just in the nick of time
+                    if ((lvProducerIndex() & 1) == 0) {
+                        break;
+                    }
+                    // ignore deadline when it's forever
+                    timeoutNs = timeoutNs == Long.MAX_VALUE ? Long.MAX_VALUE : deadlineNs - System.nanoTime();
+                    if (timeoutNs <= 0)
+                    {
+                        if (casProducerIndex(pIndex + 1, pIndex)) {
+                            // ran out of time and the producer has not moved the index
+                            return null;
+                        }
+                        else {
+                            break; // just in the nick of time
+                        }
                     }
                 }
+            }
+            finally {
+                soBlocked(null);
             }
         }
         // producer index is visible before element, so if we wake up between the index moving and the element
@@ -577,23 +570,6 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         soConsumerIndex(cIndex + 2); // release cIndex
 
         return e;
-    }
-
-    /**
-     * Consumer must revert the `parked` state when interrupted or thewhen returning after a timeout. This means
-     * reverting the pIndex state to it's pre-parking value AND nulling out the blocked field.
-     *
-     * If a producer has beat us to moving the pIndex that may mean an unparking is in flight, in which case we wait for
-     * the unparking producer to null out the blocker field.
-     */
-    private boolean revertParkedState(long pIndex) {
-        if (casProducerIndex(pIndex + 1, pIndex))
-        {
-            soBlocked(null);
-            return true;
-        }
-        spinWaitForUnblock();
-        return false;
     }
 
     @Override
@@ -658,12 +634,6 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         }
         while (e == null);
         return e;
-    }
-
-    private void spinWaitForUnblock()
-    {
-        while (lvBlocked() != null) {}
-        return;
     }
 
     /**
