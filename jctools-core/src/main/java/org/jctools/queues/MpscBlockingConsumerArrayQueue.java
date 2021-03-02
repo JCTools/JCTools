@@ -532,7 +532,8 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
             // ignore deadline when it's forever
             final long deadlineNs = timeoutNs == Long.MAX_VALUE ? 0 : System.nanoTime() + timeoutNs;
 
-            try {
+            try
+            {
                 while (true)
                 {
                     LockSupport.parkNanos(this, timeoutNs);
@@ -548,17 +549,18 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
                     timeoutNs = timeoutNs == Long.MAX_VALUE ? Long.MAX_VALUE : deadlineNs - System.nanoTime();
                     if (timeoutNs <= 0)
                     {
-                        if (casProducerIndex(pIndex + 1, pIndex)) {
+                        if (casProducerIndex(pIndex + 1, pIndex))
+                        {
                             // ran out of time and the producer has not moved the index
                             return null;
                         }
-                        else {
-                            break; // just in the nick of time
-                        }
+
+                        break; // just in the nick of time
                     }
                 }
             }
-            finally {
+            finally
+            {
                 soBlocked(null);
             }
         }
