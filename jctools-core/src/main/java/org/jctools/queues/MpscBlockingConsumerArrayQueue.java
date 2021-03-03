@@ -796,6 +796,36 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         return claimedSlots;
     }
 
+    /**
+     * Remove up to <i>limit</i> elements from the queue and hand to consume, waiting up to the specified wait time if
+     * necessary for an element to become available.
+     * <p>
+     * There's no strong commitment to the queue being empty at the end of it.
+     * This implementation is correct for single consumer thread use only.
+     * <p>
+     * <b>WARNING</b>: Explicit assumptions are made with regards to {@link Consumer#accept} make sure you have read
+     * and understood these before using this method.
+     *
+     * @return the number of polled elements
+     * @throws InterruptedException if interrupted while waiting
+     * @throws IllegalArgumentException c is {@code null}
+     * @throws IllegalArgumentException if limit is negative
+     */
+    public int drain(Consumer<E> c, final int limit, long timeout, TimeUnit unit) throws InterruptedException {
+        if (limit == 0) {
+            return 0;
+        }
+        final int drained = drain(c, limit);
+        if (drained != 0) {
+            return drained;
+        }
+        final E e = poll(timeout, unit);
+        if (e == null)
+            return 0;
+        c.accept(e);
+        return 1 + drain(c, limit - 1);
+    }
+
     @Override
     public int fill(Supplier<E> s)
     {
