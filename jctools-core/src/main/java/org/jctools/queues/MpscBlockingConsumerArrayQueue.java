@@ -192,6 +192,12 @@ abstract class MpscBlockingConsumerArrayQueueConsumerFields<E> extends MpscBlock
         return blocked;
     }
 
+    /**
+     * This field should only be written to from the consumer thread. It is set before parking the consumer and nulled
+     * when the consumer is unblocked. The value is read by producer thread to unpark the consumer.
+     *
+     * @param thread the consumer thread which is blocked waiting for the producers
+     */
     final void soBlocked(Thread thread)
     {
         UNSAFE.putOrderedObject(this, BLOCKED_OFFSET, thread);
@@ -457,17 +463,6 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         return size < threshold && size < bufferCapacity;
     }
 
-    private void wakeupConsumer()
-    {
-        Thread consumerThread;
-        do
-        {
-            consumerThread = lvBlocked();
-        } while (consumerThread == null);
-
-        LockSupport.unpark(consumerThread);
-    }
-
     /**
      * {@inheritDoc}
      * <p>
@@ -525,7 +520,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         E e;
         final long pIndex = lvProducerIndex();
         if (cIndex == pIndex && // queue is empty
-            casProducerIndex(pIndex, pIndex + 1)) // we announce ourselves as parked
+            casProducerIndex(pIndex, pIndex + 1)) // we announce ourselves as parked by setting parity
         {
             // producers only try a wakeup when both the index and the blocked thread are visible, otherwise they spin
             soBlocked(Thread.currentThread());
@@ -729,8 +724,8 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
 
         long pIndex;
         int claimedSlots;
-        boolean wakeup = false;
-        long batchIndex = 0;
+        Thread blockedConsumer = null;
+        long batchLimit = 0;
         final long shiftedBatchSize = 2L * limit;
 
         while (true)
@@ -741,20 +736,25 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
             // lower bit is indicative of blocked consumer
             if ((pIndex & 1) == 1)
             {
+                // observe the blocked thread for the pIndex
+                blockedConsumer = lvBlocked();
+                if (blockedConsumer == null)
+                    continue;// racing, retry
                 if(!casProducerIndex(pIndex, pIndex + 1))
                 {
+                    blockedConsumer = null;
                     continue;
                 }
+                // We have observed the blocked thread for the pIndex(lv index, lv thread, cas index).
                 // We've claimed pIndex, now we need to wake up consumer and set the element
-                wakeup = true;
-                batchIndex = pIndex + 1;
+                batchLimit = pIndex + 1;
                 pIndex = pIndex - 1;
                 break;
             }
             // pIndex is even (lower bit is 0) -> actual index is (pIndex >> 1), consumer is awake
 
             // we want 'limit' slots, but will settle for whatever is visible to 'producerLimit'
-            batchIndex = Math.min(producerLimit, pIndex + shiftedBatchSize); //  -> producerLimit >= batchIndex
+            batchLimit = Math.min(producerLimit, pIndex + shiftedBatchSize); //  -> producerLimit >= batchLimit
 
             // Use producer limit to save a read of the more rapidly mutated consumer index.
             // Assumption: queue is usually empty or near empty
@@ -764,16 +764,16 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
                 {
                     return 0;
                 }
-                batchIndex = Math.min(lvProducerLimit(), pIndex + shiftedBatchSize);
+                batchLimit = Math.min(lvProducerLimit(), pIndex + shiftedBatchSize);
             }
 
             // Claim the index
-            if (casProducerIndex(pIndex, batchIndex))
+            if (casProducerIndex(pIndex, batchLimit))
             {
                 break;
             }
         }
-        claimedSlots = (int) ((batchIndex - pIndex) / 2);
+        claimedSlots = (int) ((batchLimit - pIndex) / 2);
 
         final E[] buffer = this.producerBuffer;
         // first element offset might be a wakeup, so peeled from loop
@@ -783,9 +783,12 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
             soRefElement(buffer, offset, s.get());
         }
 
-        if (wakeup)
+        if (blockedConsumer != null)
         {
-            wakeupConsumer();
+            // no point unblocking an unrelated blocked thread, things have obviously moved on
+            if (lvBlocked() == blockedConsumer) {
+                LockSupport.unpark(blockedConsumer);
+            }
         }
 
         return claimedSlots;
