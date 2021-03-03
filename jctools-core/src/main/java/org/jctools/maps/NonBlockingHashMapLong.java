@@ -1048,9 +1048,9 @@ public class NonBlockingHashMapLong<TypeV>
 
     @Override
     public void remove() {
-      if( _prevV == null ) throw new IllegalStateException();
-      NonBlockingHashMapLong.this.putIfMatch( _prevK, TOMBSTONE, _prevV );
-      _prevV = null;
+      // NOTE: it would seem logical that value removal will semantically mean removing the matching value for the
+      // mapping <k,v>, but the JDK always removes by key, even when the value has changed.
+      removeKey();
     }
 
     public TypeV nextElement() { return next(); }
@@ -1160,7 +1160,11 @@ public class NonBlockingHashMapLong<TypeV>
   private class SnapshotE implements Iterator<Map.Entry<Long,TypeV>> {
     final SnapshotV _ss;
     public SnapshotE() { _ss = new SnapshotV(); }
-    public void remove() { _ss.removeKey(); }
+    public void remove() {
+      // NOTE: it would seem logical that entry removal will semantically mean removing the matching pair <k,v>, but
+      // the JDK always removes by key, even when the value has changed.
+      _ss.removeKey();
+    }
     public Map.Entry<Long,TypeV> next() { _ss.next(); return new NBHMLEntry(_ss._prevK,_ss._prevV); }
     public boolean hasNext() { return _ss.hasNext(); }
   }

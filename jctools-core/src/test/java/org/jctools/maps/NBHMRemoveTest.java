@@ -20,10 +20,10 @@ public class NBHMRemoveTest {
     public static Collection<Object[]> parameters()
     {
         ArrayList<Object[]> list = new ArrayList<>();
-        // Verify the test assumptions against JDK reference implementations
-        list.add(new Object[]{new HashMap<>(), TEST_KEY_0, "0", "1"});
-        list.add(new Object[]{new ConcurrentHashMap<>(), TEST_KEY_0, "0", "1"});
-        list.add(new Object[]{new Hashtable<>(), TEST_KEY_0, "0", "1"});
+        // Verify the test assumptions against JDK reference implementations, useful for debugging
+//        list.add(new Object[]{new HashMap<>(), TEST_KEY_0, "0", "1"});
+//        list.add(new Object[]{new ConcurrentHashMap<>(), TEST_KEY_0, "0", "1"});
+//        list.add(new Object[]{new Hashtable<>(), TEST_KEY_0, "0", "1"});
 
         // Test with special key
         list.add(new Object[]{new NonBlockingHashMap<>(), TEST_KEY_0, "0", "1"});
@@ -107,15 +107,14 @@ public class NBHMRemoveTest {
     public void entriesIteratorRemoveKeyAfterValChange() {
         installValue(map, key, v1);
         Iterator<Map.Entry<Long,String>> iterator = map.entrySet().iterator();
+        assertTrue(iterator.hasNext());
+        Map.Entry<Long, String> entry = iterator.next();
+        assertEquals(key, entry.getKey());
+        // change the value for the key
         map.put(key, v2);
-        while (iterator.hasNext()) {
-            Map.Entry<Long, String> entry = iterator.next();
-            if (key.equals(entry.getKey())) {
-                iterator.remove();
-                break;
-            }
-        }
-        // This is weird, since the entry has infact changed, so should not be removed, but JDK refernce implementations
+
+        iterator.remove();
+        // This is weird, since the entry has in fact changed, so should not be removed, but JDK implementations
         // all remove based on the key.
         postRemoveAsserts(map, key);
         assertFalse(map.containsValue(v1));
@@ -140,31 +139,19 @@ public class NBHMRemoveTest {
     public void valuesIteratorRemoveAfterValChange() {
         installValue(map, key, v1);
         Iterator<String> iterator = map.values().iterator();
-        map.put(key, v2);
-        while (iterator.hasNext()) {
-            if (v1.equals(iterator.next())) {
-                iterator.remove();
-                break;
-            }
-        }
-        assertFalse(map.containsValue(v1));
-        singleValueInMapAsserts(map, key, v2);
-    }
+        assertTrue(iterator.hasNext());
+        String value = iterator.next();
+        assertEquals(v1, value);
 
-    @Test
-    @Ignore
-    public void valuesIteratorRemoveAfterValChange2() {
-        installValue(map, key, v1);
-        Iterator<String> iterator = map.values().iterator();
-        while (iterator.hasNext()) {
-            if (v1.equals(iterator.next())) {
-                map.put(key, v2);
-                iterator.remove();
-                break;
-            }
-        }
+        // change the value for the key
+        map.put(key, v2);
+
+        iterator.remove();
+        // This is weird, since the entry has in fact changed, so should not be removed, but JDK implementations
+        // all remove based on the key.
+        postRemoveAsserts(map, key);
         assertFalse(map.containsValue(v1));
-        singleValueInMapAsserts(map, key, v2);
+        assertFalse(map.containsValue(v2));
     }
 
     private void installValue(Map<Long, String> map, Long testKey, String value) {
