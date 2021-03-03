@@ -468,6 +468,20 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         LockSupport.unpark(consumerThread);
     }
 
+    public E blockedPeek() throws InterruptedException
+    {
+        final E[] buffer = consumerBuffer;
+        final long mask = consumerMask;
+
+        final long cIndex = lpConsumerIndex();
+        final long offset = modifiedCalcCircularRefElementOffset(cIndex, mask);
+        final E e = lvRefElement(buffer, offset);
+        if (e != null) {
+            return e;
+        }
+        return parkUntilNext(buffer, cIndex, offset, Long.MAX_VALUE, true);
+    }
+
     /**
      * {@inheritDoc}
      * <p>
@@ -483,13 +497,32 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         E e = lvRefElement(buffer, offset);
         if (e == null)
         {
-            return parkUntilNext(buffer, cIndex, offset, Long.MAX_VALUE);
+            return parkUntilNext(buffer, cIndex, offset, Long.MAX_VALUE, false);
         }
 
         soRefElement(buffer, offset, null); // release element null
         soConsumerIndex(cIndex + 2); // release cIndex
 
         return e;
+    }
+
+    public E blockedPeek(long timeout, TimeUnit unit) throws InterruptedException
+    {
+        final E[] buffer = consumerBuffer;
+        final long mask = consumerMask;
+
+        final long cIndex = lpConsumerIndex();
+        final long offset = modifiedCalcCircularRefElementOffset(cIndex, mask);
+        final E e = lvRefElement(buffer, offset);
+        if (e != null) {
+            return e;
+        }
+        long timeoutNs = unit.toNanos(timeout);
+        if (timeoutNs <= 0)
+        {
+            return null;
+        }
+        return parkUntilNext(buffer, cIndex, offset, timeoutNs, true);
     }
 
     /**
@@ -512,7 +545,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
             {
                 return null;
             }
-            return parkUntilNext(buffer, cIndex, offset, timeoutNs);
+            return parkUntilNext(buffer, cIndex, offset, timeoutNs, false);
         }
 
         soRefElement(buffer, offset, null); // release element null
@@ -521,7 +554,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         return e;
     }
 
-    private E parkUntilNext(E[] buffer, long cIndex, long offset, long timeoutNs) throws InterruptedException {
+    private E parkUntilNext(E[] buffer, long cIndex, long offset, long timeoutNs, boolean peek) throws InterruptedException {
         E e;
         final long pIndex = lvProducerIndex();
         if (cIndex == pIndex && // queue is empty
@@ -567,7 +600,9 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         // producer index is visible before element, so if we wake up between the index moving and the element
         // store we could see a null.
         e = spinWaitForElement(buffer, offset);
-
+        if (peek) {
+            return e;
+        }
         soRefElement(buffer, offset, null); // release element null
         soConsumerIndex(cIndex + 2); // release cIndex
 
