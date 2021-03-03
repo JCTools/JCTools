@@ -1,13 +1,15 @@
 package org.jctools.queues;
 
 import java.lang.Thread.State;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Queue;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
 
-import org.jctools.util.TestUtil;
 import org.jctools.util.TestUtil.Val;
 import org.junit.Assert;
 import org.junit.Test;
@@ -116,6 +118,83 @@ public class QueueSanityTestMpscBlockingConsumerArrayExtended
         testOfferBlockSemantics(true);
     }
 
+    @Test(timeout = TEST_TIMEOUT)
+    public void testOfferBlockingDrainSemantics() throws Exception
+    {
+        final AtomicBoolean stop = new AtomicBoolean();
+        final AtomicBoolean consumerLock = new AtomicBoolean(true);
+        final MpscBlockingConsumerArrayQueue<Integer> q = new MpscBlockingConsumerArrayQueue<>(2);
+        // fill up the queue
+        while (q.offer(1));
+
+        // queue has 2 empty slots
+        q.poll();
+        q.poll();
+
+        final Val fail = new Val();
+        final Runnable runnable = () -> {
+            ArrayDeque<Integer> ints = new ArrayDeque<>(1);
+
+            while (!stop.get())
+            {
+                if (!q.offer(1))
+                {
+                    fail.value++;
+                }
+
+                while (!consumerLock.compareAndSet(true, false));
+
+                try
+                {
+                    int howMany = q.drain(ints::offer, 1, 1L, DAYS);
+                    if (howMany == 0 || howMany != ints.size())
+                    {
+                        fail.value++;
+                    }
+                    ints.clear();
+                }
+                catch (InterruptedException e)
+                {
+                    fail.value++;
+                }
+                consumerLock.lazySet(true);
+            }
+        };
+        Thread t1 = new Thread(runnable);
+        Thread t2 = new Thread(runnable);
+
+        t1.start();
+        t2.start();
+        Thread.sleep(CONCURRENT_TEST_DURATION);
+        stop.set(true);
+        t1.join();
+        t2.join();
+        assertEquals("Unexpected offer/poll observed", 0, fail.value);
+
+    }
+
+    @Test(timeout = TEST_TIMEOUT)
+    public void testBlockingDrainSemantics() throws Exception
+    {
+        final MpscBlockingConsumerArrayQueue<Integer> q = new MpscBlockingConsumerArrayQueue<>(2);
+        ArrayDeque<Integer> ints = new ArrayDeque<>();
+        assertEquals(0, q.drain(ints::add, 0, 0, NANOSECONDS));
+        assertEquals(0, ints.size());
+
+        q.offer(1);
+
+        assertEquals(0, q.drain(ints::add, 0, 0, NANOSECONDS));
+        assertEquals(0, ints.size());
+        assertEquals(1, q.drain(ints::add, 1, 0, NANOSECONDS));
+        assertEquals((Integer) 1, ints.poll());
+
+        long beforeNanos = System.nanoTime();
+        assertEquals(0, q.drain(ints::add, 1, 250L, MILLISECONDS));
+        long tookMillis = MILLISECONDS.convert(System.nanoTime() - beforeNanos, NANOSECONDS);
+        assertEquals(0, ints.size());
+        assertTrue("took " + tookMillis + "ms", 200L < tookMillis && tookMillis < 300L);
+    }
+
     private void testOfferBlockSemantics(boolean withTimeout) throws Exception
     {
         final AtomicBoolean stop = new AtomicBoolean();
@@ -187,16 +266,28 @@ public class QueueSanityTestMpscBlockingConsumerArrayExtended
     @Test(timeout = TEST_TIMEOUT)
     public void testTakeBlocksAndIsInterrupted() throws Exception
     {
-        testTakeBlocksAndIsInterrupted(false);
+        testTakeBlocksAndIsInterrupted(PollType.Take);
     }
 
     @Test(timeout = TEST_TIMEOUT)
     public void testPollWithTimeoutBlocksAndIsInterrupted() throws Exception
     {
-        testTakeBlocksAndIsInterrupted(true);
+        testTakeBlocksAndIsInterrupted(PollType.BlockingPoll);
     }
 
-    private void testTakeBlocksAndIsInterrupted(boolean withTimeout) throws Exception
+    @Test(timeout = TEST_TIMEOUT)
+    public void testBlockingDrainWithTimeoutBlocksAndIsInterrupted() throws Exception
+    {
+        testTakeBlocksAndIsInterrupted(PollType.BlockingDrain);
+    }
+
+    private enum PollType {
+        BlockingPoll,
+        Take,
+        BlockingDrain
+    }
+
+    private void testTakeBlocksAndIsInterrupted(PollType pollType) throws Exception
     {
         final AtomicBoolean wasInterrupted = new AtomicBoolean();
         final AtomicBoolean interruptedStatusAfter = new AtomicBoolean();
@@ -204,7 +295,18 @@ public class QueueSanityTestMpscBlockingConsumerArrayExtended
         Thread consumer = new Thread(() -> {
             try
             {
-                Integer take = withTimeout ? q.poll(1L, DAYS) : q.take();
+                switch (pollType) {
+
+                case BlockingPoll:
+                    q.poll(1L, DAYS);
+                    break;
+                case Take:
+                    q.take();
+                    break;
+                case BlockingDrain:
+                    q.drain(ignored -> {}, 1, 1L, DAYS);
+                    break;
+                }
             }
             catch (InterruptedException e)
             {
