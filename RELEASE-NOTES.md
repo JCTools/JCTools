@@ -1,3 +1,50 @@
+3.3.0
+=========
+This is a minor release with new features and several bug fixes.
+
+Bug fixes:
+- #334 NBHMLong iterators do not remove NO_KEY
+- #335 NBHM/Long/Identity iterators only removes keys if values have not changed. Now follow JDK convention.
+- #336 MpscBlockingConsumerArrayQueue: fix race writing to blocked field (thanks @philipa)
+- #339 `fill` wakeup call can spin forever(or until a consumer is blocked again) on MpscBlockingConsumerArrayQueue
+
+New features:
+- #340 MpscBlockingConsumerArrayQueue provide a new blocking drain variant (thanks @franz1981)
+
+3.2.0
+=========
+This is a minor release with new features and several bug fixes.
+
+Bug fixes:
+- #319 Relying on test cases provided by @alefedor (#328) we apply the fix used for #205 to `NonBlockingHashMapLong` and `NonBlockingIdentityHashMap` to provide `getAndSet` like semantics for put and remove.
+- #330 Fix a `NonBlockingIdentityHashMap` `replace` bug. During this fix some further work was done to bring the code closer in line to the current state of `NonBlockingHashMap`
+
+Enhancements:
+- #326 Xadd queues consumers can help producers
+- #323 Update to latest JCStress (thanks @shipilev )
+- Further build and doc improvements (thanks @kay @Rjbeckwith55 @pveentjer )
+ 
+New features:
+- After long incubation and following a user request (see #321), we move counters (introduced in #93 by @qwwdfsad) into core!
+- Merging some experimental utils and a #264 we add a `PaddedAtomicLong`, thanks @pveentjer 
+
+3.1.0
+=========
+This is a minor release with one new feature and several bug fixes.
+
+Bug fixes:
+- Use byte fields for padding (avoid upcoming false sharing problem in JDK 15+ where field ordering has changed)
+- #289 Add Automatic-Module-Name header to MANIFEST.MF (thanks @vy)
+- #292 Fix inconsistent isEmpty/poll/peek/offer dynamics for SpscLinkedQueue : 5fd5772#diff-b17b0df9e15e7821411b77042876eb02 (thanks @hl845740757 and @franz1981)
+- Fixed potential for negative queue size for indexed queues and similar issue with isEmpty : 5fd5772#diff-f32b0a7583f04b29affe3c5f0486df4f (thanks @hl845740757 and @franz1981)
+- #296 Fix peek/relaxedPeek race with poll/offer in MC queues (thanks @hl845740757 and @franz1981)
+- #297 Fix inconsistent size of FF based queues causing potential size() > capacity() (thanks @hl845740757)
+- #316 Fix MpscBlockingConsumerArrayQueue::poll(TimeUnit,timeout) (thanks @philipa , @njhill and @franz1981)
+- #310 Fix MpmcUnboundedXaddArrayQueue::peek/relaxedPeek can load "future" elements (thanks @franz1981)
+
+New feature:
+- #314 MpscBlockingConsumerArrayQueue::offerIfBelowThreshold is added (thanks @philipa)
+
 3.0.0
 =========
 This is a major version as there are some minor API breaking changes which may effect users. Please apply with care and provide feedback. The breaking changes:
