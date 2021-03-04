@@ -30,7 +30,7 @@ Add the latest version as a dependency using Maven:
         <dependency>
             <groupId>org.jctools</groupId>
             <artifactId>jctools-core</artifactId>
-            <version>3.1.0</version>
+            <version>3.3.0</version>
         </dependency>
 ```
 
@@ -47,7 +47,7 @@ And setup the following dependency:
         <dependency>
             <groupId>com.github.JCTools.JCTools</groupId>
             <artifactId>jctools-core</artifactId>
-            <version>v3.1.0</version>
+            <version>v3.3.0</version>
         </dependency>
 ```
 
