@@ -3,7 +3,7 @@
 This is a minor release with new features and several bug fixes.
 
 Bug fixes:
-- #334 NBHMLong iterators do not remove NO_KEY
+- #334 NBHMLong iterators do not remove NO_KEY (thanks @matteobertozzi)
 - #335 NBHM/Long/Identity iterators only removes keys if values have not changed. Now follow JDK convention.
 - #336 MpscBlockingConsumerArrayQueue: fix race writing to blocked field (thanks @philipa)
 - #339 `fill` wakeup call can spin forever(or until a consumer is blocked again) on MpscBlockingConsumerArrayQueue
