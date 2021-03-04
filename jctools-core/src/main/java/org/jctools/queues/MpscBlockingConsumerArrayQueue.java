@@ -468,6 +468,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
      * <p>
      * This implementation is correct for single consumer thread use only.
      */
+    @Override
     public E take() throws InterruptedException
     {
         final E[] buffer = consumerBuffer;
@@ -492,6 +493,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
      * <p>
      * This implementation is correct for single consumer thread use only.
      */
+    @Override
     public E poll(long timeout, TimeUnit unit) throws InterruptedException
     {
         final E[] buffer = consumerBuffer;
