@@ -256,6 +256,8 @@ public class NonBlockingHashMapLong<TypeV>
   /** Returns the number of key-value mappings in this map.
    *  @return the number of key-value mappings in this map */
   public int     size       ( )                     { return (_val_1==TOMBSTONE?0:1) + _chm.size(); }
+  /** Faster size (and exact) call on a stable table; returns a fast decent estimate on a moving table */
+  public int estimate_size() { return (_val_1==TOMBSTONE?0:1) + _chm.estimate_size(); }
   /** Tests if the key in the table.
    * @return <tt>true</tt> if the key is in the table */
   public boolean containsKey( long key )            { return get(key) != null; }
@@ -433,6 +435,7 @@ public class NonBlockingHashMapLong<TypeV>
     // Size in active K,V pairs
     private ConcurrentAutoTable _size;
     public int size () { return (int)_size.get(); }
+    public int estimate_size () { return (int)_size.estimate_get(); }
 
     // ---
     // These next 2 fields are used in the resizing heuristics, to judge when
@@ -1186,6 +1189,21 @@ public class NonBlockingHashMapLong<TypeV>
     while( j < dom.length && i.hasNext() )
       dom[j++] = i.nextLong();
     return dom;
+  }
+
+  /** Raw underlying array of longs as keys.  Faster iterator if the table is
+   *  stable.  0 represents a missing key.  Changes to the NBHML may change
+   *  this table.  Modifications to the table outside of the NBHML API will
+   *  probably break the table. */
+  public long[] rawKeySet() {
+    while( true ) {           // Verify no table-copy-in-progress
+      CHM topchm = _chm;
+      if( topchm._newchm == null ) // No table-copy-in-progress
+        return topchm._keys;
+      // Table copy in-progress - so we cannot get a clean iteration.  We
+      // must help finish the table copy before we can start iterating.
+      topchm.help_copy_impl(true);
+    }
   }
 
   // --- entrySet ------------------------------------------------------------
