@@ -1191,6 +1191,21 @@ public class NonBlockingHashMapLong<TypeV>
     return dom;
   }
 
+  /** Raw underlying array of longs as keys.  Faster iterator if the table is
+   *  stable.  0 represents a missing key.  Changes to the NBHML may change
+   *  this table.  Modifications to the table outside of the NBHML API will
+   *  probably break the table. */
+  public long[] rawKeySet() {
+    while( true ) {           // Verify no table-copy-in-progress
+      CHM topchm = _chm;
+      if( topchm._newchm == null ) // No table-copy-in-progress
+        return topchm._keys;
+      // Table copy in-progress - so we cannot get a clean iteration.  We
+      // must help finish the table copy before we can start iterating.
+      topchm.help_copy_impl(true);
+    }
+  }
+
   // --- entrySet ------------------------------------------------------------
   // Warning: Each call to 'next' in this iterator constructs a new Long and a
   // new NBHMLEntry.
