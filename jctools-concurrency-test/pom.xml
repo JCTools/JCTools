@@ -12,7 +12,7 @@
     <name>concurrency-test</name>
 
     <properties>
-        <jcstress.version>0.7</jcstress.version>
+        <jcstress.version>0.9</jcstress.version>
     </properties>
 
     <dependencies>
