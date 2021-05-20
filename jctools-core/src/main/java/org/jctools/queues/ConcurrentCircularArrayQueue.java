@@ -62,7 +62,7 @@ abstract class ConcurrentCircularArrayQueue<E> extends ConcurrentCircularArrayQu
     @Override
     public int size()
     {
-        return IndexedQueueSizeUtil.size(this);
+        return IndexedQueueSizeUtil.size(this, IndexedQueueSizeUtil.PLAIN_DIVISOR);
     }
 
     @Override

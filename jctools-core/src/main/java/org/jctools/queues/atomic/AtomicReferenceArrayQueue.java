@@ -67,7 +67,7 @@ abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> implements 
     @Override
     public final int size()
     {
-        return IndexedQueueSizeUtil.size(this);
+        return IndexedQueueSizeUtil.size(this, IndexedQueueSizeUtil.PLAIN_DIVISOR);
     }
 
     @Override

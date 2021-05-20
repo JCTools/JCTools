@@ -318,30 +318,7 @@ abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAtomicArr
 
     @Override
     public int size() {
-        // NOTE: because indices are on even numbers we cannot use the size util.
-        /*
-         * It is possible for a thread to be interrupted or reschedule between the read of the producer and
-         * consumer indices, therefore protection is required to ensure size is within valid range. In the
-         * event of concurrent polls/offers to this method the size is OVER estimated as we read consumer
-         * index BEFORE the producer index.
-         */
-        long after = lvConsumerIndex();
-        long size;
-        while (true) {
-            final long before = after;
-            final long currentProducerIndex = lvProducerIndex();
-            after = lvConsumerIndex();
-            if (before == after) {
-                size = ((currentProducerIndex - after) >> 1);
-                break;
-            }
-        }
-        // indexed queues.
-        if (size > Integer.MAX_VALUE) {
-            return Integer.MAX_VALUE;
-        } else {
-            return (int) size;
-        }
+        return IndexedQueueSizeUtil.size(this, IndexedQueueSizeUtil.IGNORE_PARITY_DIVISOR);
     }
 
     @Override
