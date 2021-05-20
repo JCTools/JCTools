@@ -37,16 +37,16 @@ public final class IndexedQueueSizeUtil
     public static int size(IndexedQueue iq)
     {
         /*
-         * It is possible for a thread to be interrupted or reschedule between the read of the producer and
-         * consumer indices, therefore protection is required to ensure size is within valid range. In the
-         * event of concurrent polls/offers to this method the size is OVER estimated as we read consumer
-         * index BEFORE the producer index.
+         * It is possible for a thread to be interrupted or reschedule between the reads of the producer and
+         * consumer indices. It is also for the indices to be updated in a `weakly` visible way. It follows that
+         * the size value needs to be sanitized to match a valid range.
          */
         long after = iq.lvConsumerIndex();
         long size;
         while (true)
         {
             final long before = after;
+            // pIndex read is "sandwiched" between 2 cIndex reads
             final long currentProducerIndex = iq.lvProducerIndex();
             after = iq.lvConsumerIndex();
             if (before == after)
@@ -55,14 +55,14 @@ public final class IndexedQueueSizeUtil
                 break;
             }
         }
-        // Long overflow is impossible (), so size is always positive. Integer overflow is possible for the unbounded
+        // Long overflow is impossible here, so size is always positive. Integer overflow is possible for the unbounded
         // indexed queues.
         if (size > Integer.MAX_VALUE)
         {
             return Integer.MAX_VALUE;
         }
-        // concurrent updates to cIndex and pIndex may lag behind other progress enablers (e.g. FastFlow), so we need
-        // to check bounds
+        // Concurrent updates to cIndex and pIndex may lag behind other progress enablers (e.g. FastFlow), so we need
+        // to check bounds [0,capacity]
         else if (size < 0)
         {
             return 0;
