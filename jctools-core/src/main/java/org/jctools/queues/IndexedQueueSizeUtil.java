@@ -62,21 +62,20 @@ public final class IndexedQueueSizeUtil
     }
 
     public static int sanitizedSize(int capacity, long size) {
-        // Long overflow is impossible here, so size is always positive. Integer overflow is possible for the unbounded
-        // indexed queues.
-        if (size > Integer.MAX_VALUE)
-        {
-            return Integer.MAX_VALUE;
-        }
         // Concurrent updates to cIndex and pIndex may lag behind other progress enablers (e.g. FastFlow), so we need
         // to check bounds [0,capacity]
-        else if (size < 0)
+        if (size < 0)
         {
             return 0;
         }
-        else if (capacity != MessagePassingQueue.UNBOUNDED_CAPACITY && size > capacity)
+        if (capacity != MessagePassingQueue.UNBOUNDED_CAPACITY && size > capacity)
         {
             return capacity;
+        }
+        // Integer overflow is possible for the unbounded indexed queues.
+        if (size > Integer.MAX_VALUE)
+        {
+            return Integer.MAX_VALUE;
         }
         return (int) size;
     }
