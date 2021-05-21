@@ -74,16 +74,11 @@ public final class IndexedQueueSizeUtil
         {
             return 0;
         }
-        else {
-            if (capacity != MessagePassingQueue.UNBOUNDED_CAPACITY && size > capacity)
-            {
-                return capacity;
-            }
-            else
-            {
-                return (int) size;
-            }
+        else if (capacity != MessagePassingQueue.UNBOUNDED_CAPACITY && size > capacity)
+        {
+            return capacity;
         }
+        return (int) size;
     }
 
     public static boolean isEmpty(IndexedQueue iq)
