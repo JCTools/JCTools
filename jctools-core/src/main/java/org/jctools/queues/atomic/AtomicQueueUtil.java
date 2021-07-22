@@ -15,7 +15,7 @@ final class AtomicQueueUtil
         return buffer.get(offset); // no weaker form available
     }
 
-    static <E> void spRefElement(AtomicReferenceArray<E> buffer, int offset, E value)
+    static void spRefElement(AtomicReferenceArray buffer, int offset, Object value)
     {
         buffer.lazySet(offset, value);  // no weaker form available
     }

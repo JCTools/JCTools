@@ -321,7 +321,7 @@ abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQueueColdP
             return newBufferPoll(nextBuffer, index);
         }
 
-        soRefElement(buffer, offset, null); // release element null
+        spRefElement(buffer, offset, null); // release element null
         soConsumerIndex(index + 2); // release cIndex
         return (E) e;
     }
@@ -406,8 +406,9 @@ abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQueueColdP
     @SuppressWarnings("unchecked")
     private E[] nextBuffer(final E[] buffer, final long mask)
     {
+        // this access after loadVolatile JUMP
         final long offset = nextArrayOffset(mask);
-        final E[] nextBuffer = (E[]) lvRefElement(buffer, offset);
+        final E[] nextBuffer = (E[]) lpRefElement(buffer, offset);
         consumerBuffer = nextBuffer;
         consumerMask = (length(nextBuffer) - 2) << 1;
         soRefElement(buffer, offset, BUFFER_CONSUMED);
@@ -421,21 +422,23 @@ abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQueueColdP
 
     private E newBufferPoll(E[] nextBuffer, long index)
     {
+        // this access after loadVolatile JUMP
         final long offset = modifiedCalcCircularRefElementOffset(index, consumerMask);
-        final E n = lvRefElement(nextBuffer, offset);
+        final E n = lpRefElement(nextBuffer, offset);
         if (n == null)
         {
             throw new IllegalStateException("new buffer must have at least one element");
         }
-        soRefElement(nextBuffer, offset, null);
+        spRefElement(nextBuffer, offset, null);
         soConsumerIndex(index + 2);
         return n;
     }
 
     private E newBufferPeek(E[] nextBuffer, long index)
     {
+        // this access after loadVolatile JUMP
         final long offset = modifiedCalcCircularRefElementOffset(index, consumerMask);
-        final E n = lvRefElement(nextBuffer, offset);
+        final E n = lpRefElement(nextBuffer, offset);
         if (null == n)
         {
             throw new IllegalStateException("new buffer must have at least one element");
@@ -483,7 +486,7 @@ abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQueueColdP
             final E[] nextBuffer = nextBuffer(buffer, mask);
             return newBufferPoll(nextBuffer, index);
         }
-        soRefElement(buffer, offset, null);
+        spRefElement(buffer, offset, null);
         soConsumerIndex(index + 2);
         return (E) e;
     }
@@ -723,7 +726,7 @@ abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQueueColdP
 
     private void resize(long oldMask, E[] oldBuffer, long pIndex, E e, Supplier<E> s)
     {
-        assert (e != null && s == null) || (e == null || s != null);
+        assert (e != null && s == null) || (e == null && s != null);
         int newBufferLength = getNextBufferSize(oldBuffer);
         final E[] newBuffer;
         try
@@ -744,8 +747,9 @@ abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQueueColdP
         final long offsetInOld = modifiedCalcCircularRefElementOffset(pIndex, oldMask);
         final long offsetInNew = modifiedCalcCircularRefElementOffset(pIndex, newMask);
 
-        soRefElement(newBuffer, offsetInNew, e == null ? s.get() : e);// element in new array
-        soRefElement(oldBuffer, nextArrayOffset(oldMask), newBuffer);// buffer linked
+        // Plain Mode: unreachable until soProducerIndex
+        spRefElement(newBuffer, offsetInNew, e == null ? s.get() : e);// element in new array
+        spRefElement(oldBuffer, nextArrayOffset(oldMask), newBuffer);// buffer linked
 
         // ASSERT code
         final long cIndex = lvConsumerIndex();

@@ -80,6 +80,10 @@ class MpUnboundedXaddChunk<R,E>
         return lvRefElement(buffer, calcRefElementOffset(index));
     }
 
+    final void spElement(int index, E e) {
+        spRefElement(buffer, calcRefElementOffset(index), e);
+    }
+
     final E spinForElement(int index, boolean isNull)
     {
         E[] buffer = this.buffer;

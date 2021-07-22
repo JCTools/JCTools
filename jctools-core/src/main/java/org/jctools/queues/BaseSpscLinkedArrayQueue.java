@@ -172,17 +172,18 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
         return lvConsumerIndex();
     }
 
-    protected final void soNext(E[] curr, E[] next)
+    protected final void spNext(E[] curr, E[] next)
     {
         long offset = nextArrayOffset(curr);
-        soRefElement(curr, offset, next);
+        spRefElement(curr, offset, next);
     }
 
     @SuppressWarnings("unchecked")
-    protected final E[] lvNextArrayAndUnlink(E[] curr)
+    protected final E[] lpNextArrayAndUnlink(E[] curr)
     {
+        // this access after loadVolatile JUMP
         final long offset = nextArrayOffset(curr);
-        final E[] nextBuffer = (E[]) lvRefElement(curr, offset);
+        final E[] nextBuffer = (E[]) lpRefElement(curr, offset);
         // prevent GC nepotism
         soRefElement(curr, offset, null);
         return nextBuffer;
@@ -374,9 +375,11 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
         final E[] newBuffer, final long offsetInNew,
         final E e)
     {
-        soRefElement(newBuffer, offsetInNew, e);
+        // Plain Mode: unreachable until JUMP is published
+        spRefElement(newBuffer, offsetInNew, e);
         // link to next buffer and add next indicator as element of old buffer
-        soNext(oldBuffer, newBuffer);
+        spNext(oldBuffer, newBuffer);
+
         soRefElement(oldBuffer, offset, JUMP);
         // index is visible after elements (isEmpty/poll ordering)
         soProducerIndex(currIndex + 1);// this ensures atomic write of long on 32bit platforms
@@ -390,22 +393,24 @@ abstract class BaseSpscLinkedArrayQueue<E> extends BaseSpscLinkedArrayQueueProdu
 
     private E newBufferPeek(final E[] buffer, final long index)
     {
-        E[] nextBuffer = lvNextArrayAndUnlink(buffer);
+        E[] nextBuffer = lpNextArrayAndUnlink(buffer);
         consumerBuffer = nextBuffer;
         final long mask = length(nextBuffer) - 2;
         consumerMask = mask;
+        // this access after loadVolatile JUMP
         final long offset = calcCircularRefElementOffset(index, mask);
-        return lvRefElement(nextBuffer, offset);
+        return lpRefElement(nextBuffer, offset);
     }
 
     private E newBufferPoll(final E[] buffer, final long index)
     {
-        E[] nextBuffer = lvNextArrayAndUnlink(buffer);
+        E[] nextBuffer = lpNextArrayAndUnlink(buffer);
         consumerBuffer = nextBuffer;
         final long mask = length(nextBuffer) - 2;
         consumerMask = mask;
+        // this access after loadVolatile JUMP
         final long offset = calcCircularRefElementOffset(index, mask);
-        final E n = lvRefElement(nextBuffer, offset);
+        final E n = lpRefElement(nextBuffer, offset);
         if (null == n)
         {
             throw new IllegalStateException("new buffer must have at least one element");
