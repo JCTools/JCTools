@@ -1,14 +1,16 @@
 package org.jctools.maps;
 
-import org.junit.Ignore;
+import org.junit.After;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 
+import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.*;
+import static org.junit.Assume.assumeThat;
 
 @RunWith(Parameterized.class)
 public class NBHMRemoveTest {
@@ -17,8 +19,7 @@ public class NBHMRemoveTest {
     public static final Long TEST_KEY_0 = 0L;
 
     @Parameterized.Parameters
-    public static Collection<Object[]> parameters()
-    {
+    public static Collection<Object[]> parameters() {
         ArrayList<Object[]> list = new ArrayList<>();
         // Verify the test assumptions against JDK reference implementations, useful for debugging
 //        list.add(new Object[]{new HashMap<>(), TEST_KEY_0, "0", "1"});
@@ -48,6 +49,79 @@ public class NBHMRemoveTest {
         this.key = key;
         this.v1 = v1;
         this.v2 = v2;
+    }
+
+    @After
+    public void clear() {
+        map.clear();
+    }
+
+    /**
+     * This test demonstrates a retention issue in the NBHM implementation which keeps old keys around until a resize
+     * event.
+     * See https://github.com/JCTools/JCTools/issues/354
+     */
+    @Test
+    public void removeRetainsKey() {
+        assumeThat(map, is(instanceOf(NonBlockingHashMap.class)));
+        assumeThat(key, is(TEST_KEY_0));
+
+        Long key1 = Long.valueOf(42424242);
+        Long key2 = Long.valueOf(42424242);
+        assertEquals(key1, key2);
+        assertFalse(key1 == key2);
+        // key1 and key2 are different instances with same hash/equals
+        map.put(key1, "a");
+        map.remove(key1);
+        if (map instanceof NonBlockingHashMap) {
+            assertTrue(contains(((NonBlockingHashMap) map).raw_array(), key1));
+        }
+        map.put(key2, "a");
+        if (map instanceof NonBlockingHashMap) {
+            assertFalse(contains(((NonBlockingHashMap) map).raw_array(), key2));
+        }
+        // key1 remains in the map
+        Set<Long> keySet = map.keySet();
+        assertEquals(keySet.size(), 1);
+        if (map instanceof NonBlockingHashMap) {
+            assertTrue(keySet.toArray()[0] == key1);
+        }
+    }
+
+    /**
+     * This test demonstrates a retention issue in the NBHM implementation which keeps old keys around until a resize
+     * event.
+     * See https://github.com/JCTools/JCTools/issues/354
+     */
+    @Test
+    public void removeRetainsKey2() {
+        assumeThat(map, is(instanceOf(NonBlockingHashMap.class)));
+        assumeThat(key, is(TEST_KEY_0));
+
+        String key1 = "Aa";
+        String key2 = "BB";
+        NonBlockingHashMap<String, String> map = new NonBlockingHashMap<>();
+        assertEquals(key1.hashCode(), key2.hashCode());
+        assertNotEquals(key1, key2);
+        assertFalse(key1 == key2);
+        // key1 and key2 are different instances with same hash, but different equals
+        map.put(key1, "a");
+        map.remove(key1);
+        map.put(key2, "a");
+        // key1 remains in the map
+        Set<String> keySet = map.keySet();
+        assertEquals(keySet.size(), 1);
+        assertEquals(keySet.toArray()[0], key2);
+        Object[] raw_array = map.raw_array();
+        assertTrue(contains(raw_array, key1));
+        assertTrue(contains(raw_array, key2));
+    }
+
+    private boolean contains(Object[] raw_array, Object v) {
+        for (int i = 0; i < raw_array.length; i++) {
+            if (raw_array[i] == v) return true;
+        }
+        return false;
     }
 
     @Test
@@ -91,7 +165,7 @@ public class NBHMRemoveTest {
     @Test
     public void entriesIteratorRemoveKey() {
         installValue(map, key, v1);
-        Iterator<Map.Entry<Long,String>> iterator = map.entrySet().iterator();
+        Iterator<Map.Entry<Long, String>> iterator = map.entrySet().iterator();
         while (iterator.hasNext()) {
             Map.Entry<Long, String> entry = iterator.next();
             if (key.equals(entry.getKey())) {
@@ -106,7 +180,7 @@ public class NBHMRemoveTest {
     @Test
     public void entriesIteratorRemoveKeyAfterValChange() {
         installValue(map, key, v1);
-        Iterator<Map.Entry<Long,String>> iterator = map.entrySet().iterator();
+        Iterator<Map.Entry<Long, String>> iterator = map.entrySet().iterator();
         assertTrue(iterator.hasNext());
         Map.Entry<Long, String> entry = iterator.next();
         assertEquals(key, entry.getKey());
