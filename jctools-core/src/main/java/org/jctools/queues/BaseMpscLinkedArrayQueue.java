@@ -215,7 +215,7 @@ abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQueueColdP
         // Loading consumer before producer allows for producer increments after consumer index is read.
         // This ensures this method is conservative in it's estimate. Note that as this is an MPMC there is
         // nothing we can do to make this an exact method.
-        return (this.lvConsumerIndex() == this.lvProducerIndex());
+        return ((lvConsumerIndex() - lvProducerIndex()) / 2 == 0);
     }
 
     @Override
@@ -298,21 +298,19 @@ abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQueueColdP
         Object e = lvRefElement(buffer, offset);
         if (e == null)
         {
-            if (cIndex != lvProducerIndex())
-            {
-                // poll() == null iff queue is empty, null element is not strong enough indicator, so we must
-                // check the producer index. If the queue is indeed not empty we spin until element is
-                // visible.
-                do
-                {
-                    e = lvRefElement(buffer, offset);
-                }
-                while (e == null);
-            }
-            else
+            long pIndex = lvProducerIndex();
+            // isEmpty?
+            if ((cIndex - pIndex) / 2 == 0)
             {
                 return null;
             }
+            // poll() == null iff queue is empty, null element is not strong enough indicator, so we must
+            // spin until element is visible.
+            do
+            {
+                e = lvRefElement(buffer, offset);
+            }
+            while (e == null);
         }
 
         if (e == JUMP)
@@ -341,10 +339,16 @@ abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQueueColdP
 
         final long offset = modifiedCalcCircularRefElementOffset(cIndex, mask);
         Object e = lvRefElement(buffer, offset);
-        if (e == null && cIndex != lvProducerIndex())
+        if (e == null)
         {
+            long pIndex = lvProducerIndex();
+            // isEmpty?
+            if ((cIndex - pIndex) / 2 == 0)
+            {
+                return null;
+            }
             // peek() == null iff queue is empty, null element is not strong enough indicator, so we must
-            // check the producer index. If the queue is indeed not empty we spin until element is visible.
+            // spin until element is visible.
             do
             {
                 e = lvRefElement(buffer, offset);

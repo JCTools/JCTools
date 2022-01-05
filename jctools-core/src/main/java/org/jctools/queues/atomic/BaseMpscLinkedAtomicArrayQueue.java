@@ -324,7 +324,7 @@ abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAtomicArr
     @Override
     public boolean isEmpty() {
         // nothing we can do to make this an exact method.
-        return (this.lvConsumerIndex() == this.lvProducerIndex());
+        return ((lvConsumerIndex() - lvProducerIndex()) / 2 == 0);
     }
 
     @Override
@@ -386,28 +386,29 @@ abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAtomicArr
     @Override
     public E poll() {
         final AtomicReferenceArray<E> buffer = consumerBuffer;
-        final long index = lpConsumerIndex();
+        final long cIndex = lpConsumerIndex();
         final long mask = consumerMask;
-        final int offset = modifiedCalcCircularRefElementOffset(index, mask);
+        final int offset = modifiedCalcCircularRefElementOffset(cIndex, mask);
         Object e = lvRefElement(buffer, offset);
         if (e == null) {
-            if (index != lvProducerIndex()) {
-                // visible.
-                do {
-                    e = lvRefElement(buffer, offset);
-                } while (e == null);
-            } else {
+            long pIndex = lvProducerIndex();
+            // isEmpty?
+            if ((cIndex - pIndex) / 2 == 0) {
                 return null;
             }
+            // spin until element is visible.
+            do {
+                e = lvRefElement(buffer, offset);
+            } while (e == null);
         }
         if (e == JUMP) {
             final AtomicReferenceArray<E> nextBuffer = nextBuffer(buffer, mask);
-            return newBufferPoll(nextBuffer, index);
+            return newBufferPoll(nextBuffer, cIndex);
         }
         // release element null
         soRefElement(buffer, offset, null);
         // release cIndex
-        soConsumerIndex(index + 2);
+        soConsumerIndex(cIndex + 2);
         return (E) e;
     }
 
@@ -420,18 +421,23 @@ abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAtomicArr
     @Override
     public E peek() {
         final AtomicReferenceArray<E> buffer = consumerBuffer;
-        final long index = lpConsumerIndex();
+        final long cIndex = lpConsumerIndex();
         final long mask = consumerMask;
-        final int offset = modifiedCalcCircularRefElementOffset(index, mask);
+        final int offset = modifiedCalcCircularRefElementOffset(cIndex, mask);
         Object e = lvRefElement(buffer, offset);
-        if (e == null && index != lvProducerIndex()) {
-            // check the producer index. If the queue is indeed not empty we spin until element is visible.
+        if (e == null) {
+            long pIndex = lvProducerIndex();
+            // isEmpty?
+            if ((cIndex - pIndex) / 2 == 0) {
+                return null;
+            }
+            // spin until element is visible.
             do {
                 e = lvRefElement(buffer, offset);
             } while (e == null);
         }
         if (e == JUMP) {
-            return newBufferPeek(nextBuffer(buffer, mask), index);
+            return newBufferPeek(nextBuffer(buffer, mask), cIndex);
         }
         return (E) e;
     }
@@ -483,19 +489,19 @@ abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAtomicArr
         return modifiedCalcCircularRefElementOffset(mask + 2, Long.MAX_VALUE);
     }
 
-    private E newBufferPoll(AtomicReferenceArray<E> nextBuffer, long index) {
-        final int offset = modifiedCalcCircularRefElementOffset(index, consumerMask);
+    private E newBufferPoll(AtomicReferenceArray<E> nextBuffer, long cIndex) {
+        final int offset = modifiedCalcCircularRefElementOffset(cIndex, consumerMask);
         final E n = lvRefElement(nextBuffer, offset);
         if (n == null) {
             throw new IllegalStateException("new buffer must have at least one element");
         }
         soRefElement(nextBuffer, offset, null);
-        soConsumerIndex(index + 2);
+        soConsumerIndex(cIndex + 2);
         return n;
     }
 
-    private E newBufferPeek(AtomicReferenceArray<E> nextBuffer, long index) {
-        final int offset = modifiedCalcCircularRefElementOffset(index, consumerMask);
+    private E newBufferPeek(AtomicReferenceArray<E> nextBuffer, long cIndex) {
+        final int offset = modifiedCalcCircularRefElementOffset(cIndex, consumerMask);
         final E n = lvRefElement(nextBuffer, offset);
         if (null == n) {
             throw new IllegalStateException("new buffer must have at least one element");
@@ -525,19 +531,19 @@ abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAtomicArr
     @Override
     public E relaxedPoll() {
         final AtomicReferenceArray<E> buffer = consumerBuffer;
-        final long index = lpConsumerIndex();
+        final long cIndex = lpConsumerIndex();
         final long mask = consumerMask;
-        final int offset = modifiedCalcCircularRefElementOffset(index, mask);
+        final int offset = modifiedCalcCircularRefElementOffset(cIndex, mask);
         Object e = lvRefElement(buffer, offset);
         if (e == null) {
             return null;
         }
         if (e == JUMP) {
             final AtomicReferenceArray<E> nextBuffer = nextBuffer(buffer, mask);
-            return newBufferPoll(nextBuffer, index);
+            return newBufferPoll(nextBuffer, cIndex);
         }
         soRefElement(buffer, offset, null);
-        soConsumerIndex(index + 2);
+        soConsumerIndex(cIndex + 2);
         return (E) e;
     }
 
@@ -545,12 +551,12 @@ abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAtomicArr
     @Override
     public E relaxedPeek() {
         final AtomicReferenceArray<E> buffer = consumerBuffer;
-        final long index = lpConsumerIndex();
+        final long cIndex = lpConsumerIndex();
         final long mask = consumerMask;
-        final int offset = modifiedCalcCircularRefElementOffset(index, mask);
+        final int offset = modifiedCalcCircularRefElementOffset(cIndex, mask);
         Object e = lvRefElement(buffer, offset);
         if (e == JUMP) {
-            return newBufferPeek(nextBuffer(buffer, mask), index);
+            return newBufferPeek(nextBuffer(buffer, mask), cIndex);
         }
         return (E) e;
     }
