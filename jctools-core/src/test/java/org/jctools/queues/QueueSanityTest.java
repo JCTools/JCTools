@@ -241,8 +241,19 @@ public abstract class QueueSanityTest
     }
 
     @Test(timeout = TEST_TIMEOUT)
-    public void testHappensBefore() throws Exception
+    public void testHappensBeforePeek() throws Exception
     {
+        testHappensBefore0(true);
+
+    }
+    @Test(timeout = TEST_TIMEOUT)
+    public void testHappensBeforePoll() throws Exception
+    {
+        testHappensBefore0(false);
+
+    }
+
+    private void testHappensBefore0(boolean peek) throws InterruptedException {
         final AtomicBoolean stop = new AtomicBoolean();
         final Queue q = queue;
         final Val fail = new Val();
@@ -266,20 +277,27 @@ public abstract class QueueSanityTest
             {
                 for (int i = 0; i < 10; i++)
                 {
-                    Val v = (Val) q.peek();
+                    Val v = peek ? (Val) q.peek() : (Val) q.poll();
                     if (v != null && v.value == 0)
                     {
+                        // assert peek/poll visible values are never uninitialized
                         fail.value = 1;
                         stop.set(true);
+                        break;
                     }
-                    q.poll();
+                    else if (peek && v != null && v != q.poll())
+                    {
+                        // assert peek visible values are same as poll
+                        fail.value = 2;
+                        stop.set(true);
+                        break;
+                    }
                 }
             }
         }, 1, threads);
 
         startWaitJoin(stop, threads);
         assertEquals("reordering detected", 0, fail.value);
-
     }
 
     @Test(timeout = TEST_TIMEOUT)
