@@ -24,6 +24,7 @@ public class QueueSanityTestMpscChunked extends QueueSanityTestMpscArray
         ArrayList<Object[]> list = new ArrayList<Object[]>();
         list.add(makeQueue(0, 1, 4, Ordering.FIFO, new MpscChunkedArrayQueue<>(2, 4)));// MPSC size 1
         list.add(makeQueue(0, 1, SIZE, Ordering.FIFO, new MpscChunkedArrayQueue<>(8, SIZE)));// MPSC size SIZE
+        list.add(makeQueue(0, 1, 4096, Ordering.FIFO, new MpscChunkedArrayQueue<>(32, 4096)));// Netty recycler defaults
         return list;
     }
 }
