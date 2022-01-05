@@ -291,14 +291,14 @@ abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQueueColdP
     public E poll()
     {
         final E[] buffer = consumerBuffer;
-        final long index = lpConsumerIndex();
+        final long cIndex = lpConsumerIndex();
         final long mask = consumerMask;
 
-        final long offset = modifiedCalcCircularRefElementOffset(index, mask);
+        final long offset = modifiedCalcCircularRefElementOffset(cIndex, mask);
         Object e = lvRefElement(buffer, offset);
         if (e == null)
         {
-            if (index != lvProducerIndex())
+            if (cIndex != lvProducerIndex())
             {
                 // poll() == null iff queue is empty, null element is not strong enough indicator, so we must
                 // check the producer index. If the queue is indeed not empty we spin until element is
@@ -318,11 +318,11 @@ abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQueueColdP
         if (e == JUMP)
         {
             final E[] nextBuffer = nextBuffer(buffer, mask);
-            return newBufferPoll(nextBuffer, index);
+            return newBufferPoll(nextBuffer, cIndex);
         }
 
         soRefElement(buffer, offset, null); // release element null
-        soConsumerIndex(index + 2); // release cIndex
+        soConsumerIndex(cIndex + 2); // release cIndex
         return (E) e;
     }
 
@@ -336,12 +336,12 @@ abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQueueColdP
     public E peek()
     {
         final E[] buffer = consumerBuffer;
-        final long index = lpConsumerIndex();
+        final long cIndex = lpConsumerIndex();
         final long mask = consumerMask;
 
-        final long offset = modifiedCalcCircularRefElementOffset(index, mask);
+        final long offset = modifiedCalcCircularRefElementOffset(cIndex, mask);
         Object e = lvRefElement(buffer, offset);
-        if (e == null && index != lvProducerIndex())
+        if (e == null && cIndex != lvProducerIndex())
         {
             // peek() == null iff queue is empty, null element is not strong enough indicator, so we must
             // check the producer index. If the queue is indeed not empty we spin until element is visible.
@@ -353,7 +353,7 @@ abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQueueColdP
         }
         if (e == JUMP)
         {
-            return newBufferPeek(nextBuffer(buffer, mask), index);
+            return newBufferPeek(nextBuffer(buffer, mask), cIndex);
         }
         return (E) e;
     }
@@ -419,22 +419,22 @@ abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQueueColdP
         return modifiedCalcCircularRefElementOffset(mask + 2, Long.MAX_VALUE);
     }
 
-    private E newBufferPoll(E[] nextBuffer, long index)
+    private E newBufferPoll(E[] nextBuffer, long cIndex)
     {
-        final long offset = modifiedCalcCircularRefElementOffset(index, consumerMask);
+        final long offset = modifiedCalcCircularRefElementOffset(cIndex, consumerMask);
         final E n = lvRefElement(nextBuffer, offset);
         if (n == null)
         {
             throw new IllegalStateException("new buffer must have at least one element");
         }
         soRefElement(nextBuffer, offset, null);
-        soConsumerIndex(index + 2);
+        soConsumerIndex(cIndex + 2);
         return n;
     }
 
-    private E newBufferPeek(E[] nextBuffer, long index)
+    private E newBufferPeek(E[] nextBuffer, long cIndex)
     {
-        final long offset = modifiedCalcCircularRefElementOffset(index, consumerMask);
+        final long offset = modifiedCalcCircularRefElementOffset(cIndex, consumerMask);
         final E n = lvRefElement(nextBuffer, offset);
         if (null == n)
         {
@@ -469,10 +469,10 @@ abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQueueColdP
     public E relaxedPoll()
     {
         final E[] buffer = consumerBuffer;
-        final long index = lpConsumerIndex();
+        final long cIndex = lpConsumerIndex();
         final long mask = consumerMask;
 
-        final long offset = modifiedCalcCircularRefElementOffset(index, mask);
+        final long offset = modifiedCalcCircularRefElementOffset(cIndex, mask);
         Object e = lvRefElement(buffer, offset);
         if (e == null)
         {
@@ -481,10 +481,10 @@ abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQueueColdP
         if (e == JUMP)
         {
             final E[] nextBuffer = nextBuffer(buffer, mask);
-            return newBufferPoll(nextBuffer, index);
+            return newBufferPoll(nextBuffer, cIndex);
         }
         soRefElement(buffer, offset, null);
-        soConsumerIndex(index + 2);
+        soConsumerIndex(cIndex + 2);
         return (E) e;
     }
 
@@ -493,14 +493,14 @@ abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQueueColdP
     public E relaxedPeek()
     {
         final E[] buffer = consumerBuffer;
-        final long index = lpConsumerIndex();
+        final long cIndex = lpConsumerIndex();
         final long mask = consumerMask;
 
-        final long offset = modifiedCalcCircularRefElementOffset(index, mask);
+        final long offset = modifiedCalcCircularRefElementOffset(cIndex, mask);
         Object e = lvRefElement(buffer, offset);
         if (e == JUMP)
         {
-            return newBufferPeek(nextBuffer(buffer, mask), index);
+            return newBufferPeek(nextBuffer(buffer, mask), cIndex);
         }
         return (E) e;
     }
