@@ -20,7 +20,7 @@ import junit.framework.TestSuite;
  * @since 04/06/17
  */
 @SuppressWarnings("unchecked")
-public class NonBlockingHashMapTest extends TestCase
+public class NonBlockingHashMapGuavaTestSuite extends TestCase
 {
 
     public static Test suite() throws Exception
