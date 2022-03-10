@@ -174,7 +174,7 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtom
         cu.addImport(importDeclaration("org.jctools.queues.MessagePassingQueueUtil"));
         cu.addImport(importDeclaration("org.jctools.queues.QueueProgressIndicators"));
         cu.addImport(importDeclaration("org.jctools.queues.IndexedQueueSizeUtil"));
-        cu.addImport(staticImportDeclaration("org.jctools.queues.atomic.AtomicQueueUtil.*"));
+        cu.addImport(staticImportDeclaration("org.jctools.queues.atomic.AtomicQueueUtil"));
     }
 
     /**

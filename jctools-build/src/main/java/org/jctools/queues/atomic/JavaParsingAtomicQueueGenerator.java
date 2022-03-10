@@ -291,7 +291,7 @@ abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter<Void> 
     }
 
     protected ImportDeclaration importDeclaration(String name) {
-        return new ImportDeclaration(new Name(name), false, false);
+        return new ImportDeclaration(name, false, false);
     }
 
     /**
@@ -327,7 +327,7 @@ abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter<Void> 
     }
 
     ImportDeclaration staticImportDeclaration(String name) {
-        return new ImportDeclaration(new Name(name), true, false);
+        return new ImportDeclaration(name, true, true);
     }
 
 }
