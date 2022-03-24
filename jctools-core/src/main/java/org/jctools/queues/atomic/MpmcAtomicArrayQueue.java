@@ -71,6 +71,7 @@ abstract class MpmcAtomicArrayQueueL1Pad<E> extends SequencedAtomicReferenceArra
     // 120b
     byte b160, b161, b162, b163, b164, b165, b166, b167;
 
+    // byte b170,b171,b172,b173,b174,b175,b176,b177;//128b
     MpmcAtomicArrayQueueL1Pad(int capacity) {
         super(capacity);
     }

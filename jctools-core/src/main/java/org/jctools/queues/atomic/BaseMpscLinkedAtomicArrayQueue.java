@@ -323,6 +323,9 @@ abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAtomicArr
 
     @Override
     public boolean isEmpty() {
+        // Order matters!
+        // Loading consumer before producer allows for producer increments after consumer index is read.
+        // This ensures this method is conservative in it's estimate. Note that as this is an MPMC there is
         // nothing we can do to make this an exact method.
         return ((lvConsumerIndex() - lvProducerIndex()) / 2 == 0);
     }
@@ -351,6 +354,7 @@ abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAtomicArr
             // mask/buffer may get changed by resizing -> only use for array access after successful CAS.
             mask = this.producerMask;
             buffer = this.producerBuffer;
+            // a successful CAS ties the ordering, lv(pIndex) - [mask/buffer] -> cas(pIndex)
             // assumption behind this optimization is that queue is almost always empty or near empty
             if (producerLimit <= pIndex) {
                 int result = offerSlowPath(mask, pIndex, producerLimit);
@@ -396,6 +400,7 @@ abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAtomicArr
             if ((cIndex - pIndex) / 2 == 0) {
                 return null;
             }
+            // poll() == null iff queue is empty, null element is not strong enough indicator, so we must
             // spin until element is visible.
             do {
                 e = lvRefElement(buffer, offset);
@@ -431,6 +436,7 @@ abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAtomicArr
             if ((cIndex - pIndex) / 2 == 0) {
                 return null;
             }
+            // peek() == null iff queue is empty, null element is not strong enough indicator, so we must
             // spin until element is visible.
             do {
                 e = lvRefElement(buffer, offset);

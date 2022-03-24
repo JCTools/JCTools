@@ -79,6 +79,7 @@ public class SpscChunkedAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArrayQue
                 return false;
             }
         }
+        // if buffer limit is after queue limit we use queue limit. We need to handle overflow so
         // cannot use Math.min
         if (pBufferLimit - pQueueLimit > 0) {
             pBufferLimit = pQueueLimit;

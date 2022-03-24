@@ -70,6 +70,7 @@ abstract class MpscAtomicArrayQueueL1Pad<E> extends AtomicReferenceArrayQueue<E>
     // 120b
     byte b160, b161, b162, b163, b164, b165, b166, b167;
 
+    // byte b170,b171,b172,b173,b174,b175,b176,b177;//128b
     MpscAtomicArrayQueueL1Pad(int capacity) {
         super(capacity);
     }
@@ -234,6 +235,7 @@ abstract class MpscAtomicArrayQueueL2Pad<E> extends MpscAtomicArrayQueueProducer
     // 120b
     byte b160, b161, b162, b163, b164, b165, b166, b167;
 
+    // byte b170,b171,b172,b173,b174,b175,b176,b177;//128b
     MpscAtomicArrayQueueL2Pad(int capacity) {
         super(capacity);
     }

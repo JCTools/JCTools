@@ -354,9 +354,10 @@ public class SpmcAtomicArrayQueue<E> extends SpmcAtomicArrayQueueL3Pad<E> {
             if (size > mask) {
                 return false;
             } else {
+                // Bubble: This can happen because `poll` moves index before placing element.
                 // spin wait for slot to clear, buggers wait freedom
                 while (null != lvRefElement(buffer, offset)) {
-                // BURN
+                    // BURN
                 }
             }
         }
@@ -383,6 +384,7 @@ public class SpmcAtomicArrayQueue<E> extends SpmcAtomicArrayQueueL3Pad<E> {
                 }
             }
         } while (!casConsumerIndex(currentConsumerIndex, currentConsumerIndex + 1));
+        // consumers are gated on latest visible tail, and so can't see a null value in the queue or overtake
         // and wrap to hit same location.
         return removeElement(buffer, currentConsumerIndex, mask);
     }
