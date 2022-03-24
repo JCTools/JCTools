@@ -47,17 +47,19 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
-				<version>3.0.0-M3</version>
 				<configuration>
 					<includes>
 						<include>*</include>
 					</includes>
+					<argLine>
+						--add-opens java.base/jdk.internal.misc=ALL-UNNAMED
+						--add-exports java.base/jdk.internal.util=ALL-UNNAMED
+					</argLine>
 				</configuration>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.felix</groupId>
 				<artifactId>maven-bundle-plugin</artifactId>
-				<version>4.2.1</version>
 				<extensions>true</extensions>
 				<configuration>
 					<instructions>
@@ -68,7 +70,6 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-source-plugin</artifactId>
-				<version>3.2.0</version>
 				<executions>
 					<execution>
 						<id>attach-sources</id>
@@ -82,7 +83,6 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-javadoc-plugin</artifactId>
-				<version>3.1.1</version>
 				<configuration>
 					<additionalOptions>
 						<additionalOption>-Xdoclint:none</additionalOption>
@@ -101,7 +101,6 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
-				<version>3.2.0</version>
 				<executions>
 					<execution>
 						<goals>
@@ -120,7 +119,6 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
-                <version>1.6.0</version>
                 <dependencies>
                     <dependency>
                         <groupId>${project.groupId}</groupId>
@@ -185,12 +183,10 @@
 			<plugin>
 				<groupId>org.eluder.coveralls</groupId>
 				<artifactId>coveralls-maven-plugin</artifactId>
-				<version>4.3.0</version>
 			</plugin>
 			<plugin>
 				<groupId>org.jacoco</groupId>
 				<artifactId>jacoco-maven-plugin</artifactId>
-				<version>0.8.5</version>
 				<executions>
 					<execution>
 						<id>prepare-agent</id>
