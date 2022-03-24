@@ -51,10 +51,6 @@
 					<includes>
 						<include>*</include>
 					</includes>
-					<argLine>
-						--add-opens java.base/jdk.internal.misc=ALL-UNNAMED
-						--add-exports java.base/jdk.internal.util=ALL-UNNAMED
-					</argLine>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -205,4 +201,43 @@
 			</plugin>
         </plugins>
 	</build>
+	<profiles>
+		<profile>
+			<id>surefire-java8</id>
+			<activation>
+				<jdk>1.8</jdk>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-surefire-plugin</artifactId>
+						<configuration>
+							<argLine combine.self="override"></argLine>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+		<profile>
+			<id>surefire-java-post-modules</id>
+			<activation>
+				<jdk>[9,17)</jdk>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-surefire-plugin</artifactId>
+						<configuration>
+							<argLine>
+								--add-opens java.base/jdk.internal.misc=ALL-UNNAMED
+								--add-exports java.base/jdk.internal.util=ALL-UNNAMED
+							</argLine>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 </project>
