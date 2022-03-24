@@ -56,9 +56,9 @@ You can also depend on latest snapshot from this repository (live on the edge) b
 
 Build it from source
 ==========
-JCTools is maven built and requires an existing Maven installation and JDK8 (only for building, runtime is 1.6 compliant).
+JCTools is maven built and requires an existing Maven installation and JDK11 (only for building, runtime is 1.6 compliant).
 
-With 'MAVEN_HOME/bin' on the path and JDK8 set to your 'JAVA_HOME' you should be able to run "mvn install" from this
+With 'MAVEN_HOME/bin' on the path and JDK11 set to your 'JAVA_HOME' you should be able to run "mvn install" from this
 directory.
 
 
