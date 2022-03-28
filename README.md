@@ -1,6 +1,6 @@
 [![Total alerts](https://img.shields.io/lgtm/alerts/g/JCTools/JCTools.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/JCTools/JCTools/alerts/)
 [![Coverage Status](https://coveralls.io/repos/github/JCTools/JCTools/badge.svg?branch=master)](https://coveralls.io/github/JCTools/JCTools?branch=master)
-[![Build Status](https://travis-ci.org/JCTools/JCTools.svg?branch=master)](https://travis-ci.org/JCTools/JCTools)
+[![Build Status](https://app.travis-ci.com/JCTools/JCTools.svg?branch=master)](https://travis-ci.com/JCTools/JCTools)
 
 JCTools
 ==========
