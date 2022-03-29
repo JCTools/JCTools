@@ -1,6 +1,9 @@
+os:
+  - linux
 language: java
 jdk:
-  - openjdk8
+  - oraclejdk8
+  - oraclejdk11
 
 # whitelist
 branches:
