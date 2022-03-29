@@ -201,4 +201,33 @@
 			</plugin>
         </plugins>
 	</build>
+	<profiles>
+		<profile>
+			<id>surefire-java17-and-over</id>
+			<activation>
+				<jdk>[17,)</jdk>
+			</activation>
+			<properties>
+				<!-- Releases are still done from a JDK8, but this makes life easier-->
+				<java.version>1.8</java.version>
+			</properties>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-surefire-plugin</artifactId>
+						<configuration>
+							<argLine>
+								--add-opens java.base/jdk.internal.misc=ALL-UNNAMED
+								--add-exports java.base/jdk.internal.util=ALL-UNNAMED
+							</argLine>
+							<excludes>
+								<exclude>org.jctools.maps.linearizability_test.**</exclude>
+							</excludes>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 </project>
