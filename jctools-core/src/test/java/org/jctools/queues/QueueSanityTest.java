@@ -536,7 +536,7 @@ public abstract class QueueSanityTest
             int pId = pThreadId.getAndIncrement() << 24;
 
             int i = 0;
-            while (!stop.get())
+            while (!stop.get() && i < Integer.MAX_VALUE >>> 8)
             {
                 // clear the top 8 bits
                 int nextVal = (i << 8) >>> 8;
@@ -591,7 +591,7 @@ public abstract class QueueSanityTest
             int pId = pThreadId.getAndIncrement() << 24;
 
             int i = 0;
-            while (!stop.get())
+            while (!stop.get() && i < Integer.MAX_VALUE >>> 8)
             {
                 // clear the top 8 bits
                 int nextVal = (i << 8) >>> 8;
@@ -618,7 +618,7 @@ public abstract class QueueSanityTest
             Integer[] lastPeekedSequence = new Integer[producers];
             while (!stop.get())
             {
-                final Integer peekedSequenceAndTid = q.poll();
+                final Integer peekedSequenceAndTid = q.peek();
                 if (peekedSequenceAndTid == null)
                 {
                     continue;
