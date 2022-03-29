@@ -1,5 +1,6 @@
 package org.jctools.queues;
 
+import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
 import org.jctools.queues.atomic.AtomicQueueFactory;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
@@ -12,10 +13,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.LockSupport;
 
 import static org.hamcrest.Matchers.is;
 import static org.jctools.util.TestUtil.*;
-import static org.jctools.util.TestUtil.threads;
 import static org.junit.Assert.*;
 import static org.junit.Assume.assumeThat;
 
@@ -57,13 +58,13 @@ public abstract class MpqSanityTest
         }
         return new Object[] {spec, q};
     }
+
     @After
     public void clear() throws InterruptedException
     {
         queue.clear();
         assertTrue(queue.isEmpty());
         assertTrue(queue.size() == 0);
-
     }
 
     @Test(expected = NullPointerException.class)
@@ -571,7 +572,10 @@ public abstract class MpqSanityTest
             q.fill(() ->
             {
                 Val v = new Val();
-                v.value = 1 + (counter.value++ % 10);
+                int c = counter.value++ % 10;
+                v.value = 1 + c;
+                if (c == 0)
+                    Thread.yield();
                 return v;
             }, e ->
             {
@@ -812,15 +816,20 @@ public abstract class MpqSanityTest
         final AtomicBoolean stop = new AtomicBoolean();
         final MessagePassingQueue<Integer> q = queue;
         final Val fail = new Val();
+        boolean slowSize = !spec.isBounded() && !(queue instanceof IndexedQueue);
 
         testIsEmptyInvariant(stop, q, fail, () -> {
             while (!stop.get())
             {
                 // can the consumer progress "passed" the producer and confuse `size`?
                 q.poll();
-                if (q.size() != 0 && q.poll() == null)
+                int size = q.size();
+                if (size != 0 && q.poll() == null)
                 {
                     fail.value++;
+                }
+                if (slowSize) {
+                    q.clear();
                 }
             }
         });
@@ -841,9 +850,9 @@ public abstract class MpqSanityTest
         testIsEmptyInvariant(stop, fail, consumerLoop, () -> {
             while (!stop.get())
             {
-                q.fill(() -> 1);
+                int items = q.fill(() -> 1);
                 // slow down the producer, this will make the queue mostly empty encouraging visibility issues.
-                Thread.yield();
+                LockSupport.parkNanos(items);
             }
         });
 
@@ -867,9 +876,9 @@ public abstract class MpqSanityTest
         testIsEmptyInvariant(stop, fail, consumerLoop, () -> {
             while (!stop.get())
             {
-                q.fill(() -> 1, 1);
+                int items = q.fill(() -> 1, limit);
                 // slow down the producer, this will make the queue mostly empty encouraging visibility issues.
-                Thread.yield();
+                LockSupport.parkNanos(items);
             }
         });
 
@@ -885,9 +894,10 @@ public abstract class MpqSanityTest
         List<Thread> threads = new ArrayList<>();
         threads(producerLoop, spec.producers, threads);
         threads(consumerLoop, 1, threads);
-        startWaitJoin(stop, threads);
+        startWaitJoin(stop, threads, 4);
 
         assertEquals("Observed no element in non-empty queue", 0, fail.value);
+        clear();
     }
 
     @Test(timeout = TEST_TIMEOUT)

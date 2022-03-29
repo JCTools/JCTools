@@ -99,7 +99,6 @@ public class MpscLinkedQueue<E> extends BaseLinkedQueue<E>
                 {
                     // We are removing an interior node.
                     prevConsumerNode.soNext(nextNode);
-
                 }
                 // This case reflects: prevConsumerNode != originalConsumerNode && nextNode == null
                 // At rest, this would be the producerNode, but we must contend with racing. Changes to subclassed
