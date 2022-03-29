@@ -44,8 +44,10 @@ public class MpqSanityTestMpmcUnboundedXadd extends MpqSanityTest
         MpmcUnboundedXaddArrayQueue<Long> xaddQueue = (MpmcUnboundedXaddArrayQueue) this.queue;
         Assume.assumeTrue("The queue need to pool some chunk to run this test", xaddQueue.maxPooledChunks() > 0);
         CountDownLatch stop = new CountDownLatch(1);
-        new Producer(xaddQueue, stop).start();
-        new Consumer(xaddQueue, stop).start();
+        Producer producer = new Producer(xaddQueue, stop);
+        producer.start();
+        Consumer consumer = new Consumer(xaddQueue, stop);
+        consumer.start();
         Peeker peeker = new Peeker(xaddQueue, stop, false);
         peeker.start();
         try
@@ -61,6 +63,9 @@ public class MpqSanityTestMpmcUnboundedXadd extends MpqSanityTest
         {
             Assert.fail(error);
         }
+        producer.join();
+        consumer.join();
+        peeker.join();
     }
 
     @Test
@@ -69,8 +74,10 @@ public class MpqSanityTestMpmcUnboundedXadd extends MpqSanityTest
         MpmcUnboundedXaddArrayQueue<Long> xaddQueue = (MpmcUnboundedXaddArrayQueue) this.queue;
         Assume.assumeTrue("The queue need to pool some chunk to run this test", xaddQueue.maxPooledChunks() > 0);
         CountDownLatch stop = new CountDownLatch(1);
-        new Producer(xaddQueue, stop).start();
-        new Consumer(xaddQueue, stop).start();
+        Producer producer = new Producer(xaddQueue, stop);
+        producer.start();
+        Consumer consumer = new Consumer(xaddQueue, stop);
+        consumer.start();
         Peeker peeker = new Peeker(xaddQueue, stop, true);
         peeker.start();
         try
@@ -86,11 +93,13 @@ public class MpqSanityTestMpmcUnboundedXadd extends MpqSanityTest
         {
             Assert.fail(error);
         }
+        producer.join();
+        consumer.join();
+        peeker.join();
     }
 
     private static class Producer extends Thread
     {
-
         final CountDownLatch stop;
         final MpUnboundedXaddArrayQueue<?, Long> messageQueue;
         long sequence = 0;
