@@ -13,22 +13,25 @@
  */
 package org.jctools.queues;
 
+import org.jctools.util.InternalAPI;
+
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeAccess.fieldOffset;
 
-final class LinkedQueueNode<E>
+@InternalAPI
+public final class LinkedQueueNode<E>
 {
     private final static long NEXT_OFFSET = fieldOffset(LinkedQueueNode.class,"next");
 
     private E value;
     private volatile LinkedQueueNode<E> next;
 
-    LinkedQueueNode()
+    public LinkedQueueNode()
     {
         this(null);
     }
 
-    LinkedQueueNode(E val)
+    public LinkedQueueNode(E val)
     {
         spValue(val);
     }

@@ -15,7 +15,7 @@ package org.jctools.queues;
 
 import static org.jctools.util.UnsafeLongArrayAccess.*;
 
-abstract class ConcurrentSequencedCircularArrayQueue<E> extends ConcurrentCircularArrayQueue<E>
+public abstract class ConcurrentSequencedCircularArrayQueue<E> extends ConcurrentCircularArrayQueue<E>
 {
     protected final long[] sequenceBuffer;
 

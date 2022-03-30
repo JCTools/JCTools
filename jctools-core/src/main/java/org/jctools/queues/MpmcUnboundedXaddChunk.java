@@ -20,11 +20,11 @@ import java.util.Arrays;
 import static org.jctools.util.UnsafeLongArrayAccess.*;
 
 @InternalAPI
-final class MpmcUnboundedXaddChunk<E> extends MpUnboundedXaddChunk<MpmcUnboundedXaddChunk<E>, E>
+public final class MpmcUnboundedXaddChunk<E> extends MpUnboundedXaddChunk<MpmcUnboundedXaddChunk<E>, E>
 {
     private final long[] sequence;
 
-    MpmcUnboundedXaddChunk(long index, MpmcUnboundedXaddChunk<E> prev, int size, boolean pooled)
+    public MpmcUnboundedXaddChunk(long index, MpmcUnboundedXaddChunk<E> prev, int size, boolean pooled)
     {
         super(index, prev, size, pooled);
         if (pooled)
@@ -38,19 +38,19 @@ final class MpmcUnboundedXaddChunk<E> extends MpUnboundedXaddChunk<MpmcUnbounded
         }
     }
 
-    void soSequence(int index, long e)
+    public void soSequence(int index, long e)
     {
         assert isPooled();
         soLongElement(sequence, calcLongElementOffset(index), e);
     }
 
-    long lvSequence(int index)
+    public long lvSequence(int index)
     {
         assert isPooled();
         return lvLongElement(sequence, calcLongElementOffset(index));
     }
 
-    void spinForSequence(int index, long e)
+    public void spinForSequence(int index, long e)
     {
         assert isPooled();
         final long[] sequence = this.sequence;

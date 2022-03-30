@@ -9,9 +9,9 @@ import static org.jctools.util.UnsafeRefArrayAccess.REF_ELEMENT_SHIFT;
  * This is used for method substitution in the LinkedArray classes code generation.
  */
 @InternalAPI
-final class LinkedArrayQueueUtil
+public final class LinkedArrayQueueUtil
 {
-    static int length(Object[] buf)
+    public static int length(Object[] buf)
     {
         return buf.length;
     }
@@ -21,12 +21,12 @@ final class LinkedArrayQueueUtil
      * used for resize. This is compensated for by reducing the element shift.
      * The computation is constant folded, so there's no cost.
      */
-    static long modifiedCalcCircularRefElementOffset(long index, long mask)
+    public static long modifiedCalcCircularRefElementOffset(long index, long mask)
     {
         return REF_ARRAY_BASE + ((index & mask) << (REF_ELEMENT_SHIFT - 1));
     }
 
-    static long nextArrayOffset(Object[] curr)
+    public static long nextArrayOffset(Object[] curr)
     {
         return REF_ARRAY_BASE + ((long) (length(curr) - 1) << REF_ELEMENT_SHIFT);
     }

@@ -16,9 +16,9 @@ package org.jctools.queues;
 import org.jctools.util.InternalAPI;
 
 @InternalAPI
-final class MpscUnboundedXaddChunk<E> extends MpUnboundedXaddChunk<MpscUnboundedXaddChunk<E>, E>
+public final class MpscUnboundedXaddChunk<E> extends MpUnboundedXaddChunk<MpscUnboundedXaddChunk<E>, E>
 {
-    MpscUnboundedXaddChunk(long index, MpscUnboundedXaddChunk<E> prev, int size, boolean pooled)
+    public MpscUnboundedXaddChunk(long index, MpscUnboundedXaddChunk<E> prev, int size, boolean pooled)
     {
         super(index, prev, size, pooled);
 

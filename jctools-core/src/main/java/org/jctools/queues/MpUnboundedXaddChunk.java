@@ -7,9 +7,9 @@ import static org.jctools.util.UnsafeAccess.fieldOffset;
 import static org.jctools.util.UnsafeRefArrayAccess.*;
 
 @InternalAPI
-class MpUnboundedXaddChunk<R,E>
+public class MpUnboundedXaddChunk<R,E>
 {
-    final static int NOT_USED = -1;
+    public final static int NOT_USED = -1;
 
     private static final long PREV_OFFSET = fieldOffset(MpUnboundedXaddChunk.class, "prev");
     private static final long NEXT_OFFSET = fieldOffset(MpUnboundedXaddChunk.class, "next");
@@ -21,7 +21,7 @@ class MpUnboundedXaddChunk<R,E>
     private volatile R prev;
     private volatile long index;
     private volatile R next;
-    MpUnboundedXaddChunk(long index, R prev, int size, boolean pooled)
+    protected MpUnboundedXaddChunk(long index, R prev, int size, boolean pooled)
     {
         buffer = allocateRefArray(size);
         // next is null
@@ -30,17 +30,17 @@ class MpUnboundedXaddChunk<R,E>
         this.pooled = pooled;
     }
 
-    final boolean isPooled()
+    public final boolean isPooled()
     {
         return pooled;
     }
 
-    final long lvIndex()
+    public final long lvIndex()
     {
         return index;
     }
 
-    final void soIndex(long index)
+    public final void soIndex(long index)
     {
         UNSAFE.putOrderedLong(this, INDEX_OFFSET, index);
     }
@@ -50,37 +50,37 @@ class MpUnboundedXaddChunk<R,E>
         UNSAFE.putLong(this, INDEX_OFFSET, index);
     }
 
-    final R lvNext()
+    public final R lvNext()
     {
         return next;
     }
 
-    final void soNext(R value)
+    public final void soNext(R value)
     {
         UNSAFE.putOrderedObject(this, NEXT_OFFSET, value);
     }
 
-    final R lvPrev()
+    public final R lvPrev()
     {
         return prev;
     }
 
-    final void soPrev(R value)
+    public final void soPrev(R value)
     {
         UNSAFE.putObject(this, PREV_OFFSET, value);
     }
 
-    final void soElement(int index, E e)
+    public final void soElement(int index, E e)
     {
         soRefElement(buffer, calcRefElementOffset(index), e);
     }
 
-    final E lvElement(int index)
+    public final E lvElement(int index)
     {
         return lvRefElement(buffer, calcRefElementOffset(index));
     }
 
-    final E spinForElement(int index, boolean isNull)
+    public final E spinForElement(int index, boolean isNull)
     {
         E[] buffer = this.buffer;
         long offset = calcRefElementOffset(index);
