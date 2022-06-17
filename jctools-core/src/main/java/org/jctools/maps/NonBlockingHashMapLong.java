@@ -1267,7 +1267,7 @@ public class NonBlockingHashMapLong<TypeV>
   }
 
   // --- readObject --------------------------------------------------------
-  // Read a CHM from a stream
+  // Read a NBHML from a stream
   @SuppressWarnings("unchecked")
   private void readObject(java.io.ObjectInputStream s) throws IOException, ClassNotFoundException  {
     s.defaultReadObject();      // Read nothing

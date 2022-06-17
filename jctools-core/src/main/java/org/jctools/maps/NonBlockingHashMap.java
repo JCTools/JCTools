@@ -1449,7 +1449,7 @@ public class NonBlockingHashMap<TypeK, TypeV>
   }
 
   // --- readObject --------------------------------------------------------
-  // Read a CHM from a stream
+  // Read a NBHM from a stream
   private void readObject(java.io.ObjectInputStream s) throws IOException, ClassNotFoundException {
     s.defaultReadObject();      // Read nothing
     initialize(MIN_SIZE);

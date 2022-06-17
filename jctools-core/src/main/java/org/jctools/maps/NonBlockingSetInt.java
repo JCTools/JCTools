@@ -191,7 +191,7 @@ public class NonBlockingSetInt extends AbstractSet<Integer> implements Serializa
   }
 
   // --- readObject --------------------------------------------------------
-  // Read a CHM from a stream
+  // Read a NBSI from a stream
   private void readObject(java.io.ObjectInputStream s) throws IOException, ClassNotFoundException  {
     s.defaultReadObject();      // Read nothing
     final int len = s.readInt(); // Read max element
