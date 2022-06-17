@@ -1279,7 +1279,7 @@ public class NonBlockingIdentityHashMap<TypeK, TypeV>
   }
 
   // --- writeObject -------------------------------------------------------
-  // Write a NBHM to a stream
+  // Write a NBIHM to a stream
   private void writeObject(java.io.ObjectOutputStream s) throws IOException  {
     s.defaultWriteObject();     // Nothing to write
     for( Object K : keySet() ) {
@@ -1292,7 +1292,7 @@ public class NonBlockingIdentityHashMap<TypeK, TypeV>
   }
 
   // --- readObject --------------------------------------------------------
-  // Read a CHM from a stream
+  // Read a NBIHM from a stream
   private void readObject(java.io.ObjectInputStream s) throws IOException, ClassNotFoundException {
     s.defaultReadObject();      // Read nothing
     initialize(MIN_SIZE);
