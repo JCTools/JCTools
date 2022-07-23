@@ -755,7 +755,7 @@ abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAtomicArr
     }
 
     private void resize(long oldMask, AtomicReferenceArray<E> oldBuffer, long pIndex, E e, Supplier<E> s) {
-        assert (e != null && s == null) || (e == null || s != null);
+        assert (e != null && s == null) || (e == null && s != null);
         int newBufferLength = getNextBufferSize(oldBuffer);
         final AtomicReferenceArray<E> newBuffer;
         try {
@@ -771,7 +771,7 @@ abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAtomicArr
         final int offsetInOld = modifiedCalcCircularRefElementOffset(pIndex, oldMask);
         final int offsetInNew = modifiedCalcCircularRefElementOffset(pIndex, newMask);
         // element in new array
-        soRefElement(newBuffer, offsetInNew, e == null ? s.get() : e);
+        soRefElement(newBuffer, offsetInNew, s != null ? s.get() : e);
         // buffer linked
         soRefElement(oldBuffer, nextArrayOffset(oldMask), newBuffer);
         // ASSERT code

@@ -727,7 +727,7 @@ abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQueueColdP
 
     private void resize(long oldMask, E[] oldBuffer, long pIndex, E e, Supplier<E> s)
     {
-        assert (e != null && s == null) || (e == null || s != null);
+        assert (e != null && s == null) || (e == null && s != null);
         int newBufferLength = getNextBufferSize(oldBuffer);
         final E[] newBuffer;
         try
@@ -748,7 +748,7 @@ abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQueueColdP
         final long offsetInOld = modifiedCalcCircularRefElementOffset(pIndex, oldMask);
         final long offsetInNew = modifiedCalcCircularRefElementOffset(pIndex, newMask);
 
-        soRefElement(newBuffer, offsetInNew, e == null ? s.get() : e);// element in new array
+        soRefElement(newBuffer, offsetInNew, s != null ? s.get() : e);// element in new array
         soRefElement(oldBuffer, nextArrayOffset(oldMask), newBuffer);// buffer linked
 
         // ASSERT code
