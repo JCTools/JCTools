@@ -1,26 +1,10 @@
 package org.jctools.queues.atomic;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import com.github.javaparser.ast.CompilationUnit;
-import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.Modifier.Keyword;
-import com.github.javaparser.ast.NodeList;
-import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
-import com.github.javaparser.ast.body.ConstructorDeclaration;
-import com.github.javaparser.ast.body.FieldDeclaration;
-import com.github.javaparser.ast.body.MethodDeclaration;
-import com.github.javaparser.ast.body.VariableDeclarator;
+import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.comments.JavadocComment;
-import com.github.javaparser.ast.expr.CastExpr;
-import com.github.javaparser.ast.expr.ClassExpr;
-import com.github.javaparser.ast.expr.MethodCallExpr;
-import com.github.javaparser.ast.expr.NameExpr;
-import com.github.javaparser.ast.expr.ObjectCreationExpr;
-import com.github.javaparser.ast.expr.StringLiteralExpr;
-import com.github.javaparser.ast.expr.ThisExpr;
+import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.nodeTypes.NodeWithType;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.ReturnStmt;
@@ -51,8 +35,12 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtom
     public void visit(ConstructorDeclaration n, Void arg) {
         super.visit(n, arg);
         // Update the ctor to match the class name
-        n.setName(translateQueueName(n.getNameAsString()));
-        if (MPSC_LINKED_ATOMIC_QUEUE_NAME.equals(n.getNameAsString())) {
+        String nameAsString = n.getNameAsString();
+        // Ignore internal class WeakIterator which we don't need to rename
+        if (nameAsString.equals("WeakIterator"))
+            return;
+        n.setName(translateQueueName(nameAsString));
+        if (MPSC_LINKED_ATOMIC_QUEUE_NAME.equals(nameAsString)) {
             // Special case for MPSC because the Unsafe variant has a static factory method and a protected constructor.
             n.setModifier(Keyword.PROTECTED, false);
             n.setModifier(Keyword.PUBLIC, true);
@@ -65,8 +53,10 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtom
 
         replaceParentClassesForAtomics(node);
 
-        node.setName(translateQueueName(node.getNameAsString()));
-        if (MPSC_LINKED_ATOMIC_QUEUE_NAME.equals(node.getNameAsString())) {
+        String nameAsString = node.getNameAsString();
+        if (nameAsString.contains("Queue"))
+            node.setName(translateQueueName(nameAsString));
+        if (MPSC_LINKED_ATOMIC_QUEUE_NAME.equals(nameAsString)) {
             /*
              * Special case for MPSC
              */
@@ -105,29 +95,16 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtom
     public void visit(MethodDeclaration n, Void arg) {
         super.visit(n, arg);
         // Replace the return type of a method with altered types
-        processSpecialNodeTypes(n);
+        processSpecialNodeTypes(n, n.getNameAsString());
     }
 
     @Override
     public void visit(ObjectCreationExpr n, Void arg) {
         super.visit(n, arg);
-        processSpecialNodeTypes(n);
-    }
-
-    String translateQueueName(String originalQueueName) {
-        if (originalQueueName.length() < 5) {
-            return originalQueueName;
+        Type type = n.getType();
+        if (isRefType(type, "LinkedQueueNode")) {
+            n.setType(simpleParametricType("LinkedQueueAtomicNode", "E"));
         }
-
-        if (originalQueueName.contains("LinkedQueue") || originalQueueName.contains("LinkedArrayQueue")) {
-            return originalQueueName.replace("Linked", "LinkedAtomic");
-        }
-
-        if (originalQueueName.contains("ArrayQueue")) {
-            return originalQueueName.replace("ArrayQueue", "AtomicArrayQueue");
-        }
-
-        return originalQueueName;
     }
 
     String fieldUpdaterFieldName(String fieldName) {
@@ -145,36 +122,6 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtom
         default:
             throw new IllegalArgumentException("Unhandled field: " + fieldName);
         }
-    }
-
-    void organiseImports(CompilationUnit cu) {
-        List<ImportDeclaration> importDecls = new ArrayList<>();
-        for (ImportDeclaration importDeclaration : cu.getImports()) {
-            String name = importDeclaration.getNameAsString();
-            if (name.startsWith("org.jctools.util.Unsafe")) {
-                continue;
-            }
-
-            if (name.startsWith("org.jctools.queues.LinkedArrayQueueUtil")) {
-                continue;
-            }
-
-            importDecls.add(importDeclaration);
-        }
-        cu.getImports().clear();
-        for (ImportDeclaration importDecl : importDecls) {
-            cu.addImport(importDecl);
-        }
-        cu.addImport(importDeclaration("java.util.concurrent.atomic.AtomicReferenceFieldUpdater"));
-        cu.addImport(importDeclaration("java.util.concurrent.atomic.AtomicLongFieldUpdater"));
-        cu.addImport(importDeclaration("java.util.concurrent.atomic.AtomicReferenceArray"));
-
-        cu.addImport(importDeclaration("org.jctools.queues.MessagePassingQueue"));
-        cu.addImport(importDeclaration("org.jctools.queues.MessagePassingQueue.Supplier"));
-        cu.addImport(importDeclaration("org.jctools.queues.MessagePassingQueueUtil"));
-        cu.addImport(importDeclaration("org.jctools.queues.QueueProgressIndicators"));
-        cu.addImport(importDeclaration("org.jctools.queues.IndexedQueueSizeUtil"));
-        cu.addImport(staticImportDeclaration("org.jctools.queues.atomic.AtomicQueueUtil"));
     }
 
     /**
@@ -202,28 +149,6 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtom
     }
 
     /**
-     * Searches all extended or implemented super classes or interfaces for
-     * special classes that differ with the atomics version and replaces them
-     * with the appropriate class.
-     */
-    private void replaceParentClassesForAtomics(ClassOrInterfaceDeclaration n) {
-        replaceParentClassesForAtomics(n.getExtendedTypes());
-        replaceParentClassesForAtomics(n.getImplementedTypes());
-    }
-
-    private void replaceParentClassesForAtomics(NodeList<ClassOrInterfaceType> types) {
-        for (ClassOrInterfaceType parent : types) {
-            if ("BaseLinkedQueue".equals(parent.getNameAsString())) {
-                parent.setName("BaseLinkedAtomicQueue");
-            } else {
-                // Padded super classes are to be renamed and thus so does the
-                // class we must extend.
-                parent.setName(translateQueueName(parent.getNameAsString()));
-            }
-        }
-    }
-
-    /**
      * For each method accessor to a field, add in the calls necessary to
      * AtomicFieldUpdaters. Only methods start with so/cas/sv/lv/lp/sp/xchg
      * followed by the field name are processed. Clearly <code>lv<code>,
@@ -244,39 +169,10 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtom
             boolean usesFieldUpdater = false;
             for (VariableDeclarator variable : field.getVariables()) {
                 String variableName = variable.getNameAsString();
-
                 String methodNameSuffix = capitalise(variableName);
 
                 for (MethodDeclaration method : n.getMethods()) {
-                    String methodName = method.getNameAsString();
-                    if (!methodName.endsWith(methodNameSuffix)) {
-                        // Leave it untouched
-                        continue;
-                    }
-
-                    String newValueName = "newValue";
-                    if (methodName.startsWith("so") || methodName.startsWith("sp")) {
-                        /*
-                         * In the case of 'sp' use lazySet as the weakest
-                         * ordering allowed by field updaters
-                         */
-                        usesFieldUpdater = true;
-                        String fieldUpdaterFieldName = fieldUpdaterFieldName(variableName);
-
-                        method.setBody(fieldUpdaterLazySet(fieldUpdaterFieldName, newValueName));
-                    } else if (methodName.startsWith("cas")) {
-                        usesFieldUpdater = true;
-                        String fieldUpdaterFieldName = fieldUpdaterFieldName(variableName);
-                        String expectedValueName = "expect";
-                        method.setBody(
-                                fieldUpdaterCompareAndSet(fieldUpdaterFieldName, expectedValueName, newValueName));
-                    } else if (methodName.startsWith("sv")) {
-                        method.setBody(fieldAssignment(variableName, newValueName));
-                    } else if (methodName.startsWith("lv") || methodName.startsWith("lp")) {
-                        method.setBody(returnField(variableName));
-                    } else {
-                        throw new IllegalStateException("Unhandled method: " + methodName);
-                    }
+                    usesFieldUpdater |= patchAtomicFieldUpdaterAccessorMethod(variableName, method, methodNameSuffix);
                 }
 
                 if ("producerNode".equals(variableName)) {
@@ -307,10 +203,6 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtom
     /**
      * Generates something like
      * <code>return P_INDEX_UPDATER.getAndSet(this, newValue)</code>
-     *
-     * @param fieldUpdaterFieldName
-     * @param newValueName
-     * @return
      */
     private BlockStmt fieldUpdaterGetAndSet(String fieldUpdaterFieldName, String newValueName) {
         BlockStmt body = new BlockStmt();
@@ -322,19 +214,14 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtom
     /**
      * Generates something like
      * <code>private static final AtomicReferenceFieldUpdater<MpmcAtomicArrayQueueProducerNodeField> P_NODE_UPDATER = AtomicReferenceFieldUpdater.newUpdater(MpmcAtomicArrayQueueProducerNodeField.class, "producerNode");</code>
-     *
-     * @param className
-     * @param variableName
-     * @return
      */
     private FieldDeclaration declareRefFieldUpdater(String className, String variableName) {
         MethodCallExpr initializer = newAtomicRefFieldUpdater(className, variableName);
 
         ClassOrInterfaceType type = simpleParametricType("AtomicReferenceFieldUpdater", className,
                 "LinkedQueueAtomicNode");
-        FieldDeclaration newField = fieldDeclarationWithInitialiser(type, fieldUpdaterFieldName(variableName),
+        return fieldDeclarationWithInitialiser(type, fieldUpdaterFieldName(variableName),
                 initializer, Keyword.PRIVATE, Keyword.STATIC, Keyword.FINAL);
-        return newField;
     }
 
     private MethodCallExpr newAtomicRefFieldUpdater(String className, String variableName) {
@@ -346,19 +233,6 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtom
         ClassOrInterfaceType out = new ClassOrInterfaceType(null, "AtomicReferenceArray");
         out.setTypeArguments(in.getComponentType());
         return out;
-    }
-
-    private void processSpecialNodeTypes(MethodDeclaration node) {
-        processSpecialNodeTypes(node, node.getNameAsString());
-    }
-
-    private void processSpecialNodeTypes(ObjectCreationExpr node) {
-        Type type = node.getType();
-        if (isRefType(type, "LinkedQueueNode")) {
-            node.setType(simpleParametricType("LinkedQueueAtomicNode", "E"));
-        } else if (isRefArray(type, "E")) {
-            node.setType(atomicRefArrayType((ArrayType) type));
-        }
     }
 
 }

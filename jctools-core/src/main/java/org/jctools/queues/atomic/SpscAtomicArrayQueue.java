@@ -13,10 +13,9 @@
  */
 package org.jctools.queues.atomic;
 
-import java.util.concurrent.atomic.AtomicLongFieldUpdater;
-import java.util.concurrent.atomic.AtomicReferenceArray;
-import java.util.concurrent.atomic.AtomicLongArray;
-import org.jctools.queues.MessagePassingQueueUtil;
+import org.jctools.util.SpscLookAheadUtil;
+import java.util.concurrent.atomic.*;
+import org.jctools.queues.*;
 import static org.jctools.queues.atomic.AtomicQueueUtil.*;
 
 /**
@@ -25,13 +24,12 @@ import static org.jctools.queues.atomic.AtomicQueueUtil.*;
  */
 abstract class SpscAtomicArrayQueueColdField<E> extends AtomicReferenceArrayQueue<E> {
 
-    public static final int MAX_LOOK_AHEAD_STEP = Integer.getInteger("jctools.spsc.max.lookahead.step", 4096);
-
     final int lookAheadStep;
 
     SpscAtomicArrayQueueColdField(int capacity) {
         super(capacity);
-        lookAheadStep = Math.min(capacity() / 4, MAX_LOOK_AHEAD_STEP);
+        int actualCapacity = capacity();
+        lookAheadStep = SpscLookAheadUtil.computeLookAheadStep(actualCapacity);
     }
 }
 
