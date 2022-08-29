@@ -14,18 +14,14 @@
 package org.jctools.queues.intrusive;
 
 import org.jctools.queues.QueueFactory;
-import org.jctools.queues.atomic.AtomicQueueFactory;
+import org.jctools.queues.AtomicQueueFactory;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
 import org.jctools.queues.spec.Preference;
 import org.jctools.util.Pow2;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
-import java.util.Collection;
-import java.util.Collections;
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicBoolean;
 

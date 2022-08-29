@@ -11,8 +11,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jctools.queues.atomic;
+package org.jctools.queues;
 
+import org.jctools.queues.atomic.*;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 
 import java.util.Queue;
@@ -26,9 +27,9 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * @author nitsanw
  * @author akarnokd
  */
+@Deprecated//(since = "4.0.0")
 public class AtomicQueueFactory
 {
-
     public static <E> Queue<E> newQueue(ConcurrentQueueSpec qs)
     {
         if (qs.isBounded())

@@ -1,7 +1,6 @@
 package org.jctools.queues;
 
 import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
-import org.jctools.queues.atomic.AtomicQueueFactory;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
 import org.jctools.queues.spec.Preference;
@@ -39,8 +38,7 @@ public abstract class MpqSanityTest
 
     public static Object[] makeMpq(int producers, int consumers, int capacity, Ordering ordering, Queue<Integer> q)
     {
-        ConcurrentQueueSpec spec = new ConcurrentQueueSpec(producers, consumers, capacity, ordering,
-            Preference.NONE);
+        ConcurrentQueueSpec spec = makeSpec(producers, consumers, capacity, ordering);
         if (q == null)
         {
             q = QueueFactory.newQueue(spec);
@@ -50,13 +48,18 @@ public abstract class MpqSanityTest
 
     public static Object[] makeAtomic(int producers, int consumers, int capacity, Ordering ordering, Queue<Integer> q)
     {
-        ConcurrentQueueSpec spec = new ConcurrentQueueSpec(producers, consumers, capacity, ordering,
-            Preference.NONE);
+        ConcurrentQueueSpec spec = makeSpec(producers, consumers, capacity, ordering);
         if (q == null)
         {
             q = AtomicQueueFactory.newQueue(spec);
         }
         return new Object[] {spec, q};
+    }
+
+    static ConcurrentQueueSpec makeSpec(int producers, int consumers, int capacity, Ordering ordering)
+    {
+        return new ConcurrentQueueSpec(producers, consumers, capacity, ordering,
+            Preference.NONE);
     }
 
     @After
