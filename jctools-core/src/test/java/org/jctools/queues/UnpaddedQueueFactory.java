@@ -13,14 +13,14 @@
  */
 package org.jctools.queues;
 
-import org.jctools.queues.atomic.*;
+import org.jctools.queues.unpadded.*;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
- * The queue factory produces {@link Queue} instances based on a best fit to the {@link ConcurrentQueueSpec}.
+ * The queue factory produces {@link java.util.Queue} instances based on a best fit to the {@link ConcurrentQueueSpec}.
  * This allows minimal dependencies between user code and the queue implementations and gives users a way to express
  * their requirements on a higher level.
  *
@@ -28,7 +28,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * @author akarnokd
  */
 @Deprecated//(since = "4.0.0")
-public class AtomicQueueFactory
+public class UnpaddedQueueFactory
 {
     public static <E> Queue<E> newQueue(ConcurrentQueueSpec qs)
     {
@@ -37,22 +37,22 @@ public class AtomicQueueFactory
             // SPSC
             if (qs.isSpsc())
             {
-                return new SpscAtomicArrayQueue<E>(qs.capacity);
+                return new SpscUnpaddedArrayQueue<E>(qs.capacity);
             }
             // MPSC
             else if (qs.isMpsc())
             {
-                return new MpscAtomicArrayQueue<E>(qs.capacity);
+                return new MpscUnpaddedArrayQueue<E>(qs.capacity);
             }
             // SPMC
             else if (qs.isSpmc())
             {
-                return new SpmcAtomicArrayQueue<E>(qs.capacity);
+                return new SpmcUnpaddedArrayQueue<E>(qs.capacity);
             }
             // MPMC
             else
             {
-                return new MpmcAtomicArrayQueue<E>(qs.capacity);
+                return new MpmcUnpaddedArrayQueue<E>(qs.capacity);
             }
         }
         else
@@ -60,12 +60,12 @@ public class AtomicQueueFactory
             // SPSC
             if (qs.isSpsc())
             {
-                return new SpscLinkedAtomicQueue<E>();
+                return new SpscLinkedUnpaddedQueue<E>();
             }
             // MPSC
             else if (qs.isMpsc())
             {
-                return new MpscLinkedAtomicQueue<E>();
+                return new MpscLinkedUnpaddedQueue<E>();
             }
         }
         return new ConcurrentLinkedQueue<E>();

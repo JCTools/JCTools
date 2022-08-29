@@ -56,6 +56,16 @@ public abstract class MpqSanityTest
         return new Object[] {spec, q};
     }
 
+    public static Object[] makeUnpadded(int producers, int consumers, int capacity, Ordering ordering, Queue<Integer> q)
+    {
+        ConcurrentQueueSpec spec = makeSpec(producers, consumers, capacity, ordering);
+        if (q == null)
+        {
+            q = UnpaddedQueueFactory.newQueue(spec);
+        }
+        return new Object[] {spec, q};
+    }
+
     static ConcurrentQueueSpec makeSpec(int producers, int consumers, int capacity, Ordering ordering)
     {
         return new ConcurrentQueueSpec(producers, consumers, capacity, ordering,
