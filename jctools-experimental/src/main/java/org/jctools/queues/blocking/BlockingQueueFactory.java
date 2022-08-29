@@ -13,6 +13,13 @@
  */
 package org.jctools.queues.blocking;
 
+import org.jctools.queues.*;
+import org.jctools.queues.spec.ConcurrentQueueSpec;
+import org.jctools.queues.spec.Ordering;
+import org.jctools.util.CompilationResult;
+import org.jctools.util.SimpleCompiler;
+import org.jctools.util.Template;
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -20,14 +27,6 @@ import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
-
-import org.jctools.queues.*;
-import org.jctools.queues.spec.ConcurrentQueueSpec;
-import org.jctools.queues.spec.Ordering;
-import org.jctools.util.CompilationResult;
-import org.jctools.util.SimpleCompiler;
-import org.jctools.util.Template;
-import org.jctools.util.UnsafeAccess;
 
 /**
  * The queue factory produces {@link java.util.Queue} instances based on a best fit to the {@link ConcurrentQueueSpec}.

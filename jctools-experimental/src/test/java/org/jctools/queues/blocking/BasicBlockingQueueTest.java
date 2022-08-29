@@ -1,6 +1,5 @@
 package org.jctools.queues.blocking;
 
-import org.jctools.queues.blocking.BlockingQueueFactory;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.junit.Assert;
 import org.junit.Test;
