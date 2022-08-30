@@ -11,10 +11,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jctools.queues;
+package org.jctools.util;
 
-import org.jctools.queues.unpadded.*;
+import org.jctools.queues.*;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
+import org.jctools.queues.spec.Ordering;
 
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -25,11 +26,11 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * their requirements on a higher level.
  *
  * @author nitsanw
- * @author akarnokd
  */
-@Deprecated//(since = "4.0.0")
-public class UnpaddedQueueFactory
+@Deprecated//(since = "3.0.0")
+public class QueueFactory
 {
+
     public static <E> Queue<E> newQueue(ConcurrentQueueSpec qs)
     {
         if (qs.isBounded())
@@ -37,22 +38,29 @@ public class UnpaddedQueueFactory
             // SPSC
             if (qs.isSpsc())
             {
-                return new SpscUnpaddedArrayQueue<E>(qs.capacity);
+                return new SpscArrayQueue<E>(qs.capacity);
             }
             // MPSC
             else if (qs.isMpsc())
             {
-                return new MpscUnpaddedArrayQueue<E>(qs.capacity);
+                if (qs.ordering != Ordering.NONE)
+                {
+                    return new MpscArrayQueue<E>(qs.capacity);
+                }
+                else
+                {
+                    return new MpscCompoundQueue<E>(qs.capacity);
+                }
             }
             // SPMC
             else if (qs.isSpmc())
             {
-                return new SpmcUnpaddedArrayQueue<E>(qs.capacity);
+                return new SpmcArrayQueue<E>(qs.capacity);
             }
             // MPMC
             else
             {
-                return new MpmcUnpaddedArrayQueue<E>(qs.capacity);
+                return new MpmcArrayQueue<E>(qs.capacity);
             }
         }
         else
@@ -60,12 +68,12 @@ public class UnpaddedQueueFactory
             // SPSC
             if (qs.isSpsc())
             {
-                return new SpscLinkedUnpaddedQueue<E>();
+                return new SpscLinkedQueue<E>();
             }
             // MPSC
             else if (qs.isMpsc())
             {
-                return new MpscLinkedUnpaddedQueue<E>();
+                return new MpscLinkedQueue();
             }
         }
         return new ConcurrentLinkedQueue<E>();

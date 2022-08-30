@@ -10,6 +10,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Queue;
 
+import static org.jctools.util.TestUtil.makeParams;
+
 @RunWith(Parameterized.class)
 public class QueueSanityTestMpscBlockingConsumerOfferBelowThreshold extends QueueSanityTest
 {
@@ -23,13 +25,13 @@ public class QueueSanityTestMpscBlockingConsumerOfferBelowThreshold extends Queu
     {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
         MpscBlockingConsumerArrayQueueOverride<Integer> q = new MpscBlockingConsumerArrayQueueOverride<Integer>(16);
-        list.add(makeQueue(0, 1, 8, Ordering.FIFO, q));
+        list.add(makeParams(0, 1, 8, Ordering.FIFO, q));
         q = new MpscBlockingConsumerArrayQueueOverride<Integer>(16);
         q.threshold = 12;
-        list.add(makeQueue(0, 1, 12, Ordering.FIFO, q));
+        list.add(makeParams(0, 1, 12, Ordering.FIFO, q));
         q = new MpscBlockingConsumerArrayQueueOverride<Integer>(16);
         q.threshold = 4;
-        list.add(makeQueue(0, 1, 4, Ordering.FIFO, q));
+        list.add(makeParams(0, 1, 4, Ordering.FIFO, q));
         return list;
     }
 

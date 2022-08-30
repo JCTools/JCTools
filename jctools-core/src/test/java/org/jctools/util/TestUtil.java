@@ -1,10 +1,20 @@
 package org.jctools.util;
 
+import org.jctools.queues.spec.ConcurrentQueueSpec;
+import org.jctools.queues.spec.Ordering;
+import org.jctools.queues.spec.Preference;
+import org.junit.Assert;
+
 import java.util.List;
+import java.util.Queue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.LockSupport;
+
+import static org.jctools.util.AtomicQueueFactory.newAtomicQueue;
+import static org.jctools.util.QueueFactory.newQueue;
+import static org.jctools.util.UnpaddedQueueFactory.newUnpaddedQueue;
 
 public class TestUtil {
     public static final int CONCURRENT_TEST_DURATION = Integer.getInteger("org.jctools.concTestDurationMs", 500);
@@ -46,6 +56,36 @@ public class TestUtil {
             threads.add(thread);
         }
     }
+
+    public static Object[] makeParams(int producers, int consumers, int capacity, Ordering ordering, Queue<Integer> q)
+    {
+        Assert.assertNotNull(q);
+        return new Object[] {makeSpec(producers, consumers, capacity, ordering), q};
+    }
+
+    public static Object[] makeMpq(int producers, int consumers, int capacity, Ordering ordering)
+    {
+        ConcurrentQueueSpec spec = makeSpec(producers, consumers, capacity, ordering);
+        return new Object[] {spec, newQueue(spec)};
+    }
+
+    public static Object[] makeAtomic(int producers, int consumers, int capacity, Ordering ordering)
+    {
+        ConcurrentQueueSpec spec = makeSpec(producers, consumers, capacity, ordering);
+        return new Object[] {spec, newAtomicQueue(spec)};
+    }
+
+    public static Object[] makeUnpadded(int producers, int consumers, int capacity, Ordering ordering)
+    {
+        ConcurrentQueueSpec spec = makeSpec(producers, consumers, capacity, ordering);
+        return new Object[] {spec, newUnpaddedQueue(spec)};
+    }
+
+    static ConcurrentQueueSpec makeSpec(int producers, int consumers, int capacity, Ordering ordering)
+    {
+        return new ConcurrentQueueSpec(producers, consumers, capacity, ordering, Preference.NONE);
+    }
+
     public static final class Val
     {
         public int value;

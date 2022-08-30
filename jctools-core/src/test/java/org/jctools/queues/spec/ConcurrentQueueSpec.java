@@ -78,4 +78,16 @@ public final class ConcurrentQueueSpec
     {
         return capacity != MessagePassingQueue.UNBOUNDED_CAPACITY;
     }
+
+    @Override
+    public String toString()
+    {
+        return "ConcurrentQueueSpec{" +
+            "producers=" + producers +
+            ", consumers=" + consumers +
+            ", capacity=" + capacity +
+            ", ordering=" + ordering +
+            ", preference=" + preference +
+            '}';
+    }
 }

@@ -1,18 +1,18 @@
 package org.jctools.queues;
 
+import org.jctools.queues.spec.ConcurrentQueueSpec;
+import org.jctools.queues.spec.Ordering;
+import org.jctools.util.TestUtil.*;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.jctools.util.TestUtil.Val;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-
-import org.jctools.queues.spec.ConcurrentQueueSpec;
-import org.jctools.queues.spec.Ordering;
-
+import static org.jctools.util.TestUtil.*;
 import static org.junit.Assert.assertEquals;
 
 @RunWith(Parameterized.class)
@@ -28,8 +28,12 @@ public class QueueSanityTestMpmcArray extends QueueSanityTest
     {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
         // Mpmc minimal size is 2
-        list.add(makeQueue(0, 0, 2, Ordering.FIFO, null));
-        list.add(makeQueue(0, 0, SIZE, Ordering.FIFO, null));
+        list.add(makeMpq(0, 0, 2, Ordering.FIFO));
+        list.add(makeMpq(0, 0, SIZE, Ordering.FIFO));
+        list.add(makeAtomic(0, 0, 2, Ordering.FIFO));
+        list.add(makeAtomic(0, 0, SIZE, Ordering.FIFO));
+        list.add(makeUnpadded(0, 0, 2, Ordering.FIFO));
+        list.add(makeUnpadded(0, 0, SIZE, Ordering.FIFO));
         return list;
     }
 

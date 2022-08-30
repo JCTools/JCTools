@@ -3,14 +3,12 @@ package org.jctools.queues;
 import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
-import org.jctools.queues.spec.Preference;
 import org.jctools.util.Pow2;
 import org.junit.After;
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Queue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.LockSupport;
 
@@ -34,42 +32,6 @@ public abstract class MpqSanityTest
     {
         this.queue = queue;
         this.spec = spec;
-    }
-
-    public static Object[] makeMpq(int producers, int consumers, int capacity, Ordering ordering, Queue<Integer> q)
-    {
-        ConcurrentQueueSpec spec = makeSpec(producers, consumers, capacity, ordering);
-        if (q == null)
-        {
-            q = QueueFactory.newQueue(spec);
-        }
-        return new Object[] {spec, q};
-    }
-
-    public static Object[] makeAtomic(int producers, int consumers, int capacity, Ordering ordering, Queue<Integer> q)
-    {
-        ConcurrentQueueSpec spec = makeSpec(producers, consumers, capacity, ordering);
-        if (q == null)
-        {
-            q = AtomicQueueFactory.newQueue(spec);
-        }
-        return new Object[] {spec, q};
-    }
-
-    public static Object[] makeUnpadded(int producers, int consumers, int capacity, Ordering ordering, Queue<Integer> q)
-    {
-        ConcurrentQueueSpec spec = makeSpec(producers, consumers, capacity, ordering);
-        if (q == null)
-        {
-            q = UnpaddedQueueFactory.newQueue(spec);
-        }
-        return new Object[] {spec, q};
-    }
-
-    static ConcurrentQueueSpec makeSpec(int producers, int consumers, int capacity, Ordering ordering)
-    {
-        return new ConcurrentQueueSpec(producers, consumers, capacity, ordering,
-            Preference.NONE);
     }
 
     @After

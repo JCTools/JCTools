@@ -13,8 +13,8 @@
  */
 package org.jctools.queues.intrusive;
 
-import org.jctools.queues.QueueFactory;
-import org.jctools.queues.AtomicQueueFactory;
+import org.jctools.util.QueueFactory;
+import org.jctools.util.AtomicQueueFactory;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
 import org.jctools.queues.spec.Preference;
@@ -263,7 +263,7 @@ public class IntrusiveQueueSanityTest {
         ConcurrentQueueSpec spec = new ConcurrentQueueSpec(producers, consumers, capacity, ordering,
                 Preference.NONE);
         if(q == null) {
-            q = AtomicQueueFactory.newQueue(spec);
+            q = AtomicQueueFactory.newAtomicQueue(spec);
         }
         return new Object[] { spec, q };
     }

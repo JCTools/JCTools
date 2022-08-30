@@ -1,13 +1,16 @@
 package org.jctools.queues;
 
-import java.util.ArrayList;
-import java.util.Collection;
-
+import org.jctools.queues.atomic.MpscUnboundedAtomicArrayQueue;
+import org.jctools.queues.spec.ConcurrentQueueSpec;
+import org.jctools.queues.spec.Ordering;
+import org.jctools.queues.unpadded.MpscUnboundedUnpaddedArrayQueue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import org.jctools.queues.spec.ConcurrentQueueSpec;
-import org.jctools.queues.spec.Ordering;
+import java.util.ArrayList;
+import java.util.Collection;
+
+import static org.jctools.util.TestUtil.makeParams;
 
 @RunWith(Parameterized.class)
 public class MpqSanityTestMpscUnbounded extends MpqSanityTest
@@ -21,8 +24,12 @@ public class MpqSanityTestMpscUnbounded extends MpqSanityTest
     public static Collection<Object[]> parameters()
     {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
-        list.add(makeMpq(0, 1, 0, Ordering.FIFO, new MpscUnboundedArrayQueue<>(2)));
-        list.add(makeMpq(0, 1, 0, Ordering.FIFO, new MpscUnboundedArrayQueue<>(64)));
+        list.add(makeParams(0, 1, 0, Ordering.FIFO, new MpscUnboundedArrayQueue<>(2)));
+        list.add(makeParams(0, 1, 0, Ordering.FIFO, new MpscUnboundedArrayQueue<>(64)));
+        list.add(makeParams(0, 1, 0, Ordering.FIFO, new MpscUnboundedAtomicArrayQueue<>(2)));
+        list.add(makeParams(0, 1, 0, Ordering.FIFO, new MpscUnboundedAtomicArrayQueue<>(64)));
+        list.add(makeParams(0, 1, 0, Ordering.FIFO, new MpscUnboundedUnpaddedArrayQueue<>(2)));
+        list.add(makeParams(0, 1, 0, Ordering.FIFO, new MpscUnboundedUnpaddedArrayQueue<>(64)));
         return list;
     }
 }

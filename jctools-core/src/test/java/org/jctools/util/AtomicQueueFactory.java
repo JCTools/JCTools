@@ -11,55 +11,47 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jctools.queues;
+package org.jctools.util;
 
+import org.jctools.queues.atomic.*;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
-import org.jctools.queues.spec.Ordering;
 
 import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
- * The queue factory produces {@link java.util.Queue} instances based on a best fit to the {@link ConcurrentQueueSpec}.
+ * The queue factory produces {@link Queue} instances based on a best fit to the {@link ConcurrentQueueSpec}.
  * This allows minimal dependencies between user code and the queue implementations and gives users a way to express
  * their requirements on a higher level.
  *
  * @author nitsanw
+ * @author akarnokd
  */
-@Deprecated//(since = "3.0.0")
-public class QueueFactory
+@Deprecated//(since = "4.0.0")
+public class AtomicQueueFactory
 {
-
-    public static <E> Queue<E> newQueue(ConcurrentQueueSpec qs)
+    public static <E> Queue<E> newAtomicQueue(ConcurrentQueueSpec qs)
     {
         if (qs.isBounded())
         {
             // SPSC
             if (qs.isSpsc())
             {
-                return new SpscArrayQueue<E>(qs.capacity);
+                return new SpscAtomicArrayQueue<E>(qs.capacity);
             }
             // MPSC
             else if (qs.isMpsc())
             {
-                if (qs.ordering != Ordering.NONE)
-                {
-                    return new MpscArrayQueue<E>(qs.capacity);
-                }
-                else
-                {
-                    return new MpscCompoundQueue<E>(qs.capacity);
-                }
+                return new MpscAtomicArrayQueue<E>(qs.capacity);
             }
             // SPMC
             else if (qs.isSpmc())
             {
-                return new SpmcArrayQueue<E>(qs.capacity);
+                return new SpmcAtomicArrayQueue<E>(qs.capacity);
             }
             // MPMC
             else
             {
-                return new MpmcArrayQueue<E>(qs.capacity);
+                return new MpmcAtomicArrayQueue<E>(qs.capacity);
             }
         }
         else
@@ -67,14 +59,14 @@ public class QueueFactory
             // SPSC
             if (qs.isSpsc())
             {
-                return new SpscLinkedQueue<E>();
+                return new SpscLinkedAtomicQueue<E>();
             }
             // MPSC
             else if (qs.isMpsc())
             {
-                return new MpscLinkedQueue();
+                return new MpscLinkedAtomicQueue<E>();
             }
         }
-        return new ConcurrentLinkedQueue<E>();
+        throw new IllegalArgumentException("Cannot match queue for spec:" + qs);
     }
 }
