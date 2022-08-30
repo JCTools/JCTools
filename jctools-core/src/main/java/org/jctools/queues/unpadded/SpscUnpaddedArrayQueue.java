@@ -137,7 +137,7 @@ abstract class SpscUnpaddedArrayQueueL3Pad<E> extends SpscUnpaddedArrayQueueCons
  * For convenience the relevant papers are available in the `resources` folder:<br>
  * <i>
  *     2010 - Pisa - SPSC Queues on Shared Cache Multi-Core Systems.pdf<br>
- *     2012 - Junchang- BQueue- Efﬁcient and Practical Queuing.pdf <br>
+ *     2012 - Junchang- BQueue- Efficient and Practical Queuing.pdf <br>
  * </i>
  * This implementation is wait free.
  */
