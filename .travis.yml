@@ -7,7 +7,7 @@ jdk:
   - openjdk17
 arch:
   - amd64
-  - arm64
+#  - arm64 <-- this is not working very well
 branches:
   only:
     - master
