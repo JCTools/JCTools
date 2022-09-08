@@ -18,6 +18,8 @@ the JDK:
   * relaxedOffer/Peek/Poll: trade off conflated guarantee on full/empty queue state with improved performance.
   * drain/fill: batch read and write methods for increased throughput and reduced contention
   
+Many queues are available in both `Unsafe` (default, uses `sun.mic.Unsafe`) and `Atomic` (relying on `AtomicFieldUpdater`) variations, as well as `Unpadded` (lower footprint by removing false sharing avoiding field padding).
+
 There's more to come and contributions/suggestions are most welcome. JCTools has enjoyed support from the community
 and contributions in the form of issues/tests/documentation/code have helped it grow.
 JCTools offers excellent performance at a reasonable price (FREE! under the Apache 2.0 License). It's stable and in

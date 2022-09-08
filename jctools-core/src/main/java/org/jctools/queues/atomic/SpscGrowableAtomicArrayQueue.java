@@ -15,14 +15,9 @@ package org.jctools.queues.atomic;
 
 import org.jctools.util.Pow2;
 import org.jctools.util.RangeUtil;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-import java.util.concurrent.atomic.AtomicLongFieldUpdater;
-import java.util.concurrent.atomic.AtomicReferenceArray;
-import org.jctools.queues.MessagePassingQueue;
-import org.jctools.queues.MessagePassingQueue.Supplier;
-import org.jctools.queues.MessagePassingQueueUtil;
-import org.jctools.queues.QueueProgressIndicators;
-import org.jctools.queues.IndexedQueueSizeUtil;
+import org.jctools.util.SpscLookAheadUtil;
+import java.util.concurrent.atomic.*;
+import org.jctools.queues.*;
 import static org.jctools.queues.atomic.AtomicQueueUtil.*;
 
 /**
@@ -142,7 +137,7 @@ public class SpscGrowableAtomicArrayQueue<E> extends BaseSpscLinkedAtomicArrayQu
     }
 
     private void adjustLookAheadStep(int capacity) {
-        lookAheadStep = Math.min(capacity / 4, SpscAtomicArrayQueue.MAX_LOOK_AHEAD_STEP);
+        lookAheadStep = SpscLookAheadUtil.computeLookAheadStep(capacity);
     }
 
     @Override

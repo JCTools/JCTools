@@ -13,20 +13,23 @@
  */
 package org.jctools.queues;
 
+import org.jctools.util.SpscLookAheadUtil;
+
 import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeAccess.fieldOffset;
 import static org.jctools.util.UnsafeRefArrayAccess.*;
 
 abstract class SpscArrayQueueColdField<E> extends ConcurrentCircularArrayQueue<E>
 {
-    public static final int MAX_LOOK_AHEAD_STEP = Integer.getInteger("jctools.spsc.max.lookahead.step", 4096);
     final int lookAheadStep;
 
     SpscArrayQueueColdField(int capacity)
     {
         super(capacity);
-        lookAheadStep = Math.min(capacity() / 4, MAX_LOOK_AHEAD_STEP);
+        int actualCapacity = capacity();
+        lookAheadStep = SpscLookAheadUtil.computeLookAheadStep(actualCapacity);
     }
+
 }
 
 abstract class SpscArrayQueueL1Pad<E> extends SpscArrayQueueColdField<E>
@@ -174,7 +177,7 @@ abstract class SpscArrayQueueL3Pad<E> extends SpscArrayQueueConsumerIndexField<E
  * For convenience the relevant papers are available in the `resources` folder:<br>
  * <i>
  *     2010 - Pisa - SPSC Queues on Shared Cache Multi-Core Systems.pdf<br>
- *     2012 - Junchang- BQueue- Efﬁcient and Practical Queuing.pdf <br>
+ *     2012 - Junchang- BQueue- Efficient and Practical Queuing.pdf <br>
  * </i>
  * This implementation is wait free.
  */

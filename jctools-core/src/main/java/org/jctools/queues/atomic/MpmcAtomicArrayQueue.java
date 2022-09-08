@@ -14,10 +14,8 @@
 package org.jctools.queues.atomic;
 
 import org.jctools.util.RangeUtil;
-import java.util.concurrent.atomic.AtomicLongFieldUpdater;
-import java.util.concurrent.atomic.AtomicReferenceArray;
-import java.util.concurrent.atomic.AtomicLongArray;
-import org.jctools.queues.MessagePassingQueueUtil;
+import java.util.concurrent.atomic.*;
+import org.jctools.queues.*;
 import static org.jctools.queues.atomic.AtomicQueueUtil.*;
 
 /**

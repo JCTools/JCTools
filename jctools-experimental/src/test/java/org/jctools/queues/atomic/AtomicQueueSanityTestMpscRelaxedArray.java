@@ -20,12 +20,15 @@ package org.jctools.queues.atomic;
 import org.jctools.queues.QueueSanityTestMpscArray;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
+import org.jctools.util.TestUtil;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Queue;
+
+import static org.jctools.util.TestUtil.makeParams;
 
 @RunWith(Parameterized.class)
 public class AtomicQueueSanityTestMpscRelaxedArray extends QueueSanityTestMpscArray
@@ -40,8 +43,8 @@ public class AtomicQueueSanityTestMpscRelaxedArray extends QueueSanityTestMpscAr
     {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
         // need at least size 2 for this test
-        list.add(makeQueue(1, 1, 2, Ordering.FIFO, new MpscRelaxedAtomicArrayQueue<>(2)));
-        list.add(makeQueue(1, 1, SIZE, Ordering.FIFO, new MpscRelaxedAtomicArrayQueue<>(SIZE)));
+        list.add(makeParams(1, 1, 2, Ordering.FIFO, new MpscRelaxedAtomicArrayQueue<>(2)));
+        list.add(makeParams(1, 1, SIZE, Ordering.FIFO, new MpscRelaxedAtomicArrayQueue<>(SIZE)));
         return list;
     }
 }

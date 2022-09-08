@@ -1,18 +1,8 @@
 package org.jctools.queues.atomic;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import com.github.javaparser.ast.CompilationUnit;
-import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.Modifier.Keyword;
-import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
-import com.github.javaparser.ast.body.ConstructorDeclaration;
-import com.github.javaparser.ast.body.FieldDeclaration;
-import com.github.javaparser.ast.body.MethodDeclaration;
-import com.github.javaparser.ast.body.Parameter;
-import com.github.javaparser.ast.body.VariableDeclarator;
+import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.comments.JavadocComment;
 import com.github.javaparser.ast.expr.MarkerAnnotationExpr;
 import com.github.javaparser.ast.expr.MethodCallExpr;
@@ -29,8 +19,8 @@ import com.github.javaparser.ast.type.Type;
  * This generator takes in an JCTools 'ArrayQueue' Java source file and patches {@link sun.misc.Unsafe} accesses into
  * atomic {@link java.util.concurrent.atomic.AtomicLongFieldUpdater}. It outputs a Java source file with these patches.
  * <p>
- * An 'ArrayQueue' is one that is backed by an circular
- * array and use a <code>producerLimit</code> and a <code>consumerLimit</code> field to track the positions of each.
+ * An 'ArrayQueue' is one that is backed by a circular array and use a <code>producerLimit</code> and a
+ * <code>consumerLimit</code> field to track the positions of each.
  */
 public final class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomicQueueGenerator {
 
@@ -82,21 +72,6 @@ public final class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomi
                 + node.getJavadocComment().orElse(new JavadocComment("")).getContent());
     }
 
-    String translateQueueName(String originalQueueName) {
-        if (originalQueueName.length() < 5) {
-            return originalQueueName;
-        }
-
-        String start = originalQueueName.substring(0, 4);
-        String end = originalQueueName.substring(4);
-        if ((start.equals("Spsc") || start.equals("Spmc") || start.equals("Mpsc") || start.equals("Mpmc"))
-                && end.startsWith("ArrayQueue")) {
-            return start + "Atomic" + end;
-        }
-
-        return originalQueueName;
-    }
-
     String fieldUpdaterFieldName(String fieldName) {
         switch (fieldName) {
         case "producerIndex":
@@ -108,25 +83,6 @@ public final class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomi
         default:
             throw new IllegalArgumentException("Unhandled field: " + fieldName);
         }
-    }
-
-    void organiseImports(CompilationUnit cu) {
-        List<ImportDeclaration> importDecls = new ArrayList<>();
-        for (ImportDeclaration importDeclaration : cu.getImports()) {
-            if (importDeclaration.getNameAsString().startsWith("org.jctools.util.Unsafe")) {
-                continue;
-            }
-            importDecls.add(importDeclaration);
-        }
-        cu.getImports().clear();
-        for (ImportDeclaration importDecl : importDecls) {
-            cu.addImport(importDecl);
-        }
-        cu.addImport(importDeclaration("java.util.concurrent.atomic.AtomicLongFieldUpdater"));
-        cu.addImport(importDeclaration("java.util.concurrent.atomic.AtomicReferenceArray"));
-        cu.addImport(importDeclaration("java.util.concurrent.atomic.AtomicLongArray"));
-        cu.addImport(importDeclaration("org.jctools.queues.MessagePassingQueueUtil"));
-        cu.addImport(staticImportDeclaration("org.jctools.queues.atomic.AtomicQueueUtil"));
     }
 
     /**
@@ -153,30 +109,12 @@ public final class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomi
     }
 
     /**
-     * Searches all extended or implemented super classes or interfaces for
-     * special classes that differ with the atomics version and replaces them
-     * with the appropriate class.
-     */
-    private void replaceParentClassesForAtomics(ClassOrInterfaceDeclaration n) {
-        for (ClassOrInterfaceType parent : n.getExtendedTypes()) {
-            if ("ConcurrentCircularArrayQueue".equals(parent.getNameAsString())) {
-                parent.setName("AtomicReferenceArrayQueue");
-            } else if ("ConcurrentSequencedCircularArrayQueue".equals(parent.getNameAsString())) {
-                parent.setName("SequencedAtomicReferenceArrayQueue");
-            } else {
-                // Padded super classes are to be renamed and thus so does the
-                // class we must extend.
-                parent.setName(translateQueueName(parent.getNameAsString()));
-            }
-        }
-    }
-
-    /**
      * Given a method declaration node this method will replace it's code and
      * signature with code to redirect all calls to it to the
      * <code>newMethodName</code>. Method signatures of both methods must match
      * exactly.
      */
+    @SuppressWarnings("SameParameterValue")
     private void patchMethodAsDeprecatedRedirector(MethodDeclaration methodToPatch, String toMethodName,
             Type returnType, Parameter... parameters) {
         methodToPatch.setType(returnType);
@@ -205,8 +143,7 @@ public final class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomi
      * <code>sv<code> are simple field accesses with only <code>so and <code>cas
      * <code> using the AtomicFieldUpdaters.
      *
-     * @param n
-     *            the AST node for the containing class
+     * @param n the AST node for the containing class
      */
     private void patchAtomicFieldUpdaterAccessorMethods(ClassOrInterfaceDeclaration n) {
         String className = n.getNameAsString();
@@ -220,35 +157,10 @@ public final class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomi
             boolean usesFieldUpdater = false;
             for (VariableDeclarator variable : field.getVariables()) {
                 String variableName = variable.getNameAsString();
-
                 String methodNameSuffix = capitalise(variableName);
 
                 for (MethodDeclaration method : n.getMethods()) {
-                    String methodName = method.getNameAsString();
-                    if (!methodName.endsWith(methodNameSuffix)) {
-                        // Leave it untouched
-                        continue;
-                    }
-
-                    String newValueName = "newValue";
-                    if (methodName.startsWith("so")) {
-                        usesFieldUpdater = true;
-                        String fieldUpdaterFieldName = fieldUpdaterFieldName(variableName);
-
-                        method.setBody(fieldUpdaterLazySet(fieldUpdaterFieldName, newValueName));
-                    } else if (methodName.startsWith("cas")) {
-                        usesFieldUpdater = true;
-                        String fieldUpdaterFieldName = fieldUpdaterFieldName(variableName);
-                        String expectedValueName = "expect";
-                        method.setBody(
-                                fieldUpdaterCompareAndSet(fieldUpdaterFieldName, expectedValueName, newValueName));
-                    } else if (methodName.startsWith("sv")) {
-                        method.setBody(fieldAssignment(variableName, newValueName));
-                    } else if (methodName.startsWith("lv") || methodName.startsWith("lp")) {
-                        method.setBody(returnField(variableName));
-                    } else {
-                        throw new IllegalStateException("Unhandled method: " + methodName);
-                    }
+                    usesFieldUpdater |= patchAtomicFieldUpdaterAccessorMethod(variableName, method, methodNameSuffix);
                 }
 
                 if (usesFieldUpdater) {

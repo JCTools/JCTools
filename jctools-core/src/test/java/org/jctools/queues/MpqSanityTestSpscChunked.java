@@ -1,14 +1,17 @@
 package org.jctools.queues;
 
-import java.util.ArrayList;
-import java.util.Collection;
-
+import org.jctools.queues.atomic.SpscChunkedAtomicArrayQueue;
+import org.jctools.queues.spec.ConcurrentQueueSpec;
+import org.jctools.queues.spec.Ordering;
+import org.jctools.queues.unpadded.SpscChunkedUnpaddedArrayQueue;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import org.jctools.queues.spec.ConcurrentQueueSpec;
-import org.jctools.queues.spec.Ordering;
+import java.util.ArrayList;
+import java.util.Collection;
+
+import static org.jctools.util.TestUtil.makeParams;
 
 @RunWith(Parameterized.class)
 public class MpqSanityTestSpscChunked extends MpqSanityTest
@@ -22,8 +25,12 @@ public class MpqSanityTestSpscChunked extends MpqSanityTest
     public static Collection<Object[]> parameters()
     {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
-        list.add(makeMpq(1, 1, 16, Ordering.FIFO, new SpscChunkedArrayQueue<>(8, 16)));// MPSC size 1
-        list.add(makeMpq(1, 1, SIZE, Ordering.FIFO, new SpscChunkedArrayQueue<>(8, SIZE)));// MPSC size SIZE
+        list.add(makeParams(1, 1, 16, Ordering.FIFO, new SpscChunkedArrayQueue<>(8, 16)));// MPSC size 1
+        list.add(makeParams(1, 1, SIZE, Ordering.FIFO, new SpscChunkedArrayQueue<>(8, SIZE)));// MPSC size SIZE
+        list.add(makeParams(1, 1, 16, Ordering.FIFO, new SpscChunkedAtomicArrayQueue<>(8, 16)));// MPSC size 1
+        list.add(makeParams(1, 1, SIZE, Ordering.FIFO, new SpscChunkedAtomicArrayQueue<>(8, SIZE)));// MPSC size SIZE
+        list.add(makeParams(1, 1, 16, Ordering.FIFO, new SpscChunkedUnpaddedArrayQueue<>(8, 16)));// MPSC size 1
+        list.add(makeParams(1, 1, SIZE, Ordering.FIFO, new SpscChunkedUnpaddedArrayQueue<>(8, SIZE)));// MPSC size SIZE
         return list;
     }
 

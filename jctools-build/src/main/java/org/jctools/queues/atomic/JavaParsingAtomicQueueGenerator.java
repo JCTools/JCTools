@@ -2,6 +2,8 @@ package org.jctools.queues.atomic;
 
 import java.io.File;
 import java.io.FileWriter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 import com.github.javaparser.JavaParser;
@@ -12,19 +14,13 @@ import com.github.javaparser.ast.Modifier.Keyword;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.PackageDeclaration;
-import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
-import com.github.javaparser.ast.body.FieldDeclaration;
-import com.github.javaparser.ast.body.InitializerDeclaration;
-import com.github.javaparser.ast.body.Parameter;
-import com.github.javaparser.ast.body.VariableDeclarator;
+import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.comments.Comment;
 import com.github.javaparser.ast.expr.AssignExpr;
 import com.github.javaparser.ast.expr.AssignExpr.Operator;
 import com.github.javaparser.ast.expr.ClassExpr;
 import com.github.javaparser.ast.expr.Expression;
-import com.github.javaparser.ast.expr.FieldAccessExpr;
 import com.github.javaparser.ast.expr.MethodCallExpr;
-import com.github.javaparser.ast.expr.Name;
 import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.SimpleName;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
@@ -95,19 +91,8 @@ abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter<Void> 
         this.sourceFileName = sourceFileName;
     }
 
-    abstract void organiseImports(CompilationUnit cu);
-    abstract String translateQueueName(String fileName);
     abstract void processSpecialNodeTypes(NodeWithType<?, Type> node, String name);
     abstract String fieldUpdaterFieldName(String fieldName);
-
-    @Override
-    public void visit(FieldAccessExpr n, Void arg) {
-        super.visit(n, arg);
-        if (n.getScope() instanceof NameExpr) {
-            NameExpr name = (NameExpr) n.getScope();
-            name.setName(translateQueueName(name.getNameAsString()));
-        }
-    }
 
     @Override
     public void visit(PackageDeclaration n, Void arg) {
@@ -160,9 +145,120 @@ abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter<Void> 
         for (FieldDeclaration field : node.getFields()) {
             if (field.getModifiers().contains(Modifier.staticModifier())) {
                 field.remove();
-                continue;
             }
         }
+    }
+
+    protected String translateQueueName(String qName) {
+        if (qName.contains("LinkedQueue") || qName.contains("LinkedArrayQueue")) {
+            return qName.replace("Linked", "LinkedAtomic");
+        }
+
+        if (qName.contains("ArrayQueue")) {
+            return qName.replace("ArrayQueue", "AtomicArrayQueue");
+        }
+
+        throw new IllegalArgumentException("Unexpected queue name: " + qName);
+
+    }
+
+    boolean patchAtomicFieldUpdaterAccessorMethod(String variableName, MethodDeclaration method, String methodNameSuffix)
+    {
+        boolean usesFieldUpdater = false;
+        String methodName = method.getNameAsString();
+        if (!methodName.endsWith(methodNameSuffix)) {
+            // Leave it untouched
+            return false;
+        }
+
+        String newValueName = "newValue";
+        if (methodName.startsWith("so") || methodName.startsWith("sp"))
+        {
+            /*
+             * In the case of 'sp' use lazySet as the weakest
+             * ordering allowed by field updaters
+             */
+            usesFieldUpdater = true;
+            String fieldUpdaterFieldName = fieldUpdaterFieldName(variableName);
+
+            method.setBody(fieldUpdaterLazySet(fieldUpdaterFieldName, newValueName));
+        }
+        else if (methodName.startsWith("cas"))
+        {
+            usesFieldUpdater = true;
+            String fieldUpdaterFieldName = fieldUpdaterFieldName(variableName);
+            String expectedValueName = "expect";
+            method.setBody(
+                fieldUpdaterCompareAndSet(fieldUpdaterFieldName, expectedValueName, newValueName));
+        }
+        else if (methodName.startsWith("sv"))
+        {
+            method.setBody(fieldAssignment(variableName, newValueName));
+        }
+        else if (methodName.startsWith("lv") || methodName.startsWith("lp"))
+        {
+            method.setBody(returnField(variableName));
+        }
+        else
+        {
+            throw new IllegalStateException("Unhandled method: " + methodName);
+        }
+        return usesFieldUpdater;
+    }
+
+    /**
+     * Searches all extended or implemented super classes or interfaces for
+     * special classes that differ with the atomics version and replaces them
+     * with the appropriate class.
+     */
+     protected void replaceParentClassesForAtomics(ClassOrInterfaceDeclaration n) {
+        for (ClassOrInterfaceType parent : n.getExtendedTypes()) {
+            String parentNameAsString = parent.getNameAsString();
+            switch (parentNameAsString) {
+                case "AbstractQueue":
+                    // ignore the JDK parent
+                    break;
+                case "BaseLinkedQueue":
+                    parent.setName("BaseLinkedAtomicQueue");
+                    break;
+                case "ConcurrentCircularArrayQueue":
+                    parent.setName("AtomicReferenceArrayQueue");
+                    break;
+                case "ConcurrentSequencedCircularArrayQueue":
+                    parent.setName("SequencedAtomicReferenceArrayQueue");
+                    break;
+                default:
+                    // Padded super classes are to be renamed and thus so does the
+                    // class we must extend.
+                    parent.setName(translateQueueName(parentNameAsString));
+            }
+        }
+    }
+    protected void organiseImports(CompilationUnit cu) {
+        List<ImportDeclaration> importDecls = new ArrayList<>();
+
+        // remove irrelevant imports
+        for (ImportDeclaration importDeclaration : cu.getImports()) {
+            String name = importDeclaration.getNameAsString();
+            if (name.startsWith("org.jctools.util.Unsafe")) {
+                continue;
+            }
+
+            if (name.startsWith("org.jctools.queues.LinkedArrayQueueUtil")) {
+                continue;
+            }
+
+            importDecls.add(importDeclaration);
+        }
+        cu.getImports().clear();
+        for (ImportDeclaration importDecl : importDecls) {
+            cu.addImport(importDecl);
+        }
+
+        cu.addImport(new ImportDeclaration("java.util.concurrent.atomic", false, true));
+
+        cu.addImport(new ImportDeclaration("org.jctools.queues", false, true));
+        cu.addImport(staticImportDeclaration("org.jctools.queues.atomic.AtomicQueueUtil"));
     }
 
     protected String capitalise(String s) {
@@ -186,10 +282,6 @@ abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter<Void> 
     /**
      * Generates something like
      * <code>P_INDEX_UPDATER.lazySet(this, newValue)</code>
-     *
-     * @param fieldUpdaterFieldName
-     * @param newValueName
-     * @return
      */
     protected BlockStmt fieldUpdaterLazySet(String fieldUpdaterFieldName, String newValueName) {
         BlockStmt body = new BlockStmt();
@@ -201,11 +293,6 @@ abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter<Void> 
     /**
      * Generates something like
      * <code>return P_INDEX_UPDATER.compareAndSet(this, expectedValue, newValue)</code>
-     *
-     * @param fieldUpdaterFieldName
-     * @param expectedValueName
-     * @param newValueName
-     * @return
      */
     protected BlockStmt fieldUpdaterCompareAndSet(String fieldUpdaterFieldName, String expectedValueName,
             String newValueName) {
@@ -225,10 +312,6 @@ abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter<Void> 
 
     /**
      * Generates something like <code>field = newValue</code>
-     *
-     * @param fieldName
-     * @param valueName
-     * @return
      */
     protected BlockStmt fieldAssignment(String fieldName, String valueName) {
         BlockStmt body = new BlockStmt();
@@ -240,12 +323,6 @@ abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter<Void> 
     /**
      * Generates something like
      * <code>private static final AtomicLongFieldUpdater<MpmcAtomicArrayQueueProducerIndexField> P_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(MpmcAtomicArrayQueueProducerIndexField.class, "producerIndex");</code>
-     *
-     * @param type
-     * @param name
-     * @param initializer
-     * @param modifiers
-     * @return
      */
     protected FieldDeclaration fieldDeclarationWithInitialiser(Type type, String name, Expression initializer,
             Keyword... modifiers) {
@@ -259,18 +336,13 @@ abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter<Void> 
     /**
      * Generates something like
      * <code>private static final AtomicLongFieldUpdater<MpmcAtomicArrayQueueProducerIndexField> P_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(MpmcAtomicArrayQueueProducerIndexField.class, "producerIndex");</code>
-     *
-     * @param className
-     * @param variableName
-     * @return
      */
     protected FieldDeclaration declareLongFieldUpdater(String className, String variableName) {
         MethodCallExpr initializer = newAtomicLongFieldUpdater(className, variableName);
 
         ClassOrInterfaceType type = simpleParametricType("AtomicLongFieldUpdater", className);
-        FieldDeclaration newField = fieldDeclarationWithInitialiser(type, fieldUpdaterFieldName(variableName),
+        return fieldDeclarationWithInitialiser(type, fieldUpdaterFieldName(variableName),
                 initializer, Keyword.PRIVATE, Keyword.STATIC, Keyword.FINAL);
-        return newField;
     }
 
     protected MethodCallExpr newAtomicLongFieldUpdater(String className, String variableName) {
@@ -290,15 +362,9 @@ abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter<Void> 
         return new ClassOrInterfaceType(null, className);
     }
 
-    protected ImportDeclaration importDeclaration(String name) {
-        return new ImportDeclaration(name, false, false);
-    }
-
     /**
      * Generates something like <code>return field</code>
      *
-     * @param fieldName
-     * @return
      */
     protected BlockStmt returnField(String fieldName) {
         BlockStmt body = new BlockStmt();
@@ -329,5 +395,4 @@ abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter<Void> 
     ImportDeclaration staticImportDeclaration(String name) {
         return new ImportDeclaration(name, true, true);
     }
-
 }

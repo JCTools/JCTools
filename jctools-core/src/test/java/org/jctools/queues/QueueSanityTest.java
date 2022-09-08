@@ -1,9 +1,7 @@
 package org.jctools.queues;
 
-import org.jctools.queues.atomic.AtomicQueueFactory;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
-import org.jctools.queues.spec.Preference;
 import org.jctools.util.Pow2;
 import org.jctools.util.TestUtil;
 import org.junit.After;
@@ -34,28 +32,6 @@ public abstract class QueueSanityTest
     {
         this.queue = queue;
         this.spec = spec;
-    }
-
-    public static Object[] makeQueue(int producers, int consumers, int capacity, Ordering ordering, Queue<Integer> q)
-    {
-        ConcurrentQueueSpec spec = new ConcurrentQueueSpec(producers, consumers, capacity, ordering,
-            Preference.NONE);
-        if (q == null)
-        {
-            q = QueueFactory.newQueue(spec);
-        }
-        return new Object[] {spec, q};
-    }
-
-    public static Object[] makeAtomic(int producers, int consumers, int capacity, Ordering ordering, Queue<Integer> q)
-    {
-        ConcurrentQueueSpec spec = new ConcurrentQueueSpec(producers, consumers, capacity, ordering,
-            Preference.NONE);
-        if (q == null)
-        {
-            q = AtomicQueueFactory.newQueue(spec);
-        }
-        return new Object[] {spec, q};
     }
 
     @After

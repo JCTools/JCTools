@@ -3,10 +3,11 @@ os:
 language: java
 jdk:
   - openjdk8
-  - oraclejdk11
-  - oraclejdk17
-
-# whitelist
+  - openjdk11
+  - openjdk17
+arch:
+  - amd64
+#  - arm64 <-- this is not working very well
 branches:
   only:
     - master

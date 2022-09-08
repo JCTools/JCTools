@@ -19,11 +19,14 @@ package org.jctools.queues;
 
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
+import org.jctools.util.TestUtil;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
 import java.util.Collection;
+
+import static org.jctools.util.TestUtil.makeParams;
 
 @RunWith(Parameterized.class)
 public class MpqSanityTestMpscRelaxedArray extends MpqSanityTest
@@ -37,8 +40,8 @@ public class MpqSanityTestMpscRelaxedArray extends MpqSanityTest
     public static Collection<Object[]> parameters()
     {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
-        list.add(MpqSanityTest.makeMpq(1, 1, 2, Ordering.FIFO, new MpscRelaxedArrayQueue<>(2)));// MPSC size 2
-        list.add(MpqSanityTest.makeMpq(1, 1, MpqSanityTest.SIZE, Ordering.FIFO, new MpscRelaxedArrayQueue<>(
+        list.add(makeParams(1, 1, 2, Ordering.FIFO, new MpscRelaxedArrayQueue<>(2)));// MPSC size 2
+        list.add(makeParams(1, 1, MpqSanityTest.SIZE, Ordering.FIFO, new MpscRelaxedArrayQueue<>(
             MpqSanityTest.SIZE)));// MPSC size SIZE
         return list;
     }

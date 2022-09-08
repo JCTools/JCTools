@@ -15,6 +15,7 @@ package org.jctools.queues;
 
 import org.jctools.util.Pow2;
 import org.jctools.util.RangeUtil;
+import org.jctools.util.SpscLookAheadUtil;
 
 import static org.jctools.queues.LinkedArrayQueueUtil.length;
 import static org.jctools.util.UnsafeRefArrayAccess.*;
@@ -158,7 +159,7 @@ public class SpscGrowableArrayQueue<E> extends BaseSpscLinkedArrayQueue<E>
 
     private void adjustLookAheadStep(int capacity)
     {
-        lookAheadStep = Math.min(capacity / 4, SpscArrayQueue.MAX_LOOK_AHEAD_STEP);
+        lookAheadStep = SpscLookAheadUtil.computeLookAheadStep(capacity);
     }
 
     @Override

@@ -18,14 +18,8 @@ import org.jctools.util.RangeUtil;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
 import static org.jctools.util.Pow2.roundToPowerOfTwo;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-import java.util.concurrent.atomic.AtomicLongFieldUpdater;
-import java.util.concurrent.atomic.AtomicReferenceArray;
-import org.jctools.queues.MessagePassingQueue;
-import org.jctools.queues.MessagePassingQueue.Supplier;
-import org.jctools.queues.MessagePassingQueueUtil;
-import org.jctools.queues.QueueProgressIndicators;
-import org.jctools.queues.IndexedQueueSizeUtil;
+import java.util.concurrent.atomic.*;
+import org.jctools.queues.*;
 import static org.jctools.queues.atomic.AtomicQueueUtil.*;
 
 /**
