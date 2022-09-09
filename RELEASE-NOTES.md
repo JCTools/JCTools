@@ -1,4 +1,16 @@
-3.3.0
+4.0.1
+=========
+This is a major release, following the removal of the `QueueFactory`, `AtomicQueueFactory` and `org.jctools.queues.spec`
+package(deprecated since 3.0). These classes are still used for testing, but are not part of the release artifacts
+anymore.
+
+New unpadded queue variants are also included in this release.
+
+Further changes included:
+- Fix table-size long math on very large tables
+- #355 Adher to size semantic for queue emptiness for MpscLinkedArrayQueue variants
+
+- 3.3.0
 =========
 This is a minor release with new features and several bug fixes.
 
