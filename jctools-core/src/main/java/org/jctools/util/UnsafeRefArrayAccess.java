@@ -48,7 +48,11 @@ public final class UnsafeRefArrayAccess
      */
     public static <E> void spRefElement(E[] buffer, long offset, E e)
     {
-        UNSAFE.putObject(buffer, offset, e);
+        if(offset < buffer.length){
+            UNSAFE.putObject(buffer, offset, e);
+        } else{
+            UNSAFE.throwException(new ArrayIndexOutOfBoundsException());   
+        }
     }
 
     /**
@@ -60,7 +64,12 @@ public final class UnsafeRefArrayAccess
      */
     public static <E> void soRefElement(E[] buffer, long offset, E e)
     {
-        UNSAFE.putOrderedObject(buffer, offset, e);
+        if(offset < buffer.length){
+            UNSAFE.putOrderedObject(buffer, offset, e);
+        } else{
+            UNSAFE.throwException(new ArrayIndexOutOfBoundsException());   
+        }
+        
     }
 
     /**
@@ -73,7 +82,12 @@ public final class UnsafeRefArrayAccess
     @SuppressWarnings("unchecked")
     public static <E> E lpRefElement(E[] buffer, long offset)
     {
-        return (E) UNSAFE.getObject(buffer, offset);
+        if(offset < buffer.length){
+            return (E) UNSAFE.getObject(buffer, offset);
+        } else{
+            UNSAFE.throwException(new ArrayIndexOutOfBoundsException());
+            return null;
+        }
     }
 
     /**
@@ -86,7 +100,12 @@ public final class UnsafeRefArrayAccess
     @SuppressWarnings("unchecked")
     public static <E> E lvRefElement(E[] buffer, long offset)
     {
-        return (E) UNSAFE.getObjectVolatile(buffer, offset);
+        if(offset < buffer.length){
+            return (E) UNSAFE.getObjectVolatile(buffer, offset);
+        } else{
+            UNSAFE.throwException(new ArrayIndexOutOfBoundsException());
+            return null;
+        }
     }
 
     /**
