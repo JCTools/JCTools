@@ -13,6 +13,12 @@
 	<packaging>bundle</packaging>
 
 	<dependencies>
+        <dependency>
+            <groupId>org.osgi</groupId>
+            <artifactId>osgi.annotation</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
 		<dependency>
 			<groupId>org.hamcrest</groupId>
 			<artifactId>hamcrest-all</artifactId>
@@ -104,13 +110,6 @@
 						</goals>
 					</execution>
 				</executions>
-				<configuration>
-					<archive>
-						<manifestEntries>
-							<Automatic-Module-Name>org.jctools.core</Automatic-Module-Name>
-						</manifestEntries>
-					</archive>
-				</configuration>
 			</plugin>
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>

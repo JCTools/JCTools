@@ -95,4 +95,7 @@
  *
  * @author nitsanw
  */
+@Export
 package org.jctools.queues;
+
+import org.osgi.annotation.bundle.Export;
