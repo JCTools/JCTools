@@ -296,21 +296,14 @@ abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQueueColdP
 
         final long offset = modifiedCalcCircularRefElementOffset(cIndex, mask);
         Object e = lvRefElement(buffer, offset);
-        if (e == null)
+        while (e == null)
         {
-            long pIndex = lvProducerIndex();
-            // isEmpty?
-            if ((cIndex - pIndex) / 2 == 0)
-            {
-                return null;
-            }
-            // poll() == null iff queue is empty, null element is not strong enough indicator, so we must
-            // spin until element is visible.
-            do
+            if (cIndex != lvProducerIndex())
             {
                 e = lvRefElement(buffer, offset);
+                continue;
             }
-            while (e == null);
+            return null;
         }
 
         if (e == JUMP)
