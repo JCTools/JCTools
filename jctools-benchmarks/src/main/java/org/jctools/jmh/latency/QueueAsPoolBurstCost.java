@@ -58,19 +58,19 @@ public class QueueAsPoolBurstCost {
       if (!noQ && warmup) {
          q = QueueByTypeFactory.createQueue(qType, 128);
 
-         final QueueBurstCost.Event event = new QueueBurstCost.Event();
+         final Object o = new Object();
 
          // stretch the queue to the limit, working through resizing and full
          // 128 * 2 account for the xadd qs that pool by default 2 chunks
          for (int i = 0; i < ((128 * 2) + 100); i++) {
-            q.offer(event);
+            q.offer(o);
          }
          for (int i = 0; i < ((128 * 2) + 100); i++) {
             q.poll();
          }
          // make sure the important common case is exercised
          for (int i = 0; i < 20000; i++) {
-            q.offer(event);
+            q.offer(o);
             q.poll();
          }
       }
@@ -112,8 +112,8 @@ public class QueueAsPoolBurstCost {
 
       @Setup
       public void init(QueueAsPoolBurstCost benchmark) {
-         acquired = new ArrayDeque<>(benchmark.burstSize);
-         pool = new ArrayDeque<>(benchmark.burstSize);
+         acquired = new ArrayDeque<Object>(benchmark.burstSize);
+         pool = new ArrayDeque<Object>(benchmark.burstSize);
          if ("None".equals(benchmark.qType)) {
             final Object o = new Object();
             for (int i = 0; i < benchmark.burstSize; i++) {
