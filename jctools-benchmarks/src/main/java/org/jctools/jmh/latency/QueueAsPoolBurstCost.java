@@ -29,6 +29,7 @@ import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.infra.Blackhole;
 
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
@@ -47,6 +48,9 @@ public class QueueAsPoolBurstCost {
    @Param(value = {"132000"})
    String qCapacity;
    Queue<Object> q;
+
+   @Param({"0", "10", "100"})
+   int work;
 
    @Setup
    public void init() {
@@ -85,11 +89,15 @@ public class QueueAsPoolBurstCost {
    @Benchmark
    @CompilerControl(CompilerControl.Mode.DONT_INLINE)
    public void acquireAndRelease(ThreadLocalPool tlPool) {
+      final int work = this.work;
       final int burst = burstSize;
       final Queue<Object> pool = q == null ? tlPool.pool : q;
       final ArrayDeque<Object> tmp = tlPool.acquired;
       for (int i = 0; i < burst; i++) {
          tmp.offer(pool.poll());
+      }
+      if (work > 0) {
+         Blackhole.consumeCPU(work);
       }
       for (int i = 0; i < burst; i++) {
          pool.offer(tmp.pollLast());
