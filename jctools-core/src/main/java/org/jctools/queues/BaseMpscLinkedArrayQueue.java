@@ -302,7 +302,33 @@ abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQueueColdP
             // isEmpty?
             if ((cIndex - pIndex) / 2 == 0)
             {
-                return null;
+                //resizing
+                if((pIndex & 1) == 1) {
+                    //resize fails(OOM) to roll back index values.
+                    //see resize:
+                    //assert lvProducerIndex() == pIndex + 1;
+                    //soProducerIndex(pIndex);
+                    //throw oom
+                    long rollbackIndex = pIndex-1;
+                    //spin:OOM return null;uccessfully resized break
+                    // otherwise spin
+                    //The number of spins should be small here, since this is in 
+                    // resizing and either OOM fails or succeeds
+                    while (true) {
+                        //OOM
+                        if (rollbackIndex == (pIndex = lvProducerIndex())) {
+                            return null;
+                        } else {
+                            if ((pIndex & 1) == 0) {
+                                //Successfully resized capacity
+                                break;
+                            }
+                        }
+                    }
+                }else {
+                    //cIndex==pIndex
+                    return null;
+                }
             }
             // poll() == null iff queue is empty, null element is not strong enough indicator, so we must
             // spin until element is visible.
@@ -345,7 +371,33 @@ abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQueueColdP
             // isEmpty?
             if ((cIndex - pIndex) / 2 == 0)
             {
-                return null;
+                //resizing
+                if((pIndex & 1) == 1) {
+                    //resize fails(OOM) to roll back index values.
+                    //see resize:
+                    //assert lvProducerIndex() == pIndex + 1;
+                    //soProducerIndex(pIndex);
+                    //throw oom
+                    long rollbackIndex = pIndex-1;
+                    //spin:OOM return null;uccessfully resized break
+                    // otherwise spin
+                    //The number of spins should be small here, since this is in 
+                    // resizing and either OOM fails or succeeds
+                    while (true) {
+                        //OOM
+                        if (rollbackIndex == (pIndex = lvProducerIndex())) {
+                            return null;
+                        } else {
+                            if ((pIndex & 1) == 0) {
+                                //Successfully resized capacity
+                                break;
+                            }
+                        }
+                    }
+                }else {
+                    //cIndex==pIndex
+                    return null;
+                }
             }
             // peek() == null iff queue is empty, null element is not strong enough indicator, so we must
             // spin until element is visible.
