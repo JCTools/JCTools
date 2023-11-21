@@ -1256,7 +1256,7 @@ public class NonBlockingIdentityHashMap<TypeK, TypeV>
    *  iteration.  The {@link NonBlockingIdentityHashMap} does not normally create or
    *  using {@link java.util.Map.Entry} objects so they will be created soley
    *  to support this iteration.  Iterating using {@link Map#keySet} or {@link
-   *  Map##values} will be more efficient.
+   *  Map#values} will be more efficient.
    */
   @Override
   public Set<Map.Entry<TypeK,TypeV>> entrySet() {
