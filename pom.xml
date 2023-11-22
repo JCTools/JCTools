@@ -5,7 +5,7 @@
     <groupId>org.jctools</groupId>
     <artifactId>jctools-parent</artifactId>
     <packaging>pom</packaging>
-    <version>4.0.2-SNAPSHOT</version>
+    <version>4.0.3-SNAPSHOT</version>
     <name>JCTools Parent</name>
     <organization>
         <url>https://github.com/JCTools</url>
@@ -59,11 +59,12 @@
 
         <bnd.version>6.3.1</bnd.version>
         <bundle-plugin.version>5.1.8</bundle-plugin.version>
+        <osgi.version>8.0.0</osgi.version>
+
         <hamcrest.version>1.3</hamcrest.version>
         <junit.version>4.13.2</junit.version>
         <guava-testlib.version>31.1-jre</guava-testlib.version>
         <lincheck.version>2.14.1</lincheck.version>
-        <osgi.version>8.0.0</osgi.version>
     </properties>
 
     <modules>
