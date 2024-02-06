@@ -4,6 +4,7 @@ import org.jctools.queues.atomic.MpscChunkedAtomicArrayQueue;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
 import org.jctools.queues.unpadded.MpscChunkedUnpaddedArrayQueue;
+import org.jctools.queues.unpadded.atomic.MpscChunkedUnpaddedAtomicArrayQueue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -34,6 +35,9 @@ public class QueueSanityTestMpscChunked extends QueueSanityTestMpscArray
         list.add(makeParams(0, 1, 4, Ordering.FIFO, new MpscChunkedUnpaddedArrayQueue<>(2, 4)));// MPSC size 1
         list.add(makeParams(0, 1, SIZE, Ordering.FIFO, new MpscChunkedUnpaddedArrayQueue<>(8, SIZE)));// MPSC size SIZE
         list.add(makeParams(0, 1, 4096, Ordering.FIFO, new MpscChunkedUnpaddedArrayQueue<>(32, 4096)));// Netty recycler defaults
+        list.add(makeParams(0, 1, 4, Ordering.FIFO, new MpscChunkedUnpaddedAtomicArrayQueue<>(2, 4)));// MPSC size 1
+        list.add(makeParams(0, 1, SIZE, Ordering.FIFO, new MpscChunkedUnpaddedAtomicArrayQueue<>(8, SIZE)));// MPSC size SIZE
+        list.add(makeParams(0, 1, 4096, Ordering.FIFO, new MpscChunkedUnpaddedAtomicArrayQueue<>(32, 4096)));// Netty recycler defaults
         return list;
     }
 }

@@ -28,6 +28,8 @@ public class MpqSanityTestSpmcArray extends MpqSanityTest
         list.add(makeAtomic(1, 0, SIZE, Ordering.FIFO));// SPMC size SIZE
         list.add(makeUnpadded(1, 0, 1, Ordering.FIFO));// SPMC size 1
         list.add(makeUnpadded(1, 0, SIZE, Ordering.FIFO));// SPMC size SIZE
+        list.add(makeUnpaddedAtomic(1, 0, 1, Ordering.FIFO));// SPMC size 1
+        list.add(makeUnpaddedAtomic(1, 0, SIZE, Ordering.FIFO));// SPMC size SIZE
         return list;
     }
 }

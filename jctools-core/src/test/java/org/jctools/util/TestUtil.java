@@ -14,6 +14,7 @@ import java.util.concurrent.locks.LockSupport;
 
 import static org.jctools.util.AtomicQueueFactory.newAtomicQueue;
 import static org.jctools.util.QueueFactory.newQueue;
+import static org.jctools.util.UnpaddedQueueFactory.newUnpaddedAtomicQueue;
 import static org.jctools.util.UnpaddedQueueFactory.newUnpaddedQueue;
 
 public class TestUtil {
@@ -79,6 +80,12 @@ public class TestUtil {
     {
         ConcurrentQueueSpec spec = makeSpec(producers, consumers, capacity, ordering);
         return new Object[] {spec, newUnpaddedQueue(spec)};
+    }
+
+    public static Object[] makeUnpaddedAtomic(int producers, int consumers, int capacity, Ordering ordering)
+    {
+        ConcurrentQueueSpec spec = makeSpec(producers, consumers, capacity, ordering);
+        return new Object[] {spec, newUnpaddedAtomicQueue(spec)};
     }
 
     static ConcurrentQueueSpec makeSpec(int producers, int consumers, int capacity, Ordering ordering)

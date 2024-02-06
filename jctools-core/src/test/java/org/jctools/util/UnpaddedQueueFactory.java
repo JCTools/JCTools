@@ -15,6 +15,12 @@ package org.jctools.util;
 
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.unpadded.*;
+import org.jctools.queues.unpadded.atomic.MpmcUnpaddedAtomicArrayQueue;
+import org.jctools.queues.unpadded.atomic.MpscLinkedUnpaddedAtomicQueue;
+import org.jctools.queues.unpadded.atomic.MpscUnpaddedAtomicArrayQueue;
+import org.jctools.queues.unpadded.atomic.SpmcUnpaddedAtomicArrayQueue;
+import org.jctools.queues.unpadded.atomic.SpscLinkedUnpaddedAtomicQueue;
+import org.jctools.queues.unpadded.atomic.SpscUnpaddedAtomicArrayQueue;
 
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -30,6 +36,49 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 @Deprecated//(since = "4.0.0")
 public class UnpaddedQueueFactory
 {
+
+    public static <E> Queue<E> newUnpaddedAtomicQueue(ConcurrentQueueSpec qs)
+    {
+        if (qs.isBounded())
+        {
+            // SPSC
+            if (qs.isSpsc())
+            {
+                return new SpscUnpaddedAtomicArrayQueue<E>(qs.capacity);
+            }
+            // MPSC
+            else if (qs.isMpsc())
+            {
+                return new MpscUnpaddedAtomicArrayQueue<E>(qs.capacity);
+            }
+            // SPMC
+            else if (qs.isSpmc())
+            {
+                return new SpmcUnpaddedAtomicArrayQueue<E>(qs.capacity);
+            }
+            // MPMC
+            else
+            {
+                return new MpmcUnpaddedAtomicArrayQueue<E>(qs.capacity);
+            }
+        }
+        else
+        {
+            // SPSC
+            if (qs.isSpsc())
+            {
+                return new SpscLinkedUnpaddedAtomicQueue<E>();
+            }
+            // MPSC
+            else if (qs.isMpsc())
+            {
+                return new MpscLinkedUnpaddedAtomicQueue<E>();
+            }
+        }
+        return new ConcurrentLinkedQueue<E>();
+    }
+
+
     public static <E> Queue<E> newUnpaddedQueue(ConcurrentQueueSpec qs)
     {
         if (qs.isBounded())

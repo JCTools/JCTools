@@ -4,6 +4,7 @@ import org.jctools.queues.atomic.MpscGrowableAtomicArrayQueue;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
 import org.jctools.queues.unpadded.MpscGrowableUnpaddedArrayQueue;
+import org.jctools.queues.unpadded.atomic.MpscGrowableUnpaddedAtomicArrayQueue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -30,6 +31,8 @@ public class MpqSanityTestMpscGrowable extends MpqSanityTest
         list.add(makeParams(0, 1, SIZE, Ordering.FIFO, new MpscGrowableAtomicArrayQueue<>(8, SIZE)));// MPSC size SIZE
         list.add(makeParams(0, 1, 4, Ordering.FIFO, new MpscGrowableUnpaddedArrayQueue<>(2, 4)));// MPSC size 1
         list.add(makeParams(0, 1, SIZE, Ordering.FIFO, new MpscGrowableUnpaddedArrayQueue<>(8, SIZE)));// MPSC size SIZE
+        list.add(makeParams(0, 1, 4, Ordering.FIFO, new MpscGrowableUnpaddedAtomicArrayQueue<>(2, 4)));// MPSC size 1
+        list.add(makeParams(0, 1, SIZE, Ordering.FIFO, new MpscGrowableUnpaddedAtomicArrayQueue<>(8, SIZE)));// MPSC size SIZE
         return list;
     }
 }

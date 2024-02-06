@@ -34,6 +34,8 @@ public class QueueSanityTestMpmcArray extends QueueSanityTest
         list.add(makeAtomic(0, 0, SIZE, Ordering.FIFO));
         list.add(makeUnpadded(0, 0, 2, Ordering.FIFO));
         list.add(makeUnpadded(0, 0, SIZE, Ordering.FIFO));
+        list.add(makeUnpaddedAtomic(0, 0, 2, Ordering.FIFO));
+        list.add(makeUnpaddedAtomic(0, 0, SIZE, Ordering.FIFO));
         return list;
     }
 
