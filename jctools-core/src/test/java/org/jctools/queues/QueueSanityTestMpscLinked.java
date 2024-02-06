@@ -26,6 +26,7 @@ public class QueueSanityTestMpscLinked extends QueueSanityTest
         list.add(makeMpq(0, 1, 0, Ordering.FIFO));
         list.add(makeAtomic(0, 1, 0, Ordering.FIFO));
         list.add(makeUnpadded(0, 1, 0, Ordering.FIFO));
+        list.add(makeAtomicUnpadded(0, 1, 0, Ordering.FIFO));
         return list;
     }
 }

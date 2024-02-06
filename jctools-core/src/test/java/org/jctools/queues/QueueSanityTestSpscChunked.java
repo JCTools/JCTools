@@ -4,6 +4,7 @@ import org.jctools.queues.atomic.SpscChunkedAtomicArrayQueue;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
 import org.jctools.queues.unpadded.SpscChunkedUnpaddedArrayQueue;
+import org.jctools.queues.atomic.unpadded.SpscChunkedAtomicUnpaddedArrayQueue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -31,6 +32,8 @@ public class QueueSanityTestSpscChunked extends QueueSanityTest
         list.add(makeParams(1, 1, SIZE, Ordering.FIFO, new SpscChunkedAtomicArrayQueue<>(8, SIZE)));// MPSC size SIZE
         list.add(makeParams(1, 1, 16, Ordering.FIFO, new SpscChunkedUnpaddedArrayQueue<>(8, 16)));// MPSC size 1
         list.add(makeParams(1, 1, SIZE, Ordering.FIFO, new SpscChunkedUnpaddedArrayQueue<>(8, SIZE)));// MPSC size SIZE
+        list.add(makeParams(1, 1, 16, Ordering.FIFO, new SpscChunkedAtomicUnpaddedArrayQueue<>(8, 16)));// MPSC size 1
+        list.add(makeParams(1, 1, SIZE, Ordering.FIFO, new SpscChunkedAtomicUnpaddedArrayQueue<>(8, SIZE)));// MPSC size SIZE
         return list;
     }
 }

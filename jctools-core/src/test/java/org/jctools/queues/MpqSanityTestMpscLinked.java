@@ -25,6 +25,7 @@ public class MpqSanityTestMpscLinked extends MpqSanityTest
         list.add(makeMpq(0, 1, 0, Ordering.FIFO));// unbounded MPSC
         list.add(makeAtomic(0, 1, 0, Ordering.FIFO));// unbounded MPSC
         list.add(makeUnpadded(0, 1, 0, Ordering.FIFO));// unbounded MPSC
+        list.add(makeAtomicUnpadded(0, 1, 0, Ordering.FIFO));// unbounded MPSC
         return list;
     }
 }

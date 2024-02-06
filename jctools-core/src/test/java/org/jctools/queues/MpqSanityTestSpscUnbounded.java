@@ -4,6 +4,7 @@ import org.jctools.queues.atomic.SpscUnboundedAtomicArrayQueue;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
 import org.jctools.queues.unpadded.SpscUnboundedUnpaddedArrayQueue;
+import org.jctools.queues.atomic.unpadded.SpscUnboundedAtomicUnpaddedArrayQueue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -31,6 +32,8 @@ public class MpqSanityTestSpscUnbounded extends MpqSanityTest
         list.add(makeParams(1, 1, 0, Ordering.FIFO, new SpscUnboundedAtomicArrayQueue<>(64)));
         list.add(makeParams(1, 1, 0, Ordering.FIFO, new SpscUnboundedUnpaddedArrayQueue<>(2)));
         list.add(makeParams(1, 1, 0, Ordering.FIFO, new SpscUnboundedUnpaddedArrayQueue<>(64)));
+        list.add(makeParams(1, 1, 0, Ordering.FIFO, new SpscUnboundedAtomicUnpaddedArrayQueue<>(2)));
+        list.add(makeParams(1, 1, 0, Ordering.FIFO, new SpscUnboundedAtomicUnpaddedArrayQueue<>(64)));
         return list;
     }
 }
