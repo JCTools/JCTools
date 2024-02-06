@@ -3,70 +3,48 @@ package org.jctools.queues.unpadded;
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ast.*;
 import com.github.javaparser.ast.body.*;
-import com.github.javaparser.ast.comments.BlockComment;
-import com.github.javaparser.ast.comments.Comment;
 import com.github.javaparser.ast.comments.JavadocComment;
-import com.github.javaparser.ast.comments.LineComment;
 import com.github.javaparser.ast.expr.ClassExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
+import org.jctools.queues.util.JCToolsGenerator;
 
 import java.io.File;
 import java.io.FileWriter;
-public class JavaParsingUnpaddedQueueGenerator extends VoidVisitorAdapter<Void> {
 
-    protected static final String INDENT_LEVEL = "    ";
+import static org.jctools.queues.util.GeneratorUtils.buildGenerator;
+import static org.jctools.queues.util.GeneratorUtils.cleanupPaddingComments;
+import static org.jctools.queues.util.GeneratorUtils.formatMultilineJavadoc;
+import static org.jctools.queues.util.GeneratorUtils.removePaddingFields;
+import static org.jctools.queues.util.GeneratorUtils.runJCToolsGenerator;
+
+public class JavaParsingUnpaddedQueueGenerator extends VoidVisitorAdapter<Void> implements JCToolsGenerator {
+
     protected final String sourceFileName;
 
     public static void main(String[] args) throws Exception {
-        main(JavaParsingUnpaddedQueueGenerator.class, args);
+        runJCToolsGenerator(JavaParsingUnpaddedQueueGenerator.class, args);
     }
 
-    static void main(Class<? extends JavaParsingUnpaddedQueueGenerator> generatorClass, String[] args) throws Exception {
-
-        if (args.length < 2) {
-            throw new IllegalArgumentException("Usage: outputDirectory inputSourceFiles");
-        }
-
-        File outputDirectory = new File(args[0]);
-
-        for (int i = 1; i < args.length; i++) {
-            File file = new File(args[i]);
-            System.out.println("Processing " + file);
-            CompilationUnit cu = new JavaParser().parse(file).getResult().get();
-            JavaParsingUnpaddedQueueGenerator generator = buildGenerator(generatorClass, file.getName());
-            generator.visit(cu, null);
-            cu.addImport(new ImportDeclaration("org.jctools.queues", false, true));
-            cleanupPaddingComments(cu);
-
-            String outputFileName = generator.translateQueueName(file.getName().replace(".java", "")) + ".java";
-
-            try (FileWriter writer = new FileWriter(new File(outputDirectory, outputFileName))) {
-                writer.write(cu.toString());
-            }
-
-            System.out.println("Saved to " + outputFileName);
-        }
-    }
-
-    private static void cleanupPaddingComments(CompilationUnit cu)
-    {
-        for (Comment comment : cu.getAllContainedComments())
-        {
-            String content = comment.getContent();
-            if (content.contains("byte b") || content.contains("drop 8b") || content.contains("drop 16b") ) {
-                comment.remove();
-            }
-        }
-    }
-
-    JavaParsingUnpaddedQueueGenerator(String sourceFileName) {
+    public JavaParsingUnpaddedQueueGenerator(String sourceFileName) {
         this.sourceFileName = sourceFileName;
     }
 
-    protected String translateQueueName(String qName) {
+
+    @Override
+    public void cleanupComments(CompilationUnit cu) {
+        cleanupPaddingComments(cu);
+    }
+
+    @Override
+    public void organiseImports(CompilationUnit cu) {
+        cu.addImport(new ImportDeclaration("org.jctools.queues", false, true));
+    }
+
+    @Override
+    public String translateQueueName(String qName) {
         if (qName.contains("LinkedQueue") || qName.contains("LinkedArrayQueue")) {
             return qName.replace("Linked", "LinkedUnpadded");
         }
@@ -103,14 +81,7 @@ public class JavaParsingUnpaddedQueueGenerator extends VoidVisitorAdapter<Void> 
             "which can found in the jctools-build module. The original source file is " + sourceFileName + ".")
             + node.getJavadocComment().orElse(new JavadocComment("")).getContent());
 
-        // remove padding fields
-        for (FieldDeclaration field : node.getFields())
-        {
-            String fieldName = field.getVariables().get(0).getNameAsString();
-            if (fieldName.startsWith("b0") || fieldName.startsWith("b1")) {
-                node.remove(field);
-            }
-        }
+        removePaddingFields(node);
     }
 
     @Override
@@ -158,23 +129,5 @@ public class JavaParsingUnpaddedQueueGenerator extends VoidVisitorAdapter<Void> 
                     parent.setName(translateQueueName(parentNameAsString));
             }
         }
-    }
-
-    protected String formatMultilineJavadoc(int indent, String... lines) {
-        String indentation = "";
-        for (int i = 0; i < indent; i++) {
-            indentation += INDENT_LEVEL;
-        }
-
-        String out = "\n";
-        for (String line : lines) {
-            out += indentation + " * " + line + "\n";
-        }
-        out += indentation + " ";
-        return out;
-    }
-
-    private static <T> T buildGenerator(Class<? extends T> generatorClass, String fileName) throws Exception {
-        return generatorClass.getDeclaredConstructor(String.class).newInstance(fileName);
     }
 }

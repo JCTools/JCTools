@@ -29,6 +29,8 @@ public class QueueSanityTestSpscArray extends QueueSanityTest
         list.add(makeAtomic(1, 1, SIZE, Ordering.FIFO));
         list.add(makeUnpadded(1, 1, 4, Ordering.FIFO));
         list.add(makeUnpadded(1, 1, SIZE, Ordering.FIFO));
+        list.add(makeAtomicUnpadded(1, 1, 4, Ordering.FIFO));
+        list.add(makeAtomicUnpadded(1, 1, SIZE, Ordering.FIFO));
         return list;
     }
 }

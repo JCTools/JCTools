@@ -13,6 +13,7 @@
  */
 package org.jctools.util;
 
+import org.jctools.queues.atomic.unpadded.*;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.unpadded.*;
 
@@ -30,6 +31,49 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 @Deprecated//(since = "4.0.0")
 public class UnpaddedQueueFactory
 {
+
+    public static <E> Queue<E> newAtomicUnpaddedQueue(ConcurrentQueueSpec qs)
+    {
+        if (qs.isBounded())
+        {
+            // SPSC
+            if (qs.isSpsc())
+            {
+                return new SpscAtomicUnpaddedArrayQueue<>(qs.capacity);
+            }
+            // MPSC
+            else if (qs.isMpsc())
+            {
+                return new MpscAtomicUnpaddedArrayQueue<>(qs.capacity);
+            }
+            // SPMC
+            else if (qs.isSpmc())
+            {
+                return new SpmcAtomicUnpaddedArrayQueue<>(qs.capacity);
+            }
+            // MPMC
+            else
+            {
+                return new MpmcAtomicUnpaddedArrayQueue<>(qs.capacity);
+            }
+        }
+        else
+        {
+            // SPSC
+            if (qs.isSpsc())
+            {
+                return new SpscLinkedAtomicUnpaddedQueue<>();
+            }
+            // MPSC
+            else if (qs.isMpsc())
+            {
+                return new MpscLinkedAtomicUnpaddedQueue<>();
+            }
+        }
+        return new ConcurrentLinkedQueue<E>();
+    }
+
+
     public static <E> Queue<E> newUnpaddedQueue(ConcurrentQueueSpec qs)
     {
         if (qs.isBounded())

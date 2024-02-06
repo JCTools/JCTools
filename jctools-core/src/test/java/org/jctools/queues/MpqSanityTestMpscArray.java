@@ -28,6 +28,8 @@ public class MpqSanityTestMpscArray extends MpqSanityTest
         list.add(makeAtomic(0, 1, SIZE, Ordering.FIFO));// MPSC size SIZE
         list.add(makeUnpadded(0, 1, 1, Ordering.FIFO));// MPSC size 1
         list.add(makeUnpadded(0, 1, SIZE, Ordering.FIFO));// MPSC size SIZE
+        list.add(makeAtomicUnpadded(0, 1, 1, Ordering.FIFO));// MPSC size 1
+        list.add(makeAtomicUnpadded(0, 1, SIZE, Ordering.FIFO));// MPSC size SIZE
         return list;
     }
 }

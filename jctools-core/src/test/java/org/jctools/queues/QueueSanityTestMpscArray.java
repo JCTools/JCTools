@@ -2,7 +2,6 @@ package org.jctools.queues;
 
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
-import org.jctools.util.TestUtil.*;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -38,6 +37,9 @@ public class QueueSanityTestMpscArray extends QueueSanityTest
         list.add(makeUnpadded(0, 1, 1, Ordering.FIFO));
         list.add(makeUnpadded(0, 1, 2, Ordering.FIFO));
         list.add(makeUnpadded(0, 1, SIZE, Ordering.FIFO));
+        list.add(makeAtomicUnpadded(0, 1, 1, Ordering.FIFO));
+        list.add(makeAtomicUnpadded(0, 1, 2, Ordering.FIFO));
+        list.add(makeAtomicUnpadded(0, 1, SIZE, Ordering.FIFO));
 
         return list;
     }
