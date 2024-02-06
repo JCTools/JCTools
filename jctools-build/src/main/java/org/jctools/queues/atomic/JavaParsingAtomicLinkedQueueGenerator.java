@@ -13,6 +13,8 @@ import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.PrimitiveType;
 import com.github.javaparser.ast.type.Type;
 
+import java.util.Arrays;
+
 /**
  * This generator takes in an JCTools 'LinkedQueue' Java source file and patches {@link sun.misc.Unsafe} accesses into
  * atomic {@link java.util.concurrent.atomic.AtomicLongFieldUpdater}. It outputs a Java source file with these patches.
@@ -22,13 +24,14 @@ import com.github.javaparser.ast.type.Type;
  */
 public final class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtomicQueueGenerator {
     private static final String MPSC_LINKED_ATOMIC_QUEUE_NAME = "MpscLinkedAtomicQueue";
+    private static final String MPSC_LINKED_UNPADDED_ATOMIC_QUEUE_NAME = "MpscLinkedUnpaddedAtomicQueue";
 
     public static void main(String[] args) throws Exception {
-        main(JavaParsingAtomicLinkedQueueGenerator.class, args);
+        main(Boolean.parseBoolean(args[0]), JavaParsingAtomicLinkedQueueGenerator.class, Arrays.copyOfRange(args, 1, args.length));
     }
 
-    JavaParsingAtomicLinkedQueueGenerator(String sourceFileName) {
-        super(sourceFileName);
+    JavaParsingAtomicLinkedQueueGenerator(boolean unpadded, String sourceFileName) {
+        super(unpadded, sourceFileName);
     }
 
     @Override
@@ -40,7 +43,8 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtom
         if (nameAsString.equals("WeakIterator"))
             return;
         n.setName(translateQueueName(nameAsString));
-        if (MPSC_LINKED_ATOMIC_QUEUE_NAME.equals(nameAsString)) {
+        String atomicQueueName = unpadded ? MPSC_LINKED_UNPADDED_ATOMIC_QUEUE_NAME : MPSC_LINKED_ATOMIC_QUEUE_NAME;
+        if (atomicQueueName.equals(nameAsString)) {
             // Special case for MPSC because the Unsafe variant has a static factory method and a protected constructor.
             n.setModifier(Keyword.PROTECTED, false);
             n.setModifier(Keyword.PUBLIC, true);
@@ -56,7 +60,8 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtom
         String nameAsString = node.getNameAsString();
         if (nameAsString.contains("Queue"))
             node.setName(translateQueueName(nameAsString));
-        if (MPSC_LINKED_ATOMIC_QUEUE_NAME.equals(nameAsString)) {
+        String atomicQueueName = unpadded ? MPSC_LINKED_UNPADDED_ATOMIC_QUEUE_NAME : MPSC_LINKED_ATOMIC_QUEUE_NAME;
+        if (atomicQueueName.equals(nameAsString)) {
             /*
              * Special case for MPSC
              */
@@ -80,6 +85,16 @@ public final class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtom
                         + JavaParsingAtomicLinkedQueueGenerator.class.getName(),
                 "which can found in the jctools-build module. The original source file is " + sourceFileName + ".")
                 + node.getJavadocComment().orElse(new JavadocComment("")).getContent());
+
+        if (unpadded) {
+            // remove padding fields
+            for (FieldDeclaration field : node.getFields()) {
+                String fieldName = field.getVariables().get(0).getNameAsString();
+                if (fieldName.startsWith("b0") || fieldName.startsWith("b1")) {
+                    node.remove(field);
+                }
+            }
+        }
     }
 
     @Override

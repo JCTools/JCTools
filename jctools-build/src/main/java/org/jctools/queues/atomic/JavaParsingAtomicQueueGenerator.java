@@ -59,11 +59,12 @@ abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter<Void> 
     
     protected static final String INDENT_LEVEL = "    ";
     protected final String sourceFileName;
+    protected final boolean unpadded;
 
-    static void main(Class<? extends JavaParsingAtomicQueueGenerator> generatorClass, String[] args) throws Exception {
+    static void main(boolean unpadded, Class<? extends JavaParsingAtomicQueueGenerator> generatorClass, String[] args) throws Exception {
 
         if (args.length < 2) {
-            throw new IllegalArgumentException("Usage: outputDirectory inputSourceFiles");
+            throw new IllegalArgumentException("Usage: unpadded outputDirectory inputSourceFiles");
         }
 
         File outputDirectory = new File(args[0]);
@@ -72,10 +73,14 @@ abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter<Void> 
             File file = new File(args[i]);
             System.out.println("Processing " + file);
             CompilationUnit cu = new JavaParser().parse(file).getResult().get();
-            JavaParsingAtomicQueueGenerator generator = buildGenerator(generatorClass, file.getName());
+            JavaParsingAtomicQueueGenerator generator = buildGenerator(generatorClass, unpadded, file.getName());
             generator.visit(cu, null);
 
             generator.organiseImports(cu);
+
+            if (unpadded) {
+                cleanupPaddingComments(cu);
+            }
 
             String outputFileName = generator.translateQueueName(file.getName().replace(".java", "")) + ".java";
 
@@ -87,7 +92,21 @@ abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter<Void> 
         }
     }
 
-    JavaParsingAtomicQueueGenerator(String sourceFileName) {
+
+
+    private static void cleanupPaddingComments(CompilationUnit cu)
+    {
+        for (Comment comment : cu.getAllContainedComments())
+        {
+            String content = comment.getContent();
+            if (content.contains("byte b") || content.contains("drop 8b") || content.contains("drop 16b") ) {
+                comment.remove();
+            }
+        }
+    }
+
+    JavaParsingAtomicQueueGenerator(boolean unpadded, String sourceFileName) {
+        this.unpadded = unpadded;
         this.sourceFileName = sourceFileName;
     }
 
@@ -98,7 +117,7 @@ abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter<Void> 
     public void visit(PackageDeclaration n, Void arg) {
         super.visit(n, arg);
         // Change the package of the output
-        n.setName("org.jctools.queues.atomic");
+        n.setName(unpadded? "org.jctools.queues.unpadded.atomic" : "org.jctools.queues.atomic");
     }
 
     @Override
@@ -151,11 +170,11 @@ abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter<Void> 
 
     protected String translateQueueName(String qName) {
         if (qName.contains("LinkedQueue") || qName.contains("LinkedArrayQueue")) {
-            return qName.replace("Linked", "LinkedAtomic");
+            return qName.replace("Linked", unpadded ? "LinkedUnpaddedAtomic" : "LinkedAtomic");
         }
 
         if (qName.contains("ArrayQueue")) {
-            return qName.replace("ArrayQueue", "AtomicArrayQueue");
+            return qName.replace("ArrayQueue", unpadded ? "UnpaddedAtomicArrayQueue" : "AtomicArrayQueue");
         }
 
         throw new IllegalArgumentException("Unexpected queue name: " + qName);
@@ -219,7 +238,7 @@ abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter<Void> 
                     // ignore the JDK parent
                     break;
                 case "BaseLinkedQueue":
-                    parent.setName("BaseLinkedAtomicQueue");
+                    parent.setName(unpadded? "BaseLinkedUnpaddedAtomicQueue" : "BaseLinkedAtomicQueue");
                     break;
                 case "ConcurrentCircularArrayQueue":
                     parent.setName("AtomicReferenceArrayQueue");
@@ -258,7 +277,7 @@ abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter<Void> 
         cu.addImport(new ImportDeclaration("java.util.concurrent.atomic", false, true));
 
         cu.addImport(new ImportDeclaration("org.jctools.queues", false, true));
-        cu.addImport(staticImportDeclaration("org.jctools.queues.atomic.AtomicQueueUtil"));
+        cu.addImport(staticImportDeclaration(unpadded? "org.jctools.queues.unpadded.atomic.AtomicQueueUtil" : "org.jctools.queues.atomic.AtomicQueueUtil"));
     }
 
     protected String capitalise(String s) {
@@ -388,8 +407,8 @@ abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter<Void> 
         return false;
     }
 
-    private static <T> T buildGenerator(Class<? extends T> generatorClass, String fileName) throws Exception {
-        return generatorClass.getDeclaredConstructor(String.class).newInstance(fileName);
+    private static <T> T buildGenerator(Class<? extends T> generatorClass, boolean unpadded, String fileName) throws Exception {
+        return generatorClass.getDeclaredConstructor(boolean.class, String.class).newInstance(unpadded, fileName);
     }
 
     ImportDeclaration staticImportDeclaration(String name) {

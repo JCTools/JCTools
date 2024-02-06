@@ -15,6 +15,8 @@ import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.PrimitiveType;
 import com.github.javaparser.ast.type.Type;
 
+import java.util.Arrays;
+
 /**
  * This generator takes in an JCTools 'ArrayQueue' Java source file and patches {@link sun.misc.Unsafe} accesses into
  * atomic {@link java.util.concurrent.atomic.AtomicLongFieldUpdater}. It outputs a Java source file with these patches.
@@ -25,11 +27,11 @@ import com.github.javaparser.ast.type.Type;
 public final class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomicQueueGenerator {
 
     public static void main(String[] args) throws Exception {
-        main(JavaParsingAtomicArrayQueueGenerator.class, args);
+        main(Boolean.parseBoolean(args[0]), JavaParsingAtomicArrayQueueGenerator.class, Arrays.copyOfRange(args, 1, args.length));
     }
 
-    JavaParsingAtomicArrayQueueGenerator(String sourceFileName) {
-        super(sourceFileName);
+    JavaParsingAtomicArrayQueueGenerator(boolean unpadded ,String sourceFileName) {
+        super(unpadded, sourceFileName);
     }
 
     @Override
@@ -70,6 +72,17 @@ public final class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomi
                         + JavaParsingAtomicArrayQueueGenerator.class.getName(),
                 "which can found in the jctools-build module. The original source file is " + sourceFileName + ".")
                 + node.getJavadocComment().orElse(new JavadocComment("")).getContent());
+
+        if (unpadded) {
+            // remove padding fields
+            for (FieldDeclaration field : node.getFields())
+            {
+                String fieldName = field.getVariables().get(0).getNameAsString();
+                if (fieldName.startsWith("b0") || fieldName.startsWith("b1")) {
+                    node.remove(field);
+                }
+            }
+        }
     }
 
     String fieldUpdaterFieldName(String fieldName) {

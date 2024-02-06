@@ -133,6 +133,8 @@
                             <includeProjectDependencies>false</includeProjectDependencies>
                             <mainClass>org.jctools.queues.atomic.JavaParsingAtomicArrayQueueGenerator</mainClass>
                             <arguments>
+								<!-- unpadded -->
+								<argument>false</argument>
                                 <!-- Output dest -->
                                 <argument>${basedir}/src/main/java/org/jctools/queues/atomic</argument>
                                 <!-- List of input files -->
@@ -154,6 +156,8 @@
                             <includeProjectDependencies>false</includeProjectDependencies>
                             <mainClass>org.jctools.queues.atomic.JavaParsingAtomicLinkedQueueGenerator</mainClass>
                             <arguments>
+								<!-- unpadded -->
+								<argument>false</argument>
                                 <!-- Output dest -->
                                 <argument>${basedir}/src/main/java/org/jctools/queues/atomic</argument>
                                 <!-- List of input files -->
@@ -173,6 +177,61 @@
                             </arguments>
                         </configuration>
                     </execution>
+					<execution>
+						<id>generate-unpadded-atomic-array-queues</id>
+						<goals>
+							<goal>java</goal>
+						</goals>
+						<phase>generate-sources</phase>
+						<configuration>
+							<includePluginDependencies>true</includePluginDependencies>
+							<includeProjectDependencies>false</includeProjectDependencies>
+							<mainClass>org.jctools.queues.atomic.JavaParsingAtomicArrayQueueGenerator</mainClass>
+							<arguments>
+								<!-- unpadded -->
+								<argument>true</argument>
+								<!-- Output dest -->
+								<argument>${basedir}/src/main/java/org/jctools/queues/unpadded/atomic</argument>
+								<!-- List of input files -->
+								<argument>${basedir}/src/main/java/org/jctools/queues/SpscArrayQueue.java</argument>
+								<argument>${basedir}/src/main/java/org/jctools/queues/SpmcArrayQueue.java</argument>
+								<argument>${basedir}/src/main/java/org/jctools/queues/MpscArrayQueue.java</argument>
+								<argument>${basedir}/src/main/java/org/jctools/queues/MpmcArrayQueue.java</argument>
+							</arguments>
+						</configuration>
+					</execution>
+					<execution>
+						<id>generate-unpadded-atomic-linked-queues</id>
+						<goals>
+							<goal>java</goal>
+						</goals>
+						<phase>generate-sources</phase>
+						<configuration>
+							<includePluginDependencies>true</includePluginDependencies>
+							<includeProjectDependencies>false</includeProjectDependencies>
+							<mainClass>org.jctools.queues.atomic.JavaParsingAtomicLinkedQueueGenerator</mainClass>
+							<arguments>
+								<!-- unpadded -->
+								<argument>true</argument>
+								<!-- Output dest -->
+								<argument>${basedir}/src/main/java/org/jctools/queues/unpadded/atomic</argument>
+								<!-- List of input files -->
+								<argument>${basedir}/src/main/java/org/jctools/queues/BaseLinkedQueue.java</argument>
+								<argument>${basedir}/src/main/java/org/jctools/queues/SpscLinkedQueue.java</argument>
+								<argument>${basedir}/src/main/java/org/jctools/queues/MpscLinkedQueue.java</argument>
+
+								<argument>${basedir}/src/main/java/org/jctools/queues/BaseSpscLinkedArrayQueue.java</argument>
+								<argument>${basedir}/src/main/java/org/jctools/queues/SpscChunkedArrayQueue.java</argument>
+								<argument>${basedir}/src/main/java/org/jctools/queues/SpscUnboundedArrayQueue.java</argument>
+								<argument>${basedir}/src/main/java/org/jctools/queues/SpscGrowableArrayQueue.java</argument>
+
+								<argument>${basedir}/src/main/java/org/jctools/queues/BaseMpscLinkedArrayQueue.java</argument>
+								<argument>${basedir}/src/main/java/org/jctools/queues/MpscChunkedArrayQueue.java</argument>
+								<argument>${basedir}/src/main/java/org/jctools/queues/MpscUnboundedArrayQueue.java</argument>
+								<argument>${basedir}/src/main/java/org/jctools/queues/MpscGrowableArrayQueue.java</argument>
+							</arguments>
+						</configuration>
+					</execution>
 					<execution>
 						<id>generate-unpadded-queues</id>
 						<goals>
