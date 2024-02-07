@@ -5,7 +5,7 @@
     <groupId>org.jctools</groupId>
     <artifactId>jctools-parent</artifactId>
     <packaging>pom</packaging>
-    <version>4.0.3-SNAPSHOT</version>
+    <version>4.0.4-SNAPSHOT</version>
     <name>JCTools Parent</name>
     <organization>
         <url>https://github.com/JCTools</url>

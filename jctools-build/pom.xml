@@ -4,7 +4,7 @@
     <parent>
         <groupId>org.jctools</groupId>
         <artifactId>jctools-parent</artifactId>
-        <version>4.0.3-SNAPSHOT</version>
+        <version>4.0.4-SNAPSHOT</version>
     </parent>
     <artifactId>jctools-build</artifactId>
     <name>JCTools Build Tools</name>
