@@ -13,19 +13,22 @@
  */
 package org.jctools.queues.atomic;
 
+import org.jctools.util.InternalAPI;
+
 import java.util.concurrent.atomic.AtomicReference;
 
+@InternalAPI
 public final class LinkedQueueAtomicNode<E> extends AtomicReference<LinkedQueueAtomicNode<E>>
 {
     /** */
     private static final long serialVersionUID = 2404266111789071508L;
     private E value;
 
-    LinkedQueueAtomicNode()
+    public LinkedQueueAtomicNode()
     {
     }
 
-    LinkedQueueAtomicNode(E val)
+    public LinkedQueueAtomicNode(E val)
     {
         spValue(val);
     }
