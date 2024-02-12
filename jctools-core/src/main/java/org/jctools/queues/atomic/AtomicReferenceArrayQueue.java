@@ -18,6 +18,7 @@ import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.QueueProgressIndicators;
 import org.jctools.queues.SupportsIterator;
+import org.jctools.util.InternalAPI;
 import org.jctools.util.Pow2;
 
 import java.util.AbstractQueue;
@@ -27,7 +28,8 @@ import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import static org.jctools.queues.atomic.AtomicQueueUtil.*;
 
-abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> implements IndexedQueue, QueueProgressIndicators, MessagePassingQueue<E>, SupportsIterator
+@InternalAPI
+public abstract class AtomicReferenceArrayQueue<E> extends AbstractQueue<E> implements IndexedQueue, QueueProgressIndicators, MessagePassingQueue<E>, SupportsIterator
 {
     protected final AtomicReferenceArray<E> buffer;
     protected final int mask;

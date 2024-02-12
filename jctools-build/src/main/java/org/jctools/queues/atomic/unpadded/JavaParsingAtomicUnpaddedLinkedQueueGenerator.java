@@ -1,6 +1,7 @@
 package org.jctools.queues.atomic.unpadded;
 
 import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import org.jctools.queues.atomic.JavaParsingAtomicLinkedQueueGenerator;
 
@@ -21,6 +22,13 @@ public class JavaParsingAtomicUnpaddedLinkedQueueGenerator extends JavaParsingAt
     public void cleanupComments(CompilationUnit cu) {
         super.cleanupComments(cu);
         cleanupPaddingComments(cu);
+    }
+
+    @Override
+    public void organiseImports(CompilationUnit cu) {
+        super.organiseImports(cu);
+        cu.addImport(new ImportDeclaration("org.jctools.queues.atomic.LinkedQueueAtomicNode",
+                false, false));
     }
 
     @Override

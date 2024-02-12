@@ -245,7 +245,7 @@ public abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter
         cu.addImport(new ImportDeclaration("java.util.concurrent.atomic", false, true));
 
         cu.addImport(new ImportDeclaration("org.jctools.queues", false, true));
-        cu.addImport(staticImportDeclaration(outputPackage() + ".AtomicQueueUtil"));
+        cu.addImport(staticImportDeclaration("org.jctools.queues.atomic.AtomicQueueUtil"));
     }
 
     protected String capitalise(String s) {

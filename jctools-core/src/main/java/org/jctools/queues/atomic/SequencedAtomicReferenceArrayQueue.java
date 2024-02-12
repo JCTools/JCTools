@@ -13,9 +13,12 @@
  */
 package org.jctools.queues.atomic;
 
+import org.jctools.util.InternalAPI;
+
 import java.util.concurrent.atomic.AtomicLongArray;
 
-abstract class SequencedAtomicReferenceArrayQueue<E> extends
+@InternalAPI
+public abstract class SequencedAtomicReferenceArrayQueue<E> extends
     AtomicReferenceArrayQueue<E>
 {
     protected final AtomicLongArray sequenceBuffer;
