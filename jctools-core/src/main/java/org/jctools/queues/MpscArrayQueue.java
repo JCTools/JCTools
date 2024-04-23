@@ -213,7 +213,7 @@ public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
     }
 
     /**
-     * {@link #offer}} if {@link #size()} is less than threshold.
+     * {@link #offer} if {@link #size()} is less than threshold.
      *
      * @param e         the object to offer onto the queue, not null
      * @param threshold the maximum allowable size
