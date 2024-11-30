@@ -67,7 +67,7 @@ public class MpUnboundedXaddChunk<R,E>
 
     public final void soPrev(R value)
     {
-        UNSAFE.putObject(this, PREV_OFFSET, value);
+        UNSAFE.putOrderedObject(this, PREV_OFFSET, value);
     }
 
     public final void soElement(int index, E e)
