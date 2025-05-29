@@ -338,7 +338,6 @@ abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAtomicArr
         AtomicReferenceArray<E> buffer;
         long pIndex;
         while (true) {
-            long producerLimit = lvProducerLimit();
             pIndex = lvProducerIndex();
             // lower bit is indicative of resize, if we see it we spin until it's cleared
             if ((pIndex & 1) == 1) {
@@ -348,6 +347,7 @@ abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAtomicArr
             // mask/buffer may get changed by resizing -> only use for array access after successful CAS.
             mask = this.producerMask;
             buffer = this.producerBuffer;
+            long producerLimit = lvProducerLimit();
             // a successful CAS ties the ordering, lv(pIndex) - [mask/buffer] -> cas(pIndex)
             // assumption behind this optimization is that queue is almost always empty or near empty
             if (producerLimit <= pIndex) {
@@ -589,7 +589,6 @@ abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAtomicArr
         long pIndex;
         int claimedSlots;
         while (true) {
-            long producerLimit = lvProducerLimit();
             pIndex = lvProducerIndex();
             // lower bit is indicative of resize, if we see it we spin until it's cleared
             if ((pIndex & 1) == 1) {
@@ -604,6 +603,7 @@ abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAtomicArr
             // a successful CAS ties the ordering, lv(pIndex) -> [mask/buffer] -> cas(pIndex)
             // we want 'limit' slots, but will settle for whatever is visible to 'producerLimit'
             // -> producerLimit >= batchIndex
+            long producerLimit = lvProducerLimit();
             long batchIndex = Math.min(producerLimit, pIndex + 2l * limit);
             if (pIndex >= producerLimit) {
                 int result = offerSlowPath(mask, pIndex, producerLimit);

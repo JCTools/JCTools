@@ -238,7 +238,6 @@ abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQueueColdP
 
         while (true)
         {
-            long producerLimit = lvProducerLimit();
             pIndex = lvProducerIndex();
             // lower bit is indicative of resize, if we see it we spin until it's cleared
             if ((pIndex & 1) == 1)
@@ -253,6 +252,7 @@ abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQueueColdP
             // a successful CAS ties the ordering, lv(pIndex) - [mask/buffer] -> cas(pIndex)
 
             // assumption behind this optimization is that queue is almost always empty or near empty
+            long producerLimit = lvProducerLimit();
             if (producerLimit <= pIndex)
             {
                 int result = offerSlowPath(mask, pIndex, producerLimit);
@@ -543,7 +543,6 @@ abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQueueColdP
         int claimedSlots;
         while (true)
         {
-            long producerLimit = lvProducerLimit();
             pIndex = lvProducerIndex();
             // lower bit is indicative of resize, if we see it we spin until it's cleared
             if ((pIndex & 1) == 1)
@@ -559,6 +558,7 @@ abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQueueColdP
             buffer = this.producerBuffer;
             // a successful CAS ties the ordering, lv(pIndex) -> [mask/buffer] -> cas(pIndex)
 
+            long producerLimit = lvProducerLimit();
             // we want 'limit' slots, but will settle for whatever is visible to 'producerLimit'
             long batchIndex = Math.min(producerLimit, pIndex + 2l * limit); //  -> producerLimit >= batchIndex
 
