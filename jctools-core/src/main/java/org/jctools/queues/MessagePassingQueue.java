@@ -107,7 +107,7 @@ public interface MessagePassingQueue<T>
      * according to the {@link Queue#offer(Object)} interface.
      *
      * @param e not {@code null}, will throw NPE if it is
-     * @return true if element was inserted into the queue, false iff full
+     * @return true if element was inserted into the queue, false if full or seen as full.
      */
     boolean offer(T e);
 
