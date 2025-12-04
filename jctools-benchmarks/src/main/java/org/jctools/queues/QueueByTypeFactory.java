@@ -115,12 +115,13 @@ public class QueueByTypeFactory {
     }
     @SuppressWarnings("rawtypes")
     private static Class queueClass(String queueType) {
+        String suffix = queueType.contains("VarHandle") ? "varhandle." : "";
         try {
-            return Class.forName("org.jctools.queues."+queueType);
+            return Class.forName("org.jctools.queues."+suffix+queueType);
         } catch (ClassNotFoundException e) {
         }
         try {
-            return Class.forName("org.jctools.queues.atomic."+queueType);
+            return Class.forName("org.jctools.queues.atomic."+suffix+queueType);
         } catch (ClassNotFoundException e) {
         }
         try {

@@ -17,7 +17,7 @@ public class SingleThreadedOffer
     public static final Integer TOKEN = 1;
    
     volatile boolean preventUnrolling = true;
-    @Param(value = { "SpscArrayQueue", "MpscArrayQueue", "SpmcArrayQueue", "MpmcArrayQueue" })
+    @Param(value = { "SpscArrayQueue", "MpscArrayQueue", "SpmcArrayQueue", "MpmcArrayQueue", "MpscArrayQueueVarHandle", "SpscArrayQueueVarHandle", "SpmcArrayQueueVarHandle" })
     String qType;
     Queue<Integer> q;
     

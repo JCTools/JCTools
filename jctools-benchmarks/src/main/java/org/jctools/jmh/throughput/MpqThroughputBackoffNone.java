@@ -46,7 +46,7 @@ public class MpqThroughputBackoffNone {
     Integer escape;
     MessagePassingQueue<Integer> q;
 
-    @Param(value = { "SpscArrayQueue", "MpscArrayQueue", "SpmcArrayQueue", "MpmcArrayQueue" })
+    @Param(value = { "SpscArrayQueue", "MpscArrayQueue", "SpmcArrayQueue", "MpmcArrayQueue" , "MpscArrayQueueVarHandle", "SpscArrayQueueVarHandle", "SpmcArrayQueueVarHandle"})
     String qType;
 
     @Param(value = { "132000" })
