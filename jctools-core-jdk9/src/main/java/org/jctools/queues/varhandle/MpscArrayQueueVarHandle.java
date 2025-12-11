@@ -1,3 +1,16 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.jctools.queues.varhandle;
 
 import java.util.Objects;
@@ -9,6 +22,8 @@ import org.jctools.queues.varhandle.padding.PaddedLong;
  * MPSC bounded queue using VarHandles for lock-free producers and wait-free consumer. Producers
  * compete via CAS on tail, consumer has exclusive access to head. Memory ordering:
  * setRelease/getAcquire pairs for element visibility, plain access where exclusive.
+ *
+ * @author <a href="https://github.com/amarziali">Andrea Marziali</a>
  */
 public class MpscArrayQueueVarHandle<E> extends BaseQueue<E> {
   /**
