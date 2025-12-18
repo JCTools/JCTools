@@ -8,7 +8,7 @@
 	</parent>
 
 	<artifactId>jctools-core-jdk9</artifactId>
-	<name>Java Concurrency Tools Core Library</name>
+	<name>Java Concurrency Tools Core Library - JDK 9+</name>
 	<description>Java Concurrency Tools Core Library - JDK 9+</description>
 	<packaging>bundle</packaging>
 
@@ -95,24 +95,6 @@
 						<phase>verify</phase>
 						<goals>
 							<goal>jar-no-fork</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-javadoc-plugin</artifactId>
-				<configuration>
-					<additionalOptions>
-						<additionalOption>-Xdoclint:none</additionalOption>
-					</additionalOptions>
-					<source>9</source>
-				</configuration>
-				<executions>
-					<execution>
-						<id>attach-javadocs</id>
-						<goals>
-							<goal>jar</goal>
 						</goals>
 					</execution>
 				</executions>
