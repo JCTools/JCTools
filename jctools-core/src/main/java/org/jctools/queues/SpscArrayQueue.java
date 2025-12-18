@@ -271,10 +271,10 @@ public class SpscArrayQueue<E> extends SpscArrayQueueL3Pad<E>
     }
 
     @Override
-public boolean relaxedOffer(final E message)
-{
-    return offer(message);
-}
+    public boolean relaxedOffer(final E message)
+    {
+        return offer(message);
+    }
 
     @Override
     public E relaxedPoll()
@@ -349,7 +349,7 @@ public boolean relaxedOffer(final E message)
         {
             final long index = producerIndex + i;
             final long lookAheadElementOffset =
-                    calcCircularRefElementOffset(index + lookAheadStep, mask);
+                calcCircularRefElementOffset(index + lookAheadStep, mask);
             if (null == lvRefElement(buffer, lookAheadElementOffset))
             {
                 int lookAheadLimit = Math.min(lookAheadStep, limit - i);
@@ -429,7 +429,7 @@ public boolean relaxedOffer(final E message)
         while (e.keepRunning())
         {
             final long lookAheadElementOffset =
-                    calcCircularRefElementOffset(producerIndex + lookAheadStep, mask);
+                calcCircularRefElementOffset(producerIndex + lookAheadStep, mask);
             if (null == lvRefElement(buffer, lookAheadElementOffset))
             {
                 for (int j = 0; j < lookAheadStep; j++)
