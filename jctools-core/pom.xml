@@ -1,116 +1,116 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
-	<modelVersion>4.0.0</modelVersion>
-	<parent>
-		<groupId>org.jctools</groupId>
-		<artifactId>jctools-parent</artifactId>
-		<version>4.0.5-SNAPSHOT</version>
-	</parent>
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.jctools</groupId>
+        <artifactId>jctools-parent</artifactId>
+        <version>4.0.5-SNAPSHOT</version>
+    </parent>
 
-	<artifactId>jctools-core</artifactId>
-	<name>Java Concurrency Tools Core Library</name>
-	<description>Java Concurrency Tools Core Library</description>
-	<packaging>bundle</packaging>
+    <artifactId>jctools-core</artifactId>
+    <name>Java Concurrency Tools Core Library</name>
+    <description>Java Concurrency Tools Core Library</description>
+    <packaging>bundle</packaging>
 
-	<dependencies>
+    <dependencies>
         <dependency>
             <groupId>org.osgi</groupId>
             <artifactId>osgi.annotation</artifactId>
             <scope>provided</scope>
         </dependency>
 
-		<dependency>
-			<groupId>org.hamcrest</groupId>
-			<artifactId>hamcrest-all</artifactId>
-			<version>${hamcrest.version}</version>
-			<scope>test</scope>
-		</dependency>
+        <dependency>
+            <groupId>org.hamcrest</groupId>
+            <artifactId>hamcrest-all</artifactId>
+            <version>${hamcrest.version}</version>
+            <scope>test</scope>
+        </dependency>
 
-		<dependency>
-			<groupId>junit</groupId>
-			<artifactId>junit</artifactId>
-			<version>${junit.version}</version>
-			<scope>test</scope>
-		</dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
 
-		<dependency>
-			<groupId>com.google.guava</groupId>
-			<artifactId>guava-testlib</artifactId>
-			<version>${guava-testlib.version}</version>
-			<scope>test</scope>
-		</dependency>
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava-testlib</artifactId>
+            <version>${guava-testlib.version}</version>
+            <scope>test</scope>
+        </dependency>
 
-		<dependency>
-			<groupId>org.jetbrains.kotlinx</groupId>
-			<artifactId>lincheck-jvm</artifactId>
-			<version>${lincheck.version}</version>
-			<scope>test</scope>
-		</dependency>
-	</dependencies>
+        <dependency>
+            <groupId>org.jetbrains.kotlinx</groupId>
+            <artifactId>lincheck-jvm</artifactId>
+            <version>${lincheck.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
 
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-surefire-plugin</artifactId>
-				<configuration>
-					<includes>
-						<include>*</include>
-					</includes>
-				</configuration>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.felix</groupId>
-				<artifactId>maven-bundle-plugin</artifactId>
-				<extensions>true</extensions>
-				<configuration>
-					<instructions>
-						<Import-Package>sun.misc;resolution:=optional</Import-Package>
-					</instructions>
-				</configuration>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-source-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>attach-sources</id>
-						<phase>verify</phase>
-						<goals>
-							<goal>jar-no-fork</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-javadoc-plugin</artifactId>
-				<configuration>
-					<additionalOptions>
-						<additionalOption>-Xdoclint:none</additionalOption>
-					</additionalOptions>
-					<source>8</source>
-				</configuration>
-				<executions>
-					<execution>
-						<id>attach-javadocs</id>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jar-plugin</artifactId>
-				<executions>
-					<execution>
-						<goals>
-							<goal>test-jar</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <includes>
+                        <include>*</include>
+                    </includes>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.felix</groupId>
+                <artifactId>maven-bundle-plugin</artifactId>
+                <extensions>true</extensions>
+                <configuration>
+                    <instructions>
+                        <Import-Package>sun.misc;resolution:=optional</Import-Package>
+                    </instructions>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <configuration>
+                    <additionalOptions>
+                        <additionalOption>-Xdoclint:none</additionalOption>
+                    </additionalOptions>
+                    <source>8</source>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>test-jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
@@ -133,7 +133,7 @@
                             <includeProjectDependencies>false</includeProjectDependencies>
                             <mainClass>org.jctools.queues.atomic.JavaParsingAtomicArrayQueueGenerator</mainClass>
                             <arguments>
-								<!-- Output dest -->
+                                <!-- Output dest -->
                                 <argument>${basedir}/src/main/java/org/jctools/queues/atomic</argument>
                                 <!-- List of input files -->
                                 <argument>${basedir}/src/main/java/org/jctools/queues/SpscArrayQueue.java</argument>
@@ -154,168 +154,196 @@
                             <includeProjectDependencies>false</includeProjectDependencies>
                             <mainClass>org.jctools.queues.atomic.JavaParsingAtomicLinkedQueueGenerator</mainClass>
                             <arguments>
-								<!-- Output dest -->
+                                <!-- Output dest -->
                                 <argument>${basedir}/src/main/java/org/jctools/queues/atomic</argument>
                                 <!-- List of input files -->
                                 <argument>${basedir}/src/main/java/org/jctools/queues/BaseLinkedQueue.java</argument>
                                 <argument>${basedir}/src/main/java/org/jctools/queues/SpscLinkedQueue.java</argument>
                                 <argument>${basedir}/src/main/java/org/jctools/queues/MpscLinkedQueue.java</argument>
 
-                                <argument>${basedir}/src/main/java/org/jctools/queues/BaseSpscLinkedArrayQueue.java</argument>
-                                <argument>${basedir}/src/main/java/org/jctools/queues/SpscChunkedArrayQueue.java</argument>
-                                <argument>${basedir}/src/main/java/org/jctools/queues/SpscUnboundedArrayQueue.java</argument>
-                                <argument>${basedir}/src/main/java/org/jctools/queues/SpscGrowableArrayQueue.java</argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/BaseSpscLinkedArrayQueue.java
+                                </argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/SpscChunkedArrayQueue.java
+                                </argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/SpscUnboundedArrayQueue.java
+                                </argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/SpscGrowableArrayQueue.java
+                                </argument>
 
-                                <argument>${basedir}/src/main/java/org/jctools/queues/BaseMpscLinkedArrayQueue.java</argument>
-                                <argument>${basedir}/src/main/java/org/jctools/queues/MpscChunkedArrayQueue.java</argument>
-                                <argument>${basedir}/src/main/java/org/jctools/queues/MpscUnboundedArrayQueue.java</argument>
-                                <argument>${basedir}/src/main/java/org/jctools/queues/MpscGrowableArrayQueue.java</argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/BaseMpscLinkedArrayQueue.java
+                                </argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/MpscChunkedArrayQueue.java
+                                </argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/MpscUnboundedArrayQueue.java
+                                </argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/MpscGrowableArrayQueue.java
+                                </argument>
                             </arguments>
                         </configuration>
                     </execution>
-					<execution>
-						<id>generate-atomic-unpadded-array-queues</id>
-						<goals>
-							<goal>java</goal>
-						</goals>
-						<phase>generate-sources</phase>
-						<configuration>
-							<includePluginDependencies>true</includePluginDependencies>
-							<includeProjectDependencies>false</includeProjectDependencies>
-							<mainClass>org.jctools.queues.atomic.unpadded.JavaParsingAtomicUnpaddedArrayQueueGenerator</mainClass>
-							<arguments>
-								<!-- Output dest -->
-								<argument>${basedir}/src/main/java/org/jctools/queues/atomic/unpadded</argument>
-								<!-- List of input files -->
-								<argument>${basedir}/src/main/java/org/jctools/queues/SpscArrayQueue.java</argument>
-								<argument>${basedir}/src/main/java/org/jctools/queues/SpmcArrayQueue.java</argument>
-								<argument>${basedir}/src/main/java/org/jctools/queues/MpscArrayQueue.java</argument>
-								<argument>${basedir}/src/main/java/org/jctools/queues/MpmcArrayQueue.java</argument>
-							</arguments>
-						</configuration>
-					</execution>
-					<execution>
-						<id>generate-atomic-unpadded-linked-queues</id>
-						<goals>
-							<goal>java</goal>
-						</goals>
-						<phase>generate-sources</phase>
-						<configuration>
-							<includePluginDependencies>true</includePluginDependencies>
-							<includeProjectDependencies>false</includeProjectDependencies>
-							<mainClass>org.jctools.queues.atomic.unpadded.JavaParsingAtomicUnpaddedLinkedQueueGenerator</mainClass>
-							<arguments>
-								<!-- Output dest -->
-								<argument>${basedir}/src/main/java/org/jctools/queues/atomic/unpadded</argument>
-								<!-- List of input files -->
-								<argument>${basedir}/src/main/java/org/jctools/queues/BaseLinkedQueue.java</argument>
-								<argument>${basedir}/src/main/java/org/jctools/queues/SpscLinkedQueue.java</argument>
-								<argument>${basedir}/src/main/java/org/jctools/queues/MpscLinkedQueue.java</argument>
+                    <execution>
+                        <id>generate-atomic-unpadded-array-queues</id>
+                        <goals>
+                            <goal>java</goal>
+                        </goals>
+                        <phase>generate-sources</phase>
+                        <configuration>
+                            <includePluginDependencies>true</includePluginDependencies>
+                            <includeProjectDependencies>false</includeProjectDependencies>
+                            <mainClass>org.jctools.queues.atomic.unpadded.JavaParsingAtomicUnpaddedArrayQueueGenerator
+                            </mainClass>
+                            <arguments>
+                                <!-- Output dest -->
+                                <argument>${basedir}/src/main/java/org/jctools/queues/atomic/unpadded</argument>
+                                <!-- List of input files -->
+                                <argument>${basedir}/src/main/java/org/jctools/queues/SpscArrayQueue.java</argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/SpmcArrayQueue.java</argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/MpscArrayQueue.java</argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/MpmcArrayQueue.java</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>generate-atomic-unpadded-linked-queues</id>
+                        <goals>
+                            <goal>java</goal>
+                        </goals>
+                        <phase>generate-sources</phase>
+                        <configuration>
+                            <includePluginDependencies>true</includePluginDependencies>
+                            <includeProjectDependencies>false</includeProjectDependencies>
+                            <mainClass>
+                                org.jctools.queues.atomic.unpadded.JavaParsingAtomicUnpaddedLinkedQueueGenerator
+                            </mainClass>
+                            <arguments>
+                                <!-- Output dest -->
+                                <argument>${basedir}/src/main/java/org/jctools/queues/atomic/unpadded</argument>
+                                <!-- List of input files -->
+                                <argument>${basedir}/src/main/java/org/jctools/queues/BaseLinkedQueue.java</argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/SpscLinkedQueue.java</argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/MpscLinkedQueue.java</argument>
 
-								<argument>${basedir}/src/main/java/org/jctools/queues/BaseSpscLinkedArrayQueue.java</argument>
-								<argument>${basedir}/src/main/java/org/jctools/queues/SpscChunkedArrayQueue.java</argument>
-								<argument>${basedir}/src/main/java/org/jctools/queues/SpscUnboundedArrayQueue.java</argument>
-								<argument>${basedir}/src/main/java/org/jctools/queues/SpscGrowableArrayQueue.java</argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/BaseSpscLinkedArrayQueue.java
+                                </argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/SpscChunkedArrayQueue.java
+                                </argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/SpscUnboundedArrayQueue.java
+                                </argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/SpscGrowableArrayQueue.java
+                                </argument>
 
-								<argument>${basedir}/src/main/java/org/jctools/queues/BaseMpscLinkedArrayQueue.java</argument>
-								<argument>${basedir}/src/main/java/org/jctools/queues/MpscChunkedArrayQueue.java</argument>
-								<argument>${basedir}/src/main/java/org/jctools/queues/MpscUnboundedArrayQueue.java</argument>
-								<argument>${basedir}/src/main/java/org/jctools/queues/MpscGrowableArrayQueue.java</argument>
-							</arguments>
-						</configuration>
-					</execution>
-					<execution>
-						<id>generate-unpadded-queues</id>
-						<goals>
-							<goal>java</goal>
-						</goals>
-						<phase>generate-sources</phase>
-						<configuration>
-							<includePluginDependencies>true</includePluginDependencies>
-							<includeProjectDependencies>false</includeProjectDependencies>
-							<mainClass>org.jctools.queues.unpadded.JavaParsingUnpaddedQueueGenerator</mainClass>
-							<arguments>
-								<!-- Output dest -->
-								<argument>${basedir}/src/main/java/org/jctools/queues/unpadded</argument>
-								<!-- List of input files -->
-								<argument>${basedir}/src/main/java/org/jctools/queues/ConcurrentCircularArrayQueue.java</argument>
-								<argument>${basedir}/src/main/java/org/jctools/queues/ConcurrentSequencedCircularArrayQueue.java</argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/BaseMpscLinkedArrayQueue.java
+                                </argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/MpscChunkedArrayQueue.java
+                                </argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/MpscUnboundedArrayQueue.java
+                                </argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/MpscGrowableArrayQueue.java
+                                </argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>generate-unpadded-queues</id>
+                        <goals>
+                            <goal>java</goal>
+                        </goals>
+                        <phase>generate-sources</phase>
+                        <configuration>
+                            <includePluginDependencies>true</includePluginDependencies>
+                            <includeProjectDependencies>false</includeProjectDependencies>
+                            <mainClass>org.jctools.queues.unpadded.JavaParsingUnpaddedQueueGenerator</mainClass>
+                            <arguments>
+                                <!-- Output dest -->
+                                <argument>${basedir}/src/main/java/org/jctools/queues/unpadded</argument>
+                                <!-- List of input files -->
+                                <argument>
+                                    ${basedir}/src/main/java/org/jctools/queues/ConcurrentCircularArrayQueue.java
+                                </argument>
+                                <argument>
+                                    ${basedir}/src/main/java/org/jctools/queues/ConcurrentSequencedCircularArrayQueue.java
+                                </argument>
 
-								<argument>${basedir}/src/main/java/org/jctools/queues/SpscArrayQueue.java</argument>
-								<argument>${basedir}/src/main/java/org/jctools/queues/SpmcArrayQueue.java</argument>
-								<argument>${basedir}/src/main/java/org/jctools/queues/MpscArrayQueue.java</argument>
-								<argument>${basedir}/src/main/java/org/jctools/queues/MpmcArrayQueue.java</argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/SpscArrayQueue.java</argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/SpmcArrayQueue.java</argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/MpscArrayQueue.java</argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/MpmcArrayQueue.java</argument>
 
-								<argument>${basedir}/src/main/java/org/jctools/queues/BaseLinkedQueue.java</argument>
-								<argument>${basedir}/src/main/java/org/jctools/queues/SpscLinkedQueue.java</argument>
-								<argument>${basedir}/src/main/java/org/jctools/queues/MpscLinkedQueue.java</argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/BaseLinkedQueue.java</argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/SpscLinkedQueue.java</argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/MpscLinkedQueue.java</argument>
 
-								<argument>${basedir}/src/main/java/org/jctools/queues/BaseSpscLinkedArrayQueue.java</argument>
-								<argument>${basedir}/src/main/java/org/jctools/queues/SpscChunkedArrayQueue.java</argument>
-								<argument>${basedir}/src/main/java/org/jctools/queues/SpscUnboundedArrayQueue.java</argument>
-								<argument>${basedir}/src/main/java/org/jctools/queues/SpscGrowableArrayQueue.java</argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/BaseSpscLinkedArrayQueue.java
+                                </argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/SpscChunkedArrayQueue.java
+                                </argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/SpscUnboundedArrayQueue.java
+                                </argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/SpscGrowableArrayQueue.java
+                                </argument>
 
-								<argument>${basedir}/src/main/java/org/jctools/queues/BaseMpscLinkedArrayQueue.java</argument>
-								<argument>${basedir}/src/main/java/org/jctools/queues/MpscChunkedArrayQueue.java</argument>
-								<argument>${basedir}/src/main/java/org/jctools/queues/MpscUnboundedArrayQueue.java</argument>
-								<argument>${basedir}/src/main/java/org/jctools/queues/MpscGrowableArrayQueue.java</argument>
-							</arguments>
-						</configuration>
-					</execution>
-               </executions>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/BaseMpscLinkedArrayQueue.java
+                                </argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/MpscChunkedArrayQueue.java
+                                </argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/MpscUnboundedArrayQueue.java
+                                </argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/MpscGrowableArrayQueue.java
+                                </argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
-			<plugin>
-				<groupId>org.eluder.coveralls</groupId>
-				<artifactId>coveralls-maven-plugin</artifactId>
-			</plugin>
-			<plugin>
-				<groupId>org.jacoco</groupId>
-				<artifactId>jacoco-maven-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>prepare-agent</id>
-						<goals>
-							<goal>prepare-agent</goal>
-						</goals>
-					</execution>
-					<execution>
-						<id>generate-code-coverage-report</id>
-						<phase>test</phase>
-						<goals>
-							<goal>report</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
+            <plugin>
+                <groupId>org.eluder.coveralls</groupId>
+                <artifactId>coveralls-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>generate-code-coverage-report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
-	</build>
-	<profiles>
-		<profile>
-			<id>surefire-java17-and-over</id>
-			<activation>
-				<jdk>[17,)</jdk>
-			</activation>
-			<properties>
-				<!-- Releases are still done from a JDK8, but this makes life easier-->
-				<java.version>1.8</java.version>
-			</properties>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-surefire-plugin</artifactId>
-						<configuration>
-							<argLine>
-								--add-opens java.base/jdk.internal.misc=ALL-UNNAMED
-								--add-exports java.base/jdk.internal.util=ALL-UNNAMED
-							</argLine>
-							<excludes>
-								<exclude>org.jctools.maps.linearizability_test.**</exclude>
-							</excludes>
-						</configuration>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-	</profiles>
+    </build>
+    <profiles>
+        <profile>
+            <id>surefire-java17-and-over</id>
+            <activation>
+                <jdk>[17,)</jdk>
+            </activation>
+            <properties>
+                <!-- Releases are still done from a JDK8, but this makes life easier-->
+                <java.version>1.8</java.version>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <argLine>
+                                --add-opens java.base/jdk.internal.misc=ALL-UNNAMED
+                                --add-exports java.base/jdk.internal.util=ALL-UNNAMED
+                            </argLine>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

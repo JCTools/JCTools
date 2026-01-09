@@ -133,6 +133,103 @@
 					</execution>
 				</executions>
 			</plugin>
+            <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>exec-maven-plugin</artifactId>
+            <dependencies>
+                <dependency>
+                    <groupId>${project.groupId}</groupId>
+                    <artifactId>jctools-build</artifactId>
+                    <version>${project.version}</version>
+                </dependency>
+            </dependencies>
+            <executions>
+            <execution>
+                <id>generate-atomic-array-queues</id>
+                <goals>
+                    <goal>java</goal>
+                </goals>
+                <phase>generate-sources</phase>
+                <configuration>
+                    <includePluginDependencies>true</includePluginDependencies>
+                    <includeProjectDependencies>false</includeProjectDependencies>
+                    <mainClass>org.jctools.queues.varhandle.JavaParsingVarHandleArrayQueueGenerator</mainClass>
+                    <arguments>
+                        <!-- Output dest -->
+                        <argument>${basedir}/src/main/java/org/jctools/queues/varhandle</argument>
+                        <!-- List of input files -->
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/SpscArrayQueue.java</argument>
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/SpmcArrayQueue.java</argument>
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/MpscArrayQueue.java</argument>
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/MpscBlockingConsumerArrayQueue.java</argument>
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/MpmcArrayQueue.java</argument>
+                    </arguments>
+                </configuration>
+            </execution>
+            <execution>
+                <id>generate-varhandle-linked-queues</id>
+                <goals>
+                    <goal>java</goal>
+                </goals>
+                <phase>generate-sources</phase>
+                <configuration>
+                    <includePluginDependencies>true</includePluginDependencies>
+                    <includeProjectDependencies>false</includeProjectDependencies>
+                    <mainClass>org.jctools.queues.varhandle.JavaParsingVarHandleLinkedQueueGenerator</mainClass>
+                    <arguments>
+                        <!-- Output dest -->
+                        <argument>${basedir}/src/main/java/org/jctools/queues/varhandle</argument>
+                        <!-- List of input files -->
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/BaseLinkedQueue.java</argument>
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/SpscLinkedQueue.java</argument>
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/MpscLinkedQueue.java</argument>
+                    </arguments>
+                </configuration>
+            </execution>
+            <execution>
+                <id>generate-varhandle-unpadded-array-queues</id>
+                <goals>
+                    <goal>java</goal>
+                </goals>
+                <phase>generate-sources</phase>
+                <configuration>
+                    <includePluginDependencies>true</includePluginDependencies>
+                    <includeProjectDependencies>false</includeProjectDependencies>
+                    <mainClass>org.jctools.queues.varhandle.unpadded.JavaParsingVarHandleUnpaddedArrayQueueGenerator</mainClass>
+                    <arguments>
+                        <!-- Output dest -->
+                        <argument>${basedir}/src/main/java/org/jctools/queues/varhandle/unpadded</argument>
+                        <!-- List of input files -->
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/SpscArrayQueue.java</argument>
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/SpmcArrayQueue.java</argument>
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/MpscArrayQueue.java</argument>
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/MpscBlockingConsumerArrayQueue.java</argument>
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/MpmcArrayQueue.java</argument>
+                    </arguments>
+                </configuration>
+            </execution>
+            <execution>
+                <id>generate-varhandle-unpadded-linked-queues</id>
+                <goals>
+                    <goal>java</goal>
+                </goals>
+                <phase>generate-sources</phase>
+                <configuration>
+                    <includePluginDependencies>true</includePluginDependencies>
+                    <includeProjectDependencies>false</includeProjectDependencies>
+                    <mainClass>org.jctools.queues.varhandle.unpadded.JavaParsingVarHandleUnpaddedLinkedQueueGenerator</mainClass>
+                    <arguments>
+                        <!-- Output dest -->
+                        <argument>${basedir}/src/main/java/org/jctools/queues/varhandle/unpadded</argument>
+                        <!-- List of input files -->
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/BaseLinkedQueue.java</argument>
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/SpscLinkedQueue.java</argument>
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/MpscLinkedQueue.java</argument>
+                    </arguments>
+                </configuration>
+            </execution>
+            </executions>
+            </plugin>
         </plugins>
 	</build>
 	<profiles>

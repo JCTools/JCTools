@@ -13,9 +13,9 @@ import java.util.Collection;
 import static org.jctools.queues.varhandle.utils.TestUtils.*;
 
 @RunWith(Parameterized.class)
-public class MpqSanityTestSpmcArrayVarHandle extends MpqSanityTest
+public class MpqSanityTestMpscArrayVarHandle extends MpqSanityTest
 {
-    public MpqSanityTestSpmcArrayVarHandle(ConcurrentQueueSpec spec, MessagePassingQueue<Integer> queue)
+    public MpqSanityTestMpscArrayVarHandle(ConcurrentQueueSpec spec, MessagePassingQueue<Integer> queue)
     {
         super(spec, queue);
     }
@@ -24,10 +24,10 @@ public class MpqSanityTestSpmcArrayVarHandle extends MpqSanityTest
     public static Collection<Object[]> parameters()
     {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
-        list.add(makeVarHandle(1, 0, 1, Ordering.FIFO));// SPMC size 1
-        list.add(makeVarHandle(1, 0, SIZE, Ordering.FIFO));// SPMC size SIZE
-        list.add(makeVarHandleUnpadded(1, 0, 1, Ordering.FIFO));// SPMC size 1
-        list.add(makeVarHandleUnpadded(1, 0, SIZE, Ordering.FIFO));// SPMC size SIZE
+        list.add(makeVarHandle(0, 1, 1, Ordering.FIFO));// MPSC size 1
+        list.add(makeVarHandle(0, 1, SIZE, Ordering.FIFO));// MPSC size SIZE
+        list.add(makeVarHandleUnpadded(0, 1, 1, Ordering.FIFO));// MPSC size 1
+        list.add(makeVarHandleUnpadded(0, 1, SIZE, Ordering.FIFO));// MPSC size SIZE
         return list;
     }
 }

@@ -42,7 +42,7 @@ public class MpqDrainFillThroughputBackoffNone {
     static final Object TEST_ELEMENT = 1;
     MessagePassingQueue<Integer> q;
 
-    @Param(value = { "SpscArrayQueue", "MpscArrayQueue", "SpmcArrayQueue", "MpmcArrayQueue" , "MpscArrayQueueVarHandle", "SpscArrayQueueVarHandle", "SpmcArrayQueueVarHandle"})
+    @Param(value = { "SpscArrayQueue", "MpscArrayQueue", "SpmcArrayQueue", "MpmcArrayQueue" , "MpscVarHandleArrayQueue", "SpscVarHandleArrayQueue", "SpmcVarHandleArrayQueue", "MpmcVarHandleArrayQueue"})
     String qType;
 
     @Param(value = { "132000" })

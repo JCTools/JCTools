@@ -1,55 +1,41 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.jctools.queues.varhandle.utils;
 
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
 import org.jctools.queues.spec.Preference;
-import org.jctools.queues.varhandle.MpscArrayQueueVarHandle;
-import org.jctools.queues.varhandle.SpmcArrayQueueVarHandle;
-import org.jctools.queues.varhandle.SpscArrayQueueVarHandle;
 
-public final class TestUtils {
-  private TestUtils() {}
+import static org.jctools.queues.varhandle.utils.VarHandleQueueFactory.newVarHandleQueue;
+import static org.jctools.queues.varhandle.utils.VarHandleQueueFactory.newVarHandleUnpaddedQueue;
 
-  public static Object[] makeMpq(int producers, int consumers, int capacity, Ordering ordering) {
-    ConcurrentQueueSpec spec =
-        new ConcurrentQueueSpec(producers, consumers, capacity, ordering, Preference.NONE);
-    return new Object[] {spec, newQueue(spec)};
-  }
+public class TestUtils {
 
-  public static <E> Queue<E> newQueue(ConcurrentQueueSpec qs) {
-    if (qs.isBounded()) {
-      // SPSC
-      if (qs.isSpsc()) {
-        return new SpscArrayQueueVarHandle<>(qs.capacity);
-      }
-      // MPSC
-      else if (qs.isMpsc()) {
-        if (qs.ordering != Ordering.NONE) {
-          return new MpscArrayQueueVarHandle<>(qs.capacity);
-        } else {
-          throw new UnsupportedOperationException("Not yet implemented");
-        }
-      }
-      // SPMC
-      else if (qs.isSpmc()) {
-        return new SpmcArrayQueueVarHandle<>(qs.capacity);
-      }
-      // MPMC
-      else {
-        throw new UnsupportedOperationException("Not yet implemented");
-      }
-    } else {
-      // SPSC
-      if (qs.isSpsc()) {
-        throw new UnsupportedOperationException("Not yet implemented");
-      }
-      // MPSC
-      else if (qs.isMpsc()) {
-        throw new UnsupportedOperationException("Not yet implemented");
-      }
+    public static Object[] makeVarHandle(int producers, int consumers, int capacity, Ordering ordering)
+    {
+        ConcurrentQueueSpec spec = makeSpec(producers, consumers, capacity, ordering);
+        return new Object[] {spec, newVarHandleQueue(spec)};
     }
-    return new ConcurrentLinkedQueue<E>();
-  }
+
+    public static Object[] makeVarHandleUnpadded(int producers, int consumers, int capacity, Ordering ordering)
+    {
+        ConcurrentQueueSpec spec = makeSpec(producers, consumers, capacity, ordering);
+        return new Object[] {spec, newVarHandleUnpaddedQueue(spec)};
+    }
+
+    public static ConcurrentQueueSpec makeSpec(int producers, int consumers, int capacity, Ordering ordering)
+    {
+        return new ConcurrentQueueSpec(producers, consumers, capacity, ordering, Preference.NONE);
+    }
 }

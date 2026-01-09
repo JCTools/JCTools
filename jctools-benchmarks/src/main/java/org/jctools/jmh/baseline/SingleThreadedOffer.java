@@ -11,13 +11,14 @@ import java.util.concurrent.TimeUnit;
 @Warmup(iterations = 3, time = 1, timeUnit = TimeUnit.SECONDS)
 @Measurement(iterations = 5, time = 1, timeUnit = TimeUnit.SECONDS)
 @State(Scope.Thread)
+
 public class SingleThreadedOffer
 {
     public static final int OPS = 1 << 15;
     public static final Integer TOKEN = 1;
    
     volatile boolean preventUnrolling = true;
-    @Param(value = { "SpscArrayQueue", "MpscArrayQueue", "SpmcArrayQueue", "MpmcArrayQueue", "MpscArrayQueueVarHandle", "SpscArrayQueueVarHandle", "SpmcArrayQueueVarHandle" })
+    @Param(value = { "SpscArrayQueue", "MpscArrayQueue", "SpmcArrayQueue", "MpmcArrayQueue", "MpscVarHandleArrayQueue", "SpscVarHandleArrayQueue", "SpmcVarHandleArrayQueue", "MpmcVarHandleArrayQueue" })
     String qType;
     Queue<Integer> q;
     

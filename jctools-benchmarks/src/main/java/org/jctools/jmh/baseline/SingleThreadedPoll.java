@@ -17,7 +17,7 @@ public class SingleThreadedPoll
     public static final Integer TOKEN = 1;
    
     volatile boolean preventUnrolling = true;
-    @Param(value = { "SpscArrayQueue", "MpscArrayQueue", "SpmcArrayQueue", "MpmcArrayQueue", "MpscArrayQueueVarHandle", "SpscArrayQueueVarHandle", "SpmcArrayQueueVarHandle" })
+    @Param(value = { "SpscArrayQueue", "MpscArrayQueue", "SpmcArrayQueue", "MpmcArrayQueue", "MpscVarHandleArrayQueue", "SpscVarHandleArrayQueue", "SpmcVarHandleArrayQueue", "MpmcVarHandleArrayQueue" })
     String qType;
     Queue<Integer> q;
     

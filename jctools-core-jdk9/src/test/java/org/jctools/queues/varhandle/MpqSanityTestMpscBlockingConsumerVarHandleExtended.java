@@ -1,70 +1,94 @@
 package org.jctools.queues.varhandle;
 
-import java.util.ArrayDeque;
-import java.util.Queue;
-import java.util.concurrent.TimeUnit;
+import org.jctools.queues.varhandle.MpscBlockingConsumerVarHandleArrayQueue;
+import org.jctools.queues.spec.ConcurrentQueueSpec;
+import org.jctools.queues.spec.Ordering;
+import org.junit.Before;
 import org.junit.Test;
 
-public class MpqSanityTestMpscBlockingConsumerVarHandleExtended {
-  /**
-   * This test demonstrates a race described here: https://github.com/JCTools/JCTools/issues/339 You
-   * will need to debug to observe the spin.
-   */
-  @Test
-  public void testSpinWaitForUnblockForeverFill() throws InterruptedException {
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-    class Echo<T> implements Runnable {
-      final MpscBlockingConsumerArrayQueueVarHandle<T> source;
-      final MpscBlockingConsumerArrayQueueVarHandle<T> sink;
-      final int interations;
-      final int batch;
+import static org.jctools.queues.varhandle.utils.TestUtils.makeSpec;
+import static org.junit.Assert.*;
 
-      Echo(
-          MpscBlockingConsumerArrayQueueVarHandle<T> source,
-          MpscBlockingConsumerArrayQueueVarHandle<T> sink,
-          int iterations,
-          int batch) {
-        this.source = source;
-        this.sink = sink;
-        this.interations = iterations;
-        this.batch = batch;
-      }
+public class MpqSanityTestMpscBlockingConsumerVarHandleExtended
+{
+    private MpscBlockingConsumerVarHandleArrayQueue<Integer> buffy;
 
-      public void run() {
-        Queue<T> batchContainer = new ArrayDeque<>(batch);
-        try {
-          for (int i = 0; i < interations; ++i) {
-            for (int j = 0; j < batch; j++) {
-              T t;
-              do {
-                t = source.poll(1, TimeUnit.NANOSECONDS);
-              } while (t == null);
-              batchContainer.add(t);
-            }
-            do {
-              sink.fill(() -> batchContainer.poll(), batchContainer.size());
-            } while (!batchContainer.isEmpty());
-          }
-        } catch (InterruptedException e) {
-          throw new AssertionError(e);
-        }
-      }
+    @Before
+    public void setUp() throws Exception
+    {
+        buffy = new MpscBlockingConsumerVarHandleArrayQueue<>(16);
     }
 
-    final MpscBlockingConsumerArrayQueueVarHandle<Object> q1 =
-        new MpscBlockingConsumerArrayQueueVarHandle<>(1024);
-    final MpscBlockingConsumerArrayQueueVarHandle<Object> q2 =
-        new MpscBlockingConsumerArrayQueueVarHandle<>(1024);
+    @Test(timeout = 1000)
+    public void testPoll() throws InterruptedException
+    {
+        buffy.offer(1);
+        assertEquals(1, buffy.poll().intValue());
+    }
 
-    final Thread t1 = new Thread(new Echo<>(q1, q2, 100000, 10));
-    final Thread t2 = new Thread(new Echo<>(q2, q1, 100000, 10));
+    @Test(timeout = 1000)
+    public void testTimedPoll() throws InterruptedException
+    {
+        buffy.offer(1);
+        assertEquals(1, buffy.poll(100, TimeUnit.MILLISECONDS).intValue());
+    }
 
-    t1.start();
-    t2.start();
+    @Test(timeout = 1000)
+    public void testRelaxedPoll() throws InterruptedException
+    {
+        buffy.offer(1);
+        assertEquals(1, buffy.relaxedPoll().intValue());
+    }
 
-    for (int j = 0; j < 10; j++) q1.put("x");
+    @Test(timeout = 1000)
+    public void testTake() throws InterruptedException
+    {
+        buffy.offer(1);
+        assertEquals(1, buffy.take().intValue());
+    }
 
-    t1.join();
-    t2.join();
-  }
+    @Test(timeout = 1000)
+    public void testRelaxedPeek() throws InterruptedException
+    {
+        assertNull(buffy.relaxedPeek());
+        buffy.offer(1);
+        assertEquals(1, buffy.relaxedPeek().intValue());
+    }
+
+    @Test(timeout = 1000)
+    public void testDrain() throws InterruptedException
+    {
+        for(int i=0;i<10;i++) {
+            buffy.offer(i);
+        }
+        assertEquals(10, buffy.drain(e -> {}));
+    }
+
+    @Test(timeout = 1000)
+    public void testDrainWithLimit() throws InterruptedException
+    {
+        for(int i=0;i<10;i++) {
+            buffy.offer(i);
+        }
+        assertEquals(3, buffy.drain(e -> {}, 3));
+    }
+
+    @Test(timeout = 1000)
+    public void testFill() throws InterruptedException
+    {
+        AtomicBoolean stopCondition = new AtomicBoolean();
+        buffy.fill(() -> stopCondition.get() ? null : 1);
+        assertEquals(16, buffy.size());
+    }
+
+    @Test(timeout = 1000)
+    public void testFillWithLimit() throws InterruptedException
+    {
+        AtomicBoolean stopCondition = new AtomicBoolean();
+        buffy.fill(() -> stopCondition.get() ? null : 1, 3);
+        assertEquals(3, buffy.size());
+    }
 }
