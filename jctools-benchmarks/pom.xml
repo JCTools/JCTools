@@ -23,7 +23,7 @@
         </dependency>
         <dependency>
             <groupId>org.jctools</groupId>
-            <artifactId>jctools-core-jdk9</artifactId>
+            <artifactId>jctools-core-jdk11</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

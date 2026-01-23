@@ -7,9 +7,9 @@
 		<version>4.0.5-SNAPSHOT</version>
 	</parent>
 
-	<artifactId>jctools-core-jdk9</artifactId>
-	<name>Java Concurrency Tools Core Library - JDK 9+</name>
-	<description>Java Concurrency Tools Core Library - JDK 9+</description>
+	<artifactId>jctools-core-jdk11</artifactId>
+	<name>Java Concurrency Tools Core Library - JDK 11+</name>
+	<description>Java Concurrency Tools Core Library - JDK 11+</description>
 	<packaging>bundle</packaging>
 
     <properties>
