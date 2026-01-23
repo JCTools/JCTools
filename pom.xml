@@ -69,6 +69,7 @@
 
     <modules>
         <module>jctools-core</module>
+        <module>jctools-core-jdk9</module>
         <module>jctools-experimental</module>
         <module>jctools-channels</module>
         <module>jctools-benchmarks</module>
