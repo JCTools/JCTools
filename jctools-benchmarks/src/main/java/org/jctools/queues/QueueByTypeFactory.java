@@ -113,23 +113,20 @@ public class QueueByTypeFactory {
 
         throw new IllegalArgumentException("Failed to construct queue:"+qClass.getName(), ex);
     }
-    @SuppressWarnings("rawtypes")
-    private static Class queueClass(String queueType) {
-        try {
-            return Class.forName("org.jctools.queues."+queueType);
-        } catch (ClassNotFoundException e) {
-        }
-        try {
-            return Class.forName("org.jctools.queues.atomic."+queueType);
-        } catch (ClassNotFoundException e) {
-        }
-        try {
-            return Class.forName("java.util."+queueType);
-        } catch (ClassNotFoundException e) {
-        }
-        try {
-            return Class.forName("java.util.concurrent."+queueType);
-        } catch (ClassNotFoundException e) {
+
+    final static String[] KNOWN_QUEUES_PACKAGES = {
+        "org.jctools.queues.",
+        "org.jctools.queues.varhandle.",
+        "org.jctools.queues.atomic.",
+        "java.util.",
+        "java.util.concurrent."
+    };
+    static Class queueClass(String queueType) {
+        for (String packaje : KNOWN_QUEUES_PACKAGES) {
+            try {
+                return Class.forName(packaje+queueType);
+            } catch (ClassNotFoundException e) {
+            }
         }
         try {
             return Class.forName(queueType);
