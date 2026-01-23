@@ -13,7 +13,7 @@
 	<packaging>bundle</packaging>
 
     <properties>
-        <java.version>9</java.version>
+        <java.version>11</java.version>
     </properties>
 
 	<dependencies>
@@ -240,7 +240,7 @@
 			</activation>
 			<properties>
 				<!-- Releases are still done from a JDK9, but this makes life easier-->
-				<java.version>9</java.version>
+				<java.version>11</java.version>
 			</properties>
 			<build>
 				<plugins>
