@@ -2,9 +2,11 @@ os:
   - linux
 language: java
 jdk:
-  - openjdk8
+#  - openjdk8 - Core release will still build with JDK8, but with core-jdk11 we can't build with it anymore for CI
   - openjdk11
   - openjdk17
+  - openjdk21
+  - openjdk25
 arch:
   - amd64
 #  - arm64 <-- this is not working very well
