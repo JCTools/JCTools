@@ -39,7 +39,16 @@ public class SingleThreadedOffer
         final Queue<Integer> lq = q;
         for (int i = 0; i < OPS && preventUnrolling; i++)
         {
-            lq.offer(TOKEN);
+            blackhole(queueOffer(lq, TOKEN));
         }
     }
+
+    @CompilerControl(CompilerControl.Mode.DONT_INLINE)
+    public boolean queueOffer(Queue<Integer> lq, Integer e)
+    {
+        return lq.offer(e);
+    }
+
+    @CompilerControl(CompilerControl.Mode.DONT_INLINE)
+    public void blackhole(boolean v) {}
 }

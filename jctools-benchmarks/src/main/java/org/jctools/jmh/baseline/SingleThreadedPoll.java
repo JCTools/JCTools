@@ -37,12 +37,21 @@ public class SingleThreadedPoll
 
     @Benchmark
     @OperationsPerInvocation(OPS)
-    public void poll()
+    public void pollLoop()
     {
         final Queue<Integer> lq = q;
         for (int i = 0; i < OPS && preventUnrolling; i++)
         {
-            lq.poll();
+            blackhole(queuePoll(lq));
         }
     }
+
+    @CompilerControl(CompilerControl.Mode.DONT_INLINE)
+    public Integer queuePoll(Queue<Integer> lq)
+    {
+        return lq.poll();
+    }
+
+    @CompilerControl(CompilerControl.Mode.DONT_INLINE)
+    public void blackhole(Object e) {}
 }
