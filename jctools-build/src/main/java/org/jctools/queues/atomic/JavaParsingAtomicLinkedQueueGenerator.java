@@ -195,11 +195,7 @@ public class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtomicQueu
                 }
 
                 if (usesFieldUpdater) {
-                    if (PrimitiveType.longType().equals(variable.getType())) {
-                        n.getMembers().add(0, declareLongFieldUpdater(className, variableName));
-                    } else {
-                        n.getMembers().add(0, declareRefFieldUpdater(className, variableName));
-                    }
+                    n.getMembers().add(0, declareFieldUpdater(variable, className, variableName));
                 }
             }
 
@@ -218,24 +214,6 @@ public class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtomicQueu
         body.addStatement(new ReturnStmt(
                 methodCallExpr(fieldUpdaterFieldName, "getAndSet", new ThisExpr(), new NameExpr(newValueName))));
         return body;
-    }
-
-    /**
-     * Generates something like
-     * <code>private static final AtomicReferenceFieldUpdater<MpmcAtomicArrayQueueProducerNodeField> P_NODE_UPDATER = AtomicReferenceFieldUpdater.newUpdater(MpmcAtomicArrayQueueProducerNodeField.class, "producerNode");</code>
-     */
-    private FieldDeclaration declareRefFieldUpdater(String className, String variableName) {
-        MethodCallExpr initializer = newAtomicRefFieldUpdater(className, variableName);
-
-        ClassOrInterfaceType type = simpleParametricType("AtomicReferenceFieldUpdater", className,
-                "LinkedQueueAtomicNode");
-        return fieldDeclarationWithInitialiser(type, fieldUpdaterFieldName(variableName),
-                initializer, Keyword.PRIVATE, Keyword.STATIC, Keyword.FINAL);
-    }
-
-    private MethodCallExpr newAtomicRefFieldUpdater(String className, String variableName) {
-        return methodCallExpr("AtomicReferenceFieldUpdater", "newUpdater", new ClassExpr(classType(className)),
-                new ClassExpr(classType("LinkedQueueAtomicNode")), new StringLiteralExpr(variableName));
     }
 
     private ClassOrInterfaceType atomicRefArrayType(ArrayType in) {

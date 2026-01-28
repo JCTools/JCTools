@@ -83,6 +83,8 @@ public class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomicQueue
             return "C_INDEX_UPDATER";
         case "producerLimit":
             return "P_LIMIT_UPDATER";
+        case "blocked":
+            return "BLOCKED_UPDATER";
         default:
             throw new IllegalArgumentException("Unhandled field: " + fieldName);
         }
@@ -95,13 +97,15 @@ public class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomicQueue
      */
     void processSpecialNodeTypes(NodeWithType<?, Type> node, String name) {
         Type type = node.getType();
-        if ("buffer".equals(name) && isRefArray(type, "E")) {
+        if (("buffer".equals(name) || "consumerBuffer".equals(name) || "producerBuffer".equals(name)) && isRefArray(type, "E")) {
             node.setType(atomicRefArrayType((ArrayType) type));
         } else if ("sBuffer".equals(name) && isLongArray(type)) {
             node.setType(atomicLongArrayType());
         } else if (PrimitiveType.longType().equals(type)) {
             switch(name) {
             case "mask":
+            case "producerMask":
+            case "consumerMask":
             case "offset":
             case "seqOffset":
             case "lookAheadSeqOffset":
@@ -167,7 +171,7 @@ public class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomicQueue
                 }
 
                 if (usesFieldUpdater) {
-                    n.getMembers().add(0, declareLongFieldUpdater(className, variableName));
+                    n.getMembers().add(0, declareFieldUpdater(variable, className, variableName));
                 }
             }
 
