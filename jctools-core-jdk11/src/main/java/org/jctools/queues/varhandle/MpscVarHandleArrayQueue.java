@@ -441,8 +441,8 @@ public class MpscVarHandleArrayQueue<E> extends MpscVarHandleArrayQueueL3Pad<E> 
         if (null == e) {
             throw new NullPointerException();
         }
-        // use a cached view on consumer index (potentially updated in loop)
         final int mask = this.mask;
+        // use `producerLimit` which is a cached view on consumer index (potentially updated in loop)
         long producerLimit = laProducerLimit();
         long pIndex;
         do {

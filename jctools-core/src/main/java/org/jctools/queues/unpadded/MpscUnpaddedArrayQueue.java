@@ -217,8 +217,8 @@ public class MpscUnpaddedArrayQueue<E> extends MpscUnpaddedArrayQueueL3Pad<E> {
         if (null == e) {
             throw new NullPointerException();
         }
-        // use a cached view on consumer index (potentially updated in loop)
         final long mask = this.mask;
+        // use `producerLimit` which is a cached view on consumer index (potentially updated in loop)
         long producerLimit = lvProducerLimit();
         long pIndex;
         do {

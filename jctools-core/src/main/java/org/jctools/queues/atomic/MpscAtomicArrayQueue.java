@@ -404,8 +404,8 @@ public class MpscAtomicArrayQueue<E> extends MpscAtomicArrayQueueL3Pad<E> {
         if (null == e) {
             throw new NullPointerException();
         }
-        // use a cached view on consumer index (potentially updated in loop)
         final int mask = this.mask;
+        // use `producerLimit` which is a cached view on consumer index (potentially updated in loop)
         long producerLimit = lvProducerLimit();
         long pIndex;
         do {
