@@ -47,7 +47,7 @@ abstract class SpmcArrayQueueProducerIndexField<E> extends SpmcArrayQueueL1Pad<E
 {
     protected final static long P_INDEX_OFFSET = fieldOffset(SpmcArrayQueueProducerIndexField.class,"producerIndex");
 
-    private volatile long producerIndex;
+    private long producerIndex;
 
     SpmcArrayQueueProducerIndexField(int capacity)
     {
@@ -57,12 +57,12 @@ abstract class SpmcArrayQueueProducerIndexField<E> extends SpmcArrayQueueL1Pad<E
     @Override
     public final long lvProducerIndex()
     {
-        return producerIndex;
+        return UNSAFE.getLongVolatile(this, P_INDEX_OFFSET);
     }
 
     final long lpProducerIndex()
     {
-        return UNSAFE.getLong(this, P_INDEX_OFFSET);
+        return producerIndex;
     }
 
     final void soProducerIndex(long newValue)

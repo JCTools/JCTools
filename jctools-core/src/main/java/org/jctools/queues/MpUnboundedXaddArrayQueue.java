@@ -145,11 +145,16 @@ abstract class MpUnboundedXaddArrayQueueConsumerFields<R extends MpUnboundedXadd
     private final static long C_CHUNK_OFFSET =
         fieldOffset(MpUnboundedXaddArrayQueueConsumerFields.class, "consumerChunk");
 
-    private volatile long consumerIndex;
+    private long consumerIndex;
     private volatile R consumerChunk;
 
     @Override
     public final long lvConsumerIndex()
+    {
+        return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
+    }
+
+    final long lpConsumerIndex()
     {
         return consumerIndex;
     }
@@ -172,11 +177,6 @@ abstract class MpUnboundedXaddArrayQueueConsumerFields<R extends MpUnboundedXadd
     final void soConsumerChunk(R newValue)
     {
         UNSAFE.putOrderedObject(this, C_CHUNK_OFFSET, newValue);
-    }
-
-    final long lpConsumerIndex()
-    {
-        return UNSAFE.getLong(this, C_INDEX_OFFSET);
     }
 
     final void soConsumerIndex(long newValue)

@@ -144,7 +144,6 @@ abstract class BaseLinkedQueuePad2<E> extends BaseLinkedQueueConsumerNodeRef<E>
  */
 abstract class BaseLinkedQueue<E> extends BaseLinkedQueuePad2<E>
 {
-
     @Override
     public final Iterator<E> iterator()
     {

@@ -159,7 +159,7 @@ abstract class MpscBlockingConsumerArrayQueueConsumerFields<E> extends MpscBlock
     private final static long C_INDEX_OFFSET = fieldOffset(MpscBlockingConsumerArrayQueueConsumerFields.class,"consumerIndex");
     private final static long BLOCKED_OFFSET = fieldOffset(MpscBlockingConsumerArrayQueueConsumerFields.class,"blocked");
 
-    private volatile long consumerIndex;
+    private long consumerIndex;
     protected final long consumerMask;
     private volatile Thread blocked;
     protected final E[] consumerBuffer;
@@ -174,12 +174,12 @@ abstract class MpscBlockingConsumerArrayQueueConsumerFields<E> extends MpscBlock
     @Override
     public final long lvConsumerIndex()
     {
-        return consumerIndex;
+        return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
     }
 
     final long lpConsumerIndex()
     {
-        return UNSAFE.getLong(this, C_INDEX_OFFSET);
+        return consumerIndex;
     }
 
     final void soConsumerIndex(long newValue)

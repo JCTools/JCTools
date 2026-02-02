@@ -98,19 +98,19 @@ abstract class BaseMpscLinkedArrayQueueConsumerFields<E> extends BaseMpscLinkedA
 {
     private final static long C_INDEX_OFFSET = fieldOffset(BaseMpscLinkedArrayQueueConsumerFields.class,"consumerIndex");
 
-    private volatile long consumerIndex;
+    private long consumerIndex;
     protected long consumerMask;
     protected E[] consumerBuffer;
 
     @Override
     public final long lvConsumerIndex()
     {
-        return consumerIndex;
+        return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
     }
 
     final long lpConsumerIndex()
     {
-        return UNSAFE.getLong(this, C_INDEX_OFFSET);
+        return consumerIndex;
     }
 
     final void soConsumerIndex(long newValue)
