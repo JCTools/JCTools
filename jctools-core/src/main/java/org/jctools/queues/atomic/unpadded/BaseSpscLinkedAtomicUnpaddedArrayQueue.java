@@ -86,12 +86,12 @@ abstract class BaseSpscLinkedAtomicUnpaddedArrayQueueProducerFields<E> extends B
         return producerIndex;
     }
 
-    final void soProducerIndex(long newValue) {
-        P_INDEX_UPDATER.lazySet(this, newValue);
-    }
-
     final long lpProducerIndex() {
         return producerIndex;
+    }
+
+    final void soProducerIndex(long newValue) {
+        P_INDEX_UPDATER.lazySet(this, newValue);
     }
 }
 

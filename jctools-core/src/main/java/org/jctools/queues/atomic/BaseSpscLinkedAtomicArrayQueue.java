@@ -178,12 +178,12 @@ abstract class BaseSpscLinkedAtomicArrayQueueProducerFields<E> extends BaseSpscL
         return producerIndex;
     }
 
-    final void soProducerIndex(long newValue) {
-        P_INDEX_UPDATER.lazySet(this, newValue);
-    }
-
     final long lpProducerIndex() {
         return producerIndex;
+    }
+
+    final void soProducerIndex(long newValue) {
+        P_INDEX_UPDATER.lazySet(this, newValue);
     }
 }
 

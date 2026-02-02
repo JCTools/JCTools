@@ -50,15 +50,15 @@ abstract class BaseSpscLinkedUnpaddedArrayQueueConsumerField<E> extends BaseSpsc
 
     private final static long C_INDEX_OFFSET = fieldOffset(BaseSpscLinkedUnpaddedArrayQueueConsumerField.class, "consumerIndex");
 
-    private volatile long consumerIndex;
+    private long consumerIndex;
 
     @Override
     public final long lvConsumerIndex() {
-        return consumerIndex;
+        return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
     }
 
     final long lpConsumerIndex() {
-        return UNSAFE.getLong(this, C_INDEX_OFFSET);
+        return consumerIndex;
     }
 
     final void soConsumerIndex(long newValue) {
@@ -81,19 +81,19 @@ abstract class BaseSpscLinkedUnpaddedArrayQueueProducerFields<E> extends BaseSps
 
     private final static long P_INDEX_OFFSET = fieldOffset(BaseSpscLinkedUnpaddedArrayQueueProducerFields.class, "producerIndex");
 
-    private volatile long producerIndex;
+    private long producerIndex;
 
     @Override
     public final long lvProducerIndex() {
+        return UNSAFE.getLongVolatile(this, P_INDEX_OFFSET);
+    }
+
+    final long lpProducerIndex() {
         return producerIndex;
     }
 
     final void soProducerIndex(long newValue) {
         UNSAFE.putOrderedLong(this, P_INDEX_OFFSET, newValue);
-    }
-
-    final long lpProducerIndex() {
-        return UNSAFE.getLong(this, P_INDEX_OFFSET);
     }
 }
 

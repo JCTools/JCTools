@@ -108,7 +108,7 @@ abstract class MpscUnpaddedArrayQueueConsumerIndexField<E> extends MpscUnpaddedA
 
     private final static long C_INDEX_OFFSET = fieldOffset(MpscUnpaddedArrayQueueConsumerIndexField.class, "consumerIndex");
 
-    private volatile long consumerIndex;
+    private long consumerIndex;
 
     MpscUnpaddedArrayQueueConsumerIndexField(int capacity) {
         super(capacity);
@@ -116,11 +116,11 @@ abstract class MpscUnpaddedArrayQueueConsumerIndexField<E> extends MpscUnpaddedA
 
     @Override
     public final long lvConsumerIndex() {
-        return consumerIndex;
+        return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
     }
 
     final long lpConsumerIndex() {
-        return UNSAFE.getLong(this, C_INDEX_OFFSET);
+        return consumerIndex;
     }
 
     final void soConsumerIndex(long newValue) {

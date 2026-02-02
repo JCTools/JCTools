@@ -73,7 +73,7 @@ abstract class BaseMpscLinkedUnpaddedArrayQueueConsumerFields<E> extends BaseMps
 
     private final static long C_INDEX_OFFSET = fieldOffset(BaseMpscLinkedUnpaddedArrayQueueConsumerFields.class, "consumerIndex");
 
-    private volatile long consumerIndex;
+    private long consumerIndex;
 
     protected long consumerMask;
 
@@ -81,11 +81,11 @@ abstract class BaseMpscLinkedUnpaddedArrayQueueConsumerFields<E> extends BaseMps
 
     @Override
     public final long lvConsumerIndex() {
-        return consumerIndex;
+        return UNSAFE.getLongVolatile(this, C_INDEX_OFFSET);
     }
 
     final long lpConsumerIndex() {
-        return UNSAFE.getLong(this, C_INDEX_OFFSET);
+        return consumerIndex;
     }
 
     final void soConsumerIndex(long newValue) {
