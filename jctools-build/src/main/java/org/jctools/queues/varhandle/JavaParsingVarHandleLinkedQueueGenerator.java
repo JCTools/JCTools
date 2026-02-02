@@ -84,6 +84,8 @@ public class JavaParsingVarHandleLinkedQueueGenerator extends JavaParsingVarHand
             node.setComment(null);
             removeStaticFieldsAndInitialisers(node);
             patchVarHandleAccessorMethods(node);
+            // Mark that this file has VarHandle fields so we can add proper imports
+            hasVarHandleFields = true;
         }
 
         for (MethodDeclaration method : node.getMethods()) {

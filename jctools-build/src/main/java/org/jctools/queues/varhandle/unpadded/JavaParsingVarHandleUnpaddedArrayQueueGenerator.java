@@ -5,7 +5,6 @@ import static org.jctools.queues.util.GeneratorUtils.removePaddingFields;
 import static org.jctools.queues.util.GeneratorUtils.runJCToolsGenerator;
 
 import com.github.javaparser.ast.CompilationUnit;
-import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import org.jctools.queues.varhandle.JavaParsingVarHandleArrayQueueGenerator;
 
@@ -28,12 +27,6 @@ public class JavaParsingVarHandleUnpaddedArrayQueueGenerator
   @Override
   public void organiseImports(CompilationUnit cu) {
     super.organiseImports(cu);
-    cu.addImport(
-        new ImportDeclaration(
-            "org.jctools.queues.varhandle.VarHandleReferenceArrayQueue", false, false));
-    cu.addImport(
-        new ImportDeclaration(
-            "org.jctools.queues.varhandle.SequencedVarHandleReferenceArrayQueue", false, false));
   }
 
   @Override

@@ -46,6 +46,12 @@ public class JavaParsingVarHandleArrayQueueGenerator extends JavaParsingVarHandl
     super(sourceFileName);
   }
 
+  @Override
+  void processSpecialNodeTypes(NodeWithType<?, Type> node, String name)
+  {
+    // nothing to do
+  }
+
   /** Detects the queue type from the source file name */
   private QueueType detectQueueType() {
     String fileName = sourceFileName.toLowerCase();
@@ -72,6 +78,10 @@ public class JavaParsingVarHandleArrayQueueGenerator extends JavaParsingVarHandl
   @Override
   public void visit(ConstructorDeclaration n, Void arg) {
     super.visit(n, arg);
+    String nameAsString = n.getNameAsString();
+    // Ignore internal class WeakIterator which we don't need to rename
+    if (nameAsString.equals("WeakIterator"))
+      return;
     // Update the ctor to match the class name
     n.setName(translateQueueName(n.getNameAsString()));
   }
@@ -82,12 +92,19 @@ public class JavaParsingVarHandleArrayQueueGenerator extends JavaParsingVarHandl
 
     replaceParentClassesForVarHandle(node);
 
+    String nameAsString = node.getNameAsString();
+    // Ignore internal class WeakIterator which we don't need to rename
+    if (nameAsString.equals("WeakIterator"))
+      return;
+
     node.setName(translateQueueName(node.getNameAsString()));
 
     if (isCommentPresent(node, GEN_DIRECTIVE_CLASS_CONTAINS_ORDERED_FIELD_ACCESSORS)) {
       node.setComment(null);
       removeStaticFieldsAndInitialisers(node);
       patchVarHandleAccessorMethods(node);
+      // Mark that this file has VarHandle fields so we can add proper imports
+      hasVarHandleFields = true;
     }
 
     for (MethodDeclaration method : node.getMethods()) {
@@ -132,28 +149,6 @@ public class JavaParsingVarHandleArrayQueueGenerator extends JavaParsingVarHandl
         return "VH_BLOCKED";
       default:
         throw new IllegalArgumentException("Unhandled field: " + fieldName);
-    }
-  }
-
-  /**
-   * Given a variable declaration of some sort, check it's name and type and if it looks like any of
-   * the key type changes between unsafe and VarHandle queues, perform the conversion to change it's
-   * type.
-   */
-  void processSpecialNodeTypes(NodeWithType<?, Type> node, String name) {
-    Type type = node.getType();
-    if (PrimitiveType.longType().equals(type)) {
-
-      switch (name) {
-        case "mask":
-        case "offset":
-        case "seqOffset":
-        case "lookAheadSeqOffset":
-        case "lookAheadElementOffset":
-        case "producerMask":
-        case "consumerMask":
-          node.setType(PrimitiveType.intType());
-      }
     }
   }
 
@@ -222,10 +217,6 @@ public class JavaParsingVarHandleArrayQueueGenerator extends JavaParsingVarHandl
             addAcquireLoadMethod(n, variableName);
           }
         }
-      }
-
-      if (usesVarHandle) {
-        field.addModifier(Keyword.VOLATILE);
       }
     }
 

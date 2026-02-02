@@ -65,6 +65,9 @@ public abstract class JavaParsingVarHandleQueueGenerator extends VoidVisitorAdap
 
   protected final String sourceFileName;
 
+  // Track whether the current file has VarHandle field declarations
+  protected boolean hasVarHandleFields = false;
+
   protected String outputPackage() {
     return "org.jctools.queues.varhandle";
   }
@@ -216,10 +219,10 @@ public abstract class JavaParsingVarHandleQueueGenerator extends VoidVisitorAdap
           parent.setName("BaseLinked" + queueClassNamePrefix() + "Queue");
           break;
         case "ConcurrentCircularArrayQueue":
-          parent.setName("VarHandleReferenceArrayQueue");
+          parent.setName("ConcurrentCircular" + queueClassNamePrefix() + "ArrayQueue");
           break;
         case "ConcurrentSequencedCircularArrayQueue":
-          parent.setName("SequencedVarHandleReferenceArrayQueue");
+          parent.setName("ConcurrentSequencedCircular" + queueClassNamePrefix() + "ArrayQueue");
           break;
         default:
           // Padded super classes are to be renamed and thus so does the
@@ -256,8 +259,12 @@ public abstract class JavaParsingVarHandleQueueGenerator extends VoidVisitorAdap
       cu.addImport(importDecl);
     }
 
-    cu.addImport(new ImportDeclaration("java.lang.invoke.MethodHandles", false, false));
-    cu.addImport(new ImportDeclaration("java.lang.invoke.VarHandle", false, false));
+    // Only add java.lang.invoke imports if the class has VarHandle fields
+    // (set during the visit phase when we find $gen:ordered-fields comment)
+    if (hasVarHandleFields) {
+      cu.addImport(new ImportDeclaration("java.lang.invoke.MethodHandles", false, false));
+      cu.addImport(new ImportDeclaration("java.lang.invoke.VarHandle", false, false));
+    }
 
     cu.addImport(new ImportDeclaration("org.jctools.queues", false, true));
     cu.addImport(staticImportDeclaration("org.jctools.queues.varhandle.VarHandleQueueUtil"));
