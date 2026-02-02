@@ -101,11 +101,11 @@ abstract class MpscBlockingConsumerVarHandleArrayQueueColdProducerFields<E> exte
 
     private volatile long producerLimit;
 
-    protected final int producerMask;
+    protected final long producerMask;
 
     protected final E[] producerBuffer;
 
-    MpscBlockingConsumerVarHandleArrayQueueColdProducerFields(int producerMask, E[] producerBuffer) {
+    MpscBlockingConsumerVarHandleArrayQueueColdProducerFields(long producerMask, E[] producerBuffer) {
         this.producerMask = producerMask;
         this.producerBuffer = producerBuffer;
     }
@@ -156,7 +156,7 @@ abstract class MpscBlockingConsumerVarHandleArrayQueuePad2<E> extends MpscBlocki
     byte b060, b061, b062, b063, b064, b065, b066, b067;
 
     // byte b070,b071,b072,b073,b074,b075,b076,b077;// 64b
-    MpscBlockingConsumerVarHandleArrayQueuePad2(int mask, E[] buffer) {
+    MpscBlockingConsumerVarHandleArrayQueuePad2(long mask, E[] buffer) {
         super(mask, buffer);
     }
 }
@@ -179,7 +179,7 @@ abstract class MpscBlockingConsumerVarHandleArrayQueueProducerFields<E> extends 
 
     private volatile long producerIndex;
 
-    MpscBlockingConsumerVarHandleArrayQueueProducerFields(int mask, E[] buffer) {
+    MpscBlockingConsumerVarHandleArrayQueueProducerFields(long mask, E[] buffer) {
         super(mask, buffer);
     }
 
@@ -256,7 +256,7 @@ abstract class MpscBlockingConsumerVarHandleArrayQueuePad3<E> extends MpscBlocki
     // 128b
     byte b170, b171, b172, b173, b174, b175, b176, b177;
 
-    MpscBlockingConsumerVarHandleArrayQueuePad3(int mask, E[] buffer) {
+    MpscBlockingConsumerVarHandleArrayQueuePad3(long mask, E[] buffer) {
         super(mask, buffer);
     }
 }
@@ -280,15 +280,15 @@ abstract class MpscBlockingConsumerVarHandleArrayQueueConsumerFields<E> extends 
 
     private static final VarHandle VH_CONSUMER_INDEX;
 
-    private volatile long consumerIndex;
+    private long consumerIndex;
 
-    protected final int consumerMask;
+    protected final long consumerMask;
 
     private volatile Thread blocked;
 
     protected final E[] consumerBuffer;
 
-    MpscBlockingConsumerVarHandleArrayQueueConsumerFields(int mask, E[] buffer) {
+    MpscBlockingConsumerVarHandleArrayQueueConsumerFields(long mask, E[] buffer) {
         super(mask, buffer);
         consumerMask = mask;
         consumerBuffer = buffer;
@@ -429,7 +429,7 @@ public class MpscBlockingConsumerVarHandleArrayQueue<E> extends MpscBlockingCons
         if (null == e) {
             throw new NullPointerException();
         }
-        final int mask = this.producerMask;
+        final long mask = this.producerMask;
         final long capacity = mask + 2;
         threshold = threshold << 1;
         final E[] buffer = this.producerBuffer;
@@ -462,7 +462,7 @@ public class MpscBlockingConsumerVarHandleArrayQueue<E> extends MpscBlockingCons
                 break;
             }
         }
-        final int offset = modifiedCalcCircularRefElementOffset(pIndex, mask);
+        final long offset = modifiedCalcCircularRefElementOffset(pIndex, mask);
         // INDEX visible before ELEMENT
         // release element e
         soRefElement(buffer, offset, e);
@@ -474,7 +474,7 @@ public class MpscBlockingConsumerVarHandleArrayQueue<E> extends MpscBlockingCons
         if (null == e) {
             throw new NullPointerException();
         }
-        final int mask = this.producerMask;
+        final long mask = this.producerMask;
         final E[] buffer = this.producerBuffer;
         long pIndex;
         while (true) {
@@ -499,7 +499,7 @@ public class MpscBlockingConsumerVarHandleArrayQueue<E> extends MpscBlockingCons
                 break;
             }
         }
-        final int offset = modifiedCalcCircularRefElementOffset(pIndex, mask);
+        final long offset = modifiedCalcCircularRefElementOffset(pIndex, mask);
         // INDEX visible before ELEMENT
         // release element e
         soRefElement(buffer, offset, e);
@@ -519,8 +519,8 @@ public class MpscBlockingConsumerVarHandleArrayQueue<E> extends MpscBlockingCons
         throw new UnsupportedOperationException();
     }
 
-    private boolean offerAndWakeup(E[] buffer, int mask, long pIndex, E e) {
-        final int offset = modifiedCalcCircularRefElementOffset(pIndex, mask);
+    private boolean offerAndWakeup(E[] buffer, long mask, long pIndex, E e) {
+        final long offset = modifiedCalcCircularRefElementOffset(pIndex, mask);
         final Thread consumerThread = lvBlocked();
         // We could see a null here through a race with the consumer not yet storing the reference. Just retry.
         if (consumerThread == null) {
@@ -535,7 +535,7 @@ public class MpscBlockingConsumerVarHandleArrayQueue<E> extends MpscBlockingCons
         return true;
     }
 
-    private boolean recalculateProducerLimit(int mask, long pIndex, long producerLimit) {
+    private boolean recalculateProducerLimit(long mask, long pIndex, long producerLimit) {
         return recalculateProducerLimit(pIndex, producerLimit, laConsumerIndex(), mask + 2, mask + 2);
     }
 
@@ -557,9 +557,9 @@ public class MpscBlockingConsumerVarHandleArrayQueue<E> extends MpscBlockingCons
     @Override
     public E take() throws InterruptedException {
         final E[] buffer = consumerBuffer;
-        final int mask = consumerMask;
+        final long mask = consumerMask;
         final long cIndex = lpConsumerIndex();
-        final int offset = modifiedCalcCircularRefElementOffset(cIndex, mask);
+        final long offset = modifiedCalcCircularRefElementOffset(cIndex, mask);
         E e = lvRefElement(buffer, offset);
         if (e == null) {
             return parkUntilNext(buffer, cIndex, offset, Long.MAX_VALUE);
@@ -579,9 +579,9 @@ public class MpscBlockingConsumerVarHandleArrayQueue<E> extends MpscBlockingCons
     @Override
     public E poll(long timeout, TimeUnit unit) throws InterruptedException {
         final E[] buffer = consumerBuffer;
-        final int mask = consumerMask;
+        final long mask = consumerMask;
         final long cIndex = lpConsumerIndex();
-        final int offset = modifiedCalcCircularRefElementOffset(cIndex, mask);
+        final long offset = modifiedCalcCircularRefElementOffset(cIndex, mask);
         E e = lvRefElement(buffer, offset);
         if (e == null) {
             long timeoutNs = unit.toNanos(timeout);
@@ -597,7 +597,7 @@ public class MpscBlockingConsumerVarHandleArrayQueue<E> extends MpscBlockingCons
         return e;
     }
 
-    private E parkUntilNext(E[] buffer, long cIndex, int offset, long timeoutNs) throws InterruptedException {
+    private E parkUntilNext(E[] buffer, long cIndex, long offset, long timeoutNs) throws InterruptedException {
         E e;
         final long pIndex = laProducerIndex();
         if (// queue is empty
@@ -665,9 +665,9 @@ public class MpscBlockingConsumerVarHandleArrayQueue<E> extends MpscBlockingCons
     @Override
     public E poll() {
         final E[] buffer = consumerBuffer;
-        final int mask = consumerMask;
+        final long mask = consumerMask;
         final long index = lpConsumerIndex();
-        final int offset = modifiedCalcCircularRefElementOffset(index, mask);
+        final long offset = modifiedCalcCircularRefElementOffset(index, mask);
         E e = lvRefElement(buffer, offset);
         if (e == null) {
             // consumer can't see the odd producer index
@@ -687,7 +687,7 @@ public class MpscBlockingConsumerVarHandleArrayQueue<E> extends MpscBlockingCons
         return e;
     }
 
-    private static <E> E spinWaitForElement(E[] buffer, int offset) {
+    private static <E> E spinWaitForElement(E[] buffer, long offset) {
         E e;
         do {
             e = lvRefElement(buffer, offset);
@@ -703,9 +703,9 @@ public class MpscBlockingConsumerVarHandleArrayQueue<E> extends MpscBlockingCons
     @Override
     public E peek() {
         final E[] buffer = consumerBuffer;
-        final int mask = consumerMask;
+        final long mask = consumerMask;
         final long index = lpConsumerIndex();
-        final int offset = modifiedCalcCircularRefElementOffset(index, mask);
+        final long offset = modifiedCalcCircularRefElementOffset(index, mask);
         E e = lvRefElement(buffer, offset);
         if (e == null && index != laProducerIndex()) {
             // peek() == null iff queue is empty, null element is not strong enough indicator, so we must
@@ -739,8 +739,8 @@ public class MpscBlockingConsumerVarHandleArrayQueue<E> extends MpscBlockingCons
     public E relaxedPoll() {
         final E[] buffer = consumerBuffer;
         final long index = lpConsumerIndex();
-        final int mask = consumerMask;
-        final int offset = modifiedCalcCircularRefElementOffset(index, mask);
+        final long mask = consumerMask;
+        final long offset = modifiedCalcCircularRefElementOffset(index, mask);
         E e = lvRefElement(buffer, offset);
         if (e == null) {
             return null;
@@ -754,8 +754,8 @@ public class MpscBlockingConsumerVarHandleArrayQueue<E> extends MpscBlockingCons
     public E relaxedPeek() {
         final E[] buffer = consumerBuffer;
         final long index = lpConsumerIndex();
-        final int mask = consumerMask;
-        final int offset = modifiedCalcCircularRefElementOffset(index, mask);
+        final long mask = consumerMask;
+        final long offset = modifiedCalcCircularRefElementOffset(index, mask);
         return lvRefElement(buffer, offset);
     }
 
@@ -767,7 +767,7 @@ public class MpscBlockingConsumerVarHandleArrayQueue<E> extends MpscBlockingCons
             throw new IllegalArgumentException("limit is negative:" + limit);
         if (limit == 0)
             return 0;
-        final int mask = this.producerMask;
+        final long mask = this.producerMask;
         long pIndex;
         int claimedSlots;
         Thread blockedConsumer = null;
@@ -814,7 +814,7 @@ public class MpscBlockingConsumerVarHandleArrayQueue<E> extends MpscBlockingCons
         final E[] buffer = this.producerBuffer;
         // first element offset might be a wakeup, so peeled from loop
         for (int i = 0; i < claimedSlots; i++) {
-            int offset = modifiedCalcCircularRefElementOffset(pIndex + 2L * i, mask);
+            long offset = modifiedCalcCircularRefElementOffset(pIndex + 2L * i, mask);
             soRefElement(buffer, offset, s.get());
         }
         if (blockedConsumer != null) {

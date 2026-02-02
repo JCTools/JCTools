@@ -31,64 +31,64 @@ public final class VarHandleQueueUtil {
     }
   }
 
-  public static <E> E lvRefElement(E[] buffer, int offset) {
-    return (E) ARRAY_REF_ELEMENT.getVolatile(buffer, offset);
+  public static <E> E lvRefElement(E[] buffer, long offset) {
+    return (E) ARRAY_REF_ELEMENT.getVolatile(buffer, (int)offset);
   }
 
-  public static <E> E laRefElement(E[] buffer, int offset) {
-    return (E) ARRAY_REF_ELEMENT.getAcquire(buffer, offset);
+  public static <E> E laRefElement(E[] buffer, long offset) {
+    return (E) ARRAY_REF_ELEMENT.getAcquire(buffer, (int)offset);
   }
 
-  public static <E> E lpRefElement(E[] buffer, int offset) {
-    return (E) ARRAY_REF_ELEMENT.get(buffer, offset);
+  public static <E> E lpRefElement(E[] buffer, long offset) {
+    return (E) buffer[(int)offset];
   }
 
-  public static <E> void spRefElement(E[] buffer, int offset, E value) {
-    ARRAY_REF_ELEMENT.set(buffer, offset, value);
+  public static <E> void spRefElement(E[] buffer, long offset, E value) {
+    ARRAY_REF_ELEMENT.set(buffer, (int)offset, value);
   }
 
-  public static <E> void soRefElement(E[] buffer, int offset, E value) {
-    ARRAY_REF_ELEMENT.setRelease(buffer, offset, value);
+  public static <E> void soRefElement(E[] buffer, long offset, E value) {
+    ARRAY_REF_ELEMENT.setRelease(buffer, (int)offset, value);
   }
 
-  public static <E> void svRefElement(E[] buffer, int offset, E value) {
-    ARRAY_REF_ELEMENT.setVolatile(buffer, offset, value);
+  public static <E> void svRefElement(E[] buffer, long offset, E value) {
+    ARRAY_REF_ELEMENT.setVolatile(buffer, (int)offset, value);
   }
 
-  public static int calcRefElementOffset(long index) {
-    return (int) index;
+  public static long calcRefElementOffset(long index) {
+    return index;
   }
 
-  public static int calcCircularRefElementOffset(long index, long mask) {
-    return (int) (index & mask);
+  public static long calcCircularRefElementOffset(long index, long mask) {
+    return (index & mask);
   }
 
   public static <E> E[] allocateRefArray(int capacity) {
     return (E[]) new Object[capacity];
   }
 
-  public static void spLongElement(long[] buffer, int offset, long e) {
-    ARRAY_LONG_ELEMENT.set(buffer, offset, e);
+  public static void spLongElement(long[] buffer, long offset, long e) {
+    ARRAY_LONG_ELEMENT.set(buffer, (int)offset, e);
   }
 
-  public static void soLongElement(long[] buffer, int offset, long e) {
-    ARRAY_LONG_ELEMENT.setRelease(buffer, offset, e);
+  public static void soLongElement(long[] buffer, long offset, long e) {
+    ARRAY_LONG_ELEMENT.setRelease(buffer, (int)offset, e);
   }
 
-  public static long lpLongElement(long[] buffer, int offset) {
-    return (long) ARRAY_LONG_ELEMENT.get(buffer, offset);
+  public static long lpLongElement(long[] buffer, long offset) {
+    return buffer[(int)offset];
   }
 
-  public static long laLongElement(long[] buffer, int offset) {
-    return (long) ARRAY_LONG_ELEMENT.getAcquire(buffer, offset);
+  public static long laLongElement(long[] buffer, long offset) {
+    return (long) ARRAY_LONG_ELEMENT.getAcquire(buffer, (int)offset);
   }
 
-  public static long lvLongElement(long[] buffer, int offset) {
-    return (long) ARRAY_LONG_ELEMENT.getVolatile(buffer, offset);
+  public static long lvLongElement(long[] buffer, long offset) {
+    return (long) ARRAY_LONG_ELEMENT.getVolatile(buffer, (int)offset);
   }
 
-  public static int calcCircularLongElementOffset(long index, int mask) {
-    return (int) (index & mask);
+  public static long calcCircularLongElementOffset(long index, long mask) {
+    return (index & mask);
   }
 
   public static long[] allocateLongArray(int capacity) {
@@ -103,7 +103,7 @@ public final class VarHandleQueueUtil {
    * This method assumes index is actually (index << 1) because lower bit is used for resize hence
    * the >> 1
    */
-  public static int modifiedCalcCircularRefElementOffset(long index, long mask) {
-    return (int) (index & mask) >> 1;
+  public static long modifiedCalcCircularRefElementOffset(long index, long mask) {
+    return (index & mask) >> 1;
   }
 }

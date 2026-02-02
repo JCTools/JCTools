@@ -13,8 +13,6 @@
  */
 package org.jctools.queues.varhandle;
 
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.VarHandle;
 import org.jctools.queues.*;
 import static org.jctools.queues.varhandle.VarHandleQueueUtil.*;
 
