@@ -650,8 +650,6 @@ public abstract class MpqSanityTest
 
         startWaitJoin(stop, threads);
         assertEquals("reordering detected", 0, fail.value);
-        queue.clear();
-
     }
 
     @Test(timeout = TEST_TIMEOUT)
@@ -685,7 +683,6 @@ public abstract class MpqSanityTest
 
         startWaitJoin(stop, threads);
         assertEquals("Unexpected size observed", 0, fail.value);
-
     }
 
     @Test(timeout = TEST_TIMEOUT)
@@ -856,7 +853,6 @@ public abstract class MpqSanityTest
                 LockSupport.parkNanos(items);
             }
         });
-
     }
 
     private void testIsEmptyInvariant(
@@ -872,7 +868,7 @@ public abstract class MpqSanityTest
         startWaitJoin(stop, threads, 4);
 
         assertEquals("Observed no element in non-empty queue", 0, fail.value);
-        clear();
+        clear(); // call clear here as we run this `test` multiple times in a @Test, so the @After action might be insufficient
     }
 
     @Test(timeout = TEST_TIMEOUT)
