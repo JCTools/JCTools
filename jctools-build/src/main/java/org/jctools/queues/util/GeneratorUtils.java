@@ -5,6 +5,9 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.comments.Comment;
+import com.github.javaparser.printer.DefaultPrettyPrinterVisitor;
+import com.github.javaparser.printer.configuration.DefaultPrinterConfiguration;
+import com.github.javaparser.printer.configuration.PrinterConfiguration;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -85,7 +88,17 @@ public class GeneratorUtils {
             String outputFileName = generator.translateQueueName(file.getName().replace(".java", "")) + ".java";
 
             try (FileWriter writer = new FileWriter(new File(outputDirectory, outputFileName))) {
-                writer.write(cu.toString());
+                // Use custom printer configuration to reduce spacing
+                PrinterConfiguration config = new DefaultPrinterConfiguration();
+                DefaultPrettyPrinterVisitor printer = new DefaultPrettyPrinterVisitor(config);
+                cu.accept(printer, null);
+                String output = printer.toString();
+
+                // Post-process to match Unsafe formatting for padding fields
+                output = output.replaceAll("(?m)^\\s*// (\\d+b)\\s*$\\s*byte (b\\d{3}), (b\\d{3}), (b\\d{3}), (b\\d{3}), (b\\d{3}), (b\\d{3}), (b\\d{3}), (b\\d{3});",
+                                          "    byte $2,$3,$4,$5,$6,$7,$8,$9;//  $1");
+
+                writer.write(output);
             }
 
             System.out.println("Saved to " + outputFileName);
