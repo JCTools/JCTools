@@ -136,6 +136,8 @@
 								<!-- Output dest -->
                                 <argument>${basedir}/src/main/java/org/jctools/queues/atomic</argument>
                                 <!-- List of input files -->
+                                <argument>${basedir}/src/main/java/org/jctools/queues/ConcurrentCircularArrayQueue.java</argument>
+                                <argument>${basedir}/src/main/java/org/jctools/queues/ConcurrentSequencedCircularArrayQueue.java</argument>
                                 <argument>${basedir}/src/main/java/org/jctools/queues/SpscArrayQueue.java</argument>
                                 <argument>${basedir}/src/main/java/org/jctools/queues/SpmcArrayQueue.java</argument>
                                 <argument>${basedir}/src/main/java/org/jctools/queues/MpscArrayQueue.java</argument>
@@ -187,6 +189,8 @@
 								<!-- Output dest -->
 								<argument>${basedir}/src/main/java/org/jctools/queues/atomic/unpadded</argument>
 								<!-- List of input files -->
+								<argument>${basedir}/src/main/java/org/jctools/queues/ConcurrentCircularArrayQueue.java</argument>
+								<argument>${basedir}/src/main/java/org/jctools/queues/ConcurrentSequencedCircularArrayQueue.java</argument>
 								<argument>${basedir}/src/main/java/org/jctools/queues/SpscArrayQueue.java</argument>
 								<argument>${basedir}/src/main/java/org/jctools/queues/SpmcArrayQueue.java</argument>
 								<argument>${basedir}/src/main/java/org/jctools/queues/MpscArrayQueue.java</argument>
