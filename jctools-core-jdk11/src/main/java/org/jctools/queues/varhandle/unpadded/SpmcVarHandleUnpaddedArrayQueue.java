@@ -104,7 +104,7 @@ abstract class SpmcVarHandleUnpaddedArrayQueueConsumerIndexField<E> extends Spmc
 
     @Override
     public final long lvConsumerIndex() {
-        return (long) VH_CONSUMER_INDEX.getVolatile(this);
+        return consumerIndex;
     }
 
     final boolean casConsumerIndex(long expect, long newValue) {
@@ -133,16 +133,6 @@ abstract class SpmcVarHandleUnpaddedArrayQueueMidPad<E> extends SpmcVarHandleUnp
  */
 abstract class SpmcVarHandleUnpaddedArrayQueueProducerIndexCacheField<E> extends SpmcVarHandleUnpaddedArrayQueueMidPad<E> {
 
-    private static final VarHandle VH_PRODUCER_INDEX_CACHE;
-
-    static {
-        try {
-            VH_PRODUCER_INDEX_CACHE = MethodHandles.lookup().findVarHandle(SpmcVarHandleUnpaddedArrayQueueProducerIndexCacheField.class, "producerIndexCache", long.class);
-        } catch (Exception e) {
-            throw new ExceptionInInitializerError(e);
-        }
-    }
-
     // This is separated from the consumerIndex which will be highly contended in the hope that this value spends most
     // of it's time in a cache line that is Shared(and rarely invalidated)
     private volatile long producerIndexCache;
@@ -152,15 +142,11 @@ abstract class SpmcVarHandleUnpaddedArrayQueueProducerIndexCacheField<E> extends
     }
 
     protected final long lvProducerIndexCache() {
-        return (long) VH_PRODUCER_INDEX_CACHE.getVolatile(this);
+        return producerIndexCache;
     }
 
     protected final void svProducerIndexCache(long newValue) {
         producerIndexCache = newValue;
-    }
-
-    final long laProducerIndexCache() {
-        return (long) VH_PRODUCER_INDEX_CACHE.getAcquire(this);
     }
 }
 

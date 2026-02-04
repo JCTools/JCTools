@@ -54,7 +54,7 @@ abstract class MpmcVarHandleUnpaddedArrayQueueProducerIndexField<E> extends Mpmc
 
     @Override
     public final long lvProducerIndex() {
-        return (long) VH_PRODUCER_INDEX.getVolatile(this);
+        return producerIndex;
     }
 
     final boolean casProducerIndex(long expect, long newValue) {
@@ -101,7 +101,7 @@ abstract class MpmcVarHandleUnpaddedArrayQueueConsumerIndexField<E> extends Mpmc
 
     @Override
     public final long lvConsumerIndex() {
-        return (long) VH_CONSUMER_INDEX.getVolatile(this);
+        return consumerIndex;
     }
 
     final boolean casConsumerIndex(long expect, long newValue) {

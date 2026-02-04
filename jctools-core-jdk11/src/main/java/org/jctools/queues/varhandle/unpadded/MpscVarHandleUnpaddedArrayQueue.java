@@ -53,7 +53,7 @@ abstract class MpscVarHandleUnpaddedArrayQueueProducerIndexField<E> extends Mpsc
 
     @Override
     public final long lvProducerIndex() {
-        return (long) VH_PRODUCER_INDEX.getVolatile(this);
+        return producerIndex;
     }
 
     final boolean casProducerIndex(long expect, long newValue) {
@@ -101,7 +101,7 @@ abstract class MpscVarHandleUnpaddedArrayQueueProducerLimitField<E> extends Mpsc
     }
 
     final long lvProducerLimit() {
-        return (long) VH_PRODUCER_LIMIT.getVolatile(this);
+        return producerLimit;
     }
 
     final void soProducerLimit(long newValue) {

@@ -63,7 +63,7 @@ abstract class MpscBlockingConsumerVarHandleUnpaddedArrayQueueColdProducerFields
     }
 
     final long lvProducerLimit() {
-        return (long) VH_PRODUCER_LIMIT.getVolatile(this);
+        return producerLimit;
     }
 
     final boolean casProducerLimit(long expect, long newValue) {
@@ -115,7 +115,7 @@ abstract class MpscBlockingConsumerVarHandleUnpaddedArrayQueueProducerFields<E> 
 
     @Override
     public final long lvProducerIndex() {
-        return (long) VH_PRODUCER_INDEX.getVolatile(this);
+        return producerIndex;
     }
 
     final void soProducerIndex(long newValue) {
@@ -190,7 +190,7 @@ abstract class MpscBlockingConsumerVarHandleUnpaddedArrayQueueConsumerFields<E> 
     }
 
     final Thread lvBlocked() {
-        return (Thread) VH_BLOCKED.getVolatile(this);
+        return blocked;
     }
 
     /**

@@ -56,7 +56,7 @@ abstract class BaseLinkedVarHandleUnpaddedQueueProducerNodeRef<E> extends BaseLi
     }
 
     final LinkedQueueVarHandleNode<E> lvProducerNode() {
-        return (LinkedQueueVarHandleNode<E>) VH_PRODUCER_NODE.getVolatile(this);
+        return producerNode;
     }
 
     final boolean casProducerNode(LinkedQueueVarHandleNode<E> expect, LinkedQueueVarHandleNode<E> newValue) {
@@ -95,7 +95,7 @@ abstract class BaseLinkedVarHandleUnpaddedQueueConsumerNodeRef<E> extends BaseLi
         }
     }
 
-    private volatile LinkedQueueVarHandleNode<E> consumerNode;
+    private LinkedQueueVarHandleNode<E> consumerNode;
 
     final void spConsumerNode(LinkedQueueVarHandleNode<E> newValue) {
         VH_CONSUMER_NODE.setRelease(this, newValue);
