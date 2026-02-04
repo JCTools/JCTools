@@ -185,6 +185,16 @@
                         <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/BaseLinkedQueue.java</argument>
                         <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/SpscLinkedQueue.java</argument>
                         <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/MpscLinkedQueue.java</argument>
+
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/BaseSpscLinkedArrayQueue.java</argument>
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/SpscChunkedArrayQueue.java</argument>
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/SpscUnboundedArrayQueue.java</argument>
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/SpscGrowableArrayQueue.java</argument>
+
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/BaseMpscLinkedArrayQueue.java</argument>
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/MpscChunkedArrayQueue.java</argument>
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/MpscUnboundedArrayQueue.java</argument>
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/MpscGrowableArrayQueue.java</argument>
                     </arguments>
                 </configuration>
             </execution>
@@ -229,6 +239,16 @@
                         <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/BaseLinkedQueue.java</argument>
                         <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/SpscLinkedQueue.java</argument>
                         <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/MpscLinkedQueue.java</argument>
+
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/BaseSpscLinkedArrayQueue.java</argument>
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/SpscChunkedArrayQueue.java</argument>
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/SpscUnboundedArrayQueue.java</argument>
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/SpscGrowableArrayQueue.java</argument>
+
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/BaseMpscLinkedArrayQueue.java</argument>
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/MpscChunkedArrayQueue.java</argument>
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/MpscUnboundedArrayQueue.java</argument>
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/MpscGrowableArrayQueue.java</argument>
                     </arguments>
                 </configuration>
             </execution>
