@@ -17,19 +17,9 @@ public class SingleThreadedBaseline
     public static final Integer TOKEN = 1;
    
     volatile boolean preventUnrolling = true;
-    Queue<Integer> q;
-    
-    @Setup(Level.Trial)
-    public void createQ() {
-        q = new ArrayDeque<>();
-    }
-
-    @Setup(Level.Invocation)
-    public void clear()
-    {
-        q.clear();
-    }
-
+    boolean dummyOfferReturn = true;
+    Integer dummyPollReturn = TOKEN;
+    Queue<Integer> q = new ArrayDeque<>();
     @Benchmark
     @OperationsPerInvocation(OPS)
     public void baselineOffer()
@@ -44,7 +34,7 @@ public class SingleThreadedBaseline
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public boolean queueOffer(Queue<Integer> lq, Integer e)
     {
-        return false;
+        return dummyOfferReturn;
     }
     
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
@@ -64,7 +54,7 @@ public class SingleThreadedBaseline
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public Integer queuePoll(Queue<Integer> lq)
     {
-        return TOKEN;
+        return dummyPollReturn;
     }
 
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
