@@ -199,6 +199,9 @@ public class JavaParsingVarHandleArrayQueueGenerator extends JavaParsingVarHandl
         continue;
       }
 
+      // Check if the field is volatile in the original source
+      boolean isFieldVolatile = field.getModifiers().contains(Modifier.volatileModifier());
+
       boolean usesVarHandle = false;
       for (VariableDeclarator variable : field.getVariables()) {
         String variableName = variable.getNameAsString();
@@ -206,7 +209,7 @@ public class JavaParsingVarHandleArrayQueueGenerator extends JavaParsingVarHandl
         Type fieldType = variable.getType();
 
         for (MethodDeclaration method : n.getMethods()) {
-          usesVarHandle |= patchVarHandleAccessorMethod(variableName, method, methodNameSuffix);
+          usesVarHandle |= patchVarHandleAccessorMethod(variableName, method, methodNameSuffix, isFieldVolatile);
         }
 
         if (usesVarHandle) {

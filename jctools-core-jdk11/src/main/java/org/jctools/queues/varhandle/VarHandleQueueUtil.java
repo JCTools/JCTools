@@ -106,4 +106,8 @@ public final class VarHandleQueueUtil {
   public static long modifiedCalcCircularRefElementOffset(long index, long mask) {
     return (index & mask) >> 1;
   }
+
+  public static long nextArrayOffset(Object[] curr) {
+    return length(curr) - 1;
+  }
 }

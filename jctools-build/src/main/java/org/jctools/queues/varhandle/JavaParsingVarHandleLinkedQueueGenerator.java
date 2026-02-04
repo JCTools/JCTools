@@ -150,17 +150,9 @@ public class JavaParsingVarHandleLinkedQueueGenerator extends JavaParsingVarHand
      */
     void processSpecialNodeTypes(NodeWithType<?, Type> node, String name) {
         Type type = node.getType();
-        if (node instanceof MethodDeclaration && ("newBufferAndOffset".equals(name) || "nextArrayOffset".equals(name))) {
-            node.setType(PrimitiveType.intType());
-        } else if (PrimitiveType.longType().equals(type)) {
-            switch(name) {
-            case "offset":
-            case "offsetInNew":
-            case "offsetInOld":
-            case "lookAheadElementOffset":
-                node.setType(PrimitiveType.intType());
-            }
-        } else if (isRefType(type, "LinkedQueueNode")) {
+        // VarHandle uses long offsets, unlike Atomic which uses int array indices
+        // So we don't convert offset types for VarHandle
+        if (isRefType(type, "LinkedQueueNode")) {
             node.setType(simpleParametricType("LinkedQueueVarHandleNode", "E"));
         } else if (isRefArray(type, "E")) {
             node.setType(varHandleRefArrayType((ArrayType) type));
@@ -186,6 +178,9 @@ public class JavaParsingVarHandleLinkedQueueGenerator extends JavaParsingVarHand
                 continue;
             }
 
+            // Check if the field is volatile in the original source
+            boolean isFieldVolatile = field.getModifiers().contains(Modifier.volatileModifier());
+
             boolean usesVarHandle = false;
             for (VariableDeclarator variable : field.getVariables()) {
                 String variableName = variable.getNameAsString();
@@ -193,7 +188,7 @@ public class JavaParsingVarHandleLinkedQueueGenerator extends JavaParsingVarHand
                 Type fieldType = variable.getType();
 
                 for (MethodDeclaration method : n.getMethods()) {
-                    usesVarHandle |= patchVarHandleAccessorMethod(variableName, method, methodNameSuffix);
+                    usesVarHandle |= patchVarHandleAccessorMethod(variableName, method, methodNameSuffix, isFieldVolatile);
                 }
 
                 if ("producerNode".equals(variableName)) {
@@ -216,9 +211,7 @@ public class JavaParsingVarHandleLinkedQueueGenerator extends JavaParsingVarHand
                 }
             }
 
-            if (usesVarHandle) {
-                field.addModifier(Keyword.VOLATILE);
-            }
+            // Don't add volatile modifier - keep fields as they are in the original source
         }
 
         // Add static initializer for all VarHandles

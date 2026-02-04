@@ -151,7 +151,7 @@ public abstract class JavaParsingVarHandleQueueGenerator extends VoidVisitorAdap
   }
 
   boolean patchVarHandleAccessorMethod(
-      String variableName, MethodDeclaration method, String methodNameSuffix) {
+      String variableName, MethodDeclaration method, String methodNameSuffix, boolean isFieldVolatile) {
     boolean usesVarHandle = false;
     String methodName = method.getNameAsString();
     if (!methodName.endsWith(methodNameSuffix)) {
@@ -193,9 +193,15 @@ public abstract class JavaParsingVarHandleQueueGenerator extends VoidVisitorAdap
       String varHandleFieldName = varHandleFieldName(variableName);
       method.setBody(varHandleGetAcquire(varHandleFieldName, method.getType()));
     } else if (methodName.startsWith("lv")) {
-      usesVarHandle = true;
-      String varHandleFieldName = varHandleFieldName(variableName);
-      method.setBody(varHandleGetVolatile(varHandleFieldName, method.getType()));
+      if (isFieldVolatile) {
+        // Field is already volatile, just return it directly (like lp)
+        method.setBody(returnField(variableName));
+      } else {
+        // Field is not volatile, use VarHandle for volatile access
+        usesVarHandle = true;
+        String varHandleFieldName = varHandleFieldName(variableName);
+        method.setBody(varHandleGetVolatile(varHandleFieldName, method.getType()));
+      }
     } else if (methodName.startsWith("lp")) {
       method.setBody(returnField(variableName));
     } else {
