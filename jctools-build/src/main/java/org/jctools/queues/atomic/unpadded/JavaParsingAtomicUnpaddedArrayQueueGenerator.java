@@ -27,10 +27,7 @@ public class JavaParsingAtomicUnpaddedArrayQueueGenerator extends JavaParsingAto
     @Override
     public void organiseImports(CompilationUnit cu) {
         super.organiseImports(cu);
-        cu.addImport(new ImportDeclaration("org.jctools.queues.atomic.AtomicReferenceArrayQueue",
-                    false, false));
-        cu.addImport(new ImportDeclaration("org.jctools.queues.atomic.SequencedAtomicReferenceArrayQueue",
-                    false, false));
+        // The base classes are now generated, no need for explicit imports
     }
 
     @Override

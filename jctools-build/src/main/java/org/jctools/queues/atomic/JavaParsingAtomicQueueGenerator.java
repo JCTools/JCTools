@@ -202,10 +202,10 @@ public abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter
                     parent.setName("BaseLinked" + queueClassNamePrefix() + "Queue");
                     break;
                 case "ConcurrentCircularArrayQueue":
-                    parent.setName("AtomicReferenceArrayQueue");
+                    parent.setName("ConcurrentCircular" + queueClassNamePrefix() + "ArrayQueue");
                     break;
                 case "ConcurrentSequencedCircularArrayQueue":
-                    parent.setName("SequencedAtomicReferenceArrayQueue");
+                    parent.setName("ConcurrentSequencedCircular" + queueClassNamePrefix() + "ArrayQueue");
                     break;
                 default:
                     // Padded super classes are to be renamed and thus so does the

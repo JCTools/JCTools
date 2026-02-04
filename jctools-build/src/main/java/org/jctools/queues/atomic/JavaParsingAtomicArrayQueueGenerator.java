@@ -39,7 +39,11 @@ public class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomicQueue
     public void visit(ConstructorDeclaration n, Void arg) {
         super.visit(n, arg);
         // Update the ctor to match the class name
-        n.setName(translateQueueName(n.getNameAsString()));
+        String nameAsString = n.getNameAsString();
+        // Ignore internal class WeakIterator which we don't need to rename
+        if (nameAsString.equals("WeakIterator"))
+            return;
+        n.setName(translateQueueName(nameAsString));
     }
 
     @Override
@@ -48,7 +52,11 @@ public class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomicQueue
 
         replaceParentClassesForAtomics(node);
 
-        node.setName(translateQueueName(node.getNameAsString()));
+        String nameAsString = node.getNameAsString();
+        // Ignore internal class WeakIterator which we don't need to rename
+        if (!nameAsString.equals("WeakIterator")) {
+            node.setName(translateQueueName(nameAsString));
+        }
 
         if (isCommentPresent(node, GEN_DIRECTIVE_CLASS_CONTAINS_ORDERED_FIELD_ACCESSORS)) {
             node.setComment(null);
@@ -97,7 +105,7 @@ public class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomicQueue
         Type type = node.getType();
         if ("buffer".equals(name) && isRefArray(type, "E")) {
             node.setType(atomicRefArrayType((ArrayType) type));
-        } else if ("sBuffer".equals(name) && isLongArray(type)) {
+        } else if (("sBuffer".equals(name) || "sequenceBuffer".equals(name)) && isLongArray(type)) {
             node.setType(atomicLongArrayType());
         } else if (PrimitiveType.longType().equals(type)) {
             switch(name) {
