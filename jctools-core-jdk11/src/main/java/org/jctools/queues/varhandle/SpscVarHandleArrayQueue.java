@@ -97,10 +97,6 @@ abstract class SpscVarHandleArrayQueueProducerIndexFields<E> extends SpscVarHand
     final void soProducerIndex(final long newValue) {
         VH_PRODUCER_INDEX.setRelease(this, newValue);
     }
-
-    final long laProducerIndex() {
-        return (long) VH_PRODUCER_INDEX.getAcquire(this);
-    }
 }
 
 /**
@@ -162,10 +158,6 @@ abstract class SpscVarHandleArrayQueueConsumerIndexField<E> extends SpscVarHandl
 
     final void soConsumerIndex(final long newValue) {
         VH_CONSUMER_INDEX.setRelease(this, newValue);
-    }
-
-    final long laConsumerIndex() {
-        return (long) VH_CONSUMER_INDEX.getAcquire(this);
     }
 }
 

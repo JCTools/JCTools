@@ -188,10 +188,6 @@ public abstract class JavaParsingVarHandleQueueGenerator extends VoidVisitorAdap
       method.setBody(varHandleCompareAndSet(varHandleFieldName, expectedValueName, newValueName));
     } else if (methodName.startsWith("sv")) {
       method.setBody(fieldAssignment(variableName, newValueName));
-    } else if (methodName.startsWith("la")) {
-      usesVarHandle = true;
-      String varHandleFieldName = varHandleFieldName(variableName);
-      method.setBody(varHandleGetAcquire(varHandleFieldName, method.getType()));
     } else if (methodName.startsWith("lv")) {
       if (isFieldVolatile) {
         // Field is already volatile, just return it directly (like lp)
@@ -287,15 +283,6 @@ public abstract class JavaParsingVarHandleQueueGenerator extends VoidVisitorAdap
         new ExpressionStmt(
             methodCallExpr(
                 varHandleFieldName, "setRelease", new ThisExpr(), new NameExpr(newValueName))));
-    return body;
-  }
-
-  /** Generates something like <code>return (long) VH_PRODUCER_INDEX.getAcquire(this)</code> */
-  protected BlockStmt varHandleGetAcquire(String varHandleFieldName, Type returnType) {
-    BlockStmt body = new BlockStmt();
-    CastExpr castExpr =
-        new CastExpr(returnType, methodCallExpr(varHandleFieldName, "getAcquire", new ThisExpr()));
-    body.addStatement(new ReturnStmt(castExpr));
     return body;
   }
 

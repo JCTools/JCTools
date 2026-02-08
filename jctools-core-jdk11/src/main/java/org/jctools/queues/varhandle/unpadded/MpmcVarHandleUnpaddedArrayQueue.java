@@ -60,10 +60,6 @@ abstract class MpmcVarHandleUnpaddedArrayQueueProducerIndexField<E> extends Mpmc
     final boolean casProducerIndex(long expect, long newValue) {
         return VH_PRODUCER_INDEX.compareAndSet(this, expect, newValue);
     }
-
-    final long laProducerIndex() {
-        return (long) VH_PRODUCER_INDEX.getAcquire(this);
-    }
 }
 
 /**
@@ -106,10 +102,6 @@ abstract class MpmcVarHandleUnpaddedArrayQueueConsumerIndexField<E> extends Mpmc
 
     final boolean casConsumerIndex(long expect, long newValue) {
         return VH_CONSUMER_INDEX.compareAndSet(this, expect, newValue);
-    }
-
-    final long laConsumerIndex() {
-        return (long) VH_CONSUMER_INDEX.getAcquire(this);
     }
 }
 
@@ -174,7 +166,7 @@ public class MpmcVarHandleUnpaddedArrayQueue<E> extends MpmcVarHandleUnpaddedArr
         // start with bogus value, hope we don't need it
         long cIndex = Long.MIN_VALUE;
         do {
-            pIndex = laProducerIndex();
+            pIndex = lvProducerIndex();
             seqOffset = calcCircularLongElementOffset(pIndex, mask);
             seq = lvLongElement(sBuffer, seqOffset);
             // consumer has not moved this seq forward, it's as last producer left
@@ -182,7 +174,7 @@ public class MpmcVarHandleUnpaddedArrayQueue<E> extends MpmcVarHandleUnpaddedArr
                 // Extra check required to ensure [Queue.offer == false iff queue is full]
                 if (// test against cached cIndex
                 pIndex - capacity >= cIndex && // test against latest cIndex
-                pIndex - capacity >= (cIndex = laConsumerIndex())) {
+                pIndex - capacity >= (cIndex = lvConsumerIndex())) {
                     return false;
                 } else {
                     // (+) hack to make it go around again without CAS
@@ -217,7 +209,7 @@ public class MpmcVarHandleUnpaddedArrayQueue<E> extends MpmcVarHandleUnpaddedArr
         // start with bogus value, hope we don't need it
         long pIndex = -1;
         do {
-            cIndex = laConsumerIndex();
+            cIndex = lvConsumerIndex();
             seqOffset = calcCircularLongElementOffset(cIndex, mask);
             seq = lvLongElement(sBuffer, seqOffset);
             expectedSeq = cIndex + 1;
@@ -225,7 +217,7 @@ public class MpmcVarHandleUnpaddedArrayQueue<E> extends MpmcVarHandleUnpaddedArr
                 // slot has not been moved by producer
                 if (// test against cached pIndex
                 cIndex >= pIndex && // update pIndex if we must
-                cIndex == (pIndex = laProducerIndex())) {
+                cIndex == (pIndex = lvProducerIndex())) {
                     // strict empty check, this ensures [Queue.poll() == null iff isEmpty()]
                     return null;
                 } else {
@@ -257,7 +249,7 @@ public class MpmcVarHandleUnpaddedArrayQueue<E> extends MpmcVarHandleUnpaddedArr
         long pIndex = -1;
         E e;
         while (true) {
-            cIndex = laConsumerIndex();
+            cIndex = lvConsumerIndex();
             seqOffset = calcCircularLongElementOffset(cIndex, mask);
             seq = lvLongElement(sBuffer, seqOffset);
             expectedSeq = cIndex + 1;
@@ -265,14 +257,14 @@ public class MpmcVarHandleUnpaddedArrayQueue<E> extends MpmcVarHandleUnpaddedArr
                 // slot has not been moved by producer
                 if (// test against cached pIndex
                 cIndex >= pIndex && // update pIndex if we must
-                cIndex == (pIndex = laProducerIndex())) {
+                cIndex == (pIndex = lvProducerIndex())) {
                     // strict empty check, this ensures [Queue.poll() == null iff isEmpty()]
                     return null;
                 }
             } else if (seq == expectedSeq) {
                 final long offset = calcCircularRefElementOffset(cIndex, mask);
                 e = lvRefElement(buffer, offset);
-                if (laConsumerIndex() == cIndex)
+                if (lvConsumerIndex() == cIndex)
                     return e;
             }
         }
@@ -289,7 +281,7 @@ public class MpmcVarHandleUnpaddedArrayQueue<E> extends MpmcVarHandleUnpaddedArr
         long seqOffset;
         long seq;
         do {
-            pIndex = laProducerIndex();
+            pIndex = lvProducerIndex();
             seqOffset = calcCircularLongElementOffset(pIndex, mask);
             seq = lvLongElement(sBuffer, seqOffset);
             if (seq < pIndex) {
@@ -314,7 +306,7 @@ public class MpmcVarHandleUnpaddedArrayQueue<E> extends MpmcVarHandleUnpaddedArr
         long seq;
         long expectedSeq;
         do {
-            cIndex = laConsumerIndex();
+            cIndex = lvConsumerIndex();
             seqOffset = calcCircularLongElementOffset(cIndex, mask);
             seq = lvLongElement(sBuffer, seqOffset);
             expectedSeq = cIndex + 1;
@@ -342,7 +334,7 @@ public class MpmcVarHandleUnpaddedArrayQueue<E> extends MpmcVarHandleUnpaddedArr
         long expectedSeq;
         E e;
         do {
-            cIndex = laConsumerIndex();
+            cIndex = lvConsumerIndex();
             seqOffset = calcCircularLongElementOffset(cIndex, mask);
             seq = lvLongElement(sBuffer, seqOffset);
             expectedSeq = cIndex + 1;
@@ -351,7 +343,7 @@ public class MpmcVarHandleUnpaddedArrayQueue<E> extends MpmcVarHandleUnpaddedArr
             } else if (seq == expectedSeq) {
                 final long offset = calcCircularRefElementOffset(cIndex, mask);
                 e = lvRefElement(buffer, offset);
-                if (laConsumerIndex() == cIndex)
+                if (lvConsumerIndex() == cIndex)
                     return e;
             }
         } while (true);
@@ -373,7 +365,7 @@ public class MpmcVarHandleUnpaddedArrayQueue<E> extends MpmcVarHandleUnpaddedArr
         while (consumed < limit) {
             final int remaining = limit - consumed;
             final int lookAheadStep = Math.min(remaining, maxLookAheadStep);
-            final long cIndex = laConsumerIndex();
+            final long cIndex = lvConsumerIndex();
             final long lookAheadIndex = cIndex + lookAheadStep - 1;
             final long lookAheadSeqOffset = calcCircularLongElementOffset(lookAheadIndex, mask);
             final long lookAheadSeq = lvLongElement(sBuffer, lookAheadSeqOffset);
@@ -414,7 +406,7 @@ public class MpmcVarHandleUnpaddedArrayQueue<E> extends MpmcVarHandleUnpaddedArr
         long expectedSeq;
         for (int i = 0; i < limit; i++) {
             do {
-                cIndex = laConsumerIndex();
+                cIndex = lvConsumerIndex();
                 seqOffset = calcCircularLongElementOffset(cIndex, mask);
                 seq = lvLongElement(sBuffer, seqOffset);
                 expectedSeq = cIndex + 1;
@@ -449,7 +441,7 @@ public class MpmcVarHandleUnpaddedArrayQueue<E> extends MpmcVarHandleUnpaddedArr
         while (produced < limit) {
             final int remaining = limit - produced;
             final int lookAheadStep = Math.min(remaining, maxLookAheadStep);
-            final long pIndex = laProducerIndex();
+            final long pIndex = lvProducerIndex();
             final long lookAheadIndex = pIndex + lookAheadStep - 1;
             final long lookAheadSeqOffset = calcCircularLongElementOffset(lookAheadIndex, mask);
             final long lookAheadSeq = lvLongElement(sBuffer, lookAheadSeqOffset);
@@ -496,7 +488,7 @@ public class MpmcVarHandleUnpaddedArrayQueue<E> extends MpmcVarHandleUnpaddedArr
         long seq;
         for (int i = 0; i < limit; i++) {
             do {
-                pIndex = laProducerIndex();
+                pIndex = lvProducerIndex();
                 seqOffset = calcCircularLongElementOffset(pIndex, mask);
                 seq = lvLongElement(sBuffer, seqOffset);
                 if (seq < pIndex) {

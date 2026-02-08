@@ -73,10 +73,6 @@ abstract class MpscBlockingConsumerVarHandleUnpaddedArrayQueueColdProducerFields
     final void soProducerLimit(long newValue) {
         VH_PRODUCER_LIMIT.setRelease(this, newValue);
     }
-
-    final long laProducerLimit() {
-        return (long) VH_PRODUCER_LIMIT.getAcquire(this);
-    }
 }
 
 /**
@@ -124,10 +120,6 @@ abstract class MpscBlockingConsumerVarHandleUnpaddedArrayQueueProducerFields<E> 
 
     final boolean casProducerIndex(long expect, long newValue) {
         return VH_PRODUCER_INDEX.compareAndSet(this, expect, newValue);
-    }
-
-    final long laProducerIndex() {
-        return (long) VH_PRODUCER_INDEX.getAcquire(this);
     }
 }
 
@@ -202,10 +194,6 @@ abstract class MpscBlockingConsumerVarHandleUnpaddedArrayQueueConsumerFields<E> 
     final void soBlocked(Thread thread) {
         VH_BLOCKED.setRelease(this, thread);
     }
-
-    final long laConsumerIndex() {
-        return (long) VH_CONSUMER_INDEX.getAcquire(this);
-    }
 }
 
 /**
@@ -243,7 +231,7 @@ public class MpscBlockingConsumerVarHandleUnpaddedArrayQueue<E> extends MpscBloc
         // Loading consumer before producer allows for producer increments after consumer index is read.
         // This ensures this method is conservative in it's estimate. Note that as this is an MPMC there is
         // nothing we can do to make this an exact method.
-        return ((this.laConsumerIndex() / 2) == (this.laProducerIndex() / 2));
+        return ((this.lvConsumerIndex() / 2) == (this.lvProducerIndex() / 2));
     }
 
     @Override
@@ -269,7 +257,7 @@ public class MpscBlockingConsumerVarHandleUnpaddedArrayQueue<E> extends MpscBloc
         final E[] buffer = this.producerBuffer;
         long pIndex;
         while (true) {
-            pIndex = laProducerIndex();
+            pIndex = lvProducerIndex();
             // lower bit is indicative of blocked consumer
             if ((pIndex & 1) == 1) {
                 if (offerAndWakeup(buffer, mask, pIndex, e)) {
@@ -278,7 +266,7 @@ public class MpscBlockingConsumerVarHandleUnpaddedArrayQueue<E> extends MpscBloc
                 continue;
             }
             // pIndex is even (lower bit is 0) -> actual index is (pIndex >> 1), consumer is awake
-            final long producerLimit = laProducerLimit();
+            final long producerLimit = lvProducerLimit();
             // Use producer limit to save a read of the more rapidly mutated consumer index.
             // Assumption: queue is usually empty or near empty
             // available is also << 1
@@ -287,7 +275,7 @@ public class MpscBlockingConsumerVarHandleUnpaddedArrayQueue<E> extends MpscBloc
             final long sizeEstimate = capacity - available;
             if (sizeEstimate >= threshold || // producerLimit check allows for threshold >= capacity
             producerLimit <= pIndex) {
-                if (!recalculateProducerLimit(pIndex, producerLimit, laConsumerIndex(), capacity, threshold)) {
+                if (!recalculateProducerLimit(pIndex, producerLimit, lvConsumerIndex(), capacity, threshold)) {
                     return false;
                 }
             }
@@ -312,7 +300,7 @@ public class MpscBlockingConsumerVarHandleUnpaddedArrayQueue<E> extends MpscBloc
         final E[] buffer = this.producerBuffer;
         long pIndex;
         while (true) {
-            pIndex = laProducerIndex();
+            pIndex = lvProducerIndex();
             // lower bit is indicative of blocked consumer
             if ((pIndex & 1) == 1) {
                 if (offerAndWakeup(buffer, mask, pIndex, e))
@@ -320,7 +308,7 @@ public class MpscBlockingConsumerVarHandleUnpaddedArrayQueue<E> extends MpscBloc
                 continue;
             }
             // pIndex is even (lower bit is 0) -> actual index is (pIndex >> 1), consumer is awake
-            final long producerLimit = laProducerLimit();
+            final long producerLimit = lvProducerLimit();
             // Use producer limit to save a read of the more rapidly mutated consumer index.
             // Assumption: queue is usually empty or near empty
             if (producerLimit <= pIndex) {
@@ -370,7 +358,7 @@ public class MpscBlockingConsumerVarHandleUnpaddedArrayQueue<E> extends MpscBloc
     }
 
     private boolean recalculateProducerLimit(long mask, long pIndex, long producerLimit) {
-        return recalculateProducerLimit(pIndex, producerLimit, laConsumerIndex(), mask + 2, mask + 2);
+        return recalculateProducerLimit(pIndex, producerLimit, lvConsumerIndex(), mask + 2, mask + 2);
     }
 
     private boolean recalculateProducerLimit(long pIndex, long producerLimit, long cIndex, long bufferCapacity, long threshold) {
@@ -433,7 +421,7 @@ public class MpscBlockingConsumerVarHandleUnpaddedArrayQueue<E> extends MpscBloc
 
     private E parkUntilNext(E[] buffer, long cIndex, long offset, long timeoutNs) throws InterruptedException {
         E e;
-        final long pIndex = laProducerIndex();
+        final long pIndex = lvProducerIndex();
         if (// queue is empty
         cIndex == pIndex && // we announce ourselves as parked by setting parity
         casProducerIndex(pIndex, pIndex + 1)) {
@@ -448,7 +436,7 @@ public class MpscBlockingConsumerVarHandleUnpaddedArrayQueue<E> extends MpscBloc
                         casProducerIndex(pIndex + 1, pIndex);
                         throw new InterruptedException();
                     }
-                    if ((laProducerIndex() & 1) == 0) {
+                    if ((lvProducerIndex() & 1) == 0) {
                         break;
                     }
                     // ignore deadline when it's forever
@@ -505,7 +493,7 @@ public class MpscBlockingConsumerVarHandleUnpaddedArrayQueue<E> extends MpscBloc
         E e = lvRefElement(buffer, offset);
         if (e == null) {
             // consumer can't see the odd producer index
-            if (index != laProducerIndex()) {
+            if (index != lvProducerIndex()) {
                 // poll() == null iff queue is empty, null element is not strong enough indicator, so we must
                 // check the producer index. If the queue is indeed not empty we spin until element is
                 // visible.
@@ -541,7 +529,7 @@ public class MpscBlockingConsumerVarHandleUnpaddedArrayQueue<E> extends MpscBloc
         final long index = lpConsumerIndex();
         final long offset = modifiedCalcCircularRefElementOffset(index, mask);
         E e = lvRefElement(buffer, offset);
-        if (e == null && index != laProducerIndex()) {
+        if (e == null && index != lvProducerIndex()) {
             // peek() == null iff queue is empty, null element is not strong enough indicator, so we must
             // check the producer index. If the queue is indeed not empty we spin until element is visible.
             e = spinWaitForElement(buffer, offset);
@@ -551,12 +539,12 @@ public class MpscBlockingConsumerVarHandleUnpaddedArrayQueue<E> extends MpscBloc
 
     @Override
     public long currentProducerIndex() {
-        return laProducerIndex() / 2;
+        return lvProducerIndex() / 2;
     }
 
     @Override
     public long currentConsumerIndex() {
-        return laConsumerIndex() / 2;
+        return lvConsumerIndex() / 2;
     }
 
     @Override
@@ -608,8 +596,8 @@ public class MpscBlockingConsumerVarHandleUnpaddedArrayQueue<E> extends MpscBloc
         long batchLimit = 0;
         final long shiftedBatchSize = 2L * limit;
         while (true) {
-            pIndex = laProducerIndex();
-            long producerLimit = laProducerLimit();
+            pIndex = lvProducerIndex();
+            long producerLimit = lvProducerLimit();
             // lower bit is indicative of blocked consumer
             if ((pIndex & 1) == 1) {
                 // observe the blocked thread for the pIndex
@@ -637,7 +625,7 @@ public class MpscBlockingConsumerVarHandleUnpaddedArrayQueue<E> extends MpscBloc
                 if (!recalculateProducerLimit(mask, pIndex, producerLimit)) {
                     return 0;
                 }
-                batchLimit = Math.min(laProducerLimit(), pIndex + shiftedBatchSize);
+                batchLimit = Math.min(lvProducerLimit(), pIndex + shiftedBatchSize);
             }
             // Claim the index
             if (casProducerIndex(pIndex, batchLimit)) {

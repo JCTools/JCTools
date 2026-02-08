@@ -78,10 +78,6 @@ abstract class BaseMpscLinkedVarHandleArrayQueueProducerFields<E> extends BaseMp
     final boolean casProducerIndex(long expect, long newValue) {
         return VH_PRODUCER_INDEX.compareAndSet(this, expect, newValue);
     }
-
-    final long laProducerIndex() {
-        return (long) VH_PRODUCER_INDEX.getAcquire(this);
-    }
 }
 
 /**
@@ -141,10 +137,6 @@ abstract class BaseMpscLinkedVarHandleArrayQueueConsumerFields<E> extends BaseMp
     final void soConsumerIndex(long newValue) {
         VH_CONSUMER_INDEX.setRelease(this, newValue);
     }
-
-    final long laConsumerIndex() {
-        return (long) VH_CONSUMER_INDEX.getAcquire(this);
-    }
 }
 
 /**
@@ -202,10 +194,6 @@ abstract class BaseMpscLinkedVarHandleArrayQueueColdProducerFields<E> extends Ba
 
     final void soProducerLimit(long newValue) {
         VH_PRODUCER_LIMIT.setRelease(this, newValue);
-    }
-
-    final long laProducerLimit() {
-        return (long) VH_PRODUCER_LIMIT.getAcquire(this);
     }
 }
 

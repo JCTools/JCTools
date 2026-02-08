@@ -71,10 +71,6 @@ abstract class BaseSpscLinkedVarHandleUnpaddedArrayQueueConsumerField<E> extends
     final void soConsumerIndex(long newValue) {
         VH_CONSUMER_INDEX.setRelease(this, newValue);
     }
-
-    final long laConsumerIndex() {
-        return (long) VH_CONSUMER_INDEX.getAcquire(this);
-    }
 }
 
 /**
@@ -113,10 +109,6 @@ abstract class BaseSpscLinkedVarHandleUnpaddedArrayQueueProducerFields<E> extend
 
     final void soProducerIndex(long newValue) {
         VH_PRODUCER_INDEX.setRelease(this, newValue);
-    }
-
-    final long laProducerIndex() {
-        return (long) VH_PRODUCER_INDEX.getAcquire(this);
     }
 }
 

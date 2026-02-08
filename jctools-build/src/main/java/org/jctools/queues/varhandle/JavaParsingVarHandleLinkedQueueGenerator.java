@@ -15,7 +15,6 @@ import com.github.javaparser.ast.stmt.ThrowStmt;
 import com.github.javaparser.ast.stmt.TryStmt;
 import com.github.javaparser.ast.type.ArrayType;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
-import com.github.javaparser.ast.type.PrimitiveType;
 import com.github.javaparser.ast.type.Type;
 
 import java.util.ArrayList;
@@ -204,10 +203,6 @@ public class JavaParsingVarHandleLinkedQueueGenerator extends JavaParsingVarHand
                 if (usesVarHandle) {
                     varHandleFields.add(new FieldInfo(variableName, fieldType));
                     n.getMembers().add(0, declareVarHandle(className, variableName));
-                    // Only add laXxx method for long fields
-                    if (PrimitiveType.longType().equals(fieldType)) {
-                        addAcquireLoadMethod(n, variableName);
-                    }
                 }
             }
 
@@ -280,24 +275,6 @@ public class JavaParsingVarHandleLinkedQueueGenerator extends JavaParsingVarHand
         initBody.addStatement(tryStmt);
 
         return initializer;
-    }
-
-    /**
-     * Adds a laXxx method for acquire-load semantics
-     */
-    private void addAcquireLoadMethod(ClassOrInterfaceDeclaration classNode, String variableName) {
-        String methodName = "la" + capitalise(variableName);
-
-        // Only add if it doesn't already exist
-        if (!classNode.getMethodsByName(methodName).isEmpty()) {
-            return;
-        }
-
-        MethodDeclaration laMethod = classNode.addMethod(methodName, Keyword.FINAL);
-        laMethod.setType(PrimitiveType.longType());
-
-        String varHandleFieldName = varHandleFieldName(variableName);
-        laMethod.setBody(varHandleGetAcquire(varHandleFieldName, PrimitiveType.longType()));
     }
 
     /**

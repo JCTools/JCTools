@@ -75,10 +75,6 @@ abstract class MpscVarHandleArrayQueueProducerIndexField<E> extends MpscVarHandl
     final boolean casProducerIndex(long expect, long newValue) {
         return VH_PRODUCER_INDEX.compareAndSet(this, expect, newValue);
     }
-
-    final long laProducerIndex() {
-        return (long) VH_PRODUCER_INDEX.getAcquire(this);
-    }
 }
 
 /**
@@ -138,10 +134,6 @@ abstract class MpscVarHandleArrayQueueProducerLimitField<E> extends MpscVarHandl
 
     final void soProducerLimit(long newValue) {
         VH_PRODUCER_LIMIT.setRelease(this, newValue);
-    }
-
-    final long laProducerLimit() {
-        return (long) VH_PRODUCER_LIMIT.getAcquire(this);
     }
 }
 
@@ -206,10 +198,6 @@ abstract class MpscVarHandleArrayQueueConsumerIndexField<E> extends MpscVarHandl
     final void soConsumerIndex(long newValue) {
         VH_CONSUMER_INDEX.setRelease(this, newValue);
     }
-
-    final long laConsumerIndex() {
-        return (long) VH_CONSUMER_INDEX.getAcquire(this);
-    }
 }
 
 /**
@@ -271,14 +259,14 @@ public class MpscVarHandleArrayQueue<E> extends MpscVarHandleArrayQueueL3Pad<E> 
         }
         final long mask = this.mask;
         final long capacity = mask + 1;
-        long producerLimit = laProducerLimit();
+        long producerLimit = lvProducerLimit();
         long pIndex;
         do {
-            pIndex = laProducerIndex();
+            pIndex = lvProducerIndex();
             long available = producerLimit - pIndex;
             long size = capacity - available;
             if (size >= threshold) {
-                final long cIndex = laConsumerIndex();
+                final long cIndex = lvConsumerIndex();
                 size = pIndex - cIndex;
                 if (size >= threshold) {
                     // the size exceeds threshold
@@ -319,12 +307,12 @@ public class MpscVarHandleArrayQueue<E> extends MpscVarHandleArrayQueueL3Pad<E> 
         }
         final long mask = this.mask;
         // use `producerLimit` which is a cached view on consumer index (potentially updated in loop)
-        long producerLimit = laProducerLimit();
+        long producerLimit = lvProducerLimit();
         long pIndex;
         do {
-            pIndex = laProducerIndex();
+            pIndex = lvProducerIndex();
             if (pIndex >= producerLimit) {
-                final long cIndex = laConsumerIndex();
+                final long cIndex = lvConsumerIndex();
                 producerLimit = cIndex + mask + 1;
                 if (pIndex >= producerLimit) {
                     // FULL :(
@@ -359,10 +347,10 @@ public class MpscVarHandleArrayQueue<E> extends MpscVarHandleArrayQueueL3Pad<E> 
         }
         final long mask = this.mask;
         final long capacity = mask + 1;
-        final long pIndex = laProducerIndex();
-        long producerLimit = laProducerLimit();
+        final long pIndex = lvProducerIndex();
+        long producerLimit = lvProducerLimit();
         if (pIndex >= producerLimit) {
-            final long cIndex = laConsumerIndex();
+            final long cIndex = lvConsumerIndex();
             producerLimit = cIndex + capacity;
             if (pIndex >= producerLimit) {
                 // FULL :(
@@ -407,7 +395,7 @@ public class MpscVarHandleArrayQueue<E> extends MpscVarHandleArrayQueueL3Pad<E> 
              * winning the CAS on offer but before storing the element in the queue. Other producers may go on
              * to fill up the queue after this element.
              */
-            if (cIndex != laProducerIndex()) {
+            if (cIndex != lvProducerIndex()) {
                 do {
                     e = lvRefElement(buffer, offset);
                 } while (e == null);
@@ -442,7 +430,7 @@ public class MpscVarHandleArrayQueue<E> extends MpscVarHandleArrayQueueL3Pad<E> 
              * winning the CAS on offer but before storing the element in the queue. Other producers may go on
              * to fill up the queue after this element.
              */
-            if (cIndex != laProducerIndex()) {
+            if (cIndex != lvProducerIndex()) {
                 do {
                     e = lvRefElement(buffer, offset);
                 } while (e == null);
@@ -517,14 +505,14 @@ public class MpscVarHandleArrayQueue<E> extends MpscVarHandleArrayQueueL3Pad<E> 
             return 0;
         final long mask = this.mask;
         final long capacity = mask + 1;
-        long producerLimit = laProducerLimit();
+        long producerLimit = lvProducerLimit();
         long pIndex;
         int actualLimit;
         do {
-            pIndex = laProducerIndex();
+            pIndex = lvProducerIndex();
             long available = producerLimit - pIndex;
             if (available <= 0) {
-                final long cIndex = laConsumerIndex();
+                final long cIndex = lvConsumerIndex();
                 producerLimit = cIndex + capacity;
                 available = producerLimit - pIndex;
                 if (available <= 0) {

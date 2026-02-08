@@ -79,10 +79,6 @@ abstract class SpmcVarHandleArrayQueueProducerIndexField<E> extends SpmcVarHandl
     final void soProducerIndex(long newValue) {
         VH_PRODUCER_INDEX.setRelease(this, newValue);
     }
-
-    final long laProducerIndex() {
-        return (long) VH_PRODUCER_INDEX.getAcquire(this);
-    }
 }
 
 /**
@@ -141,10 +137,6 @@ abstract class SpmcVarHandleArrayQueueConsumerIndexField<E> extends SpmcVarHandl
 
     final boolean casConsumerIndex(long expect, long newValue) {
         return VH_CONSUMER_INDEX.compareAndSet(this, expect, newValue);
-    }
-
-    final long laConsumerIndex() {
-        return (long) VH_CONSUMER_INDEX.getAcquire(this);
     }
 }
 
@@ -242,10 +234,10 @@ public class SpmcVarHandleArrayQueue<E> extends SpmcVarHandleArrayQueueL3Pad<E> 
         }
         final E[] buffer = this.buffer;
         final long mask = this.mask;
-        final long currProducerIndex = laProducerIndex();
+        final long currProducerIndex = lvProducerIndex();
         final long offset = calcCircularRefElementOffset(currProducerIndex, mask);
         if (null != lvRefElement(buffer, offset)) {
-            long size = currProducerIndex - laConsumerIndex();
+            long size = currProducerIndex - lvConsumerIndex();
             if (size > mask) {
                 return false;
             } else {
@@ -268,9 +260,9 @@ public class SpmcVarHandleArrayQueue<E> extends SpmcVarHandleArrayQueueL3Pad<E> 
         long currentConsumerIndex;
         long currProducerIndexCache = lvProducerIndexCache();
         do {
-            currentConsumerIndex = laConsumerIndex();
+            currentConsumerIndex = lvConsumerIndex();
             if (currentConsumerIndex >= currProducerIndexCache) {
-                long currProducerIndex = laProducerIndex();
+                long currProducerIndex = lvProducerIndex();
                 if (currentConsumerIndex >= currProducerIndex) {
                     return null;
                 } else {
@@ -299,12 +291,12 @@ public class SpmcVarHandleArrayQueue<E> extends SpmcVarHandleArrayQueueL3Pad<E> 
         final long mask = this.mask;
         long currProducerIndexCache = lvProducerIndexCache();
         long currentConsumerIndex;
-        long nextConsumerIndex = laConsumerIndex();
+        long nextConsumerIndex = lvConsumerIndex();
         E e;
         do {
             currentConsumerIndex = nextConsumerIndex;
             if (currentConsumerIndex >= currProducerIndexCache) {
-                long currProducerIndex = laProducerIndex();
+                long currProducerIndex = lvProducerIndex();
                 if (currentConsumerIndex >= currProducerIndex) {
                     return null;
                 } else {
@@ -314,7 +306,7 @@ public class SpmcVarHandleArrayQueue<E> extends SpmcVarHandleArrayQueueL3Pad<E> 
             }
             e = lvRefElement(buffer, calcCircularRefElementOffset(currentConsumerIndex, mask));
             // sandwich the element load between 2 consumer index loads
-            nextConsumerIndex = laConsumerIndex();
+            nextConsumerIndex = lvConsumerIndex();
         } while (null == e || nextConsumerIndex != currentConsumerIndex);
         return e;
     }
@@ -348,13 +340,13 @@ public class SpmcVarHandleArrayQueue<E> extends SpmcVarHandleArrayQueueL3Pad<E> 
         final E[] buffer = this.buffer;
         final long mask = this.mask;
         long currentConsumerIndex;
-        long nextConsumerIndex = laConsumerIndex();
+        long nextConsumerIndex = lvConsumerIndex();
         E e;
         do {
             currentConsumerIndex = nextConsumerIndex;
             e = lvRefElement(buffer, calcCircularRefElementOffset(currentConsumerIndex, mask));
             // sandwich the element load between 2 consumer index loads
-            nextConsumerIndex = laConsumerIndex();
+            nextConsumerIndex = lvConsumerIndex();
         } while (nextConsumerIndex != currentConsumerIndex);
         return e;
     }
@@ -373,10 +365,10 @@ public class SpmcVarHandleArrayQueue<E> extends SpmcVarHandleArrayQueueL3Pad<E> 
         int adjustedLimit = 0;
         long currentConsumerIndex;
         do {
-            currentConsumerIndex = laConsumerIndex();
+            currentConsumerIndex = lvConsumerIndex();
             // is there any space in the queue?
             if (currentConsumerIndex >= currProducerIndexCache) {
-                long currProducerIndex = laProducerIndex();
+                long currProducerIndex = lvProducerIndex();
                 if (currentConsumerIndex >= currProducerIndex) {
                     return 0;
                 } else {

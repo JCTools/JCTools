@@ -24,7 +24,6 @@ import com.github.javaparser.ast.stmt.ThrowStmt;
 import com.github.javaparser.ast.stmt.TryStmt;
 import com.github.javaparser.ast.type.PrimitiveType;
 import com.github.javaparser.ast.type.Type;
-import com.github.javaparser.ast.visitor.ModifierVisitor;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -50,29 +49,6 @@ public class JavaParsingVarHandleArrayQueueGenerator extends JavaParsingVarHandl
   void processSpecialNodeTypes(NodeWithType<?, Type> node, String name)
   {
     // nothing to do
-  }
-
-  /** Detects the queue type from the source file name */
-  private QueueType detectQueueType() {
-    String fileName = sourceFileName.toLowerCase();
-    if (fileName.contains("spsc")) {
-      return QueueType.SPSC;
-    } else if (fileName.contains("mpsc")) {
-      return QueueType.MPSC;
-    } else if (fileName.contains("spmc")) {
-      return QueueType.SPMC;
-    } else if (fileName.contains("mpmc")) {
-      return QueueType.MPMC;
-    }
-    return QueueType.UNKNOWN;
-  }
-
-  enum QueueType {
-    SPSC, // Single Producer Single Consumer
-    MPSC, // Multi Producer Single Consumer
-    SPMC, // Single Producer Multi Consumer
-    MPMC, // Multi Producer Multi Consumer
-    UNKNOWN
   }
 
   @Override
@@ -121,9 +97,6 @@ public class JavaParsingVarHandleArrayQueueGenerator extends JavaParsingVarHandl
           PrimitiveType.intType(),
           new Parameter(classType("E"), "e"));
     }
-
-    // Optimize volatile loads to acquire loads where appropriate
-    optimizeVolatileLoadsToAcquire(node);
 
     node.setJavadocComment(
         formatMultilineJavadoc(
@@ -185,7 +158,7 @@ public class JavaParsingVarHandleArrayQueueGenerator extends JavaParsingVarHandl
 
   /**
    * For each method accessor to a field, add in the calls necessary to VarHandle. Only methods
-   * start with so/cas/sv/lv/lp/la followed by the field name are processed.
+   * start with so/cas/sv/lv/lp followed by the field name are processed.
    *
    * @param n the AST node for the containing class
    */
@@ -215,10 +188,6 @@ public class JavaParsingVarHandleArrayQueueGenerator extends JavaParsingVarHandl
         if (usesVarHandle) {
           varHandleFields.add(new FieldInfo(variableName, fieldType));
           n.getMembers().add(0, declareVarHandle(className, variableName));
-          // Only add laXxx method for long fields (not Thread fields)
-          if (PrimitiveType.longType().equals(fieldType)) {
-            addAcquireLoadMethod(n, variableName);
-          }
         }
       }
     }
@@ -283,65 +252,5 @@ public class JavaParsingVarHandleArrayQueueGenerator extends JavaParsingVarHandl
     initBody.addStatement(tryStmt);
 
     return initializer;
-  }
-
-  /** Adds a laXxx method for acquire-load semantics */
-  private void addAcquireLoadMethod(ClassOrInterfaceDeclaration classNode, String variableName) {
-    String methodName = "la" + capitalise(variableName);
-
-    // Only add if it doesn't already exist
-    if (!classNode.getMethodsByName(methodName).isEmpty()) {
-      return;
-    }
-
-    MethodDeclaration laMethod = classNode.addMethod(methodName, Keyword.FINAL);
-    laMethod.setType(PrimitiveType.longType());
-
-    String varHandleFieldName = varHandleFieldName(variableName);
-    laMethod.setBody(varHandleGetAcquire(varHandleFieldName, PrimitiveType.longType()));
-  }
-
-  /**
-   * Optimizes volatile loads to acquire loads where appropriate based on queue type. The
-   * optimization is based on acquire-release semantics: - When reading an index written by
-   * setRelease, we can use getAcquire instead of getVolatile - This is more efficient as it uses
-   * weaker memory ordering
-   */
-  private void optimizeVolatileLoadsToAcquire(ClassOrInterfaceDeclaration node) {
-    QueueType queueType = detectQueueType();
-    if (queueType == QueueType.UNKNOWN) {
-      return; // Don't optimize if we can't determine the queue type
-    }
-
-    // Visit all methods and replace lv calls with la calls where appropriate
-    for (MethodDeclaration method : node.getMethods()) {
-      method.accept(
-          new ModifierVisitor<Void>() {
-            @Override
-            public MethodCallExpr visit(MethodCallExpr methodCall, Void arg) {
-              super.visit(methodCall, arg);
-
-              final String methodName = methodCall.getNameAsString();
-
-              // Optimize lvProducerIndex() to laProducerIndex()
-              if ("lvProducerIndex".equals(methodName)) {
-                methodCall.setName("laProducerIndex");
-
-              }
-              // Optimize lvConsumerIndex() to laConsumerIndex()
-              else if ("lvConsumerIndex".equals(methodName)) {
-                methodCall.setName("laConsumerIndex");
-              }
-
-              // Optimize lvProducerLimit() to laProducerLimit() (for MPSC)
-              else if ("lvProducerLimit".equals(methodName) && queueType == QueueType.MPSC) {
-                methodCall.setName("laProducerLimit");
-              }
-
-              return methodCall;
-            }
-          },
-          null);
-    }
   }
 }
