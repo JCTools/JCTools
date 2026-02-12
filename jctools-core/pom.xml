@@ -195,6 +195,7 @@
 								<argument>${basedir}/src/main/java/org/jctools/queues/SpmcArrayQueue.java</argument>
 								<argument>${basedir}/src/main/java/org/jctools/queues/MpscArrayQueue.java</argument>
 								<argument>${basedir}/src/main/java/org/jctools/queues/MpmcArrayQueue.java</argument>
+								<argument>${basedir}/src/main/java/org/jctools/queues/MpscBlockingConsumerArrayQueue.java</argument>
 							</arguments>
 						</configuration>
 					</execution>
