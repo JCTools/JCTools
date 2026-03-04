@@ -213,7 +213,7 @@ abstract class MpscBlockingConsumerArrayQueueConsumerFields<E> extends MpscBlock
  */
 @SuppressWarnings("unused")
 public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArrayQueueConsumerFields<E>
-    implements MessagePassingQueue<E>, QueueProgressIndicators, BlockingQueue<E>
+    implements MessagePassingBlockingQueue<E>, QueueProgressIndicators
 {
     byte b000,b001,b002,b003,b004,b005,b006,b007;//  8b
     byte b010,b011,b012,b013,b014,b015,b016,b017;// 16b

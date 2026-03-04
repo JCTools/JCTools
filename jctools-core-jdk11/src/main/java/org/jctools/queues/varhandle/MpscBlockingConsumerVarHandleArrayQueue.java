@@ -245,7 +245,7 @@ abstract class MpscBlockingConsumerVarHandleArrayQueueConsumerFields<E> extends 
  * than resizing in this instance.
  */
 @SuppressWarnings("unused")
-public class MpscBlockingConsumerVarHandleArrayQueue<E> extends MpscBlockingConsumerVarHandleArrayQueueConsumerFields<E> implements MessagePassingQueue<E>, QueueProgressIndicators, BlockingQueue<E> {
+public class MpscBlockingConsumerVarHandleArrayQueue<E> extends MpscBlockingConsumerVarHandleArrayQueueConsumerFields<E> implements MessagePassingBlockingQueue<E>, QueueProgressIndicators {
     byte b000,b001,b002,b003,b004,b005,b006,b007;//  8b
     byte b010,b011,b012,b013,b014,b015,b016,b017;//  16b
     byte b020,b021,b022,b023,b024,b025,b026,b027;//  24b
