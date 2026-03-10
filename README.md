@@ -65,7 +65,7 @@ And setup the following dependency:
 ```
 
 You can also depend on latest snapshot from this repository (live on the edge) by setting the version to 
-'4.0.5-SNAPSHOT'.
+'5.0.0-SNAPSHOT'.
 
 
 Build it from source
