@@ -7,7 +7,7 @@ import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.Modifier.Keyword;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.*;
-import com.github.javaparser.ast.comments.JavadocComment;
+import com.github.javaparser.ast.comments.TraditionalJavadocComment;
 import com.github.javaparser.ast.expr.AssignExpr;
 import com.github.javaparser.ast.expr.ClassExpr;
 import com.github.javaparser.ast.expr.MarkerAnnotationExpr;
@@ -105,7 +105,7 @@ public class JavaParsingVarHandleArrayQueueGenerator extends JavaParsingVarHandl
                 "which can found in the jctools-build module. The original source file is "
                     + sourceFileName
                     + ".")
-            + node.getJavadocComment().orElse(new JavadocComment("")).getContent());
+            + node.getJavadocComment().orElse(new TraditionalJavadocComment("")).getContent());
   }
 
   String varHandleFieldName(String fieldName) {

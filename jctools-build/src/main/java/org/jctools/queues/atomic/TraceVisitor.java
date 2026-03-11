@@ -21,7 +21,7 @@ import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.comments.BlockComment;
-import com.github.javaparser.ast.comments.JavadocComment;
+import com.github.javaparser.ast.comments.TraditionalJavadocComment;
 import com.github.javaparser.ast.comments.LineComment;
 import com.github.javaparser.ast.expr.ArrayAccessExpr;
 import com.github.javaparser.ast.expr.ArrayCreationExpr;
@@ -373,7 +373,7 @@ public final class TraceVisitor extends VoidVisitorAdapter<Void> {
     }
 
     @Override
-    public void visit(JavadocComment n, Void arg) {
+    public void visit(TraditionalJavadocComment n, Void arg) {
         out.println("JavadocComment: " + (extended ? n : n.getContent()));
         super.visit(n, arg);
     }

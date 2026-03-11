@@ -88,15 +88,23 @@ public class GeneratorUtils {
             String outputFileName = generator.translateQueueName(file.getName().replace(".java", "")) + ".java";
 
             try (FileWriter writer = new FileWriter(new File(outputDirectory, outputFileName))) {
-                // Use custom printer configuration to reduce spacing
                 PrinterConfiguration config = new DefaultPrinterConfiguration();
                 DefaultPrettyPrinterVisitor printer = new DefaultPrettyPrinterVisitor(config);
                 cu.accept(printer, null);
                 String output = printer.toString();
 
-                // Post-process to match Unsafe formatting for padding fields
-                output = output.replaceAll("(?m)^\\s*// (\\d+b)\\s*$\\s*byte (b\\d{3}), (b\\d{3}), (b\\d{3}), (b\\d{3}), (b\\d{3}), (b\\d{3}), (b\\d{3}), (b\\d{3});",
+                // Post-process to match Unsafe formatting for padding fields.
+                // JavaParser 3.28+ separates inline comments from field declarations and adds
+                // spaces after commas, so we need to reassemble them into the original format.
+                output = output.replaceAll("(?m)^\\s*\\n\\s*//\\s*(\\d+b)\\s*$\\s*byte (b\\d{3}), (b\\d{3}), (b\\d{3}), (b\\d{3}), (b\\d{3}), (b\\d{3}), (b\\d{3}), (b\\d{3});",
                                           "    byte $2,$3,$4,$5,$6,$7,$8,$9;//  $1");
+                // Fix "drop Nb" comments that get extra indentation
+                output = output.replaceAll("(?m)^//\\s+(\\* drop \\d+b)", "// $1");
+                // Fix line comments that start with " ->" getting an extra space after "//"
+                output = output.replaceAll("(?m)(\\s*)//  ->", "$1// ->");
+                // Fix comments on class declaration lines losing their space after "//"
+                output = output.replaceAll("(?m)^(abstract class )//(byte )", "$1// $2");
+                output = output.replaceAll("(?m)^//(byte )", "// $1");
 
                 writer.write(output);
             }
