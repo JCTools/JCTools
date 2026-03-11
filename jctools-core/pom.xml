@@ -295,9 +295,9 @@
 	</build>
 	<profiles>
 		<profile>
-			<id>surefire-java17-and-over</id>
+			<id>surefire-java9-and-over</id>
 			<activation>
-				<jdk>[17,)</jdk>
+				<jdk>[9,)</jdk>
 			</activation>
 			<properties>
 				<!-- Releases are still done from a JDK8, but this makes life easier-->

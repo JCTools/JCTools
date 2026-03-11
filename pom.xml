@@ -59,12 +59,12 @@
 
         <bnd.version>6.3.1</bnd.version>
         <bundle-plugin.version>5.1.8</bundle-plugin.version>
-        <osgi.version>8.0.0</osgi.version>
+        <osgi.version>8.1.0</osgi.version>
 
         <hamcrest.version>1.3</hamcrest.version>
         <junit.version>4.13.2</junit.version>
-        <guava-testlib.version>31.1-jre</guava-testlib.version>
-        <lincheck.version>2.14.1</lincheck.version>
+        <guava-testlib.version>33.5.0-jre</guava-testlib.version>
+        <lincheck.version>2.39</lincheck.version>
     </properties>
 
     <modules>
