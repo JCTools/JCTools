@@ -82,7 +82,7 @@
 				<extensions>true</extensions>
 				<configuration>
 					<instructions>
-						<Import-Package>sun.misc;resolution:=optional</Import-Package>
+						<Import-Package>sun.misc;resolution:=optional,org.jctools.queues,org.jctools.util</Import-Package>
 					</instructions>
 				</configuration>
 			</plugin>
