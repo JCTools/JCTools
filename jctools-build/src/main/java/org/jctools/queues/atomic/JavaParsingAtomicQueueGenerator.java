@@ -318,9 +318,26 @@ public abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter
                 initializer, Keyword.PRIVATE, Keyword.STATIC, Keyword.FINAL);
     }
 
+    /**
+     * Generates something like
+     * <code>private static final     private static final AtomicReferenceFieldUpdater<MpscBlockingConsumerAtomicArrayQueueConsumerFields, Thread> BLOCKED = AtomicReferenceFieldUpdater.newUpdater(MpscBlockingConsumerAtomicArrayQueueConsumerFields.class, Thread.class, "blocked");</code>
+     */
+    protected FieldDeclaration declareRefFieldUpdater(String className, String typeName, String variableName) {
+        MethodCallExpr initializer = newAtomicRefFieldUpdater(className, typeName, variableName);
+
+        ClassOrInterfaceType type = simpleParametricType("AtomicReferenceFieldUpdater", className, typeName);
+        return fieldDeclarationWithInitialiser(type, fieldUpdaterFieldName(variableName),
+            initializer, Keyword.PRIVATE, Keyword.STATIC, Keyword.FINAL);
+    }
+
     protected MethodCallExpr newAtomicLongFieldUpdater(String className, String variableName) {
         return methodCallExpr("AtomicLongFieldUpdater", "newUpdater", new ClassExpr(classType(className)),
                 new StringLiteralExpr(variableName));
+    }
+
+    protected MethodCallExpr newAtomicRefFieldUpdater(String className, String typeName, String variableName) {
+        return methodCallExpr("AtomicReferenceFieldUpdater", "newUpdater", new ClassExpr(classType(className)), new ClassExpr(classType(typeName)),
+            new StringLiteralExpr(variableName));
     }
 
     protected ClassOrInterfaceType simpleParametricType(String className, String... typeArgs) {

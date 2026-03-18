@@ -16,7 +16,6 @@ package org.jctools.queues;
 import java.util.AbstractQueue;
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
@@ -196,11 +195,11 @@ abstract class MpscBlockingConsumerArrayQueueConsumerFields<E> extends MpscBlock
      * This field should only be written to from the consumer thread. It is set before parking the consumer and nulled
      * when the consumer is unblocked. The value is read by producer thread to unpark the consumer.
      *
-     * @param thread the consumer thread which is blocked waiting for the producers
+     * @param newValue the consumer thread which is blocked waiting for the producers
      */
-    final void soBlocked(Thread thread)
+    final void soBlocked(Thread newValue)
     {
-        UNSAFE.putOrderedObject(this, BLOCKED_OFFSET, thread);
+        UNSAFE.putOrderedObject(this, BLOCKED_OFFSET, newValue);
     }
 }
 
@@ -235,7 +234,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
     public MpscBlockingConsumerArrayQueue(final int capacity)
     {
         // leave lower bit of mask clear
-        super((Pow2.roundToPowerOfTwo(capacity) - 1) << 1, (E[]) allocateRefArray(Pow2.roundToPowerOfTwo(capacity)));
+        super((Pow2.roundToPowerOfTwo(capacity) - 1) << 1, allocateRefArray(Pow2.roundToPowerOfTwo(capacity)));
 
         RangeUtil.checkGreaterThanOrEqual(capacity, 1, "capacity");
         soProducerLimit((Pow2.roundToPowerOfTwo(capacity) - 1) << 1); // we know it's all empty to start with
@@ -766,21 +765,7 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscBlockingConsumerArray
         return claimedSlots;
     }
 
-    /**
-     * Remove up to <i>limit</i> elements from the queue and hand to consume, waiting up to the specified wait time if
-     * necessary for an element to become available.
-     * <p>
-     * There's no strong commitment to the queue being empty at the end of it.
-     * This implementation is correct for single consumer thread use only.
-     * <p>
-     * <b>WARNING</b>: Explicit assumptions are made with regards to {@link Consumer#accept} make sure you have read
-     * and understood these before using this method.
-     *
-     * @return the number of polled elements
-     * @throws InterruptedException if interrupted while waiting
-     * @throws IllegalArgumentException c is {@code null}
-     * @throws IllegalArgumentException if limit is negative
-     */
+    @Override
     public int drain(Consumer<E> c, final int limit, long timeout, TimeUnit unit) throws InterruptedException {
         if (limit == 0) {
             return 0;

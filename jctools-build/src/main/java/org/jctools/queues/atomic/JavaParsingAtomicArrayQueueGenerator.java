@@ -91,6 +91,8 @@ public class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomicQueue
             return "C_INDEX_UPDATER";
         case "producerLimit":
             return "P_LIMIT_UPDATER";
+        case "blocked":
+            return "BLOCKED";
         default:
             throw new IllegalArgumentException("Unhandled field: " + fieldName);
         }
@@ -103,13 +105,15 @@ public class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomicQueue
      */
     void processSpecialNodeTypes(NodeWithType<?, Type> node, String name) {
         Type type = node.getType();
-        if ("buffer".equals(name) && isRefArray(type, "E")) {
+        if (("buffer".equals(name) || "consumerBuffer".equals(name) || "producerBuffer".equals(name)) && isRefArray(type, "E")) {
             node.setType(atomicRefArrayType((ArrayType) type));
         } else if (("sBuffer".equals(name) || "sequenceBuffer".equals(name)) && isLongArray(type)) {
             node.setType(atomicLongArrayType());
         } else if (PrimitiveType.longType().equals(type)) {
             switch(name) {
             case "mask":
+            case "consumerMask":
+            case "producerMask":
             case "offset":
             case "seqOffset":
             case "lookAheadSeqOffset":
@@ -175,7 +179,12 @@ public class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomicQueue
                 }
 
                 if (usesFieldUpdater) {
-                    n.getMembers().add(0, declareLongFieldUpdater(className, variableName));
+                    if (variable.getType().isReferenceType())
+                        n.getMembers().add(0, declareRefFieldUpdater(className, variable.getType().asString(), variableName));
+                    else if (variable.getType().asPrimitiveType().equals(PrimitiveType.longType()))
+                        n.getMembers().add(0, declareLongFieldUpdater(className, variableName));
+                    else
+                        throw new RuntimeException("Unexpected field type:" + variable);
                 }
             }
 

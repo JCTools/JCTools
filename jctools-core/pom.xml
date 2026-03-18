@@ -141,7 +141,8 @@
                                 <argument>${basedir}/src/main/java/org/jctools/queues/SpscArrayQueue.java</argument>
                                 <argument>${basedir}/src/main/java/org/jctools/queues/SpmcArrayQueue.java</argument>
                                 <argument>${basedir}/src/main/java/org/jctools/queues/MpscArrayQueue.java</argument>
-                                <argument>${basedir}/src/main/java/org/jctools/queues/MpmcArrayQueue.java</argument>
+								<argument>${basedir}/src/main/java/org/jctools/queues/MpscBlockingConsumerArrayQueue.java</argument>
+								<argument>${basedir}/src/main/java/org/jctools/queues/MpmcArrayQueue.java</argument>
                             </arguments>
                         </configuration>
                     </execution>
@@ -194,6 +195,7 @@
 								<argument>${basedir}/src/main/java/org/jctools/queues/SpscArrayQueue.java</argument>
 								<argument>${basedir}/src/main/java/org/jctools/queues/SpmcArrayQueue.java</argument>
 								<argument>${basedir}/src/main/java/org/jctools/queues/MpscArrayQueue.java</argument>
+								<argument>${basedir}/src/main/java/org/jctools/queues/MpscBlockingConsumerArrayQueue.java</argument>
 								<argument>${basedir}/src/main/java/org/jctools/queues/MpmcArrayQueue.java</argument>
 							</arguments>
 						</configuration>
@@ -248,6 +250,7 @@
 								<argument>${basedir}/src/main/java/org/jctools/queues/SpscArrayQueue.java</argument>
 								<argument>${basedir}/src/main/java/org/jctools/queues/SpmcArrayQueue.java</argument>
 								<argument>${basedir}/src/main/java/org/jctools/queues/MpscArrayQueue.java</argument>
+								<argument>${basedir}/src/main/java/org/jctools/queues/MpscBlockingConsumerArrayQueue.java</argument>
 								<argument>${basedir}/src/main/java/org/jctools/queues/MpmcArrayQueue.java</argument>
 
 								<argument>${basedir}/src/main/java/org/jctools/queues/BaseLinkedQueue.java</argument>
