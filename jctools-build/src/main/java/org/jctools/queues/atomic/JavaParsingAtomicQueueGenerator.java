@@ -29,6 +29,7 @@ import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.stmt.ReturnStmt;
 import com.github.javaparser.ast.type.ArrayType;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
+import com.github.javaparser.ast.type.PrimitiveType;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import org.jctools.queues.util.JCToolsGenerator;
@@ -306,6 +307,14 @@ public abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter
         return fieldDeclaration;
     }
 
+    protected FieldDeclaration declareFieldUpdater(VariableDeclarator variable, String className, String variableName) {
+        if (PrimitiveType.longType().equals(variable.getType())) {
+            return declareLongFieldUpdater(className, variableName);
+        } else {
+            return declareRefFieldUpdater(variable, className, variableName);
+        }
+    }
+
     /**
      * Generates something like
      * <code>private static final AtomicLongFieldUpdater<MpmcAtomicArrayQueueProducerIndexField> P_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(MpmcAtomicArrayQueueProducerIndexField.class, "producerIndex");</code>
@@ -314,6 +323,21 @@ public abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter
         MethodCallExpr initializer = newAtomicLongFieldUpdater(className, variableName);
 
         ClassOrInterfaceType type = simpleParametricType("AtomicLongFieldUpdater", className);
+        return fieldDeclarationWithInitialiser(type, fieldUpdaterFieldName(variableName),
+                initializer, Keyword.PRIVATE, Keyword.STATIC, Keyword.FINAL);
+    }
+
+    /**
+     * Generates something like
+     * <code>private static final AtomicReferenceFieldUpdater<MpmcAtomicArrayQueueProducerNodeField> P_NODE_UPDATER = AtomicReferenceFieldUpdater.newUpdater(MpmcAtomicArrayQueueProducerNodeField.class, "producerNode");</code>
+     */
+    private FieldDeclaration declareRefFieldUpdater(VariableDeclarator variable, String className, String variableName) {
+        ClassOrInterfaceType itemType = variable.getType().asClassOrInterfaceType().clone().removeTypeArguments();
+        MethodCallExpr initializer = methodCallExpr("AtomicReferenceFieldUpdater", "newUpdater", new ClassExpr(classType(className)),
+                new ClassExpr(itemType), new StringLiteralExpr(variableName));
+
+        ClassOrInterfaceType type = simpleParametricType("AtomicReferenceFieldUpdater", className,
+                itemType.asString());
         return fieldDeclarationWithInitialiser(type, fieldUpdaterFieldName(variableName),
                 initializer, Keyword.PRIVATE, Keyword.STATIC, Keyword.FINAL);
     }
