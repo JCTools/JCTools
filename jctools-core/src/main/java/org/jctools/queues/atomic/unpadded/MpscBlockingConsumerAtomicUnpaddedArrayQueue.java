@@ -178,7 +178,7 @@ abstract class MpscBlockingConsumerAtomicUnpaddedArrayQueueConsumerFields<E> ext
  * than resizing in this instance.
  */
 @SuppressWarnings("unused")
-public class MpscBlockingConsumerAtomicUnpaddedArrayQueue<E> extends MpscBlockingConsumerAtomicUnpaddedArrayQueueConsumerFields<E> implements MessagePassingBlockingQueue<E>, QueueProgressIndicators {
+public class MpscBlockingConsumerAtomicUnpaddedArrayQueue<E> extends MpscBlockingConsumerAtomicUnpaddedArrayQueueConsumerFields<E> implements MessagePassingBlockingQueue<E>, QueueProgressIndicators, OfferIfBelowThreshold<E> {
 
     public MpscBlockingConsumerAtomicUnpaddedArrayQueue(final int capacity) {
         // leave lower bit of mask clear

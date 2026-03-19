@@ -204,9 +204,8 @@ abstract class MpscArrayQueueL3Pad<E> extends MpscArrayQueueConsumerIndexField<E
  * method for polling from the queue (with minor change to correctly publish the index) and an extension of
  * the Leslie Lamport concurrent queue algorithm (originated by Martin Thompson) on the producer side.
  */
-public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E>
+public class MpscArrayQueue<E> extends MpscArrayQueueL3Pad<E> implements OfferIfBelowThreshold<E>
 {
-
     public MpscArrayQueue(final int capacity)
     {
         super(capacity);

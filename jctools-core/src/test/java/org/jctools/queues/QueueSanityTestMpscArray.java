@@ -52,10 +52,8 @@ public class QueueSanityTestMpscArray extends QueueSanityTest
         final AtomicBoolean consumerLock = new AtomicBoolean(true);
         final Queue<Integer> q = this.queue;
         // fill up the queue
-        while (q.offer(1))
-        {
-            ;
-        }
+        while (q.offer(1));
+
         // queue has 2 empty slots
         q.poll();
         q.poll();
@@ -95,6 +93,5 @@ public class QueueSanityTestMpscArray extends QueueSanityTest
         t1.join();
         t2.join();
         assertEquals("Unexpected offer/poll observed", 0, fail.value);
-
     }
 }

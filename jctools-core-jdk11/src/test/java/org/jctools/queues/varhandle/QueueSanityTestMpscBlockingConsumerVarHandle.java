@@ -1,6 +1,6 @@
 package org.jctools.queues.varhandle;
 
-import org.jctools.queues.varhandle.MpscBlockingConsumerVarHandleArrayQueue;
+import org.jctools.queues.varhandle.unpadded.MpscBlockingConsumerVarHandleUnpaddedArrayQueue;
 import org.jctools.queues.QueueSanityTest;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.jctools.queues.spec.Ordering;
@@ -29,6 +29,10 @@ public class QueueSanityTestMpscBlockingConsumerVarHandle extends QueueSanityTes
         list.add(new Object[] {spec, new MpscBlockingConsumerVarHandleArrayQueue<Integer>(1)});
         spec = makeSpec(0, 1, SIZE, Ordering.FIFO);
         list.add(new Object[] {spec, new MpscBlockingConsumerVarHandleArrayQueue<Integer>(SIZE)});
+        spec = makeSpec(0, 1, 1, Ordering.FIFO);
+        list.add(new Object[] {spec, new MpscBlockingConsumerVarHandleUnpaddedArrayQueue<Integer>(1)});
+        spec = makeSpec(0, 1, SIZE, Ordering.FIFO);
+        list.add(new Object[] {spec, new MpscBlockingConsumerVarHandleUnpaddedArrayQueue<Integer>(SIZE)});
         return list;
     }
 }

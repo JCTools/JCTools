@@ -150,7 +150,7 @@ abstract class MpscAtomicUnpaddedArrayQueueL3Pad<E> extends MpscAtomicUnpaddedAr
  * method for polling from the queue (with minor change to correctly publish the index) and an extension of
  * the Leslie Lamport concurrent queue algorithm (originated by Martin Thompson) on the producer side.
  */
-public class MpscAtomicUnpaddedArrayQueue<E> extends MpscAtomicUnpaddedArrayQueueL3Pad<E> {
+public class MpscAtomicUnpaddedArrayQueue<E> extends MpscAtomicUnpaddedArrayQueueL3Pad<E> implements OfferIfBelowThreshold<E> {
 
     public MpscAtomicUnpaddedArrayQueue(final int capacity) {
         super(capacity);

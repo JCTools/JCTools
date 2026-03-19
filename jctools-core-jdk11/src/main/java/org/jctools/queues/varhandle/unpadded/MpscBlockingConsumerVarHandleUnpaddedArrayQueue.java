@@ -204,7 +204,7 @@ abstract class MpscBlockingConsumerVarHandleUnpaddedArrayQueueConsumerFields<E> 
  * than resizing in this instance.
  */
 @SuppressWarnings("unused")
-public class MpscBlockingConsumerVarHandleUnpaddedArrayQueue<E> extends MpscBlockingConsumerVarHandleUnpaddedArrayQueueConsumerFields<E> implements MessagePassingBlockingQueue<E>, QueueProgressIndicators {
+public class MpscBlockingConsumerVarHandleUnpaddedArrayQueue<E> extends MpscBlockingConsumerVarHandleUnpaddedArrayQueueConsumerFields<E> implements MessagePassingBlockingQueue<E>, QueueProgressIndicators, OfferIfBelowThreshold<E> {
 
     public MpscBlockingConsumerVarHandleUnpaddedArrayQueue(final int capacity) {
         // leave lower bit of mask clear
