@@ -20,6 +20,7 @@ import static org.jctools.util.Pow2.roundToPowerOfTwo;
 import org.jctools.queues.MpscArrayQueue;
 import org.jctools.util.RangeUtil;
 
+import org.jctools.util.ConcurrentBoolean;
 import java.util.AbstractQueue;
 import java.util.Collection;
 import java.util.Iterator;
@@ -146,6 +147,7 @@ abstract class MpscBlockingQueueL2Pad<E> extends MpscBlockingQueueConsumerFields
  */
 public class MpscBlockingQueue<E> extends MpscBlockingQueueL2Pad<E> implements BlockingQueue<E>
 {
+    private ConcurrentBoolean isEmpty = new ConcurrentBoolean(true);
     private final AtomicInteger threadQueueIndexCounter = new AtomicInteger(0);
     private final ThreadLocal<Integer> threadQueueIndex = new ThreadLocal<Integer>()
     {
@@ -167,6 +169,11 @@ public class MpscBlockingQueue<E> extends MpscBlockingQueueL2Pad<E> implements B
     }
 
 
+    public void awaitEmpty() throws InterruptedException
+    {
+        this.isEmpty.awaitTrue();
+    }
+
     @Override
     public E poll()
     {
@@ -182,8 +189,10 @@ public class MpscBlockingQueue<E> extends MpscBlockingQueueL2Pad<E> implements B
                 unparkOneFullWaiter(id);
                 break;
             }
+            if (queues[id].peek() == null) this.isEmpty.set(true);
         }
         consumerQueueIndex = qIndex;
+        if (e == null) this.isEmpty.set(true);
         return e;
     }
 
@@ -239,6 +248,7 @@ public class MpscBlockingQueue<E> extends MpscBlockingQueueL2Pad<E> implements B
         if (queues[threadQueueIndex.get()].offer(e))
         {
             unparkOneEmptyWaiter();
+        	this.isEmpty.set(false);
             return true;
         }
         return false;
