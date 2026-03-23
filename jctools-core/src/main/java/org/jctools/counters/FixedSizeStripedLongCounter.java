@@ -159,5 +159,9 @@ public abstract class FixedSizeStripedLongCounter extends FixedSizeStripedLongCo
         probe ^= probe << 5;
         return probe;
     }
-}
 
+    @Override
+    public String toString() {
+        return Long.toString(get());
+    }
+}
