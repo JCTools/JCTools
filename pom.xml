@@ -190,8 +190,10 @@
                 </dependencies>
                 <configuration>
                     <instructions>
-                        <!-- Adds a module descriptor named as the OSGI bundle -->
-                        <_jpms-module-info>$[maven-symbolicname];access=0</_jpms-module-info>
+                        <!-- Adds a module descriptor named as the OSGI bundle with dashes as dots -->
+                        <_jpms-module-info>${replace;$[maven-symbolicname];-;.};access=0</_jpms-module-info>
+                        <!-- Rewrite invalid dependency jctool-core into org.jctools.core -->
+                        <_jpms-module-info-options>org.jctools.core;substitute="jctools-core"</_jpms-module-info-options>
                         <!-- Exports only explicitly annotated packages -->
                         <_exportcontents>$[packages;ANNOTATED;org.osgi.annotation.bundle.Export]</_exportcontents>
                     </instructions>
