@@ -6,6 +6,7 @@ import static org.jctools.util.UnsafeAccess.UNSAFE;
 import static org.jctools.util.UnsafeAccess.fieldOffset;
 import static org.jctools.util.UnsafeRefArrayAccess.*;
 
+// $gen:ordered-fields
 @InternalAPI
 public class MpUnboundedXaddChunk<R,E>
 {

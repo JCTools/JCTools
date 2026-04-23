@@ -1,12 +1,19 @@
 package org.jctools.queues.unpadded;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import com.github.javaparser.ast.*;
 import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.comments.TraditionalJavadocComment;
 import com.github.javaparser.ast.expr.ClassExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.ast.expr.NameExpr;
+import com.github.javaparser.ast.expr.ObjectCreationExpr;
+import com.github.javaparser.ast.nodeTypes.NodeWithType;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
+import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import org.jctools.queues.util.JCToolsGenerator;
 
@@ -35,6 +42,24 @@ public class JavaParsingUnpaddedQueueGenerator extends VoidVisitorAdapter<Void> 
 
     @Override
     public void organiseImports(CompilationUnit cu) {
+        List<ImportDeclaration> importDecls = new ArrayList<>();
+        for (ImportDeclaration importDeclaration : cu.getImports()) {
+            String name = importDeclaration.getNameAsString();
+            if (importDeclaration.isStatic() && name.startsWith("org.jctools.queues.") && name.contains("Chunk.")) {
+                String simpleName = name.substring(name.lastIndexOf('.') + 1);
+                String className = name.substring("org.jctools.queues.".length(), name.lastIndexOf('.'));
+                if (className.endsWith("Chunk")) {
+                    String translatedClass = translateQueueName(className);
+                    importDecls.add(new ImportDeclaration("org.jctools.queues.unpadded." + translatedClass + "." + simpleName, true, false));
+                    continue;
+                }
+            }
+            importDecls.add(importDeclaration);
+        }
+        cu.getImports().clear();
+        for (ImportDeclaration importDecl : importDecls) {
+            cu.addImport(importDecl);
+        }
         cu.addImport(new ImportDeclaration("org.jctools.queues", false, true));
     }
 
@@ -42,6 +67,10 @@ public class JavaParsingUnpaddedQueueGenerator extends VoidVisitorAdapter<Void> 
     public String translateQueueName(String qName) {
         if (qName.contains("LinkedQueue") || qName.contains("LinkedArrayQueue")) {
             return qName.replace("Linked", "LinkedUnpadded");
+        }
+
+        if (qName.endsWith("Chunk")) {
+            return qName.replace("Chunk", "UnpaddedChunk");
         }
 
         if (qName.contains("ArrayQueue")) {
@@ -63,7 +92,7 @@ public class JavaParsingUnpaddedQueueGenerator extends VoidVisitorAdapter<Void> 
     public void visit(ClassOrInterfaceDeclaration node, Void arg) {
         super.visit(node, arg);
         String nameAsString = node.getNameAsString();
-        if (!nameAsString.contains("Queue"))
+        if (!nameAsString.contains("Queue") && !nameAsString.endsWith("Chunk"))
             return;
         // fixup inheritance
         replaceParentClasses(node);
@@ -91,10 +120,30 @@ public class JavaParsingUnpaddedQueueGenerator extends VoidVisitorAdapter<Void> 
             if (argument.isClassExpr()) {
                 ClassExpr classExpr = argument.asClassExpr();
                 String type = classExpr.getTypeAsString();
-                classExpr.setType(translateQueueName(type));
+                if (!type.contains("Unpadded")) {
+                    classExpr.setType(translateQueueName(type));
+                }
             }
         }
 
+    }
+
+    @Override
+    public void visit(ClassOrInterfaceType n, Void arg) {
+        super.visit(n, arg);
+        String name = n.getNameAsString();
+        if (name.endsWith("Chunk") && !name.contains("Unpadded")) {
+            n.setName(translateQueueName(name));
+        }
+    }
+
+    @Override
+    public void visit(NameExpr n, Void arg) {
+        super.visit(n, arg);
+        String name = n.getNameAsString();
+        if (name.endsWith("Chunk") && Character.isUpperCase(name.charAt(0)) && !name.contains("Unpadded")) {
+            n.setName(translateQueueName(name));
+        }
     }
 
     @Override
@@ -102,8 +151,49 @@ public class JavaParsingUnpaddedQueueGenerator extends VoidVisitorAdapter<Void> 
         super.visit(n, arg);
         // Update the ctor to match the class name
         String nameAsString = n.getNameAsString();
-        if (nameAsString.contains("Queue"))
+        if (nameAsString.contains("Queue") || nameAsString.endsWith("Chunk"))
             n.setName(translateQueueName(nameAsString));
+    }
+
+    @Override
+    public void visit(ObjectCreationExpr n, Void arg) {
+        super.visit(n, arg);
+        if (isRefType(n.getType(), "SpscArrayQueue")) {
+            ClassOrInterfaceType newType = new ClassOrInterfaceType(null, "SpscUnpaddedArrayQueue");
+            n.getType().getTypeArguments().ifPresent(newType::setTypeArguments);
+            n.setType(newType);
+        }
+    }
+
+    @Override
+    public void visit(VariableDeclarator n, Void arg) {
+        super.visit(n, arg);
+        if (isRefType(n.getType(), "SpscArrayQueue")) {
+            ClassOrInterfaceType newType = new ClassOrInterfaceType(null, "SpscUnpaddedArrayQueue");
+            if (n.getType() instanceof ClassOrInterfaceType) {
+                ((ClassOrInterfaceType) n.getType()).getTypeArguments().ifPresent(newType::setTypeArguments);
+            }
+            n.setType(newType);
+        }
+    }
+
+    @Override
+    public void visit(Parameter n, Void arg) {
+        super.visit(n, arg);
+        if (isRefType(n.getType(), "SpscArrayQueue")) {
+            ClassOrInterfaceType newType = new ClassOrInterfaceType(null, "SpscUnpaddedArrayQueue");
+            if (n.getType() instanceof ClassOrInterfaceType) {
+                ((ClassOrInterfaceType) n.getType()).getTypeArguments().ifPresent(newType::setTypeArguments);
+            }
+            n.setType(newType);
+        }
+    }
+
+    protected boolean isRefType(Type in, String className) {
+        if (in instanceof ClassOrInterfaceType) {
+            return className.equals(((ClassOrInterfaceType) in).getNameAsString());
+        }
+        return false;
     }
 
     /**
@@ -119,9 +209,9 @@ public class JavaParsingUnpaddedQueueGenerator extends VoidVisitorAdapter<Void> 
                     // ignore the JDK parent
                     break;
                 default:
-                    // Padded super classes are to be renamed and thus so does the
-                    // class we must extend.
-                    parent.setName(translateQueueName(parentNameAsString));
+                    if (!parentNameAsString.contains("Unpadded")) {
+                        parent.setName(translateQueueName(parentNameAsString));
+                    }
             }
         }
     }

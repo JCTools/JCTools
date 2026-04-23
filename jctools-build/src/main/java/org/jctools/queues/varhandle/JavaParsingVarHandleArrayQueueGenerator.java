@@ -22,6 +22,9 @@ import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.stmt.ReturnStmt;
 import com.github.javaparser.ast.stmt.ThrowStmt;
 import com.github.javaparser.ast.stmt.TryStmt;
+import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.ImportDeclaration;
+import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.PrimitiveType;
 import com.github.javaparser.ast.type.Type;
 import java.util.ArrayList;
@@ -48,7 +51,34 @@ public class JavaParsingVarHandleArrayQueueGenerator extends JavaParsingVarHandl
   @Override
   void processSpecialNodeTypes(NodeWithType<?, Type> node, String name)
   {
-    // nothing to do
+    Type type = node.getType();
+    if (isRefType(type, "SpscArrayQueue")) {
+      ClassOrInterfaceType newType = classType(unpaddedPoolQueueName());
+      if (type instanceof ClassOrInterfaceType) {
+        ((ClassOrInterfaceType) type).getTypeArguments().ifPresent(newType::setTypeArguments);
+      }
+      node.setType(newType);
+      usesPoolQueue = true;
+    }
+  }
+
+  @Override
+  public void visit(ObjectCreationExpr n, Void arg) {
+    super.visit(n, arg);
+    if (isRefType(n.getType(), "SpscArrayQueue")) {
+      ClassOrInterfaceType newType = classType(unpaddedPoolQueueName());
+      n.getType().getTypeArguments().ifPresent(newType::setTypeArguments);
+      n.setType(newType);
+      usesPoolQueue = true;
+    }
+  }
+
+  protected String unpaddedPoolQueueName() {
+    return "SpscVarHandleUnpaddedArrayQueue";
+  }
+
+  protected String unpaddedPoolQueueImport() {
+    return "org.jctools.queues.varhandle.unpadded.SpscVarHandleUnpaddedArrayQueue";
   }
 
   @Override
@@ -120,6 +150,18 @@ public class JavaParsingVarHandleArrayQueueGenerator extends JavaParsingVarHandl
         return "VH_PRODUCER_INDEX_CACHE";
       case "blocked":
         return "VH_BLOCKED";
+      case "producerChunk":
+        return "VH_PRODUCER_CHUNK";
+      case "producerChunkIndex":
+        return "VH_PRODUCER_CHUNK_INDEX";
+      case "consumerChunk":
+        return "VH_CONSUMER_CHUNK";
+      case "index":
+        return "VH_INDEX";
+      case "prev":
+        return "VH_PREV";
+      case "next":
+        return "VH_NEXT";
       default:
         throw new IllegalArgumentException("Unhandled field: " + fieldName);
     }
@@ -169,6 +211,9 @@ public class JavaParsingVarHandleArrayQueueGenerator extends JavaParsingVarHandl
     for (FieldDeclaration field : n.getFields()) {
       if (field.getModifiers().contains(Modifier.staticModifier())) {
         // Ignore statics
+        continue;
+      }
+      if (field.getModifiers().contains(Modifier.finalModifier())) {
         continue;
       }
 
@@ -252,5 +297,15 @@ public class JavaParsingVarHandleArrayQueueGenerator extends JavaParsingVarHandl
     initBody.addStatement(tryStmt);
 
     return initializer;
+  }
+
+  @Override
+  protected void addExtraImports(CompilationUnit cu) {
+    if (usesPoolQueue) {
+      String poolImport = unpaddedPoolQueueImport();
+      if (poolImport != null) {
+        cu.addImport(new ImportDeclaration(poolImport, false, false));
+      }
+    }
   }
 }

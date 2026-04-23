@@ -165,6 +165,12 @@
                         <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/MpscArrayQueue.java</argument>
                         <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/MpscBlockingConsumerArrayQueue.java</argument>
                         <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/MpmcArrayQueue.java</argument>
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/MpUnboundedXaddChunk.java</argument>
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/MpUnboundedXaddArrayQueue.java</argument>
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/MpscUnboundedXaddChunk.java</argument>
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/MpscUnboundedXaddArrayQueue.java</argument>
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/MpmcUnboundedXaddChunk.java</argument>
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/MpmcUnboundedXaddArrayQueue.java</argument>
                     </arguments>
                 </configuration>
             </execution>
@@ -219,6 +225,12 @@
                         <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/MpscArrayQueue.java</argument>
                         <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/MpscBlockingConsumerArrayQueue.java</argument>
                         <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/MpmcArrayQueue.java</argument>
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/MpUnboundedXaddChunk.java</argument>
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/MpUnboundedXaddArrayQueue.java</argument>
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/MpscUnboundedXaddChunk.java</argument>
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/MpscUnboundedXaddArrayQueue.java</argument>
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/MpmcUnboundedXaddChunk.java</argument>
+                        <argument>${basedir}/../jctools-core/src/main/java/org/jctools/queues/MpmcUnboundedXaddArrayQueue.java</argument>
                     </arguments>
                 </configuration>
             </execution>
