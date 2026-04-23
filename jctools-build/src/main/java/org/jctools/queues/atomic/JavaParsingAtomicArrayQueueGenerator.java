@@ -7,6 +7,7 @@ import com.github.javaparser.ast.comments.TraditionalJavadocComment;
 import com.github.javaparser.ast.expr.MarkerAnnotationExpr;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.NameExpr;
+import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.nodeTypes.NodeWithType;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.ReturnStmt;
@@ -93,8 +94,31 @@ public class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomicQueue
             return "P_LIMIT_UPDATER";
         case "blocked":
             return "BLOCKED";
+        case "producerChunk":
+            return "P_CHUNK_UPDATER";
+        case "producerChunkIndex":
+            return "P_CHUNK_INDEX_UPDATER";
+        case "consumerChunk":
+            return "C_CHUNK_UPDATER";
+        case "index":
+            return "INDEX_UPDATER";
+        case "prev":
+            return "PREV_UPDATER";
+        case "next":
+            return "NEXT_UPDATER";
         default:
             throw new IllegalArgumentException("Unhandled field: " + fieldName);
+        }
+    }
+
+    @Override
+    public void visit(ObjectCreationExpr n, Void arg) {
+        super.visit(n, arg);
+        if (isRefType(n.getType(), "SpscArrayQueue")) {
+            ClassOrInterfaceType newType = classType(unpaddedPoolQueueName());
+            n.getType().getTypeArguments().ifPresent(newType::setTypeArguments);
+            n.setType(newType);
+            usesPoolQueue = true;
         }
     }
 
@@ -107,8 +131,15 @@ public class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomicQueue
         Type type = node.getType();
         if (("buffer".equals(name) || "consumerBuffer".equals(name) || "producerBuffer".equals(name)) && isRefArray(type, "E")) {
             node.setType(atomicRefArrayType((ArrayType) type));
-        } else if (("sBuffer".equals(name) || "sequenceBuffer".equals(name)) && isLongArray(type)) {
+        } else if (("sBuffer".equals(name) || "sequenceBuffer".equals(name) || "sequence".equals(name)) && isLongArray(type)) {
             node.setType(atomicLongArrayType());
+        } else if (isRefType(type, "SpscArrayQueue")) {
+            ClassOrInterfaceType newType = classType(unpaddedPoolQueueName());
+            if (type instanceof ClassOrInterfaceType) {
+                ((ClassOrInterfaceType) type).getTypeArguments().ifPresent(newType::setTypeArguments);
+            }
+            node.setType(newType);
+            usesPoolQueue = true;
         } else if (PrimitiveType.longType().equals(type)) {
             switch(name) {
             case "mask":
@@ -168,6 +199,9 @@ public class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomicQueue
                 // Ignore statics
                 continue;
             }
+            if (field.getModifiers().contains(Modifier.finalModifier())) {
+                continue;
+            }
 
             boolean usesFieldUpdater = false;
             for (VariableDeclarator variable : field.getVariables()) {
@@ -179,9 +213,13 @@ public class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomicQueue
                 }
 
                 if (usesFieldUpdater) {
-                    if (variable.getType().isReferenceType())
-                        n.getMembers().add(0, declareRefFieldUpdater(className, variable.getType().asString(), variableName));
-                    else if (variable.getType().asPrimitiveType().equals(PrimitiveType.longType()))
+                    if (variable.getType().isReferenceType()) {
+                        String typeName = variable.getType().asString();
+                        if (typeName.length() == 1 && Character.isUpperCase(typeName.charAt(0))) {
+                            typeName = "Object";
+                        }
+                        n.getMembers().add(0, declareRefFieldUpdater(className, typeName, variableName));
+                    } else if (variable.getType().asPrimitiveType().equals(PrimitiveType.longType()))
                         n.getMembers().add(0, declareLongFieldUpdater(className, variableName));
                     else
                         throw new RuntimeException("Unexpected field type:" + variable);

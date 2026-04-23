@@ -87,6 +87,10 @@ public final class VarHandleQueueUtil {
     return (long) ARRAY_LONG_ELEMENT.getVolatile(buffer, (int)offset);
   }
 
+  public static long calcLongElementOffset(long index) {
+    return index;
+  }
+
   public static long calcCircularLongElementOffset(long index, long mask) {
     return (index & mask);
   }

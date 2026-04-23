@@ -3,7 +3,6 @@ package org.jctools.queues;
 import org.jctools.queues.IndexedQueueSizeUtil.IndexedQueue;
 import org.jctools.util.PortableJvmInfo;
 import org.jctools.util.Pow2;
-import org.jctools.util.UnsafeAccess;
 
 import java.util.AbstractQueue;
 import java.util.Iterator;
@@ -228,10 +227,6 @@ abstract class MpUnboundedXaddArrayQueue<R extends MpUnboundedXaddChunk<R,E>, E>
      */
     MpUnboundedXaddArrayQueue(int chunkSize, int maxPooledChunks)
     {
-        if (!UnsafeAccess.SUPPORTS_GET_AND_ADD_LONG)
-        {
-            throw new IllegalStateException("Unsafe::getAndAddLong support (JDK 8+) is required for this queue to work");
-        }
         if (maxPooledChunks < 0)
         {
             throw new IllegalArgumentException("Expecting a positive maxPooledChunks, but got:"+maxPooledChunks);

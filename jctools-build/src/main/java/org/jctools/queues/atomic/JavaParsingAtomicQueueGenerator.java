@@ -57,6 +57,7 @@ public abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter
     protected static final String GEN_DIRECTIVE_METHOD_IGNORE = "$gen:ignore";
     
     protected final String sourceFileName;
+    protected boolean usesPoolQueue = false;
 
     protected String outputPackage() {
         return "org.jctools.queues.atomic";
@@ -64,6 +65,14 @@ public abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter
 
     protected String queueClassNamePrefix() {
         return "Atomic";
+    }
+
+    protected String unpaddedPoolQueueName() {
+        return "SpscAtomicUnpaddedArrayQueue";
+    }
+
+    protected String unpaddedPoolQueueImport() {
+        return "org.jctools.queues.atomic.unpadded.SpscAtomicUnpaddedArrayQueue";
     }
 
     JavaParsingAtomicQueueGenerator(String sourceFileName) {
@@ -94,6 +103,24 @@ public abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter
         processSpecialNodeTypes(n);
     }
 
+    @Override
+    public void visit(ClassOrInterfaceType n, Void arg) {
+        super.visit(n, arg);
+        String name = n.getNameAsString();
+        if (name.endsWith("Chunk") && !name.contains(queueClassNamePrefix())) {
+            n.setName(translateQueueName(name));
+        }
+    }
+
+    @Override
+    public void visit(NameExpr n, Void arg) {
+        super.visit(n, arg);
+        String name = n.getNameAsString();
+        if (name.endsWith("Chunk") && Character.isUpperCase(name.charAt(0)) && !name.contains(queueClassNamePrefix())) {
+            n.setName(translateQueueName(name));
+        }
+    }
+
     private void processSpecialNodeTypes(Parameter node) {
         processSpecialNodeTypes(node, node.getNameAsString());
     }
@@ -120,10 +147,14 @@ public abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter
             child.remove();
         }
 
-        // Remove all static fields
+        // Remove static fields that are Unsafe offset declarations
         for (FieldDeclaration field : node.getFields()) {
             if (field.getModifiers().contains(Modifier.staticModifier())) {
-                field.remove();
+                boolean isOffsetField = field.getVariables().stream()
+                    .anyMatch(v -> v.getNameAsString().endsWith("_OFFSET"));
+                if (isOffsetField) {
+                    field.remove();
+                }
             }
         }
     }
@@ -132,6 +163,10 @@ public abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter
     public String translateQueueName(String qName) {
         if (qName.contains("LinkedQueue") || qName.contains("LinkedArrayQueue")) {
             return qName.replace("Linked", "Linked" + queueClassNamePrefix());
+        }
+
+        if (qName.endsWith("Chunk")) {
+            return qName.replace("Chunk", queueClassNamePrefix() + "Chunk");
         }
 
         if (qName.contains("ArrayQueue")) {
@@ -151,7 +186,6 @@ public abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter
             return false;
         }
 
-        String newValueName = "newValue";
         if (methodName.startsWith("so") || methodName.startsWith("sp"))
         {
             /*
@@ -160,20 +194,40 @@ public abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter
              */
             usesFieldUpdater = true;
             String fieldUpdaterFieldName = fieldUpdaterFieldName(variableName);
-
-            method.setBody(fieldUpdaterLazySet(fieldUpdaterFieldName, newValueName));
+            String valueName = method.getParameters().isEmpty() ? "newValue" :
+                method.getParameters().get(method.getParameters().size() - 1).getNameAsString();
+            method.setBody(fieldUpdaterLazySet(fieldUpdaterFieldName, valueName));
         }
         else if (methodName.startsWith("cas"))
         {
             usesFieldUpdater = true;
             String fieldUpdaterFieldName = fieldUpdaterFieldName(variableName);
-            String expectedValueName = "expect";
+            String expectedValueName = method.getParameters().size() >= 1 ?
+                method.getParameters().get(0).getNameAsString() : "expect";
+            String newValueName = method.getParameters().size() >= 2 ?
+                method.getParameters().get(1).getNameAsString() : "newValue";
             method.setBody(
                 fieldUpdaterCompareAndSet(fieldUpdaterFieldName, expectedValueName, newValueName));
         }
+        else if (methodName.startsWith("getAndAdd"))
+        {
+            usesFieldUpdater = true;
+            String fieldUpdaterFieldName = fieldUpdaterFieldName(variableName);
+            String deltaName = method.getParameters().isEmpty() ? "delta" :
+                method.getParameters().get(0).getNameAsString();
+            method.setBody(fieldUpdaterGetAndAdd(fieldUpdaterFieldName, deltaName));
+        }
+        else if (methodName.startsWith("getAndIncrement"))
+        {
+            usesFieldUpdater = true;
+            String fieldUpdaterFieldName = fieldUpdaterFieldName(variableName);
+            method.setBody(fieldUpdaterGetAndIncrement(fieldUpdaterFieldName));
+        }
         else if (methodName.startsWith("sv"))
         {
-            method.setBody(fieldAssignment(variableName, newValueName));
+            String valueName = method.getParameters().isEmpty() ? "newValue" :
+                method.getParameters().get(method.getParameters().size() - 1).getNameAsString();
+            method.setBody(fieldAssignment(variableName, valueName));
         }
         else if (methodName.startsWith("lv") || methodName.startsWith("lp"))
         {
@@ -208,9 +262,9 @@ public abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter
                     parent.setName("ConcurrentSequencedCircular" + queueClassNamePrefix() + "ArrayQueue");
                     break;
                 default:
-                    // Padded super classes are to be renamed and thus so does the
-                    // class we must extend.
-                    parent.setName(translateQueueName(parentNameAsString));
+                    if (!parentNameAsString.contains(queueClassNamePrefix())) {
+                        parent.setName(translateQueueName(parentNameAsString));
+                    }
             }
         }
     }
@@ -235,6 +289,16 @@ public abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter
                 continue;
             }
 
+            if (importDeclaration.isStatic() && name.startsWith("org.jctools.queues.") && name.contains("Chunk.")) {
+                String simpleName = name.substring(name.lastIndexOf('.') + 1);
+                String className = name.substring("org.jctools.queues.".length(), name.lastIndexOf('.'));
+                if (className.endsWith("Chunk")) {
+                    String translatedClass = translateQueueName(className);
+                    importDecls.add(new ImportDeclaration(outputPackage() + "." + translatedClass + "." + simpleName, true, false));
+                    continue;
+                }
+            }
+
             importDecls.add(importDeclaration);
         }
         cu.getImports().clear();
@@ -246,6 +310,13 @@ public abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter
 
         cu.addImport(new ImportDeclaration("org.jctools.queues", false, true));
         cu.addImport(staticImportDeclaration("org.jctools.queues.atomic.AtomicQueueUtil"));
+
+        if (usesPoolQueue) {
+            String poolImport = unpaddedPoolQueueImport();
+            if (poolImport != null) {
+                cu.addImport(new ImportDeclaration(poolImport, false, false));
+            }
+        }
     }
 
     protected String capitalise(String s) {
@@ -260,6 +331,27 @@ public abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter
         BlockStmt body = new BlockStmt();
         body.addStatement(new ExpressionStmt(
                 methodCallExpr(fieldUpdaterFieldName, "lazySet", new ThisExpr(), new NameExpr(newValueName))));
+        return body;
+    }
+
+    /**
+     * Generates something like
+     * <code>return P_INDEX_UPDATER.getAndAdd(this, delta)</code>
+     */
+    protected BlockStmt fieldUpdaterGetAndAdd(String fieldUpdaterFieldName, String deltaName) {
+        BlockStmt body = new BlockStmt();
+        body.addStatement(new ReturnStmt(methodCallExpr(fieldUpdaterFieldName, "getAndAdd", new ThisExpr(),
+                new NameExpr(deltaName))));
+        return body;
+    }
+
+    /**
+     * Generates something like
+     * <code>return P_INDEX_UPDATER.getAndIncrement(this)</code>
+     */
+    protected BlockStmt fieldUpdaterGetAndIncrement(String fieldUpdaterFieldName) {
+        BlockStmt body = new BlockStmt();
+        body.addStatement(new ReturnStmt(methodCallExpr(fieldUpdaterFieldName, "getAndIncrement", new ThisExpr())));
         return body;
     }
 
