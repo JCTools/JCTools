@@ -94,6 +94,7 @@ public class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomicQueue
             return "P_LIMIT_UPDATER";
         case "blocked":
             return "BLOCKED";
+        // Xadd queue family fields — used by MpUnboundedXaddChunk and its subclasses
         case "producerChunk":
             return "P_CHUNK_UPDATER";
         case "producerChunkIndex":
@@ -111,6 +112,11 @@ public class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomicQueue
         }
     }
 
+    /**
+     * Replaces {@code new SpscArrayQueue<R>(...)} with the unpadded pool queue variant appropriate
+     * for this generator (e.g. {@code new SpscAtomicUnpaddedArrayQueue<R>(...)}).
+     * Used by the xadd queue family which pools chunks internally via SpscArrayQueue.
+     */
     @Override
     public void visit(ObjectCreationExpr n, Void arg) {
         super.visit(n, arg);
@@ -199,6 +205,8 @@ public class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomicQueue
                 // Ignore statics
                 continue;
             }
+            // Skip final fields — e.g. MpUnboundedXaddChunk.pooled has accessor isPooled()
+            // whose name matches the suffix pattern but must not be patched
             if (field.getModifiers().contains(Modifier.finalModifier())) {
                 continue;
             }

@@ -45,6 +45,9 @@ public class JavaParsingUnpaddedQueueGenerator extends VoidVisitorAdapter<Void> 
         List<ImportDeclaration> importDecls = new ArrayList<>();
         for (ImportDeclaration importDeclaration : cu.getImports()) {
             String name = importDeclaration.getNameAsString();
+            // Rewrite static imports from Chunk classes to point at the translated variant,
+            // e.g. "import static o.j.q.MpmcUnboundedXaddChunk.NOT_USED" ->
+            //      "import static o.j.q.unpadded.MpmcUnboundedXaddUnpaddedChunk.NOT_USED"
             if (importDeclaration.isStatic() && name.startsWith("org.jctools.queues.") && name.contains("Chunk.")) {
                 String simpleName = name.substring(name.lastIndexOf('.') + 1);
                 String className = name.substring("org.jctools.queues.".length(), name.lastIndexOf('.'));
@@ -69,6 +72,7 @@ public class JavaParsingUnpaddedQueueGenerator extends VoidVisitorAdapter<Void> 
             return qName.replace("Linked", "LinkedUnpadded");
         }
 
+        // Xadd Chunk classes (e.g. MpUnboundedXaddChunk -> MpUnboundedXaddUnpaddedChunk)
         if (qName.endsWith("Chunk")) {
             return qName.replace("Chunk", "UnpaddedChunk");
         }
@@ -128,6 +132,10 @@ public class JavaParsingUnpaddedQueueGenerator extends VoidVisitorAdapter<Void> 
 
     }
 
+    /**
+     * Renames Chunk type references (e.g. {@code MpUnboundedXaddChunk} to {@code MpUnboundedXaddUnpaddedChunk})
+     * wherever they appear as types. The {@code contains("Unpadded")} guard prevents double-translation.
+     */
     @Override
     public void visit(ClassOrInterfaceType n, Void arg) {
         super.visit(n, arg);
@@ -137,6 +145,10 @@ public class JavaParsingUnpaddedQueueGenerator extends VoidVisitorAdapter<Void> 
         }
     }
 
+    /**
+     * Renames Chunk class references in name expressions, e.g. {@code MpmcUnboundedXaddChunk.NOT_USED}.
+     * The {@code isUpperCase} check avoids renaming local variables like {@code cChunk}.
+     */
     @Override
     public void visit(NameExpr n, Void arg) {
         super.visit(n, arg);
@@ -155,6 +167,10 @@ public class JavaParsingUnpaddedQueueGenerator extends VoidVisitorAdapter<Void> 
             n.setName(translateQueueName(nameAsString));
     }
 
+    /**
+     * Replaces {@code new SpscArrayQueue<R>(...)} with {@code new SpscUnpaddedArrayQueue<R>(...)}.
+     * Used by xadd queues which pool chunks internally via SpscArrayQueue.
+     */
     @Override
     public void visit(ObjectCreationExpr n, Void arg) {
         super.visit(n, arg);
@@ -165,6 +181,7 @@ public class JavaParsingUnpaddedQueueGenerator extends VoidVisitorAdapter<Void> 
         }
     }
 
+    /** Replaces SpscArrayQueue type in variable declarations — same as {@link #visit(ObjectCreationExpr, Void)}. */
     @Override
     public void visit(VariableDeclarator n, Void arg) {
         super.visit(n, arg);
@@ -177,6 +194,7 @@ public class JavaParsingUnpaddedQueueGenerator extends VoidVisitorAdapter<Void> 
         }
     }
 
+    /** Replaces SpscArrayQueue type in parameters — same as {@link #visit(ObjectCreationExpr, Void)}. */
     @Override
     public void visit(Parameter n, Void arg) {
         super.visit(n, arg);
@@ -209,6 +227,8 @@ public class JavaParsingUnpaddedQueueGenerator extends VoidVisitorAdapter<Void> 
                     // ignore the JDK parent
                     break;
                 default:
+                    // Guard against double-translation: visit(ClassOrInterfaceType) may have
+                    // already renamed this type before we get here
                     if (!parentNameAsString.contains("Unpadded")) {
                         parent.setName(translateQueueName(parentNameAsString));
                     }

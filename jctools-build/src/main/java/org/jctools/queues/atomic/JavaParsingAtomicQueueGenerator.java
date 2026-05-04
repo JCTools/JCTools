@@ -103,6 +103,12 @@ public abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter
         processSpecialNodeTypes(n);
     }
 
+    /**
+     * Renames Chunk type references (e.g. {@code MpUnboundedXaddChunk} to {@code MpUnboundedXaddAtomicChunk})
+     * wherever they appear as types: field declarations, method return types, generic parameters, casts, etc.
+     * The {@code contains(queueClassNamePrefix())} guard prevents double-translation when the visitor processes
+     * a node that was already renamed by a parent visitor call.
+     */
     @Override
     public void visit(ClassOrInterfaceType n, Void arg) {
         super.visit(n, arg);
@@ -112,6 +118,12 @@ public abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter
         }
     }
 
+    /**
+     * Renames Chunk class references in name expressions, e.g. {@code MpmcUnboundedXaddChunk.NOT_USED}
+     * where {@code MpmcUnboundedXaddChunk} is a {@link NameExpr} qualifying a static field access.
+     * The {@code isUpperCase} check avoids renaming local variables like {@code cChunk} that also
+     * end with "Chunk" but are not class names.
+     */
     @Override
     public void visit(NameExpr n, Void arg) {
         super.visit(n, arg);
@@ -141,13 +153,16 @@ public abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter
         return false;
     }
 
+    /**
+     * Removes Unsafe-specific static infrastructure: static initializer blocks (which compute field offsets
+     * via {@code Unsafe.objectFieldOffset}) and static fields ending with {@code _OFFSET}.
+     * Other static fields (e.g. {@code NOT_USED} constants in Chunk classes) are preserved.
+     */
     protected void removeStaticFieldsAndInitialisers(ClassOrInterfaceDeclaration node) {
-        // Remove all the static initialisers
         for (InitializerDeclaration child : node.getChildNodesByType(InitializerDeclaration.class)) {
             child.remove();
         }
 
-        // Remove static fields that are Unsafe offset declarations
         for (FieldDeclaration field : node.getFields()) {
             if (field.getModifiers().contains(Modifier.staticModifier())) {
                 boolean isOffsetField = field.getVariables().stream()
@@ -165,6 +180,7 @@ public abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter
             return qName.replace("Linked", "Linked" + queueClassNamePrefix());
         }
 
+        // Xadd Chunk classes (e.g. MpUnboundedXaddChunk -> MpUnboundedXaddAtomicChunk)
         if (qName.endsWith("Chunk")) {
             return qName.replace("Chunk", queueClassNamePrefix() + "Chunk");
         }
@@ -188,10 +204,9 @@ public abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter
 
         if (methodName.startsWith("so") || methodName.startsWith("sp"))
         {
-            /*
-             * In the case of 'sp' use lazySet as the weakest
-             * ordering allowed by field updaters
-             */
+            // Use lazySet as the weakest ordering allowed by field updaters.
+            // Read actual param name from the method — xadd sources use different names than the
+            // original array queue sources (e.g. "value" vs "newValue").
             usesFieldUpdater = true;
             String fieldUpdaterFieldName = fieldUpdaterFieldName(variableName);
             String valueName = method.getParameters().isEmpty() ? "newValue" :
@@ -200,6 +215,7 @@ public abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter
         }
         else if (methodName.startsWith("cas"))
         {
+            // Read actual param names — xadd sources use "expected"/"value" not "expect"/"newValue"
             usesFieldUpdater = true;
             String fieldUpdaterFieldName = fieldUpdaterFieldName(variableName);
             String expectedValueName = method.getParameters().size() >= 1 ?
@@ -211,6 +227,7 @@ public abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter
         }
         else if (methodName.startsWith("getAndAdd"))
         {
+            // Xadd queues use getAndAddProducerIndex(long delta) — maps to fieldUpdater.getAndAdd()
             usesFieldUpdater = true;
             String fieldUpdaterFieldName = fieldUpdaterFieldName(variableName);
             String deltaName = method.getParameters().isEmpty() ? "delta" :
@@ -219,6 +236,7 @@ public abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter
         }
         else if (methodName.startsWith("getAndIncrement"))
         {
+            // Xadd queues use getAndIncrementProducerIndex() — maps to fieldUpdater.getAndIncrement()
             usesFieldUpdater = true;
             String fieldUpdaterFieldName = fieldUpdaterFieldName(variableName);
             method.setBody(fieldUpdaterGetAndIncrement(fieldUpdaterFieldName));
@@ -262,6 +280,8 @@ public abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter
                     parent.setName("ConcurrentSequencedCircular" + queueClassNamePrefix() + "ArrayQueue");
                     break;
                 default:
+                    // Guard against double-translation: visit(ClassOrInterfaceType) may have
+                    // already renamed this type before we get here
                     if (!parentNameAsString.contains(queueClassNamePrefix())) {
                         parent.setName(translateQueueName(parentNameAsString));
                     }
@@ -289,6 +309,9 @@ public abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter
                 continue;
             }
 
+            // Rewrite static imports from Chunk classes to point at the translated variant,
+            // e.g. "import static o.j.q.MpmcUnboundedXaddChunk.NOT_USED" ->
+            //      "import static o.j.q.atomic.MpmcUnboundedXaddAtomicChunk.NOT_USED"
             if (importDeclaration.isStatic() && name.startsWith("org.jctools.queues.") && name.contains("Chunk.")) {
                 String simpleName = name.substring(name.lastIndexOf('.') + 1);
                 String className = name.substring("org.jctools.queues.".length(), name.lastIndexOf('.'));
