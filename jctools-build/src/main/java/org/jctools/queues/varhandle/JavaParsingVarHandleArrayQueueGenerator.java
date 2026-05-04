@@ -249,7 +249,7 @@ public class JavaParsingVarHandleArrayQueueGenerator extends JavaParsingVarHandl
 
     // Add static initializer for all VarHandles
     if (!varHandleFields.isEmpty()) {
-      n.getMembers().add(1, createVarHandleStaticInitializerWithTypes(className, varHandleFields));
+      n.getMembers().add(1, createVarHandleStaticInitializerWithTypes(n, className, varHandleFields));
     }
   }
 
@@ -266,7 +266,7 @@ public class JavaParsingVarHandleArrayQueueGenerator extends JavaParsingVarHandl
 
   /** Creates a static initializer block for VarHandle initialization with proper field types */
   private InitializerDeclaration createVarHandleStaticInitializerWithTypes(
-      String className, List<FieldInfo> fieldInfos) {
+      ClassOrInterfaceDeclaration n, String className, List<FieldInfo> fieldInfos) {
     InitializerDeclaration initializer = new InitializerDeclaration(true, new BlockStmt());
     BlockStmt initBody = initializer.getBody();
 
@@ -279,8 +279,8 @@ public class JavaParsingVarHandleArrayQueueGenerator extends JavaParsingVarHandl
       findVarHandle.addArgument(new ClassExpr(classType(className)));
       findVarHandle.addArgument(new StringLiteralExpr(fieldInfo.name));
 
-      // Determine the field class type
-      String fieldClassType = getFieldClassType(fieldInfo.type);
+      // Determine the field class type (resolves generic type params to erased bound)
+      String fieldClassType = getFieldClassType(n, fieldInfo.type);
       findVarHandle.addArgument(new ClassExpr(classType(fieldClassType)));
 
       AssignExpr assignment =

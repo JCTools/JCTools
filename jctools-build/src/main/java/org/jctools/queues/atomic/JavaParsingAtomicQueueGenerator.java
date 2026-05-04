@@ -180,13 +180,15 @@ public abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter
             return qName.replace("Linked", "Linked" + queueClassNamePrefix());
         }
 
-        // Xadd Chunk classes (e.g. MpUnboundedXaddChunk -> MpUnboundedXaddAtomicChunk)
-        if (qName.endsWith("Chunk")) {
-            return qName.replace("Chunk", queueClassNamePrefix() + "Chunk");
-        }
-
+        // ArrayQueue check must come before Chunk check because some inner hierarchy classes
+        // contain both "ArrayQueue" and end with "Chunk" (e.g. MpUnboundedXaddArrayQueueProducerChunk)
         if (qName.contains("ArrayQueue")) {
             return qName.replace("ArrayQueue", queueClassNamePrefix() + "ArrayQueue");
+        }
+
+        // Standalone Chunk classes (e.g. MpUnboundedXaddChunk -> MpUnboundedXaddAtomicChunk)
+        if (qName.endsWith("Chunk")) {
+            return qName.replace("Chunk", queueClassNamePrefix() + "Chunk");
         }
 
         throw new IllegalArgumentException("Unexpected queue name: " + qName);
@@ -483,6 +485,23 @@ public abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter
             return isRefType(aType.getComponentType(), refClassName);
         }
         return false;
+    }
+
+    /**
+     * Resolves the erased bound of a single-letter generic type parameter by looking at the
+     * class declaration's type parameters. E.g. for {@code class Foo<R extends Bar<R,E>, E>},
+     * resolving "R" returns "Bar". Returns "Object" if no bound is found.
+     */
+    protected String resolveErasedBound(ClassOrInterfaceDeclaration n, String typeParamName) {
+        for (com.github.javaparser.ast.type.TypeParameter tp : n.getTypeParameters()) {
+            if (tp.getNameAsString().equals(typeParamName)) {
+                NodeList<ClassOrInterfaceType> bounds = tp.getTypeBound();
+                if (!bounds.isEmpty()) {
+                    return bounds.get(0).getNameAsString();
+                }
+            }
+        }
+        return "Object";
     }
 
     protected boolean isRefType(Type in, String className) {

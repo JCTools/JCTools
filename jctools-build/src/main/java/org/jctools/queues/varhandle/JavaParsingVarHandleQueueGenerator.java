@@ -178,13 +178,15 @@ public abstract class JavaParsingVarHandleQueueGenerator extends VoidVisitorAdap
       return qName.replace("Linked", "Linked" + queueClassNamePrefix());
     }
 
-    // Xadd Chunk classes (e.g. MpUnboundedXaddChunk -> MpUnboundedXaddVarHandleChunk)
-    if (qName.endsWith("Chunk")) {
-      return qName.replace("Chunk", queueClassNamePrefix() + "Chunk");
-    }
-
+    // ArrayQueue check must come before Chunk check because some inner hierarchy classes
+    // contain both "ArrayQueue" and end with "Chunk" (e.g. MpUnboundedXaddArrayQueueProducerChunk)
     if (qName.contains("ArrayQueue")) {
       return qName.replace("ArrayQueue", queueClassNamePrefix() + "ArrayQueue");
+    }
+
+    // Standalone Chunk classes (e.g. MpUnboundedXaddChunk -> MpUnboundedXaddVarHandleChunk)
+    if (qName.endsWith("Chunk")) {
+      return qName.replace("Chunk", queueClassNamePrefix() + "Chunk");
     }
 
     throw new IllegalArgumentException("Unexpected queue name: " + qName);
@@ -479,12 +481,34 @@ public abstract class JavaParsingVarHandleQueueGenerator extends VoidVisitorAdap
 
   /** Determines the class type for VarHandle initialization based on field type */
   protected String getFieldClassType(Type fieldType) {
+    return getFieldClassType(null, fieldType);
+  }
+
+  /**
+   * Determines the class type for VarHandle initialization based on field type.
+   * When the field type is a generic type parameter (e.g. {@code R}), resolves
+   * to the erased bound by looking at the class declaration's type parameters.
+   */
+  protected String getFieldClassType(ClassOrInterfaceDeclaration n, Type fieldType) {
     if (PrimitiveType.longType().equals(fieldType)) {
       return "long";
     } else if (isRefType(fieldType, "Thread")) {
       return "Thread";
     }
-    // Default to Object for reference types
+    // Resolve generic type parameters to their erased bound
+    if (n != null && fieldType instanceof ClassOrInterfaceType) {
+      String typeName = ((ClassOrInterfaceType) fieldType).getNameAsString();
+      if (typeName.length() == 1 && Character.isUpperCase(typeName.charAt(0))) {
+        for (com.github.javaparser.ast.type.TypeParameter tp : n.getTypeParameters()) {
+          if (tp.getNameAsString().equals(typeName)) {
+            NodeList<ClassOrInterfaceType> bounds = tp.getTypeBound();
+            if (!bounds.isEmpty()) {
+              return bounds.get(0).getNameAsString();
+            }
+          }
+        }
+      }
+    }
     return "Object";
   }
 

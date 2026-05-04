@@ -8,6 +8,10 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import org.jctools.queues.atomic.MpmcUnboundedXaddAtomicArrayQueue;
+import org.jctools.queues.atomic.unpadded.MpmcUnboundedXaddAtomicUnpaddedArrayQueue;
+import org.jctools.queues.unpadded.MpmcUnboundedXaddUnpaddedArrayQueue;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.CountDownLatch;
@@ -27,6 +31,7 @@ public class MpqSanityTestMpmcUnboundedXadd extends MpqSanityTest
     public static Collection<Object[]> parameters()
     {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
+        // Unsafe
         list.add(makeParams(0, 0, 0, Ordering.FIFO, new MpmcUnboundedXaddArrayQueue<>(1, 0)));
         list.add(makeParams(0, 0, 0, Ordering.FIFO, new MpmcUnboundedXaddArrayQueue<>(16, 0)));
         list.add(makeParams(0, 0, 0, Ordering.FIFO, new MpmcUnboundedXaddArrayQueue<>(1, 1)));
@@ -37,12 +42,25 @@ public class MpqSanityTestMpmcUnboundedXadd extends MpqSanityTest
         list.add(makeParams(0, 0, 0, Ordering.FIFO, new MpmcUnboundedXaddArrayQueue<>(16, 3)));
         list.add(makeParams(0, 0, 0, Ordering.FIFO, new MpmcUnboundedXaddArrayQueue<>(1, 4)));
         list.add(makeParams(0, 0, 0, Ordering.FIFO, new MpmcUnboundedXaddArrayQueue<>(16, 4)));
+        // Atomic
+        list.add(makeParams(0, 0, 0, Ordering.FIFO, new MpmcUnboundedXaddAtomicArrayQueue<>(1, 0)));
+        list.add(makeParams(0, 0, 0, Ordering.FIFO, new MpmcUnboundedXaddAtomicArrayQueue<>(16, 1)));
+        list.add(makeParams(0, 0, 0, Ordering.FIFO, new MpmcUnboundedXaddAtomicArrayQueue<>(16, 4)));
+        // Unpadded
+        list.add(makeParams(0, 0, 0, Ordering.FIFO, new MpmcUnboundedXaddUnpaddedArrayQueue<>(1, 0)));
+        list.add(makeParams(0, 0, 0, Ordering.FIFO, new MpmcUnboundedXaddUnpaddedArrayQueue<>(16, 1)));
+        list.add(makeParams(0, 0, 0, Ordering.FIFO, new MpmcUnboundedXaddUnpaddedArrayQueue<>(16, 4)));
+        // Atomic Unpadded
+        list.add(makeParams(0, 0, 0, Ordering.FIFO, new MpmcUnboundedXaddAtomicUnpaddedArrayQueue<>(1, 0)));
+        list.add(makeParams(0, 0, 0, Ordering.FIFO, new MpmcUnboundedXaddAtomicUnpaddedArrayQueue<>(16, 1)));
+        list.add(makeParams(0, 0, 0, Ordering.FIFO, new MpmcUnboundedXaddAtomicUnpaddedArrayQueue<>(16, 4)));
         return list;
     }
 
     @Test
     public void peekShouldNotSeeFutureElements() throws InterruptedException
     {
+        Assume.assumeTrue("Test only applies to Unsafe variant", this.queue instanceof MpmcUnboundedXaddArrayQueue);
         MpmcUnboundedXaddArrayQueue<Long> xaddQueue = (MpmcUnboundedXaddArrayQueue) this.queue;
         Assume.assumeTrue("The queue need to pool some chunk to run this test", xaddQueue.maxPooledChunks() > 0);
         CountDownLatch stop = new CountDownLatch(1);
@@ -73,6 +91,7 @@ public class MpqSanityTestMpmcUnboundedXadd extends MpqSanityTest
     @Test
     public void relaxedPeekShouldNotSeeFutureElements() throws InterruptedException
     {
+        Assume.assumeTrue("Test only applies to Unsafe variant", this.queue instanceof MpmcUnboundedXaddArrayQueue);
         MpmcUnboundedXaddArrayQueue<Long> xaddQueue = (MpmcUnboundedXaddArrayQueue) this.queue;
         Assume.assumeTrue("The queue need to pool some chunk to run this test", xaddQueue.maxPooledChunks() > 0);
         CountDownLatch stop = new CountDownLatch(1);

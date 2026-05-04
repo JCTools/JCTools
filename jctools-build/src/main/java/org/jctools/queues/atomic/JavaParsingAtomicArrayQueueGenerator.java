@@ -224,7 +224,9 @@ public class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomicQueue
                     if (variable.getType().isReferenceType()) {
                         String typeName = variable.getType().asString();
                         if (typeName.length() == 1 && Character.isUpperCase(typeName.charAt(0))) {
-                            typeName = "Object";
+                            // Resolve erased bound of generic type parameter (e.g. R -> MpUnboundedXaddAtomicChunk)
+                            // AtomicReferenceFieldUpdater requires the erased field type, not Object
+                            typeName = resolveErasedBound(n, typeName);
                         }
                         n.getMembers().add(0, declareRefFieldUpdater(className, typeName, variableName));
                     } else if (variable.getType().asPrimitiveType().equals(PrimitiveType.longType()))
