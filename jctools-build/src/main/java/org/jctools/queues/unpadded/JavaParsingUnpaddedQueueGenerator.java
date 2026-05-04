@@ -72,13 +72,15 @@ public class JavaParsingUnpaddedQueueGenerator extends VoidVisitorAdapter<Void> 
             return qName.replace("Linked", "LinkedUnpadded");
         }
 
-        // Xadd Chunk classes (e.g. MpUnboundedXaddChunk -> MpUnboundedXaddUnpaddedChunk)
-        if (qName.endsWith("Chunk")) {
-            return qName.replace("Chunk", "UnpaddedChunk");
-        }
-
+        // ArrayQueue check must come before Chunk check because some inner hierarchy classes
+        // contain both "ArrayQueue" and end with "Chunk" (e.g. MpUnboundedXaddArrayQueueProducerChunk)
         if (qName.contains("ArrayQueue")) {
             return qName.replace("ArrayQueue", "UnpaddedArrayQueue");
+        }
+
+        // Standalone Chunk classes (e.g. MpUnboundedXaddChunk -> MpUnboundedXaddUnpaddedChunk)
+        if (qName.endsWith("Chunk")) {
+            return qName.replace("Chunk", "UnpaddedChunk");
         }
 
         throw new IllegalArgumentException("Unexpected queue name: " + qName);

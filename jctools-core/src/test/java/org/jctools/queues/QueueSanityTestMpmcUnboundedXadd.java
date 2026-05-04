@@ -5,6 +5,10 @@ import org.jctools.queues.spec.Ordering;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import org.jctools.queues.atomic.MpmcUnboundedXaddAtomicArrayQueue;
+import org.jctools.queues.atomic.unpadded.MpmcUnboundedXaddAtomicUnpaddedArrayQueue;
+import org.jctools.queues.unpadded.MpmcUnboundedXaddUnpaddedArrayQueue;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Queue;
@@ -23,6 +27,7 @@ public class QueueSanityTestMpmcUnboundedXadd extends QueueSanityTest
     public static Collection<Object[]> parameters()
     {
         ArrayList<Object[]> list = new ArrayList<Object[]>();
+        // Unsafe
         list.add(makeParams(0, 0, 0, Ordering.FIFO, new MpmcUnboundedXaddArrayQueue<>(1, 0)));
         list.add(makeParams(0, 0, 0, Ordering.FIFO, new MpmcUnboundedXaddArrayQueue<>(16, 0)));
         list.add(makeParams(0, 0, 0, Ordering.FIFO, new MpmcUnboundedXaddArrayQueue<>(1, 1)));
@@ -33,6 +38,18 @@ public class QueueSanityTestMpmcUnboundedXadd extends QueueSanityTest
         list.add(makeParams(0, 0, 0, Ordering.FIFO, new MpmcUnboundedXaddArrayQueue<>(16, 3)));
         list.add(makeParams(0, 0, 0, Ordering.FIFO, new MpmcUnboundedXaddArrayQueue<>(1, 4)));
         list.add(makeParams(0, 0, 0, Ordering.FIFO, new MpmcUnboundedXaddArrayQueue<>(16, 4)));
+        // Atomic
+        list.add(makeParams(0, 0, 0, Ordering.FIFO, new MpmcUnboundedXaddAtomicArrayQueue<>(1, 0)));
+        list.add(makeParams(0, 0, 0, Ordering.FIFO, new MpmcUnboundedXaddAtomicArrayQueue<>(16, 1)));
+        list.add(makeParams(0, 0, 0, Ordering.FIFO, new MpmcUnboundedXaddAtomicArrayQueue<>(16, 4)));
+        // Unpadded
+        list.add(makeParams(0, 0, 0, Ordering.FIFO, new MpmcUnboundedXaddUnpaddedArrayQueue<>(1, 0)));
+        list.add(makeParams(0, 0, 0, Ordering.FIFO, new MpmcUnboundedXaddUnpaddedArrayQueue<>(16, 1)));
+        list.add(makeParams(0, 0, 0, Ordering.FIFO, new MpmcUnboundedXaddUnpaddedArrayQueue<>(16, 4)));
+        // Atomic Unpadded
+        list.add(makeParams(0, 0, 0, Ordering.FIFO, new MpmcUnboundedXaddAtomicUnpaddedArrayQueue<>(1, 0)));
+        list.add(makeParams(0, 0, 0, Ordering.FIFO, new MpmcUnboundedXaddAtomicUnpaddedArrayQueue<>(16, 1)));
+        list.add(makeParams(0, 0, 0, Ordering.FIFO, new MpmcUnboundedXaddAtomicUnpaddedArrayQueue<>(16, 4)));
         return list;
     }
 }
