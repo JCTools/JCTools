@@ -48,6 +48,10 @@ public class JavaParsingVarHandleArrayQueueGenerator extends JavaParsingVarHandl
     super(sourceFileName);
   }
 
+  /**
+   * Replaces {@code SpscArrayQueue} type references in variable/parameter declarations with the
+   * VarHandle unpadded pool queue variant. Used by xadd queues which pool chunks internally.
+   */
   @Override
   void processSpecialNodeTypes(NodeWithType<?, Type> node, String name)
   {
@@ -62,6 +66,9 @@ public class JavaParsingVarHandleArrayQueueGenerator extends JavaParsingVarHandl
     }
   }
 
+  /**
+   * Replaces {@code new SpscArrayQueue<R>(...)} with the VarHandle unpadded pool queue variant.
+   */
   @Override
   public void visit(ObjectCreationExpr n, Void arg) {
     super.visit(n, arg);
@@ -150,6 +157,7 @@ public class JavaParsingVarHandleArrayQueueGenerator extends JavaParsingVarHandl
         return "VH_PRODUCER_INDEX_CACHE";
       case "blocked":
         return "VH_BLOCKED";
+      // Xadd queue family fields — used by MpUnboundedXaddChunk and its subclasses
       case "producerChunk":
         return "VH_PRODUCER_CHUNK";
       case "producerChunkIndex":
@@ -213,6 +221,8 @@ public class JavaParsingVarHandleArrayQueueGenerator extends JavaParsingVarHandl
         // Ignore statics
         continue;
       }
+      // Skip final fields — e.g. MpUnboundedXaddChunk.pooled has accessor isPooled()
+      // whose name matches the suffix pattern but must not be patched
       if (field.getModifiers().contains(Modifier.finalModifier())) {
         continue;
       }

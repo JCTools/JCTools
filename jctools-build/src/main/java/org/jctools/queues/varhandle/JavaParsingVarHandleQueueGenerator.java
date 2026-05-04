@@ -106,6 +106,11 @@ public abstract class JavaParsingVarHandleQueueGenerator extends VoidVisitorAdap
     processSpecialNodeTypes(n);
   }
 
+  /**
+   * Renames Chunk type references (e.g. {@code MpUnboundedXaddChunk} to {@code MpUnboundedXaddVarHandleChunk})
+   * wherever they appear as types. The {@code contains(queueClassNamePrefix())} guard prevents
+   * double-translation when the visitor processes a node already renamed by a parent visitor call.
+   */
   @Override
   public void visit(ClassOrInterfaceType n, Void arg) {
     super.visit(n, arg);
@@ -115,6 +120,10 @@ public abstract class JavaParsingVarHandleQueueGenerator extends VoidVisitorAdap
     }
   }
 
+  /**
+   * Renames Chunk class references in name expressions, e.g. {@code MpmcUnboundedXaddChunk.NOT_USED}.
+   * The {@code isUpperCase} check avoids renaming local variables like {@code cChunk}.
+   */
   @Override
   public void visit(NameExpr n, Void arg) {
     super.visit(n, arg);
@@ -142,13 +151,16 @@ public abstract class JavaParsingVarHandleQueueGenerator extends VoidVisitorAdap
     return false;
   }
 
+  /**
+   * Removes Unsafe-specific static infrastructure: static initializer blocks (which compute field
+   * offsets via {@code Unsafe.objectFieldOffset}) and static fields ending with {@code _OFFSET}.
+   * Other static fields (e.g. {@code NOT_USED} constants in Chunk classes) are preserved.
+   */
   protected void removeStaticFieldsAndInitialisers(ClassOrInterfaceDeclaration node) {
-    // Remove all the static initialisers
     for (InitializerDeclaration child : node.getChildNodesByType(InitializerDeclaration.class)) {
       child.remove();
     }
 
-    // Remove static fields that are Unsafe offset declarations
     for (FieldDeclaration field : node.getFields()) {
       if (field.getModifiers().contains(Modifier.staticModifier())) {
         boolean isOffsetField = field.getVariables().stream()
@@ -166,6 +178,7 @@ public abstract class JavaParsingVarHandleQueueGenerator extends VoidVisitorAdap
       return qName.replace("Linked", "Linked" + queueClassNamePrefix());
     }
 
+    // Xadd Chunk classes (e.g. MpUnboundedXaddChunk -> MpUnboundedXaddVarHandleChunk)
     if (qName.endsWith("Chunk")) {
       return qName.replace("Chunk", queueClassNamePrefix() + "Chunk");
     }
@@ -214,12 +227,14 @@ public abstract class JavaParsingVarHandleQueueGenerator extends VoidVisitorAdap
       }
       method.setBody(varHandleCompareAndSet(varHandleFieldName, expectedValueName, newValueName));
     } else if (methodName.startsWith("getAndAdd")) {
+      // Xadd queues use getAndAddProducerIndex(long delta) — maps to VarHandle.getAndAdd()
       usesVarHandle = true;
       String varHandleFieldName = varHandleFieldName(variableName);
       String deltaName = method.getParameters().isEmpty() ? "delta" :
           method.getParameters().get(0).getNameAsString();
       method.setBody(varHandleGetAndAdd(varHandleFieldName, deltaName));
     } else if (methodName.startsWith("getAndIncrement")) {
+      // Xadd queues use getAndIncrementProducerIndex() — maps to VarHandle.getAndAdd(this, 1)
       usesVarHandle = true;
       String varHandleFieldName = varHandleFieldName(variableName);
       method.setBody(varHandleGetAndAdd(varHandleFieldName, "1"));
@@ -264,6 +279,8 @@ public abstract class JavaParsingVarHandleQueueGenerator extends VoidVisitorAdap
           parent.setName("ConcurrentSequencedCircular" + queueClassNamePrefix() + "ArrayQueue");
           break;
         default:
+          // Guard against double-translation: visit(ClassOrInterfaceType) may have
+          // already renamed this type before we get here
           if (!parentNameAsString.contains(queueClassNamePrefix())) {
             parent.setName(translateQueueName(parentNameAsString));
           }
@@ -291,6 +308,9 @@ public abstract class JavaParsingVarHandleQueueGenerator extends VoidVisitorAdap
         continue;
       }
 
+      // Rewrite static imports from Chunk classes to point at the translated variant,
+      // e.g. "import static o.j.q.MpmcUnboundedXaddChunk.NOT_USED" ->
+      //      "import static o.j.q.varhandle.MpmcUnboundedXaddVarHandleChunk.NOT_USED"
       if (importDeclaration.isStatic() && name.startsWith("org.jctools.queues.") && name.contains("Chunk.")) {
         String simpleName = name.substring(name.lastIndexOf('.') + 1);
         String className = name.substring("org.jctools.queues.".length(), name.lastIndexOf('.'));
