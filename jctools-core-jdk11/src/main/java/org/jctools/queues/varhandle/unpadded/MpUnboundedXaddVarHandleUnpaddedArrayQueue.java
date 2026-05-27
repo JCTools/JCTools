@@ -42,7 +42,7 @@ abstract class MpUnboundedXaddVarHandleUnpaddedArrayQueueProducerFields<E> exten
     }
 
     final long getAndIncrementProducerIndex() {
-        return (long) VH_PRODUCER_INDEX.getAndAdd(this, 1);
+        return (long) VH_PRODUCER_INDEX.getAndAdd(this, 1L);
     }
 
     final long getAndAddProducerIndex(long delta) {
