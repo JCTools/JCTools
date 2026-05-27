@@ -239,7 +239,8 @@ public abstract class JavaParsingVarHandleQueueGenerator extends VoidVisitorAdap
       // Xadd queues use getAndIncrementProducerIndex() — maps to VarHandle.getAndAdd(this, 1)
       usesVarHandle = true;
       String varHandleFieldName = varHandleFieldName(variableName);
-      method.setBody(varHandleGetAndAdd(varHandleFieldName, "1"));
+      // Must use 1L (long literal) — VarHandle polymorphic signature requires exact type match
+      method.setBody(varHandleGetAndAdd(varHandleFieldName, "1L"));
     } else if (methodName.startsWith("sv")) {
       method.setBody(fieldAssignment(variableName, newValueName));
     } else if (methodName.startsWith("lv")) {
