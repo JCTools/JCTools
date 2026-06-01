@@ -378,7 +378,8 @@ public class MpscBlockingQueue<E> extends MpscBlockingQueueL2Pad<E> implements B
                 return false;
             }
 
-            fullWaiters[threadQueueIndex.get()].add(currentThread);
+            final Integer qi = threadQueueIndex.get();
+            fullWaiters[qi].add(currentThread);
 
             if (timed)
             {
@@ -389,6 +390,8 @@ public class MpscBlockingQueue<E> extends MpscBlockingQueueL2Pad<E> implements B
             {
                 LockSupport.park(currentThread);
             }
+
+            fullWaiters[qi].remove(currentThread);
 
             if (currentThread.isInterrupted())
             {

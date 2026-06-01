@@ -153,7 +153,7 @@ public class ConcurrentBoolean
         {
             this.lock.lock();
             int startCounter = getCounter(FALSE_SHIFT);
-            while (getCounter(FALSE_SHIFT) == startCounter) // avoid spurious wakes
+            while (this.value && getCounter(FALSE_SHIFT) == startCounter) // avoid spurious wakes
             {
                 isFalse.await();
             }
@@ -177,7 +177,7 @@ public class ConcurrentBoolean
         {
             this.lock.lock();
             int startCounter = getCounter(TRUE_SHIFT);
-            while (getCounter(TRUE_SHIFT) == startCounter) // avoid spurious wakes
+            while (!this.value && getCounter(TRUE_SHIFT) == startCounter) // avoid spurious wakes
             {
                 isTrue.await();
             }
