@@ -156,13 +156,16 @@ public abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter
     }
 
     /**
-     * Removes Unsafe-specific static infrastructure: static initializer blocks (which compute field offsets
-     * via {@code Unsafe.objectFieldOffset}) and static fields ending with {@code _OFFSET}.
-     * Other static fields (e.g. {@code NOT_USED} constants in Chunk classes) are preserved.
+     * Removes Unsafe-specific static infrastructure: static initializer blocks that compute field
+     * offsets via {@code Unsafe.objectFieldOffset} (or read {@code UNSAFE}/{@code UnsafeAccess}),
+     * and static fields ending with {@code _OFFSET}. Other static fields (e.g. {@code NOT_USED}
+     * constants in Chunk classes) and unrelated initializer blocks are preserved.
      */
     protected void removeStaticFieldsAndInitialisers(ClassOrInterfaceDeclaration node) {
         for (InitializerDeclaration child : node.getChildNodesByType(InitializerDeclaration.class)) {
-            child.remove();
+            if (referencesUnsafe(child)) {
+                child.remove();
+            }
         }
 
         for (FieldDeclaration field : node.getFields()) {
@@ -174,6 +177,22 @@ public abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter
                 }
             }
         }
+    }
+
+    private static boolean referencesUnsafe(Node node) {
+        for (NameExpr ref : node.findAll(NameExpr.class)) {
+            String name = ref.getNameAsString();
+            if ("UNSAFE".equals(name) || "UnsafeAccess".equals(name) || "UnsafeRefArrayAccess".equals(name)) {
+                return true;
+            }
+        }
+        // Also catch references to *_OFFSET fields, which only exist in Unsafe initializer blocks.
+        for (NameExpr ref : node.findAll(NameExpr.class)) {
+            if (ref.getNameAsString().endsWith("_OFFSET")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override

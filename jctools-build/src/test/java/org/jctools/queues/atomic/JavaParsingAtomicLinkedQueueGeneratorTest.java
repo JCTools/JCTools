@@ -65,4 +65,26 @@ public class JavaParsingAtomicLinkedQueueGeneratorTest {
         assertFalse("no volatile injected on final field: " + out, out.contains("volatile"));
         assertTrue("isPooled() body untouched: " + out, out.contains("return pooled"));
     }
+    /**
+     * Bug 7: removeStaticFieldsAndInitialisers used to drop ALL static initializer blocks. Only
+     * blocks that reference Unsafe / *_OFFSET infrastructure should be removed; unrelated static
+     * blocks (e.g. one that initialises a non-Unsafe sentinel) must survive.
+     */
+    @Test
+    public void unrelatedStaticInitializerSurvives() {
+        String src =
+                "package org.jctools.queues;\n" +
+                "// $gen:ordered-fields\n" +
+                "class FooLinkedQueue<E> extends BaseLinkedQueue<E> {\n" +
+                "  static int sentinel;\n" +
+                "  static { sentinel = 42; }\n" +
+                "  private long producerIndex;\n" +
+                "  public final long lvProducerIndex() { return 0; }\n" +
+                "  final void soProducerIndex(final long newValue) {}\n" +
+                "}";
+
+        String out = generate(src);
+
+        assertTrue("non-Unsafe initializer preserved: " + out, out.contains("sentinel = 42"));
+    }
 }

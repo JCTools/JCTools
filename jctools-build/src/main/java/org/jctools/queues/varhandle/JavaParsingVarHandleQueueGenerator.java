@@ -154,13 +154,16 @@ public abstract class JavaParsingVarHandleQueueGenerator extends VoidVisitorAdap
   }
 
   /**
-   * Removes Unsafe-specific static infrastructure: static initializer blocks (which compute field
-   * offsets via {@code Unsafe.objectFieldOffset}) and static fields ending with {@code _OFFSET}.
-   * Other static fields (e.g. {@code NOT_USED} constants in Chunk classes) are preserved.
+   * Removes Unsafe-specific static infrastructure: static initializer blocks that reference
+   * {@code Unsafe} or {@code *_OFFSET} (i.e. ones that compute Unsafe field offsets) and static
+   * fields ending with {@code _OFFSET}. Unrelated static initializer blocks and {@code NOT_USED}-
+   * style constants are preserved.
    */
   protected void removeStaticFieldsAndInitialisers(ClassOrInterfaceDeclaration node) {
     for (InitializerDeclaration child : node.getChildNodesByType(InitializerDeclaration.class)) {
-      child.remove();
+      if (referencesUnsafe(child)) {
+        child.remove();
+      }
     }
 
     for (FieldDeclaration field : node.getFields()) {
@@ -172,6 +175,19 @@ public abstract class JavaParsingVarHandleQueueGenerator extends VoidVisitorAdap
         }
       }
     }
+  }
+
+  private static boolean referencesUnsafe(Node node) {
+    for (NameExpr ref : node.findAll(NameExpr.class)) {
+      String name = ref.getNameAsString();
+      if ("UNSAFE".equals(name) || "UnsafeAccess".equals(name) || "UnsafeRefArrayAccess".equals(name)) {
+        return true;
+      }
+      if (name.endsWith("_OFFSET")) {
+        return true;
+      }
+    }
+    return false;
   }
 
   @Override
