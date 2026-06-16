@@ -37,6 +37,8 @@ import java.util.List;
 import java.util.Optional;
 import org.jctools.queues.util.JCToolsGenerator;
 
+import static org.jctools.queues.util.GeneratorUtils.renameType;
+
 /**
  * Base class of the VarHandle queue generators. These generators work by parsing a Java source file
  * using {@link JavaParser}, and replacing idioms that use {@link sun.misc.Unsafe} to instead use
@@ -116,7 +118,7 @@ public abstract class JavaParsingVarHandleQueueGenerator extends VoidVisitorAdap
     super.visit(n, arg);
     String name = n.getNameAsString();
     if (name.endsWith("Chunk") && !name.contains(queueClassNamePrefix())) {
-      n.setName(translateQueueName(name));
+      renameType(n, translateQueueName(name));
     }
   }
 
