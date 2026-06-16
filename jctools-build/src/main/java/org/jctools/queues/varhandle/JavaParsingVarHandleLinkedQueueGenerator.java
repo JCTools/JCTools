@@ -153,6 +153,12 @@ public class JavaParsingVarHandleLinkedQueueGenerator extends JavaParsingVarHand
                 // Ignore statics
                 continue;
             }
+            // Skip final fields — see JavaParsingVarHandleArrayQueueGenerator for the same guard.
+            // Final fields can't have so/cas/sv accessors, and a final field whose name happens
+            // to match a method suffix would otherwise get a stray VarHandle declaration.
+            if (field.getModifiers().contains(Modifier.finalModifier())) {
+                continue;
+            }
 
             // Check if the field is volatile in the original source
             boolean isFieldVolatile = field.getModifiers().contains(Modifier.volatileModifier());

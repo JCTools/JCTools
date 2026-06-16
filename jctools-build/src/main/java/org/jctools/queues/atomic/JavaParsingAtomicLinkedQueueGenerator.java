@@ -153,6 +153,12 @@ public class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtomicQueu
                 // Ignore statics
                 continue;
             }
+            // Skip final fields — see JavaParsingAtomicArrayQueueGenerator for the same guard.
+            // Final fields can't have so/cas/sv accessors that need patching, and a final field
+            // whose name happens to match a method suffix would otherwise get a stray updater.
+            if (field.getModifiers().contains(Modifier.finalModifier())) {
+                continue;
+            }
 
             boolean fieldUsesUpdater = false;
             for (VariableDeclarator variable : field.getVariables()) {

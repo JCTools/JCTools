@@ -44,4 +44,25 @@ public class JavaParsingAtomicLinkedQueueGeneratorTest {
         assertFalse("no stray updater for unaccessed sibling: " + out, out.contains("UNRELATED_UPDATER"));
     }
 
+    /**
+     * Bug 5: the linked atomic patcher had no {@code final}-field guard, unlike the array patcher.
+     * A {@code final} non-static field whose name matched a method suffix would otherwise get a
+     * stray updater and a {@code volatile} modifier (which doesn't compile on a {@code final}).
+     */
+    @Test
+    public void finalFieldsAreSkippedByPatcher() {
+        String src =
+                "package org.jctools.queues;\n" +
+                "// $gen:ordered-fields\n" +
+                "class FooLinkedQueue<E> extends BaseLinkedQueue<E> {\n" +
+                "  protected final boolean pooled = false;\n" +
+                "  public final boolean isPooled() { return pooled; }\n" +
+                "}";
+
+        String out = generate(src);
+
+        assertFalse("no updater for final field: " + out, out.contains("POOLED_UPDATER"));
+        assertFalse("no volatile injected on final field: " + out, out.contains("volatile"));
+        assertTrue("isPooled() body untouched: " + out, out.contains("return pooled"));
+    }
 }
