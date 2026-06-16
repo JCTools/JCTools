@@ -133,4 +133,27 @@ public class JavaParsingAtomicArrayQueueGeneratorTest {
         // Linked queue
         org.junit.Assert.assertEquals("MpscLinkedAtomicQueue", g.translateQueueName("MpscLinkedQueue"));
     }
+
+    /**
+     * Bug 2: with {@code long a, b;} where only {@code a} has so/cas accessors, the prior
+     * implementation kept the {@code usesFieldUpdater} flag set across siblings, so {@code b}
+     * also got an updater. After the per-variable scope fix, only accessed variables get one.
+     */
+    @Test
+    public void multiVariableFieldDoesNotEmitStrayUpdaterForUnaccessedVariable() {
+        String src =
+                "package org.jctools.queues;\n" +
+                "// $gen:ordered-fields\n" +
+                "class FooArrayQueue<E> extends ConcurrentCircularArrayQueue<E> {\n" +
+                "  private long producerIndex, unrelated;\n" +
+                "  FooArrayQueue(int c) { super(c); }\n" +
+                "  public final long lvProducerIndex() { return 0; }\n" +
+                "  final void soProducerIndex(final long newValue) {}\n" +
+                "}";
+
+        String out = generate(src);
+
+        assertTrue("updater for accessed field: " + out, out.contains("P_INDEX_UPDATER"));
+        assertFalse("no stray updater for unaccessed sibling: " + out, out.contains("UNRELATED_UPDATER"));
+    }
 }

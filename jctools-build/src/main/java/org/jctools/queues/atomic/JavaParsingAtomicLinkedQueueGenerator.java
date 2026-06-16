@@ -154,17 +154,18 @@ public class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtomicQueu
                 continue;
             }
 
-            boolean usesFieldUpdater = false;
+            boolean fieldUsesUpdater = false;
             for (VariableDeclarator variable : field.getVariables()) {
                 String variableName = variable.getNameAsString();
                 String methodNameSuffix = capitalise(variableName);
 
+                boolean variableUsesUpdater = false;
                 for (MethodDeclaration method : n.getMethods()) {
-                    usesFieldUpdater |= patchAtomicFieldUpdaterAccessorMethod(variableName, method, methodNameSuffix);
+                    variableUsesUpdater |= patchAtomicFieldUpdaterAccessorMethod(variableName, method, methodNameSuffix);
                 }
 
                 if ("producerNode".equals(variableName)) {
-                    usesFieldUpdater = true;
+                    variableUsesUpdater = true;
                     String fieldUpdaterFieldName = fieldUpdaterFieldName(variableName);
 
                     MethodDeclaration method = n.addMethod("xchgProducerNode", Keyword.PROTECTED, Keyword.FINAL);
@@ -173,7 +174,8 @@ public class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtomicQueu
                     method.setBody(fieldUpdaterGetAndSet(fieldUpdaterFieldName, "newValue"));
                 }
 
-                if (usesFieldUpdater) {
+                if (variableUsesUpdater) {
+                    fieldUsesUpdater = true;
                     if (PrimitiveType.longType().equals(variable.getType())) {
                         n.getMembers().add(0, declareLongFieldUpdater(className, variableName));
                     } else {
@@ -182,7 +184,7 @@ public class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtomicQueu
                 }
             }
 
-            if (usesFieldUpdater) {
+            if (fieldUsesUpdater) {
                 field.addModifier(Keyword.VOLATILE);
             }
         }

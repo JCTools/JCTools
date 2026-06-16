@@ -157,18 +157,18 @@ public class JavaParsingVarHandleLinkedQueueGenerator extends JavaParsingVarHand
             // Check if the field is volatile in the original source
             boolean isFieldVolatile = field.getModifiers().contains(Modifier.volatileModifier());
 
-            boolean usesVarHandle = false;
             for (VariableDeclarator variable : field.getVariables()) {
                 String variableName = variable.getNameAsString();
                 String methodNameSuffix = capitalise(variableName);
                 Type fieldType = variable.getType();
 
+                boolean variableUsesVarHandle = false;
                 for (MethodDeclaration method : n.getMethods()) {
-                    usesVarHandle |= patchVarHandleAccessorMethod(variableName, method, methodNameSuffix, isFieldVolatile);
+                    variableUsesVarHandle |= patchVarHandleAccessorMethod(variableName, method, methodNameSuffix, isFieldVolatile);
                 }
 
                 if ("producerNode".equals(variableName)) {
-                    usesVarHandle = true;
+                    variableUsesVarHandle = true;
                     String varHandleFieldName = varHandleFieldName(variableName);
 
                     MethodDeclaration method = n.addMethod("xchgProducerNode", Keyword.PROTECTED, Keyword.FINAL);
@@ -177,7 +177,7 @@ public class JavaParsingVarHandleLinkedQueueGenerator extends JavaParsingVarHand
                     method.setBody(varHandleGetAndSet(varHandleFieldName, "newValue", method.getType()));
                 }
 
-                if (usesVarHandle) {
+                if (variableUsesVarHandle) {
                     varHandleFields.add(new FieldInfo(variableName, fieldType));
                     n.getMembers().add(0, declareVarHandle(className, variableName));
                 }

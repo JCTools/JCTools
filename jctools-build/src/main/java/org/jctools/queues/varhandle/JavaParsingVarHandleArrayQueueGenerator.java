@@ -223,17 +223,17 @@ public class JavaParsingVarHandleArrayQueueGenerator extends JavaParsingVarHandl
       // Check if the field is volatile in the original source
       boolean isFieldVolatile = field.getModifiers().contains(Modifier.volatileModifier());
 
-      boolean usesVarHandle = false;
       for (VariableDeclarator variable : field.getVariables()) {
         String variableName = variable.getNameAsString();
         String methodNameSuffix = capitalise(variableName);
         Type fieldType = variable.getType();
 
+        boolean variableUsesVarHandle = false;
         for (MethodDeclaration method : n.getMethods()) {
-          usesVarHandle |= patchVarHandleAccessorMethod(variableName, method, methodNameSuffix, isFieldVolatile);
+          variableUsesVarHandle |= patchVarHandleAccessorMethod(variableName, method, methodNameSuffix, isFieldVolatile);
         }
 
-        if (usesVarHandle) {
+        if (variableUsesVarHandle) {
           varHandleFields.add(new FieldInfo(variableName, fieldType));
           n.getMembers().add(0, declareVarHandle(className, variableName));
         }
