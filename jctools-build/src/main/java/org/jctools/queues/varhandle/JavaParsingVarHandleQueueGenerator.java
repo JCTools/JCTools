@@ -3,41 +3,26 @@ package org.jctools.queues.varhandle;
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
-import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.Modifier.Keyword;
-import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
-import com.github.javaparser.ast.PackageDeclaration;
-import com.github.javaparser.ast.body.*;
-import com.github.javaparser.ast.comments.Comment;
-import com.github.javaparser.ast.expr.AssignExpr;
-import com.github.javaparser.ast.expr.AssignExpr.Operator;
+import com.github.javaparser.ast.body.FieldDeclaration;
+import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.Parameter;
+import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.CastExpr;
-import com.github.javaparser.ast.expr.ClassExpr;
-import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.NameExpr;
-import com.github.javaparser.ast.expr.ObjectCreationExpr;
-import com.github.javaparser.ast.expr.StringLiteralExpr;
 import com.github.javaparser.ast.expr.ThisExpr;
 import com.github.javaparser.ast.nodeTypes.NodeWithType;
 import com.github.javaparser.ast.stmt.BlockStmt;
-import com.github.javaparser.ast.stmt.CatchClause;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.stmt.ReturnStmt;
-import com.github.javaparser.ast.stmt.ThrowStmt;
-import com.github.javaparser.ast.stmt.TryStmt;
-import com.github.javaparser.ast.type.ArrayType;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.PrimitiveType;
 import com.github.javaparser.ast.type.Type;
-import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
-import org.jctools.queues.util.JCToolsGenerator;
-
-import static org.jctools.queues.util.GeneratorUtils.renameType;
+import org.jctools.queues.util.JavaParsingQueueGeneratorBase;
 
 /**
  * Base class of the VarHandle queue generators. These generators work by parsing a Java source file
@@ -49,38 +34,24 @@ import static org.jctools.queues.util.GeneratorUtils.renameType;
  * <p>These generators are coupled with the structure and naming of fields, variables and methods
  * and are not suitable for general purpose use.
  */
-public abstract class JavaParsingVarHandleQueueGenerator extends VoidVisitorAdapter<Void>
-    implements JCToolsGenerator {
-
-  /**
-   * When set on a class using a single line comment, the class has fields that have unsafe
-   * 'ordered' reads and writes. These fields are candidates to be patched by the generator. Other
-   * classes the fields remain unadjusted.
-   */
-  protected static final String GEN_DIRECTIVE_CLASS_CONTAINS_ORDERED_FIELD_ACCESSORS =
-      "$gen:ordered-fields";
-
-  /**
-   * When set on a method using a single line comment, the method is not patched by the generator.
-   */
-  protected static final String GEN_DIRECTIVE_METHOD_IGNORE = "$gen:ignore";
-
-  protected final String sourceFileName;
+public abstract class JavaParsingVarHandleQueueGenerator extends JavaParsingQueueGeneratorBase {
 
   // Track whether the current file has VarHandle field declarations
   protected boolean hasVarHandleFields = false;
   protected boolean usesPoolQueue = false;
 
+  @Override
   protected String outputPackage() {
     return "org.jctools.queues.varhandle";
   }
 
+  @Override
   protected String queueClassNamePrefix() {
     return "VarHandle";
   }
 
   JavaParsingVarHandleQueueGenerator(String sourceFileName) {
-    this.sourceFileName = sourceFileName;
+    super(sourceFileName);
   }
 
   abstract void processSpecialNodeTypes(NodeWithType<?, Type> node, String name);
@@ -88,126 +59,17 @@ public abstract class JavaParsingVarHandleQueueGenerator extends VoidVisitorAdap
   abstract String varHandleFieldName(String fieldName);
 
   @Override
-  public void visit(PackageDeclaration n, Void arg) {
-    super.visit(n, arg);
-    // Change the package of the output
-    n.setName(outputPackage());
-  }
-
-  @Override
   public void visit(Parameter n, Void arg) {
     super.visit(n, arg);
     // Process parameters to methods and ctors
-    processSpecialNodeTypes(n);
+    processSpecialNodeTypes(n, n.getNameAsString());
   }
 
   @Override
   public void visit(VariableDeclarator n, Void arg) {
     super.visit(n, arg);
     // Replace declared variables with altered types
-    processSpecialNodeTypes(n);
-  }
-
-  /**
-   * Renames Chunk type references (e.g. {@code MpUnboundedXaddChunk} to {@code MpUnboundedXaddVarHandleChunk})
-   * wherever they appear as types. The {@code contains(queueClassNamePrefix())} guard prevents
-   * double-translation when the visitor processes a node already renamed by a parent visitor call.
-   */
-  @Override
-  public void visit(ClassOrInterfaceType n, Void arg) {
-    super.visit(n, arg);
-    String name = n.getNameAsString();
-    if (name.endsWith("Chunk") && !name.contains(queueClassNamePrefix())) {
-      renameType(n, translateQueueName(name));
-    }
-  }
-
-  /**
-   * Renames Chunk class references in name expressions, e.g. {@code MpmcUnboundedXaddChunk.NOT_USED}.
-   * The {@code isUpperCase} check avoids renaming local variables like {@code cChunk}.
-   */
-  @Override
-  public void visit(NameExpr n, Void arg) {
-    super.visit(n, arg);
-    String name = n.getNameAsString();
-    if (name.endsWith("Chunk") && Character.isUpperCase(name.charAt(0)) && !name.contains(queueClassNamePrefix())) {
-      n.setName(translateQueueName(name));
-    }
-  }
-
-  private void processSpecialNodeTypes(Parameter node) {
-    processSpecialNodeTypes(node, node.getNameAsString());
-  }
-
-  private void processSpecialNodeTypes(VariableDeclarator node) {
-    processSpecialNodeTypes(node, node.getNameAsString());
-  }
-
-  protected boolean isCommentPresent(Node node, String wanted) {
-    Optional<Comment> maybeComment = node.getComment();
-    if (maybeComment.isPresent()) {
-      Comment comment = maybeComment.get();
-      String content = comment.getContent().trim();
-      return wanted.equals(content);
-    }
-    return false;
-  }
-
-  /**
-   * Removes Unsafe-specific static infrastructure: static initializer blocks that reference
-   * {@code Unsafe} or {@code *_OFFSET} (i.e. ones that compute Unsafe field offsets) and static
-   * fields ending with {@code _OFFSET}. Unrelated static initializer blocks and {@code NOT_USED}-
-   * style constants are preserved.
-   */
-  protected void removeStaticFieldsAndInitialisers(ClassOrInterfaceDeclaration node) {
-    for (InitializerDeclaration child : node.getChildNodesByType(InitializerDeclaration.class)) {
-      if (referencesUnsafe(child)) {
-        child.remove();
-      }
-    }
-
-    for (FieldDeclaration field : node.getFields()) {
-      if (field.getModifiers().contains(Modifier.staticModifier())) {
-        boolean isOffsetField = field.getVariables().stream()
-            .anyMatch(v -> v.getNameAsString().endsWith("_OFFSET"));
-        if (isOffsetField) {
-          field.remove();
-        }
-      }
-    }
-  }
-
-  private static boolean referencesUnsafe(Node node) {
-    for (NameExpr ref : node.findAll(NameExpr.class)) {
-      String name = ref.getNameAsString();
-      if ("UNSAFE".equals(name) || "UnsafeAccess".equals(name) || "UnsafeRefArrayAccess".equals(name)) {
-        return true;
-      }
-      if (name.endsWith("_OFFSET")) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  @Override
-  public String translateQueueName(String qName) {
-    if (qName.contains("LinkedQueue") || qName.contains("LinkedArrayQueue")) {
-      return qName.replace("Linked", "Linked" + queueClassNamePrefix());
-    }
-
-    // ArrayQueue check must come before Chunk check because some inner hierarchy classes
-    // contain both "ArrayQueue" and end with "Chunk" (e.g. MpUnboundedXaddArrayQueueProducerChunk)
-    if (qName.contains("ArrayQueue")) {
-      return qName.replace("ArrayQueue", queueClassNamePrefix() + "ArrayQueue");
-    }
-
-    // Standalone Chunk classes (e.g. MpUnboundedXaddChunk -> MpUnboundedXaddVarHandleChunk)
-    if (qName.endsWith("Chunk")) {
-      return qName.replace("Chunk", queueClassNamePrefix() + "Chunk");
-    }
-
-    throw new IllegalArgumentException("Unexpected queue name: " + qName);
+    processSpecialNodeTypes(n, n.getNameAsString());
   }
 
   boolean patchVarHandleAccessorMethod(
@@ -279,36 +141,6 @@ public abstract class JavaParsingVarHandleQueueGenerator extends VoidVisitorAdap
     return usesVarHandle;
   }
 
-  /**
-   * Searches all extended or implemented super classes or interfaces for special classes that
-   * differ with the VarHandle version and replaces them with the appropriate class.
-   */
-  protected void replaceParentClassesForVarHandle(ClassOrInterfaceDeclaration n) {
-    for (ClassOrInterfaceType parent : n.getExtendedTypes()) {
-      String parentNameAsString = parent.getNameAsString();
-      switch (parentNameAsString) {
-        case "AbstractQueue":
-          // ignore the JDK parent
-          break;
-        case "BaseLinkedQueue":
-          parent.setName("BaseLinked" + queueClassNamePrefix() + "Queue");
-          break;
-        case "ConcurrentCircularArrayQueue":
-          parent.setName("ConcurrentCircular" + queueClassNamePrefix() + "ArrayQueue");
-          break;
-        case "ConcurrentSequencedCircularArrayQueue":
-          parent.setName("ConcurrentSequencedCircular" + queueClassNamePrefix() + "ArrayQueue");
-          break;
-        default:
-          // Guard against double-translation: visit(ClassOrInterfaceType) may have
-          // already renamed this type before we get here
-          if (!parentNameAsString.contains(queueClassNamePrefix())) {
-            parent.setName(translateQueueName(parentNameAsString));
-          }
-      }
-    }
-  }
-
   @Override
   public void cleanupComments(CompilationUnit cu) {
     // nop
@@ -366,10 +198,6 @@ public abstract class JavaParsingVarHandleQueueGenerator extends VoidVisitorAdap
     // subclasses can override to add extra imports
   }
 
-  protected String capitalise(String s) {
-    return s.substring(0, 1).toUpperCase() + s.substring(1);
-  }
-
   /** Generates something like <code>return (long) VH_PRODUCER_INDEX.getAndAdd(this, delta)</code> */
   protected BlockStmt varHandleGetAndAdd(String varHandleFieldName, String deltaName) {
     BlockStmt body = new BlockStmt();
@@ -417,34 +245,10 @@ public abstract class JavaParsingVarHandleQueueGenerator extends VoidVisitorAdap
     return body;
   }
 
-  protected MethodCallExpr methodCallExpr(String owner, String method, Expression... args) {
-    MethodCallExpr methodCallExpr = new MethodCallExpr(new NameExpr(owner), method);
-    for (Expression expr : args) {
-      methodCallExpr.addArgument(expr);
-    }
-    return methodCallExpr;
-  }
-
-  /** Generates something like <code>field = newValue</code> */
-  protected BlockStmt fieldAssignment(String fieldName, String valueName) {
-    BlockStmt body = new BlockStmt();
-    body.addStatement(
-        new ExpressionStmt(
-            new AssignExpr(new NameExpr(fieldName), new NameExpr(valueName), Operator.ASSIGN)));
-    return body;
-  }
-
   /**
-   * Generates something like <code>private static final VarHandle VH_PRODUCER_INDEX;</code> and
-   * initializer block with: <code>
-   * static {
-   *   try {
-   *     VH_PRODUCER_INDEX = MethodHandles.lookup().findVarHandle(ClassName.class, "producerIndex", long.class);
-   *   } catch (Exception e) {
-   *     throw new ExceptionInInitializerError(e);
-   *   }
-   * }
-   * </code>
+   * Generates something like <code>private static final VarHandle VH_PRODUCER_INDEX;</code>. The
+   * static initializer block that wires it up is built separately by the array/linked subclasses
+   * via their own {@code createVarHandleStaticInitializerWithTypes(...)}.
    */
   protected FieldDeclaration declareVarHandle(String className, String variableName) {
     ClassOrInterfaceType type = classType("VarHandle");
@@ -461,11 +265,11 @@ public abstract class JavaParsingVarHandleQueueGenerator extends VoidVisitorAdap
   }
 
   /**
-   * Determines the class type for VarHandle initialization based on field type.
-   * When the field type is a generic type parameter (e.g. {@code R}), resolves
-   * to the erased bound by looking at the class declaration's type parameters.
+   * Determines the class type for VarHandle initialization based on field type. When the field
+   * type is a generic type parameter (e.g. {@code R}), resolves to the erased bound by looking at
+   * the class declaration's type parameters.
    */
-  protected String getFieldClassType(ClassOrInterfaceDeclaration n, Type fieldType) {
+  protected String getFieldClassType(com.github.javaparser.ast.body.ClassOrInterfaceDeclaration n, Type fieldType) {
     if (PrimitiveType.longType().equals(fieldType)) {
       return "long";
     } else if (isRefType(fieldType, "Thread")) {
@@ -486,36 +290,5 @@ public abstract class JavaParsingVarHandleQueueGenerator extends VoidVisitorAdap
       }
     }
     return "Object";
-  }
-
-  /** Generates something like <code>return field</code> */
-  protected BlockStmt returnField(String fieldName) {
-    BlockStmt body = new BlockStmt();
-    body.addStatement(new ReturnStmt(fieldName));
-    return body;
-  }
-
-  protected boolean isRefArray(Type in, String refClassName) {
-    if (in instanceof ArrayType) {
-      ArrayType aType = (ArrayType) in;
-      return isRefType(aType.getComponentType(), refClassName);
-    }
-    return false;
-  }
-
-  protected boolean isRefType(Type in, String className) {
-    // Does not check type parameters
-    if (in instanceof ClassOrInterfaceType) {
-      return (className.equals(((ClassOrInterfaceType) in).getNameAsString()));
-    }
-    return false;
-  }
-
-  ImportDeclaration staticImportDeclaration(String name) {
-    return new ImportDeclaration(name, true, true);
-  }
-
-  protected ClassOrInterfaceType classType(String className) {
-    return new ClassOrInterfaceType(null, className);
   }
 }

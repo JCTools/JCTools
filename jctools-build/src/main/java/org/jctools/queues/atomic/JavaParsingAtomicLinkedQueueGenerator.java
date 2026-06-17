@@ -49,7 +49,7 @@ public class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtomicQueu
     public void visit(ClassOrInterfaceDeclaration node, Void arg) {
         super.visit(node, arg);
 
-        replaceParentClassesForAtomics(node);
+        replaceParentClasses(node);
 
         String nameAsString = node.getNameAsString();
         if (nameAsString.contains("Queue"))

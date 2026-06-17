@@ -54,7 +54,7 @@ public class JavaParsingVarHandleLinkedQueueGenerator extends JavaParsingVarHand
     public void visit(ClassOrInterfaceDeclaration node, Void arg) {
         super.visit(node, arg);
 
-        replaceParentClassesForVarHandle(node);
+        replaceParentClasses(node);
 
         String nameAsString = node.getNameAsString();
         if (nameAsString.contains("Queue"))
@@ -277,17 +277,5 @@ public class JavaParsingVarHandleLinkedQueueGenerator extends JavaParsingVarHand
     private ArrayType varHandleRefArrayType(ArrayType in) {
         // VarHandle version uses E[] directly, not a wrapper
         return in;
-    }
-
-    private ClassOrInterfaceType simpleParametricType(String typeName, String... typeParams) {
-        ClassOrInterfaceType type = new ClassOrInterfaceType(null, typeName);
-        if (typeParams.length > 0) {
-            NodeList<Type> typeArguments = new NodeList<>();
-            for (String typeParam : typeParams) {
-                typeArguments.add(classType(typeParam));
-            }
-            type.setTypeArguments(typeArguments);
-        }
-        return type;
     }
 }

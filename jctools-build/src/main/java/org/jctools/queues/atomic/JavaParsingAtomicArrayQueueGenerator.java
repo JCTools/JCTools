@@ -52,7 +52,7 @@ public class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomicQueue
     public void visit(ClassOrInterfaceDeclaration node, Void arg) {
         super.visit(node, arg);
 
-        replaceParentClassesForAtomics(node);
+        replaceParentClasses(node);
 
         String nameAsString = node.getNameAsString();
         // Ignore internal class WeakIterator which we don't need to rename

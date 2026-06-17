@@ -3,23 +3,24 @@ package org.jctools.queues.unpadded;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.github.javaparser.ast.*;
-import com.github.javaparser.ast.body.*;
+import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.ImportDeclaration;
+import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
+import com.github.javaparser.ast.body.ConstructorDeclaration;
+import com.github.javaparser.ast.body.Parameter;
+import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.ClassExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.MethodCallExpr;
-import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.nodeTypes.NodeWithType;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.Type;
-import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
-import org.jctools.queues.util.JCToolsGenerator;
+import org.jctools.queues.util.JavaParsingQueueGeneratorBase;
 
 import static org.jctools.queues.util.GeneratorUtils.cleanupPaddingComments;
 import static org.jctools.queues.util.GeneratorUtils.prependGeneratedNoteJavadoc;
 import static org.jctools.queues.util.GeneratorUtils.removePaddingFields;
-import static org.jctools.queues.util.GeneratorUtils.renameType;
 import static org.jctools.queues.util.GeneratorUtils.runJCToolsGenerator;
 
 /**
@@ -30,18 +31,25 @@ import static org.jctools.queues.util.GeneratorUtils.runJCToolsGenerator;
  * — useful where memory footprint matters more than the false-sharing protection that the padded
  * variant provides.
  */
-public class JavaParsingUnpaddedQueueGenerator extends VoidVisitorAdapter<Void> implements JCToolsGenerator {
-
-    protected final String sourceFileName;
+public class JavaParsingUnpaddedQueueGenerator extends JavaParsingQueueGeneratorBase {
 
     public static void main(String[] args) throws Exception {
         runJCToolsGenerator(JavaParsingUnpaddedQueueGenerator.class, args);
     }
 
     public JavaParsingUnpaddedQueueGenerator(String sourceFileName) {
-        this.sourceFileName = sourceFileName;
+        super(sourceFileName);
     }
 
+    @Override
+    protected String outputPackage() {
+        return "org.jctools.queues.unpadded";
+    }
+
+    @Override
+    protected String queueClassNamePrefix() {
+        return "Unpadded";
+    }
 
     @Override
     public void cleanupComments(CompilationUnit cu) {
@@ -75,42 +83,12 @@ public class JavaParsingUnpaddedQueueGenerator extends VoidVisitorAdapter<Void> 
     }
 
     @Override
-    public String translateQueueName(String qName) {
-        if (qName.contains("LinkedQueue") || qName.contains("LinkedArrayQueue")) {
-            return qName.replace("Linked", "LinkedUnpadded");
-        }
-
-        // ArrayQueue check must come before Chunk check because some inner hierarchy classes
-        // contain both "ArrayQueue" and end with "Chunk" (e.g. MpUnboundedXaddArrayQueueProducerChunk)
-        if (qName.contains("ArrayQueue")) {
-            return qName.replace("ArrayQueue", "UnpaddedArrayQueue");
-        }
-
-        // Standalone Chunk classes (e.g. MpUnboundedXaddChunk -> MpUnboundedXaddUnpaddedChunk)
-        if (qName.endsWith("Chunk")) {
-            return qName.replace("Chunk", "UnpaddedChunk");
-        }
-
-        throw new IllegalArgumentException("Unexpected queue name: " + qName);
-
-    }
-
-    @Override
-    public void visit(PackageDeclaration n, Void arg) {
-        super.visit(n, arg);
-        // Change the package of the output
-        n.setName("org.jctools.queues.unpadded");
-    }
-
-    @Override
     public void visit(ClassOrInterfaceDeclaration node, Void arg) {
         super.visit(node, arg);
         String nameAsString = node.getNameAsString();
         if (!nameAsString.contains("Queue") && !nameAsString.endsWith("Chunk"))
             return;
-        // fixup inheritance
         replaceParentClasses(node);
-        // fixup name
         node.setName(translateQueueName(nameAsString));
 
         prependGeneratedNoteJavadoc(node, this.getClass(), sourceFileName);
@@ -118,49 +96,24 @@ public class JavaParsingUnpaddedQueueGenerator extends VoidVisitorAdapter<Void> 
         removePaddingFields(node);
     }
 
+    /**
+     * Rewrites {@code fieldOffset(SomeClass.class, ...)} so the class literal targets the unpadded
+     * variant. Other {@code MethodCallExpr} sites are left alone.
+     */
     @Override
-    public void visit(MethodCallExpr n, Void arg)
-    {
+    public void visit(MethodCallExpr n, Void arg) {
         super.visit(n, arg);
         if (!n.getName().getIdentifier().equals("fieldOffset")) {
             return;
         }
-        for (Expression argument : n.getArguments())
-        {
+        for (Expression argument : n.getArguments()) {
             if (argument.isClassExpr()) {
                 ClassExpr classExpr = argument.asClassExpr();
                 String type = classExpr.getTypeAsString();
-                if (!type.contains("Unpadded")) {
+                if (!type.contains(queueClassNamePrefix())) {
                     classExpr.setType(translateQueueName(type));
                 }
             }
-        }
-
-    }
-
-    /**
-     * Renames Chunk type references (e.g. {@code MpUnboundedXaddChunk} to {@code MpUnboundedXaddUnpaddedChunk})
-     * wherever they appear as types. The {@code contains("Unpadded")} guard prevents double-translation.
-     */
-    @Override
-    public void visit(ClassOrInterfaceType n, Void arg) {
-        super.visit(n, arg);
-        String name = n.getNameAsString();
-        if (name.endsWith("Chunk") && !name.contains("Unpadded")) {
-            renameType(n, translateQueueName(name));
-        }
-    }
-
-    /**
-     * Renames Chunk class references in name expressions, e.g. {@code MpmcUnboundedXaddChunk.NOT_USED}.
-     * The {@code isUpperCase} check avoids renaming local variables like {@code cChunk}.
-     */
-    @Override
-    public void visit(NameExpr n, Void arg) {
-        super.visit(n, arg);
-        String name = n.getNameAsString();
-        if (name.endsWith("Chunk") && Character.isUpperCase(name.charAt(0)) && !name.contains("Unpadded")) {
-            n.setName(translateQueueName(name));
         }
     }
 
@@ -187,58 +140,27 @@ public class JavaParsingUnpaddedQueueGenerator extends VoidVisitorAdapter<Void> 
         }
     }
 
-    /** Replaces SpscArrayQueue type in variable declarations — same as {@link #visit(ObjectCreationExpr, Void)}. */
     @Override
     public void visit(VariableDeclarator n, Void arg) {
         super.visit(n, arg);
-        if (isRefType(n.getType(), "SpscArrayQueue")) {
-            ClassOrInterfaceType newType = new ClassOrInterfaceType(null, "SpscUnpaddedArrayQueue");
-            if (n.getType() instanceof ClassOrInterfaceType) {
-                ((ClassOrInterfaceType) n.getType()).getTypeArguments().ifPresent(newType::setTypeArguments);
-            }
-            n.setType(newType);
-        }
+        rewriteSpscArrayQueueType(n);
     }
 
-    /** Replaces SpscArrayQueue type in parameters — same as {@link #visit(ObjectCreationExpr, Void)}. */
     @Override
     public void visit(Parameter n, Void arg) {
         super.visit(n, arg);
-        if (isRefType(n.getType(), "SpscArrayQueue")) {
-            ClassOrInterfaceType newType = new ClassOrInterfaceType(null, "SpscUnpaddedArrayQueue");
-            if (n.getType() instanceof ClassOrInterfaceType) {
-                ((ClassOrInterfaceType) n.getType()).getTypeArguments().ifPresent(newType::setTypeArguments);
-            }
-            n.setType(newType);
-        }
+        rewriteSpscArrayQueueType(n);
     }
 
-    protected boolean isRefType(Type in, String className) {
-        if (in instanceof ClassOrInterfaceType) {
-            return className.equals(((ClassOrInterfaceType) in).getNameAsString());
+    private void rewriteSpscArrayQueueType(NodeWithType<?, Type> holder) {
+        Type type = holder.getType();
+        if (!isRefType(type, "SpscArrayQueue")) {
+            return;
         }
-        return false;
-    }
-
-    /**
-     * Searches all extended or implemented super classes or interfaces for
-     * special classes that differ with the atomics version and replaces them
-     * with the appropriate class.
-     */
-    protected void replaceParentClasses(ClassOrInterfaceDeclaration n) {
-        for (ClassOrInterfaceType parent : n.getExtendedTypes()) {
-            String parentNameAsString = parent.getNameAsString();
-            switch (parentNameAsString) {
-                case "AbstractQueue":
-                    // ignore the JDK parent
-                    break;
-                default:
-                    // Guard against double-translation: visit(ClassOrInterfaceType) may have
-                    // already renamed this type before we get here
-                    if (!parentNameAsString.contains("Unpadded")) {
-                        parent.setName(translateQueueName(parentNameAsString));
-                    }
-            }
+        ClassOrInterfaceType newType = new ClassOrInterfaceType(null, "SpscUnpaddedArrayQueue");
+        if (type instanceof ClassOrInterfaceType) {
+            ((ClassOrInterfaceType) type).getTypeArguments().ifPresent(newType::setTypeArguments);
         }
+        holder.setType(newType);
     }
 }

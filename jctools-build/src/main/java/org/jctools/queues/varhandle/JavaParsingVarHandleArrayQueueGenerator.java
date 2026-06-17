@@ -103,7 +103,7 @@ public class JavaParsingVarHandleArrayQueueGenerator extends JavaParsingVarHandl
   public void visit(ClassOrInterfaceDeclaration node, Void arg) {
     super.visit(node, arg);
 
-    replaceParentClassesForVarHandle(node);
+    replaceParentClasses(node);
 
     String nameAsString = node.getNameAsString();
     // Ignore internal class WeakIterator which we don't need to rename
