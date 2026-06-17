@@ -37,6 +37,11 @@ public class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomicQueue
         super(sourceFileName);
     }
 
+    /** Constructor for unpadded subclasses to pass through different package/prefix values. */
+    protected JavaParsingAtomicArrayQueueGenerator(String sourceFileName, String outputPackage, String queueClassNamePrefix) {
+        super(sourceFileName, outputPackage, queueClassNamePrefix);
+    }
+
     @Override
     public void visit(ConstructorDeclaration n, Void arg) {
         super.visit(n, arg);
@@ -118,7 +123,7 @@ public class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomicQueue
     public void visit(ObjectCreationExpr n, Void arg) {
         super.visit(n, arg);
         if (isRefType(n.getType(), "SpscArrayQueue")) {
-            ClassOrInterfaceType newType = classType(unpaddedPoolQueueName());
+            ClassOrInterfaceType newType = classType(unpaddedPoolQueueName);
             n.getType().getTypeArguments().ifPresent(newType::setTypeArguments);
             n.setType(newType);
             usesPoolQueue = true;
@@ -137,7 +142,7 @@ public class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomicQueue
         } else if (("sBuffer".equals(name) || "sequenceBuffer".equals(name) || "sequence".equals(name)) && isLongArray(type)) {
             replaceType(node, atomicLongArrayType());
         } else if (isRefType(type, "SpscArrayQueue")) {
-            ClassOrInterfaceType newType = classType(unpaddedPoolQueueName());
+            ClassOrInterfaceType newType = classType(unpaddedPoolQueueName);
             if (type instanceof ClassOrInterfaceType) {
                 ((ClassOrInterfaceType) type).getTypeArguments().ifPresent(newType::setTypeArguments);
             }

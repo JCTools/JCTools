@@ -37,48 +37,42 @@ import org.jctools.queues.util.JavaParsingQueueGeneratorBase;
  */
 public abstract class JavaParsingAtomicQueueGenerator extends JavaParsingQueueGeneratorBase {
 
+    /** The unpadded SPSC pool queue type used by xadd-family chunk pools in the atomic variant. */
+    protected final String unpaddedPoolQueueName = "SpscAtomicUnpaddedArrayQueue";
+    protected final String unpaddedPoolQueueImport = "org.jctools.queues.atomic.unpadded.SpscAtomicUnpaddedArrayQueue";
+
     protected boolean usesPoolQueue = false;
 
-    @Override
-    protected String outputPackage() {
-        return "org.jctools.queues.atomic";
-    }
-
-    @Override
-    protected String queueClassNamePrefix() {
-        return "Atomic";
-    }
-
-    protected String unpaddedPoolQueueName() {
-        return "SpscAtomicUnpaddedArrayQueue";
-    }
-
-    protected String unpaddedPoolQueueImport() {
-        return "org.jctools.queues.atomic.unpadded.SpscAtomicUnpaddedArrayQueue";
-    }
-
     JavaParsingAtomicQueueGenerator(String sourceFileName) {
-        super(sourceFileName);
+        this(sourceFileName, "org.jctools.queues.atomic", "Atomic");
+    }
+
+    /**
+     * Constructor for unpadded-variant subclasses (atomic + unpadded combined). Other subclasses
+     * delegate to the single-arg constructor with the default atomic infix and package.
+     */
+    protected JavaParsingAtomicQueueGenerator(String sourceFileName, String outputPackage, String queueClassNamePrefix) {
+        super(sourceFileName, outputPackage, queueClassNamePrefix);
     }
 
     abstract void processSpecialNodeTypes(NodeWithType<?, Type> node, String name);
     abstract String fieldUpdaterFieldName(String fieldName);
 
     @Override
-    public void visit(Parameter n, Void arg) {
+    public final void visit(Parameter n, Void arg) {
         super.visit(n, arg);
         // Process parameters to methods and ctors
         processSpecialNodeTypes(n, n.getNameAsString());
     }
 
     @Override
-    public void visit(VariableDeclarator n, Void arg) {
+    public final void visit(VariableDeclarator n, Void arg) {
         super.visit(n, arg);
         // Replace declared variables with altered types
         processSpecialNodeTypes(n, n.getNameAsString());
     }
 
-    boolean patchAtomicFieldUpdaterAccessorMethod(String variableName, MethodDeclaration method, String methodNameSuffix)
+    final boolean patchAtomicFieldUpdaterAccessorMethod(String variableName, MethodDeclaration method, String methodNameSuffix)
     {
         boolean usesFieldUpdater = false;
         String methodName = method.getNameAsString();
@@ -171,7 +165,7 @@ public abstract class JavaParsingAtomicQueueGenerator extends JavaParsingQueueGe
                 String className = name.substring("org.jctools.queues.".length(), name.lastIndexOf('.'));
                 if (className.endsWith("Chunk")) {
                     String translatedClass = translateQueueName(className);
-                    importDecls.add(new ImportDeclaration(outputPackage() + "." + translatedClass + "." + simpleName, true, false));
+                    importDecls.add(new ImportDeclaration(outputPackage + "." + translatedClass + "." + simpleName, true, false));
                     continue;
                 }
             }
@@ -188,16 +182,13 @@ public abstract class JavaParsingAtomicQueueGenerator extends JavaParsingQueueGe
         cu.addImport(new ImportDeclaration("org.jctools.queues", false, true));
         cu.addImport(staticImportDeclaration("org.jctools.queues.atomic.AtomicQueueUtil"));
 
-        if (usesPoolQueue) {
-            String poolImport = unpaddedPoolQueueImport();
-            if (poolImport != null) {
-                cu.addImport(new ImportDeclaration(poolImport, false, false));
-            }
+        if (usesPoolQueue && unpaddedPoolQueueImport != null) {
+            cu.addImport(new ImportDeclaration(unpaddedPoolQueueImport, false, false));
         }
     }
 
     /** Generates something like <code>P_INDEX_UPDATER.lazySet(this, newValue)</code>. */
-    protected BlockStmt fieldUpdaterLazySet(String fieldUpdaterFieldName, String newValueName) {
+    private static BlockStmt fieldUpdaterLazySet(String fieldUpdaterFieldName, String newValueName) {
         BlockStmt body = new BlockStmt();
         body.addStatement(new ExpressionStmt(
                 methodCallExpr(fieldUpdaterFieldName, "lazySet", new ThisExpr(), new NameExpr(newValueName))));
@@ -205,7 +196,7 @@ public abstract class JavaParsingAtomicQueueGenerator extends JavaParsingQueueGe
     }
 
     /** Generates something like <code>return P_INDEX_UPDATER.getAndAdd(this, delta)</code>. */
-    protected BlockStmt fieldUpdaterGetAndAdd(String fieldUpdaterFieldName, String deltaName) {
+    private static BlockStmt fieldUpdaterGetAndAdd(String fieldUpdaterFieldName, String deltaName) {
         BlockStmt body = new BlockStmt();
         body.addStatement(new ReturnStmt(methodCallExpr(fieldUpdaterFieldName, "getAndAdd", new ThisExpr(),
                 new NameExpr(deltaName))));
@@ -213,14 +204,14 @@ public abstract class JavaParsingAtomicQueueGenerator extends JavaParsingQueueGe
     }
 
     /** Generates something like <code>return P_INDEX_UPDATER.getAndIncrement(this)</code>. */
-    protected BlockStmt fieldUpdaterGetAndIncrement(String fieldUpdaterFieldName) {
+    private static BlockStmt fieldUpdaterGetAndIncrement(String fieldUpdaterFieldName) {
         BlockStmt body = new BlockStmt();
         body.addStatement(new ReturnStmt(methodCallExpr(fieldUpdaterFieldName, "getAndIncrement", new ThisExpr())));
         return body;
     }
 
     /** Generates something like <code>return P_INDEX_UPDATER.compareAndSet(this, expectedValue, newValue)</code>. */
-    protected BlockStmt fieldUpdaterCompareAndSet(String fieldUpdaterFieldName, String expectedValueName,
+    private static BlockStmt fieldUpdaterCompareAndSet(String fieldUpdaterFieldName, String expectedValueName,
             String newValueName) {
         BlockStmt body = new BlockStmt();
         body.addStatement(new ReturnStmt(methodCallExpr(fieldUpdaterFieldName, "compareAndSet", new ThisExpr(),
@@ -231,7 +222,7 @@ public abstract class JavaParsingAtomicQueueGenerator extends JavaParsingQueueGe
     /**
      * Generates a field declaration {@code <type> <name> = <initializer>;} with the given modifiers.
      */
-    protected FieldDeclaration fieldDeclarationWithInitialiser(Type type, String name, Expression initializer,
+    static FieldDeclaration fieldDeclarationWithInitialiser(Type type, String name, Expression initializer,
             Keyword... modifiers) {
         FieldDeclaration fieldDeclaration = new FieldDeclaration();
         VariableDeclarator variable = new VariableDeclarator(type, name, initializer);
@@ -244,7 +235,7 @@ public abstract class JavaParsingAtomicQueueGenerator extends JavaParsingQueueGe
      * Generates something like
      * <code>private static final AtomicLongFieldUpdater&lt;MpmcAtomicArrayQueueProducerIndexField&gt; P_INDEX_UPDATER = AtomicLongFieldUpdater.newUpdater(MpmcAtomicArrayQueueProducerIndexField.class, "producerIndex");</code>
      */
-    protected FieldDeclaration declareLongFieldUpdater(String className, String variableName) {
+    final FieldDeclaration declareLongFieldUpdater(String className, String variableName) {
         MethodCallExpr initializer = newAtomicLongFieldUpdater(className, variableName);
 
         ClassOrInterfaceType type = simpleParametricType("AtomicLongFieldUpdater", className);
@@ -256,7 +247,7 @@ public abstract class JavaParsingAtomicQueueGenerator extends JavaParsingQueueGe
      * Generates something like
      * <code>private static final AtomicReferenceFieldUpdater&lt;MpscBlockingConsumerAtomicArrayQueueConsumerFields, Thread&gt; BLOCKED = AtomicReferenceFieldUpdater.newUpdater(MpscBlockingConsumerAtomicArrayQueueConsumerFields.class, Thread.class, "blocked");</code>
      */
-    protected FieldDeclaration declareRefFieldUpdater(String className, String typeName, String variableName) {
+    final FieldDeclaration declareRefFieldUpdater(String className, String typeName, String variableName) {
         MethodCallExpr initializer = newAtomicRefFieldUpdater(className, typeName, variableName);
 
         ClassOrInterfaceType type = simpleParametricType("AtomicReferenceFieldUpdater", className, typeName);
@@ -264,12 +255,12 @@ public abstract class JavaParsingAtomicQueueGenerator extends JavaParsingQueueGe
             initializer, Keyword.PRIVATE, Keyword.STATIC, Keyword.FINAL);
     }
 
-    protected MethodCallExpr newAtomicLongFieldUpdater(String className, String variableName) {
+    private static MethodCallExpr newAtomicLongFieldUpdater(String className, String variableName) {
         return methodCallExpr("AtomicLongFieldUpdater", "newUpdater", new ClassExpr(classType(className)),
                 new StringLiteralExpr(variableName));
     }
 
-    protected MethodCallExpr newAtomicRefFieldUpdater(String className, String typeName, String variableName) {
+    private static MethodCallExpr newAtomicRefFieldUpdater(String className, String typeName, String variableName) {
         return methodCallExpr("AtomicReferenceFieldUpdater", "newUpdater", new ClassExpr(classType(className)), new ClassExpr(classType(typeName)),
             new StringLiteralExpr(variableName));
     }

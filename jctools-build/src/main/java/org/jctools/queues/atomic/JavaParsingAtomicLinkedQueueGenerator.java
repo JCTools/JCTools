@@ -34,6 +34,11 @@ public class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtomicQueu
         super(sourceFileName);
     }
 
+    /** Constructor for unpadded subclasses to pass through different package/prefix values. */
+    protected JavaParsingAtomicLinkedQueueGenerator(String sourceFileName, String outputPackage, String queueClassNamePrefix) {
+        super(sourceFileName, outputPackage, queueClassNamePrefix);
+    }
+
     @Override
     public void visit(ConstructorDeclaration n, Void arg) {
         super.visit(n, arg);

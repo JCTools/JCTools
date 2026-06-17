@@ -40,12 +40,21 @@ import java.util.List;
  */
 public class JavaParsingVarHandleArrayQueueGenerator extends JavaParsingVarHandleQueueGenerator {
 
+  /** The unpadded SPSC pool queue type used by xadd-family chunk pools in the VarHandle variant. */
+  protected final String unpaddedPoolQueueName = "SpscVarHandleUnpaddedArrayQueue";
+  protected final String unpaddedPoolQueueImport = "org.jctools.queues.varhandle.unpadded.SpscVarHandleUnpaddedArrayQueue";
+
   public static void main(String[] args) throws Exception {
     runJCToolsGenerator(JavaParsingVarHandleArrayQueueGenerator.class, args);
   }
 
   public JavaParsingVarHandleArrayQueueGenerator(String sourceFileName) {
     super(sourceFileName);
+  }
+
+  /** Constructor for unpadded subclasses to pass through different package/prefix values. */
+  protected JavaParsingVarHandleArrayQueueGenerator(String sourceFileName, String outputPackage, String queueClassNamePrefix) {
+    super(sourceFileName, outputPackage, queueClassNamePrefix);
   }
 
   /**
@@ -57,7 +66,7 @@ public class JavaParsingVarHandleArrayQueueGenerator extends JavaParsingVarHandl
   {
     Type type = node.getType();
     if (isRefType(type, "SpscArrayQueue")) {
-      ClassOrInterfaceType newType = classType(unpaddedPoolQueueName());
+      ClassOrInterfaceType newType = classType(unpaddedPoolQueueName);
       if (type instanceof ClassOrInterfaceType) {
         ((ClassOrInterfaceType) type).getTypeArguments().ifPresent(newType::setTypeArguments);
       }
@@ -73,19 +82,11 @@ public class JavaParsingVarHandleArrayQueueGenerator extends JavaParsingVarHandl
   public void visit(ObjectCreationExpr n, Void arg) {
     super.visit(n, arg);
     if (isRefType(n.getType(), "SpscArrayQueue")) {
-      ClassOrInterfaceType newType = classType(unpaddedPoolQueueName());
+      ClassOrInterfaceType newType = classType(unpaddedPoolQueueName);
       n.getType().getTypeArguments().ifPresent(newType::setTypeArguments);
       n.setType(newType);
       usesPoolQueue = true;
     }
-  }
-
-  protected String unpaddedPoolQueueName() {
-    return "SpscVarHandleUnpaddedArrayQueue";
-  }
-
-  protected String unpaddedPoolQueueImport() {
-    return "org.jctools.queues.varhandle.unpadded.SpscVarHandleUnpaddedArrayQueue";
   }
 
   @Override
@@ -308,11 +309,8 @@ public class JavaParsingVarHandleArrayQueueGenerator extends JavaParsingVarHandl
 
   @Override
   protected void addExtraImports(CompilationUnit cu) {
-    if (usesPoolQueue) {
-      String poolImport = unpaddedPoolQueueImport();
-      if (poolImport != null) {
-        cu.addImport(new ImportDeclaration(poolImport, false, false));
-      }
+    if (usesPoolQueue && unpaddedPoolQueueImport != null) {
+      cu.addImport(new ImportDeclaration(unpaddedPoolQueueImport, false, false));
     }
   }
 }

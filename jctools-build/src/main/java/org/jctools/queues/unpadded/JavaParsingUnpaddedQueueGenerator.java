@@ -38,17 +38,7 @@ public class JavaParsingUnpaddedQueueGenerator extends JavaParsingQueueGenerator
     }
 
     public JavaParsingUnpaddedQueueGenerator(String sourceFileName) {
-        super(sourceFileName);
-    }
-
-    @Override
-    protected String outputPackage() {
-        return "org.jctools.queues.unpadded";
-    }
-
-    @Override
-    protected String queueClassNamePrefix() {
-        return "Unpadded";
+        super(sourceFileName, "org.jctools.queues.unpadded", "Unpadded");
     }
 
     @Override
@@ -110,7 +100,7 @@ public class JavaParsingUnpaddedQueueGenerator extends JavaParsingQueueGenerator
             if (argument.isClassExpr()) {
                 ClassExpr classExpr = argument.asClassExpr();
                 String type = classExpr.getTypeAsString();
-                if (!type.contains(queueClassNamePrefix())) {
+                if (!type.contains(queueClassNamePrefix)) {
                     classExpr.setType(translateQueueName(type));
                 }
             }

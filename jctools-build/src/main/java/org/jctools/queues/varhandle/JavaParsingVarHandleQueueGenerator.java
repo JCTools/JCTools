@@ -40,18 +40,16 @@ public abstract class JavaParsingVarHandleQueueGenerator extends JavaParsingQueu
   protected boolean hasVarHandleFields = false;
   protected boolean usesPoolQueue = false;
 
-  @Override
-  protected String outputPackage() {
-    return "org.jctools.queues.varhandle";
-  }
-
-  @Override
-  protected String queueClassNamePrefix() {
-    return "VarHandle";
-  }
-
   JavaParsingVarHandleQueueGenerator(String sourceFileName) {
-    super(sourceFileName);
+    this(sourceFileName, "org.jctools.queues.varhandle", "VarHandle");
+  }
+
+  /**
+   * Constructor for unpadded-variant subclasses (varhandle + unpadded combined). Other subclasses
+   * delegate to the single-arg constructor with the default varhandle infix and package.
+   */
+  protected JavaParsingVarHandleQueueGenerator(String sourceFileName, String outputPackage, String queueClassNamePrefix) {
+    super(sourceFileName, outputPackage, queueClassNamePrefix);
   }
 
   abstract void processSpecialNodeTypes(NodeWithType<?, Type> node, String name);
@@ -169,7 +167,7 @@ public abstract class JavaParsingVarHandleQueueGenerator extends JavaParsingQueu
         String className = name.substring("org.jctools.queues.".length(), name.lastIndexOf('.'));
         if (className.endsWith("Chunk")) {
           String translatedClass = translateQueueName(className);
-          importDecls.add(new ImportDeclaration(outputPackage() + "." + translatedClass + "." + simpleName, true, false));
+          importDecls.add(new ImportDeclaration(outputPackage + "." + translatedClass + "." + simpleName, true, false));
           continue;
         }
       }

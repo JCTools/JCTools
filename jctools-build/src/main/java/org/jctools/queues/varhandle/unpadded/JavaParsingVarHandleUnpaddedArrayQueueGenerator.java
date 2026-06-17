@@ -22,7 +22,7 @@ public class JavaParsingVarHandleUnpaddedArrayQueueGenerator
   }
 
   public JavaParsingVarHandleUnpaddedArrayQueueGenerator(String sourceFileName) {
-    super(sourceFileName);
+    super(sourceFileName, "org.jctools.queues.varhandle.unpadded", "VarHandleUnpadded");
   }
 
   @Override
@@ -35,15 +35,5 @@ public class JavaParsingVarHandleUnpaddedArrayQueueGenerator
   public void visit(ClassOrInterfaceDeclaration node, Void arg) {
     super.visit(node, arg);
     removePaddingFields(node);
-  }
-
-  @Override
-  protected String outputPackage() {
-    return "org.jctools.queues.varhandle.unpadded";
-  }
-
-  @Override
-  protected String queueClassNamePrefix() {
-    return "VarHandleUnpadded";
   }
 }

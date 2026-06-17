@@ -39,6 +39,11 @@ public class JavaParsingVarHandleLinkedQueueGenerator extends JavaParsingVarHand
         super(sourceFileName);
     }
 
+    /** Constructor for unpadded subclasses to pass through different package/prefix values. */
+    protected JavaParsingVarHandleLinkedQueueGenerator(String sourceFileName, String outputPackage, String queueClassNamePrefix) {
+        super(sourceFileName, outputPackage, queueClassNamePrefix);
+    }
+
     @Override
     public void visit(ConstructorDeclaration n, Void arg) {
         super.visit(n, arg);

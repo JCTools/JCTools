@@ -23,7 +23,7 @@ public class JavaParsingAtomicUnpaddedLinkedQueueGenerator extends JavaParsingAt
     }
 
     public JavaParsingAtomicUnpaddedLinkedQueueGenerator(String sourceFileName) {
-        super(sourceFileName);
+        super(sourceFileName, "org.jctools.queues.atomic.unpadded", "AtomicUnpadded");
     }
 
     @Override
@@ -43,15 +43,5 @@ public class JavaParsingAtomicUnpaddedLinkedQueueGenerator extends JavaParsingAt
     public void visit(ClassOrInterfaceDeclaration node, Void arg) {
         super.visit(node, arg);
         removePaddingFields(node);
-    }
-
-    @Override
-    protected String outputPackage() {
-        return "org.jctools.queues.atomic.unpadded";
-    }
-
-    @Override
-    protected String queueClassNamePrefix() {
-        return "AtomicUnpadded";
     }
 }
