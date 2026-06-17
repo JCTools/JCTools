@@ -1,7 +1,6 @@
 package org.jctools.queues.atomic.unpadded;
 
 import com.github.javaparser.ast.CompilationUnit;
-import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import org.jctools.queues.atomic.JavaParsingAtomicArrayQueueGenerator;
 
@@ -22,12 +21,6 @@ public class JavaParsingAtomicUnpaddedArrayQueueGenerator extends JavaParsingAto
     public void cleanupComments(CompilationUnit cu) {
         super.cleanupComments(cu);
         cleanupPaddingComments(cu);
-    }
-
-    @Override
-    public void organiseImports(CompilationUnit cu) {
-        super.organiseImports(cu);
-        // The base classes are now generated, no need for explicit imports
     }
 
     @Override

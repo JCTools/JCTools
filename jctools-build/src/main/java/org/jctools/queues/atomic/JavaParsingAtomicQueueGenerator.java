@@ -533,10 +533,6 @@ public abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter
         return false;
     }
 
-    private static <T> T buildGenerator(Class<? extends T> generatorClass, String fileName) throws Exception {
-        return generatorClass.getDeclaredConstructor(String.class).newInstance(fileName);
-    }
-
     ImportDeclaration staticImportDeclaration(String name) {
         return new ImportDeclaration(name, true, true);
     }

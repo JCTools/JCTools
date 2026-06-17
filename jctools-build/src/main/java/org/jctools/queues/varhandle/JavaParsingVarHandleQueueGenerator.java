@@ -455,49 +455,6 @@ public abstract class JavaParsingVarHandleQueueGenerator extends VoidVisitorAdap
     return fieldDeclaration;
   }
 
-  /**
-   * Creates a static initializer block for VarHandle initialization Overloaded version that accepts
-   * variable names as strings and assumes long type
-   */
-  protected InitializerDeclaration createVarHandleStaticInitializer(
-      String className, List<String> variableNames) {
-    InitializerDeclaration initializer = new InitializerDeclaration(true, new BlockStmt());
-    BlockStmt initBody = initializer.getBody();
-
-    // Create try block
-    BlockStmt tryBlock = new BlockStmt();
-    MethodCallExpr lookup = new MethodCallExpr(new NameExpr("MethodHandles"), "lookup");
-
-    for (String variableName : variableNames) {
-      MethodCallExpr findVarHandle = new MethodCallExpr(lookup, "findVarHandle");
-      findVarHandle.addArgument(new ClassExpr(classType(className)));
-      findVarHandle.addArgument(new StringLiteralExpr(variableName));
-      findVarHandle.addArgument(new ClassExpr(classType("long")));
-
-      AssignExpr assignment =
-          new AssignExpr(
-              new NameExpr(varHandleFieldName(variableName)), findVarHandle, Operator.ASSIGN);
-      tryBlock.addStatement(new ExpressionStmt(assignment));
-    }
-
-    // Create catch clause
-    Parameter catchParam = new Parameter(classType("Exception"), "e");
-    BlockStmt catchBlock = new BlockStmt();
-    catchBlock.addStatement(
-        new ThrowStmt(
-            new ObjectCreationExpr(
-                null,
-                classType("ExceptionInInitializerError"),
-                new NodeList<>(new NameExpr("e")))));
-    CatchClause catchClause = new CatchClause(catchParam, catchBlock);
-
-    // Create try-catch statement
-    TryStmt tryStmt = new TryStmt(tryBlock, new NodeList<>(catchClause), null);
-    initBody.addStatement(tryStmt);
-
-    return initializer;
-  }
-
   /** Determines the class type for VarHandle initialization based on field type */
   protected String getFieldClassType(Type fieldType) {
     return getFieldClassType(null, fieldType);

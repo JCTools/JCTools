@@ -25,11 +25,6 @@ public class JavaParsingVarHandleUnpaddedArrayQueueGenerator
   }
 
   @Override
-  public void organiseImports(CompilationUnit cu) {
-    super.organiseImports(cu);
-  }
-
-  @Override
   public void visit(ClassOrInterfaceDeclaration node, Void arg) {
     super.visit(node, arg);
     removePaddingFields(node);

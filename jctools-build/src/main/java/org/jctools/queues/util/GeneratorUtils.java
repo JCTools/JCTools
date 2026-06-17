@@ -56,7 +56,7 @@ public class GeneratorUtils {
         return generatorClass.getDeclaredConstructor(String.class).newInstance(fileName);
     }
 
-    protected static final String INDENT_LEVEL = "    ";
+    private static final String INDENT_LEVEL = "    ";
 
     /**
      * Format a multiline javadoc comment with the given lines and indentation level.
