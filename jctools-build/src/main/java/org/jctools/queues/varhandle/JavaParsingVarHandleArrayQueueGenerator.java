@@ -15,11 +15,8 @@ import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
 import com.github.javaparser.ast.nodeTypes.NodeWithType;
 import com.github.javaparser.ast.stmt.BlockStmt;
-import com.github.javaparser.ast.stmt.CatchClause;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.stmt.ReturnStmt;
-import com.github.javaparser.ast.stmt.ThrowStmt;
-import com.github.javaparser.ast.stmt.TryStmt;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
@@ -220,62 +217,6 @@ public class JavaParsingVarHandleArrayQueueGenerator extends JavaParsingVarHandl
       }
       n.getMembers().add(varHandleFields.size(), createVarHandleStaticInitializerWithTypes(n, className, varHandleFields));
     }
-  }
-
-  /** Helper class to track field information */
-  private static class FieldInfo {
-    final String name;
-    final Type type;
-
-    FieldInfo(String name, Type type) {
-      this.name = name;
-      this.type = type;
-    }
-  }
-
-  /** Creates a static initializer block for VarHandle initialization with proper field types */
-  private InitializerDeclaration createVarHandleStaticInitializerWithTypes(
-      ClassOrInterfaceDeclaration n, String className, List<FieldInfo> fieldInfos) {
-    InitializerDeclaration initializer = new InitializerDeclaration(true, new BlockStmt());
-    BlockStmt initBody = initializer.getBody();
-
-    // Create try block
-    BlockStmt tryBlock = new BlockStmt();
-    MethodCallExpr lookup = new MethodCallExpr(new NameExpr("MethodHandles"), "lookup");
-
-    for (FieldInfo fieldInfo : fieldInfos) {
-      MethodCallExpr findVarHandle = new MethodCallExpr(lookup, "findVarHandle");
-      findVarHandle.addArgument(new ClassExpr(classType(className)));
-      findVarHandle.addArgument(new StringLiteralExpr(fieldInfo.name));
-
-      // Determine the field class type (resolves generic type params to erased bound)
-      String fieldClassType = getFieldClassType(n, fieldInfo.type);
-      findVarHandle.addArgument(new ClassExpr(classType(fieldClassType)));
-
-      AssignExpr assignment =
-          new AssignExpr(
-              new NameExpr(varHandleFieldName(fieldInfo.name)),
-              findVarHandle,
-              AssignExpr.Operator.ASSIGN);
-      tryBlock.addStatement(new ExpressionStmt(assignment));
-    }
-
-    // Create catch clause
-    Parameter catchParam = new Parameter(classType("Exception"), "e");
-    BlockStmt catchBlock = new BlockStmt();
-    catchBlock.addStatement(
-        new ThrowStmt(
-            new ObjectCreationExpr(
-                null,
-                classType("ExceptionInInitializerError"),
-                new NodeList<>(new NameExpr("e")))));
-    CatchClause catchClause = new CatchClause(catchParam, catchBlock);
-
-    // Create try-catch statement
-    TryStmt tryStmt = new TryStmt(tryBlock, new NodeList<>(catchClause), null);
-    initBody.addStatement(tryStmt);
-
-    return initializer;
   }
 
   @Override

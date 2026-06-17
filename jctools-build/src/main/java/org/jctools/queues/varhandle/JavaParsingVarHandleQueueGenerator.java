@@ -5,18 +5,27 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.Modifier.Keyword;
 import com.github.javaparser.ast.NodeList;
+import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
+import com.github.javaparser.ast.body.InitializerDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.VariableDeclarator;
+import com.github.javaparser.ast.expr.AssignExpr;
 import com.github.javaparser.ast.expr.CastExpr;
+import com.github.javaparser.ast.expr.ClassExpr;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.NameExpr;
+import com.github.javaparser.ast.expr.ObjectCreationExpr;
+import com.github.javaparser.ast.expr.StringLiteralExpr;
 import com.github.javaparser.ast.expr.ThisExpr;
 import com.github.javaparser.ast.nodeTypes.NodeWithType;
 import com.github.javaparser.ast.stmt.BlockStmt;
+import com.github.javaparser.ast.stmt.CatchClause;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.stmt.ReturnStmt;
+import com.github.javaparser.ast.stmt.ThrowStmt;
+import com.github.javaparser.ast.stmt.TryStmt;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.PrimitiveType;
 import com.github.javaparser.ast.type.Type;
@@ -257,10 +266,9 @@ public abstract class JavaParsingVarHandleQueueGenerator extends JavaParsingQueu
 
   /**
    * Generates something like <code>private static final VarHandle VH_PRODUCER_INDEX;</code>. The
-   * static initializer block that wires it up is built separately by the array/linked subclasses
-   * via their own {@code createVarHandleStaticInitializerWithTypes(...)}.
+   * companion static initializer is built by {@link #createVarHandleStaticInitializerWithTypes}.
    */
-  protected FieldDeclaration declareVarHandle(String className, String variableName) {
+  protected final FieldDeclaration declareVarHandle(String className, String variableName) {
     ClassOrInterfaceType type = classType("VarHandle");
     FieldDeclaration fieldDeclaration = new FieldDeclaration();
     VariableDeclarator variable = new VariableDeclarator(type, varHandleFieldName(variableName));
@@ -269,17 +277,53 @@ public abstract class JavaParsingVarHandleQueueGenerator extends JavaParsingQueu
     return fieldDeclaration;
   }
 
-  /** Determines the class type for VarHandle initialization based on field type */
-  protected String getFieldClassType(Type fieldType) {
-    return getFieldClassType(null, fieldType);
+  /**
+   * Builds the {@code static { ... }} initializer block that wires up each VarHandle in
+   * {@code fieldInfos} via {@code MethodHandles.lookup().findVarHandle(...)}, wrapped in
+   * {@code try/catch (Exception e) { throw new ExceptionInInitializerError(e); }}. Subclasses can
+   * customise the third argument (the field's class literal) by overriding
+   * {@link #resolveVarHandleClassType}.
+   */
+  protected final InitializerDeclaration createVarHandleStaticInitializerWithTypes(
+      ClassOrInterfaceDeclaration n, String className, java.util.List<FieldInfo> fieldInfos) {
+    InitializerDeclaration initializer = new InitializerDeclaration(true, new BlockStmt());
+    BlockStmt initBody = initializer.getBody();
+
+    BlockStmt tryBlock = new BlockStmt();
+    MethodCallExpr lookup = new MethodCallExpr(new NameExpr("MethodHandles"), "lookup");
+
+    for (FieldInfo fieldInfo : fieldInfos) {
+      MethodCallExpr findVarHandle = new MethodCallExpr(lookup, "findVarHandle");
+      findVarHandle.addArgument(new ClassExpr(classType(className)));
+      findVarHandle.addArgument(new StringLiteralExpr(fieldInfo.name));
+      findVarHandle.addArgument(new ClassExpr(classType(resolveVarHandleClassType(n, fieldInfo.type))));
+
+      AssignExpr assignment = new AssignExpr(
+          new NameExpr(varHandleFieldName(fieldInfo.name)),
+          findVarHandle,
+          AssignExpr.Operator.ASSIGN);
+      tryBlock.addStatement(new ExpressionStmt(assignment));
+    }
+
+    Parameter catchParam = new Parameter(classType("Exception"), "e");
+    BlockStmt catchBlock = new BlockStmt();
+    catchBlock.addStatement(
+        new ThrowStmt(
+            new ObjectCreationExpr(null, classType("ExceptionInInitializerError"),
+                new NodeList<>(new NameExpr("e")))));
+    CatchClause catchClause = new CatchClause(catchParam, catchBlock);
+
+    initBody.addStatement(new TryStmt(tryBlock, new NodeList<>(catchClause), null));
+    return initializer;
   }
 
   /**
-   * Determines the class type for VarHandle initialization based on field type. When the field
-   * type is a generic type parameter (e.g. {@code R}), resolves to the erased bound by looking at
-   * the class declaration's type parameters.
+   * Resolves the third argument to {@code findVarHandle(class, name, type)} for {@code fieldType}.
+   * The default implementation handles primitive {@code long}, {@code Thread} ref, and generic
+   * type parameters (resolves to their erased bound). Subclasses override to add type-specific
+   * mappings (e.g. {@code LinkedQueueNode} → {@code LinkedQueueVarHandleNode}).
    */
-  protected String getFieldClassType(com.github.javaparser.ast.body.ClassOrInterfaceDeclaration n, Type fieldType) {
+  protected String resolveVarHandleClassType(ClassOrInterfaceDeclaration n, Type fieldType) {
     if (PrimitiveType.longType().equals(fieldType)) {
       return "long";
     } else if (isRefType(fieldType, "Thread")) {
@@ -300,5 +344,16 @@ public abstract class JavaParsingVarHandleQueueGenerator extends JavaParsingQueu
       }
     }
     return "Object";
+  }
+
+  /** Pair of a field name and its declared type, used by the static-initializer builder. */
+  protected static final class FieldInfo {
+    final String name;
+    final Type type;
+
+    public FieldInfo(String name, Type type) {
+      this.name = name;
+      this.type = type;
+    }
   }
 }

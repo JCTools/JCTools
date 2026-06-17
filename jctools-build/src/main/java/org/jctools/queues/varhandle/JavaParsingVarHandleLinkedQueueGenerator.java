@@ -7,11 +7,8 @@ import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.nodeTypes.NodeWithType;
 import com.github.javaparser.ast.stmt.BlockStmt;
-import com.github.javaparser.ast.stmt.CatchClause;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.stmt.ReturnStmt;
-import com.github.javaparser.ast.stmt.ThrowStmt;
-import com.github.javaparser.ast.stmt.TryStmt;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.Type;
 
@@ -192,70 +189,20 @@ public class JavaParsingVarHandleLinkedQueueGenerator extends JavaParsingVarHand
             for (int i = 0; i < varHandleFields.size(); i++) {
                 n.getMembers().add(i, declareVarHandle(className, varHandleFields.get(i).name));
             }
-            n.getMembers().add(varHandleFields.size(), createVarHandleStaticInitializerWithTypes(className, varHandleFields));
+            n.getMembers().add(varHandleFields.size(), createVarHandleStaticInitializerWithTypes(n, className, varHandleFields));
         }
     }
 
-    /**
-     * Helper class to track field information
-     */
-    private static class FieldInfo {
-        final String name;
-        final Type type;
-
-        FieldInfo(String name, Type type) {
-            this.name = name;
-            this.type = type;
+    @Override
+    protected String resolveVarHandleClassType(ClassOrInterfaceDeclaration n, Type fieldType) {
+        // Linked queues store producerNode/consumerNode as LinkedQueueNode<E> in source. By the
+        // time the static-initializer builder runs, processSpecialNodeTypes has already rewritten
+        // these to LinkedQueueVarHandleNode. Either way, findVarHandle's third argument must
+        // erase to LinkedQueueVarHandleNode.
+        if (isRefType(fieldType, "LinkedQueueNode") || isRefType(fieldType, "LinkedQueueVarHandleNode")) {
+            return "LinkedQueueVarHandleNode";
         }
-    }
-
-    /**
-     * Creates a static initializer block for VarHandle initialization with proper field types
-     */
-    private InitializerDeclaration createVarHandleStaticInitializerWithTypes(String className, List<FieldInfo> fieldInfos) {
-        InitializerDeclaration initializer = new InitializerDeclaration(true, new BlockStmt());
-        BlockStmt initBody = initializer.getBody();
-
-        // Create try block
-        BlockStmt tryBlock = new BlockStmt();
-        MethodCallExpr lookup = new MethodCallExpr(new NameExpr("MethodHandles"), "lookup");
-
-        for (FieldInfo fieldInfo : fieldInfos) {
-            MethodCallExpr findVarHandle = new MethodCallExpr(lookup, "findVarHandle");
-            findVarHandle.addArgument(new ClassExpr(classType(className)));
-            findVarHandle.addArgument(new StringLiteralExpr(fieldInfo.name));
-
-            // Determine the field class type
-            String fieldClassType;
-            if (isRefType(fieldInfo.type, "LinkedQueueNode") || isRefType(fieldInfo.type, "LinkedQueueVarHandleNode")) {
-                fieldClassType = "LinkedQueueVarHandleNode";
-            } else {
-                fieldClassType = getFieldClassType(fieldInfo.type);
-            }
-            findVarHandle.addArgument(new ClassExpr(classType(fieldClassType)));
-
-            AssignExpr assignment = new AssignExpr(
-                new NameExpr(varHandleFieldName(fieldInfo.name)),
-                findVarHandle,
-                AssignExpr.Operator.ASSIGN
-            );
-            tryBlock.addStatement(new ExpressionStmt(assignment));
-        }
-
-        // Create catch clause
-        Parameter catchParam = new Parameter(classType("Exception"), "e");
-        BlockStmt catchBlock = new BlockStmt();
-        catchBlock.addStatement(
-            new ThrowStmt(
-                new ObjectCreationExpr(
-                    null, classType("ExceptionInInitializerError"), new NodeList<>(new NameExpr("e")))));
-        CatchClause catchClause = new CatchClause(catchParam, catchBlock);
-
-        // Create try-catch statement
-        TryStmt tryStmt = new TryStmt(tryBlock, new NodeList<>(catchClause), null);
-        initBody.addStatement(tryStmt);
-
-        return initializer;
+        return super.resolveVarHandleClassType(n, fieldType);
     }
 
     /**
