@@ -200,8 +200,12 @@ public class JavaParsingVarHandleArrayQueueGenerator extends JavaParsingVarHandl
   }
 
   /**
-   * For each method accessor to a field, add in the calls necessary to VarHandle. Only methods
-   * start with so/cas/sv/lv/lp followed by the field name are processed.
+   * Patch each method whose name ends with {@code <prefix>FieldName} (capitalised) with a body
+   * that delegates to a {@link java.lang.invoke.VarHandle} for the matching field. Handled
+   * prefixes: {@code so}, {@code sp}, {@code cas}, {@code getAndAdd}, {@code getAndIncrement},
+   * {@code sv}, {@code lv}, {@code lp}. {@code lp}/{@code sv} are plain reads/writes on the
+   * field; {@code lv} is a plain read when the field is already {@code volatile} and a
+   * {@code VarHandle.getVolatile} call otherwise; the rest delegate to the VarHandle.
    *
    * @param n the AST node for the containing class
    */

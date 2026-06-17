@@ -137,11 +137,13 @@ public class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtomicQueu
     }
 
     /**
-     * For each method accessor to a field, add in the calls necessary to
-     * AtomicFieldUpdaters. Only methods start with so/cas/sv/lv/lp/sp/xchg
-     * followed by the field name are processed. Clearly <code>lv<code>,
-     * <code>lp<code> and <code>sv<code> are simple field accesses with only
-     * <code>so and <code>cas <code> using the AtomicFieldUpdaters.
+     * Patch each method whose name ends with {@code <prefix>FieldName} (capitalised) with a body
+     * that delegates to an {@link java.util.concurrent.atomic.AtomicLongFieldUpdater} or
+     * {@link java.util.concurrent.atomic.AtomicReferenceFieldUpdater} for the matching field.
+     * Same handled prefixes as {@link JavaParsingAtomicArrayQueueGenerator}'s patcher. Additionally
+     * synthesises an {@code xchgProducerNode} method that delegates to {@code getAndSet} on the
+     * producer-node field updater — driven by name-match on the {@code producerNode} field, not by
+     * suffix dispatch.
      *
      * @param n the AST node for the containing class
      */

@@ -458,7 +458,7 @@ public abstract class JavaParsingAtomicQueueGenerator extends VoidVisitorAdapter
 
     /**
      * Generates something like
-     * <code>private static final     private static final AtomicReferenceFieldUpdater<MpscBlockingConsumerAtomicArrayQueueConsumerFields, Thread> BLOCKED = AtomicReferenceFieldUpdater.newUpdater(MpscBlockingConsumerAtomicArrayQueueConsumerFields.class, Thread.class, "blocked");</code>
+     * <code>private static final AtomicReferenceFieldUpdater&lt;MpscBlockingConsumerAtomicArrayQueueConsumerFields, Thread&gt; BLOCKED = AtomicReferenceFieldUpdater.newUpdater(MpscBlockingConsumerAtomicArrayQueueConsumerFields.class, Thread.class, "blocked");</code>
      */
     protected FieldDeclaration declareRefFieldUpdater(String className, String typeName, String variableName) {
         MethodCallExpr initializer = newAtomicRefFieldUpdater(className, typeName, variableName);

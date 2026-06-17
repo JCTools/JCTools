@@ -9,6 +9,14 @@ import static org.jctools.queues.util.GeneratorUtils.cleanupPaddingComments;
 import static org.jctools.queues.util.GeneratorUtils.removePaddingFields;
 import static org.jctools.queues.util.GeneratorUtils.runJCToolsGenerator;
 
+/**
+ * Combined atomic + unpadded variant of an Unsafe linked queue. Inherits the Unsafe→
+ * {@link java.util.concurrent.atomic.AtomicReferenceFieldUpdater} rewrites from
+ * {@link JavaParsingAtomicLinkedQueueGenerator}, retargets output to
+ * {@code org.jctools.queues.atomic.unpadded} with the {@code AtomicUnpadded} name infix, drops
+ * byte-padding fields plus orphan comments, and adds the {@code LinkedQueueAtomicNode} import the
+ * unpadded linked variant needs.
+ */
 public class JavaParsingAtomicUnpaddedLinkedQueueGenerator extends JavaParsingAtomicLinkedQueueGenerator {
     public static void main(String[] args) throws Exception {
         runJCToolsGenerator(JavaParsingAtomicUnpaddedLinkedQueueGenerator.class, args);

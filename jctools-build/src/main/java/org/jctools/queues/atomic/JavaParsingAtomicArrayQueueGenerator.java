@@ -186,11 +186,13 @@ public class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomicQueue
     }
 
     /**
-     * For each method accessor to a field, add in the calls necessary to
-     * AtomicFieldUpdaters. Only methods start with so/cas/sv/lv/lp followed by
-     * the field name are processed. Clearly <code>lv<code>, <code>lp<code> and
-     * <code>sv<code> are simple field accesses with only <code>so and <code>cas
-     * <code> using the AtomicFieldUpdaters.
+     * Patch each method whose name ends with {@code <prefix>FieldName} (capitalised) with a body
+     * that delegates to an {@link java.util.concurrent.atomic.AtomicLongFieldUpdater} or
+     * {@link java.util.concurrent.atomic.AtomicReferenceFieldUpdater} for the matching field.
+     * Handled prefixes: {@code so}, {@code sp}, {@code cas}, {@code getAndAdd},
+     * {@code getAndIncrement}, {@code sv}, {@code lv}, {@code lp}. {@code lv}/{@code lp}/{@code sv}
+     * become plain reads/writes on the field; the rest delegate to the field updater (with
+     * {@code sp} mapped to {@code lazySet} since field updaters lack a plain-store primitive).
      *
      * @param n the AST node for the containing class
      */

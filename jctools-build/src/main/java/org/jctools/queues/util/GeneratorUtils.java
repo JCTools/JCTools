@@ -22,7 +22,9 @@ import java.io.FileWriter;
 public class GeneratorUtils {
 
     /**
-     * Remove padding fields from the given class.
+     * Remove padding-related comments from the given compilation unit. Matches comments containing
+     * {@code byte b}, {@code drop 8b}, or {@code drop 16b} — the patterns used in JCTools queue
+     * sources for orphaned commented-out padding lines and pad-drop bookkeeping.
      */
     public static void cleanupPaddingComments(CompilationUnit cu)
     {

@@ -8,6 +8,15 @@ import static org.jctools.queues.util.GeneratorUtils.cleanupPaddingComments;
 import static org.jctools.queues.util.GeneratorUtils.removePaddingFields;
 import static org.jctools.queues.util.GeneratorUtils.runJCToolsGenerator;
 
+/**
+ * Combined atomic + unpadded variant of an Unsafe array queue. Inherits the Unsafe→
+ * {@link java.util.concurrent.atomic.AtomicLongFieldUpdater}/
+ * {@link java.util.concurrent.atomic.AtomicReferenceFieldUpdater} rewrites from
+ * {@link JavaParsingAtomicArrayQueueGenerator}, retargets the output to
+ * {@code org.jctools.queues.atomic.unpadded} with the {@code AtomicUnpadded} name infix, and
+ * additionally drops byte-padding fields and their orphan comments after the parent visitor has
+ * run.
+ */
 public class JavaParsingAtomicUnpaddedArrayQueueGenerator extends JavaParsingAtomicArrayQueueGenerator {
     public static void main(String[] args) throws Exception {
         runJCToolsGenerator(JavaParsingAtomicUnpaddedArrayQueueGenerator.class, args);

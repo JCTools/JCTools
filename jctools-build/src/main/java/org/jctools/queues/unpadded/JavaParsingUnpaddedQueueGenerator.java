@@ -22,6 +22,14 @@ import static org.jctools.queues.util.GeneratorUtils.removePaddingFields;
 import static org.jctools.queues.util.GeneratorUtils.renameType;
 import static org.jctools.queues.util.GeneratorUtils.runJCToolsGenerator;
 
+/**
+ * Generates the unpadded variant of a JCTools queue source: rewrites the package to
+ * {@code org.jctools.queues.unpadded}, splices {@code Unpadded} into the class name, drops the
+ * byte-padding fields and any orphaned padding-related comments, and leaves the {@link sun.misc.Unsafe}
+ * accessors untouched. The output mirrors the structure of the input minus the cache-line padding
+ * — useful where memory footprint matters more than the false-sharing protection that the padded
+ * variant provides.
+ */
 public class JavaParsingUnpaddedQueueGenerator extends VoidVisitorAdapter<Void> implements JCToolsGenerator {
 
     protected final String sourceFileName;
