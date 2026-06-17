@@ -49,14 +49,6 @@ public abstract class JavaParsingVarHandleQueueGenerator extends JavaParsingQueu
   protected boolean hasVarHandleFields = false;
   protected boolean usesPoolQueue = false;
 
-  JavaParsingVarHandleQueueGenerator(String sourceFileName) {
-    this(sourceFileName, "org.jctools.queues.varhandle", "VarHandle");
-  }
-
-  /**
-   * Constructor for unpadded-variant subclasses (varhandle + unpadded combined). Other subclasses
-   * delegate to the single-arg constructor with the default varhandle infix and package.
-   */
   protected JavaParsingVarHandleQueueGenerator(String sourceFileName, String outputPackage, String queueClassNamePrefix) {
     super(sourceFileName, outputPackage, queueClassNamePrefix);
   }

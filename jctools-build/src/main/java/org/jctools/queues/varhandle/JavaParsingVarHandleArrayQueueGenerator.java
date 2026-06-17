@@ -44,7 +44,7 @@ public class JavaParsingVarHandleArrayQueueGenerator extends JavaParsingVarHandl
   }
 
   public JavaParsingVarHandleArrayQueueGenerator(String sourceFileName) {
-    super(sourceFileName);
+    this(sourceFileName, "org.jctools.queues.varhandle", "VarHandle");
   }
 
   /** Constructor for unpadded subclasses to pass through different package/prefix values. */

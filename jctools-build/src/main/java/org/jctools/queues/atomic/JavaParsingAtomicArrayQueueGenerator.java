@@ -32,7 +32,7 @@ public class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomicQueue
     }
 
     public JavaParsingAtomicArrayQueueGenerator(String sourceFileName) {
-        super(sourceFileName);
+        this(sourceFileName, "org.jctools.queues.atomic", "Atomic");
     }
 
     /** Constructor for unpadded subclasses to pass through different package/prefix values. */

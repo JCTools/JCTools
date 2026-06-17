@@ -43,14 +43,6 @@ public abstract class JavaParsingAtomicQueueGenerator extends JavaParsingQueueGe
 
     protected boolean usesPoolQueue = false;
 
-    JavaParsingAtomicQueueGenerator(String sourceFileName) {
-        this(sourceFileName, "org.jctools.queues.atomic", "Atomic");
-    }
-
-    /**
-     * Constructor for unpadded-variant subclasses (atomic + unpadded combined). Other subclasses
-     * delegate to the single-arg constructor with the default atomic infix and package.
-     */
     protected JavaParsingAtomicQueueGenerator(String sourceFileName, String outputPackage, String queueClassNamePrefix) {
         super(sourceFileName, outputPackage, queueClassNamePrefix);
     }
