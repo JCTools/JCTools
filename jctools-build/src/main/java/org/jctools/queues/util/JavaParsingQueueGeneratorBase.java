@@ -8,9 +8,12 @@ import com.github.javaparser.ast.PackageDeclaration;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.InitializerDeclaration;
+import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.comments.Comment;
 import com.github.javaparser.ast.expr.AssignExpr;
 import com.github.javaparser.ast.expr.Expression;
+import com.github.javaparser.ast.expr.MarkerAnnotationExpr;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.SimpleName;
@@ -24,6 +27,7 @@ import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 
 import java.util.Optional;
 
+import static org.jctools.queues.util.GeneratorUtils.formatMultilineJavadoc;
 import static org.jctools.queues.util.GeneratorUtils.renameType;
 
 /**
@@ -243,6 +247,33 @@ public abstract class JavaParsingQueueGeneratorBase extends VoidVisitorAdapter<V
 
     protected static ImportDeclaration staticImportDeclaration(String name) {
         return new ImportDeclaration(name, true, true);
+    }
+
+    /**
+     * Patches {@code methodToPatch} into a deprecated redirector that forwards to
+     * {@code toMethodName} with the supplied parameters. Used by the array-queue generators to
+     * emit a {@code weakOffer} method that calls back to {@code failFastOffer} with a
+     * {@code @deprecated} Javadoc.
+     */
+    @SuppressWarnings("SameParameterValue")
+    protected static void patchMethodAsDeprecatedRedirector(MethodDeclaration methodToPatch, String toMethodName,
+            Type returnType, Parameter... parameters) {
+        methodToPatch.setType(returnType);
+        for (Parameter parameter : parameters) {
+            methodToPatch.addParameter(parameter);
+        }
+        methodToPatch.addAnnotation(new MarkerAnnotationExpr("Deprecated"));
+        methodToPatch.setJavadocComment(
+                formatMultilineJavadoc(1, "@deprecated This was renamed to " + toMethodName + " please migrate"));
+
+        MethodCallExpr methodCall = methodCallExpr("this", toMethodName);
+        for (Parameter parameter : parameters) {
+            methodCall.addArgument(new NameExpr(parameter.getName()));
+        }
+
+        BlockStmt body = new BlockStmt();
+        body.addStatement(new ReturnStmt(methodCall));
+        methodToPatch.setBody(body);
     }
 
     /**

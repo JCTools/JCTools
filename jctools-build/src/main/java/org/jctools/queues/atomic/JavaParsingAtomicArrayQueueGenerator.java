@@ -3,7 +3,6 @@ package org.jctools.queues.atomic;
 import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.Modifier.Keyword;
 import com.github.javaparser.ast.body.*;
-import com.github.javaparser.ast.expr.MarkerAnnotationExpr;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
@@ -15,7 +14,6 @@ import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.PrimitiveType;
 import com.github.javaparser.ast.type.Type;
 
-import static org.jctools.queues.util.GeneratorUtils.formatMultilineJavadoc;
 import static org.jctools.queues.util.GeneratorUtils.prependGeneratedNoteJavadoc;
 import static org.jctools.queues.util.GeneratorUtils.replaceType;
 import static org.jctools.queues.util.GeneratorUtils.runJCToolsGenerator;
@@ -160,34 +158,6 @@ public class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomicQueue
                 node.setType(PrimitiveType.intType());
             }
         }
-    }
-
-    /**
-     * Given a method declaration node this method will replace it's code and
-     * signature with code to redirect all calls to it to the
-     * <code>newMethodName</code>. Method signatures of both methods must match
-     * exactly.
-     */
-    @SuppressWarnings("SameParameterValue")
-    private void patchMethodAsDeprecatedRedirector(MethodDeclaration methodToPatch, String toMethodName,
-            Type returnType, Parameter... parameters) {
-        methodToPatch.setType(returnType);
-        for (Parameter parameter : parameters) {
-            methodToPatch.addParameter(parameter);
-        }
-        methodToPatch.addAnnotation(new MarkerAnnotationExpr("Deprecated"));
-
-        methodToPatch.setJavadocComment(
-                formatMultilineJavadoc(1, "@deprecated This was renamed to " + toMethodName + " please migrate"));
-
-        MethodCallExpr methodCall = methodCallExpr("this", toMethodName);
-        for (Parameter parameter : parameters) {
-            methodCall.addArgument(new NameExpr(parameter.getName()));
-        }
-
-        BlockStmt body = new BlockStmt();
-        body.addStatement(new ReturnStmt(methodCall));
-        methodToPatch.setBody(body);
     }
 
     /**
