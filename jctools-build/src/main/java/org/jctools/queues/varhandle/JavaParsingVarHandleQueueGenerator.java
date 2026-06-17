@@ -114,11 +114,13 @@ public abstract class JavaParsingVarHandleQueueGenerator extends JavaParsingQueu
           method.getParameters().get(0).getNameAsString();
       method.setBody(varHandleGetAndAdd(varHandleFieldName, deltaName));
     } else if (methodName.startsWith("getAndIncrement")) {
-      // Xadd queues use getAndIncrementProducerIndex() — maps to VarHandle.getAndAdd(this, 1)
+      // Xadd queues use getAndIncrementProducerIndex() — maps to VarHandle.getAndAdd(this, 1L).
+      // Must use 1L (long literal) — VarHandle polymorphic signature requires exact type match.
+      // Pass it as a LongLiteralExpr so the AST is idempotent across parse-rewrite-print cycles.
       usesVarHandle = true;
       String varHandleFieldName = varHandleFieldName(variableName);
-      // Must use 1L (long literal) — VarHandle polymorphic signature requires exact type match
-      method.setBody(varHandleGetAndAdd(varHandleFieldName, "1L"));
+      method.setBody(varHandleGetAndAdd(varHandleFieldName,
+          new com.github.javaparser.ast.expr.LongLiteralExpr("1L")));
     } else if (methodName.startsWith("sv")) {
       method.setBody(fieldAssignment(variableName, newValueName));
     } else if (methodName.startsWith("lv")) {
@@ -198,10 +200,20 @@ public abstract class JavaParsingVarHandleQueueGenerator extends JavaParsingQueu
 
   /** Generates something like <code>return (long) VH_PRODUCER_INDEX.getAndAdd(this, delta)</code> */
   protected BlockStmt varHandleGetAndAdd(String varHandleFieldName, String deltaName) {
+    return varHandleGetAndAdd(varHandleFieldName, new NameExpr(deltaName));
+  }
+
+  /**
+   * Same as {@link #varHandleGetAndAdd(String, String)} but takes a literal/expression as the
+   * delta argument (e.g. {@code new LongLiteralExpr("1L")}). Useful for the {@code getAndIncrement}
+   * dispatch where {@code 1L} must reach the AST as a {@link com.github.javaparser.ast.expr.LongLiteralExpr}
+   * rather than a {@link NameExpr}, so a parser round-trip of the generated source is idempotent.
+   */
+  protected BlockStmt varHandleGetAndAdd(String varHandleFieldName, com.github.javaparser.ast.expr.Expression delta) {
     BlockStmt body = new BlockStmt();
     CastExpr castExpr = new CastExpr(
         PrimitiveType.longType(),
-        methodCallExpr(varHandleFieldName, "getAndAdd", new ThisExpr(), new NameExpr(deltaName)));
+        methodCallExpr(varHandleFieldName, "getAndAdd", new ThisExpr(), delta));
     body.addStatement(new ReturnStmt(castExpr));
     return body;
   }

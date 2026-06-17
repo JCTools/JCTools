@@ -87,4 +87,33 @@ public class JavaParsingAtomicLinkedQueueGeneratorTest {
 
         assertTrue("non-Unsafe initializer preserved: " + out, out.contains("sentinel = 42"));
     }
+
+    /**
+     * Bug 11: the linked atomic patcher used to call a private declareRefFieldUpdater that
+     * hardcoded the AtomicReferenceFieldUpdater type parameter to LinkedQueueAtomicNode regardless
+     * of the variable's declared type. After the fix it routes through the typed parent overload
+     * with the variable's actual type, so a non-LinkedQueueNode reference field gets the right
+     * updater type. Today no jctools linked source has such a field, but the regression is real.
+     */
+    @Test
+    public void linkedRefFieldUpdaterUsesActualVariableType() {
+        // producerLimit is recognised by the linked generator's fieldUpdaterFieldName mapping
+        // (returns P_LIMIT_UPDATER); the type is intentionally Thread here to exercise the
+        // non-LinkedQueueNode path that previously emitted the wrong updater type.
+        String src =
+                "package org.jctools.queues;\n" +
+                "// $gen:ordered-fields\n" +
+                "class FooLinkedQueue<E> extends BaseLinkedQueue<E> {\n" +
+                "  private Thread producerLimit;\n" +
+                "  public final Thread lvProducerLimit() { return null; }\n" +
+                "  final void soProducerLimit(final Thread newValue) {}\n" +
+                "}";
+
+        String out = generate(src);
+
+        assertTrue("updater typed against Thread: " + out,
+                out.replaceAll("\\s+", " ").contains("AtomicReferenceFieldUpdater<FooLinkedAtomicQueue, Thread> P_LIMIT_UPDATER"));
+        assertFalse("no leftover hard-coded LinkedQueueAtomicNode in updater type: " + out,
+                out.contains("AtomicReferenceFieldUpdater<FooLinkedAtomicQueue, LinkedQueueAtomicNode>"));
+    }
 }

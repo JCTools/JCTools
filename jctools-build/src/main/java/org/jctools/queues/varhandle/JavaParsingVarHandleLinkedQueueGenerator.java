@@ -12,7 +12,6 @@ import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.stmt.ReturnStmt;
 import com.github.javaparser.ast.stmt.ThrowStmt;
 import com.github.javaparser.ast.stmt.TryStmt;
-import com.github.javaparser.ast.type.ArrayType;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.Type;
 
@@ -83,15 +82,6 @@ public class JavaParsingVarHandleLinkedQueueGenerator extends JavaParsingVarHand
     }
 
     @Override
-    public void visit(CastExpr n, Void arg) {
-        super.visit(n, arg);
-
-        if (isRefArray(n.getType(), "E")) {
-            n.setType(varHandleRefArrayType((ArrayType) n.getType()));
-        }
-    }
-
-    @Override
     public void visit(MethodDeclaration n, Void arg) {
         super.visit(n, arg);
         // Replace the return type of a method with altered types
@@ -132,11 +122,10 @@ public class JavaParsingVarHandleLinkedQueueGenerator extends JavaParsingVarHand
     void processSpecialNodeTypes(NodeWithType<?, Type> node, String name) {
         Type type = node.getType();
         // VarHandle uses long offsets, unlike Atomic which uses int array indices
-        // So we don't convert offset types for VarHandle
+        // So we don't convert offset types for VarHandle. E[] arrays are also kept as-is
+        // (atomic queues wrap E[] in AtomicReferenceArray<E>; VarHandle uses the raw array).
         if (isRefType(type, "LinkedQueueNode")) {
             node.setType(simpleParametricType("LinkedQueueVarHandleNode", "E"));
-        } else if (isRefArray(type, "E")) {
-            node.setType(varHandleRefArrayType((ArrayType) type));
         }
     }
 
@@ -191,16 +180,19 @@ public class JavaParsingVarHandleLinkedQueueGenerator extends JavaParsingVarHand
 
                 if (variableUsesVarHandle) {
                     varHandleFields.add(new FieldInfo(variableName, fieldType));
-                    n.getMembers().add(0, declareVarHandle(className, variableName));
                 }
             }
 
             // Don't add volatile modifier - keep fields as they are in the original source
         }
 
-        // Add static initializer for all VarHandles
+        // Prepend the VarHandle field declarations (in original order) and the static initializer
+        // that wires them up. See JavaParsingVarHandleArrayQueueGenerator for the same pattern.
         if (!varHandleFields.isEmpty()) {
-            n.getMembers().add(1, createVarHandleStaticInitializerWithTypes(className, varHandleFields));
+            for (int i = 0; i < varHandleFields.size(); i++) {
+                n.getMembers().add(i, declareVarHandle(className, varHandleFields.get(i).name));
+            }
+            n.getMembers().add(varHandleFields.size(), createVarHandleStaticInitializerWithTypes(className, varHandleFields));
         }
     }
 
@@ -277,10 +269,5 @@ public class JavaParsingVarHandleLinkedQueueGenerator extends JavaParsingVarHand
                 methodCallExpr(varHandleFieldName, "getAndSet", new ThisExpr(), new NameExpr(newValueName)));
         body.addStatement(new ReturnStmt(castExpr));
         return body;
-    }
-
-    private ArrayType varHandleRefArrayType(ArrayType in) {
-        // VarHandle version uses E[] directly, not a wrapper
-        return in;
     }
 }

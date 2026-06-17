@@ -192,7 +192,18 @@ public class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtomicQueu
                     if (PrimitiveType.longType().equals(variable.getType())) {
                         n.getMembers().add(0, declareLongFieldUpdater(className, variableName));
                     } else {
-                        n.getMembers().add(0, declareRefFieldUpdater(className, variableName));
+                        // Use the variable's declared type for the AtomicReferenceFieldUpdater
+                        // type-parameter, not a hard-coded LinkedQueueAtomicNode. Resolve a single-
+                        // letter generic parameter to its erased bound (e.g. R -> Bar) the same
+                        // way the array-queue patcher does — keeps the linked-queue patcher correct
+                        // if a non-LinkedQueueNode reference field is ever added (e.g. Thread).
+                        String typeName = variable.getType().asString();
+                        if (typeName.length() == 1 && Character.isUpperCase(typeName.charAt(0))) {
+                            typeName = resolveErasedBound(n, typeName);
+                        } else if (variable.getType().isClassOrInterfaceType()) {
+                            typeName = variable.getType().asClassOrInterfaceType().getNameAsString();
+                        }
+                        n.getMembers().add(0, declareRefFieldUpdater(className, typeName, variableName));
                     }
                 }
             }
@@ -212,24 +223,6 @@ public class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtomicQueu
         body.addStatement(new ReturnStmt(
                 methodCallExpr(fieldUpdaterFieldName, "getAndSet", new ThisExpr(), new NameExpr(newValueName))));
         return body;
-    }
-
-    /**
-     * Generates something like
-     * <code>private static final AtomicReferenceFieldUpdater<MpmcAtomicArrayQueueProducerNodeField> P_NODE_UPDATER = AtomicReferenceFieldUpdater.newUpdater(MpmcAtomicArrayQueueProducerNodeField.class, "producerNode");</code>
-     */
-    private FieldDeclaration declareRefFieldUpdater(String className, String variableName) {
-        MethodCallExpr initializer = newAtomicRefFieldUpdater(className, variableName);
-
-        ClassOrInterfaceType type = simpleParametricType("AtomicReferenceFieldUpdater", className,
-                "LinkedQueueAtomicNode");
-        return fieldDeclarationWithInitialiser(type, fieldUpdaterFieldName(variableName),
-                initializer, Keyword.PRIVATE, Keyword.STATIC, Keyword.FINAL);
-    }
-
-    private MethodCallExpr newAtomicRefFieldUpdater(String className, String variableName) {
-        return methodCallExpr("AtomicReferenceFieldUpdater", "newUpdater", new ClassExpr(classType(className)),
-                new ClassExpr(classType("LinkedQueueAtomicNode")), new StringLiteralExpr(variableName));
     }
 
     private ClassOrInterfaceType atomicRefArrayType(ArrayType in) {

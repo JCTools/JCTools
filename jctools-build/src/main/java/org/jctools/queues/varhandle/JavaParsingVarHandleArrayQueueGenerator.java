@@ -240,14 +240,18 @@ public class JavaParsingVarHandleArrayQueueGenerator extends JavaParsingVarHandl
 
         if (variableUsesVarHandle) {
           varHandleFields.add(new FieldInfo(variableName, fieldType));
-          n.getMembers().add(0, declareVarHandle(className, variableName));
         }
       }
     }
 
-    // Add static initializer for all VarHandles
+    // Prepend the VarHandle field declarations (in original order) and the static initializer
+    // that wires them up. add(0, ...) per field would interleave declarations and the init block,
+    // producing a visually-broken output; we insert as a contiguous prefix instead.
     if (!varHandleFields.isEmpty()) {
-      n.getMembers().add(1, createVarHandleStaticInitializerWithTypes(n, className, varHandleFields));
+      for (int i = 0; i < varHandleFields.size(); i++) {
+        n.getMembers().add(i, declareVarHandle(className, varHandleFields.get(i).name));
+      }
+      n.getMembers().add(varHandleFields.size(), createVarHandleStaticInitializerWithTypes(n, className, varHandleFields));
     }
   }
 
