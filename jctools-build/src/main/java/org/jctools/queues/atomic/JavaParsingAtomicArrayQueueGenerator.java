@@ -14,6 +14,10 @@ import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.PrimitiveType;
 import com.github.javaparser.ast.type.Type;
 
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
+
 import static org.jctools.queues.util.GeneratorUtils.prependGeneratedNoteJavadoc;
 import static org.jctools.queues.util.GeneratorUtils.replaceType;
 import static org.jctools.queues.util.GeneratorUtils.runJCToolsGenerator;
@@ -26,6 +30,15 @@ import static org.jctools.queues.util.GeneratorUtils.runJCToolsGenerator;
  * <code>consumerLimit</code> field to track the positions of each.
  */
 public class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomicQueueGenerator {
+
+    /**
+     * Names of {@code long}-typed locals/fields that the atomic variant narrows to {@code int}.
+     * Anything else stays {@code long} — index-style fields like {@code producerIndex} must keep
+     * their type. Adding a new index name without updating this list silently keeps it long.
+     */
+    private static final Set<String> LONG_NAMES_NARROWED_TO_INT = new HashSet<>(Arrays.asList(
+            "mask", "consumerMask", "producerMask",
+            "offset", "seqOffset", "lookAheadSeqOffset", "lookAheadElementOffset"));
 
     public static void main(String[] args) throws Exception {
         runJCToolsGenerator(JavaParsingAtomicArrayQueueGenerator.class, args);
@@ -147,14 +160,7 @@ public class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomicQueue
             node.setType(newType);
             usesPoolQueue = true;
         } else if (PrimitiveType.longType().equals(type)) {
-            switch(name) {
-            case "mask":
-            case "consumerMask":
-            case "producerMask":
-            case "offset":
-            case "seqOffset":
-            case "lookAheadSeqOffset":
-            case "lookAheadElementOffset":
+            if (LONG_NAMES_NARROWED_TO_INT.contains(name)) {
                 node.setType(PrimitiveType.intType());
             }
         }

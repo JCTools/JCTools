@@ -12,6 +12,10 @@ import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.PrimitiveType;
 import com.github.javaparser.ast.type.Type;
 
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
+
 import static org.jctools.queues.util.GeneratorUtils.formatMultilineJavadoc;
 import static org.jctools.queues.util.GeneratorUtils.prependGeneratedNoteJavadoc;
 import static org.jctools.queues.util.GeneratorUtils.replaceType;
@@ -25,6 +29,14 @@ import static org.jctools.queues.util.GeneratorUtils.runJCToolsGenerator;
  * <code>consumerNode</code> field to track the positions of each.
  */
 public class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtomicQueueGenerator {
+
+    /**
+     * Names of {@code long}-typed locals/fields that the atomic variant narrows to {@code int}.
+     * Anything else stays {@code long} — index-style fields like {@code producerLimit} must keep
+     * their type. Adding a new index name without updating this list silently keeps it long.
+     */
+    private static final Set<String> LONG_NAMES_NARROWED_TO_INT = new HashSet<>(Arrays.asList(
+            "offset", "offsetInNew", "offsetInOld", "lookAheadElementOffset"));
 
     public static void main(String[] args) throws Exception {
         runJCToolsGenerator(JavaParsingAtomicLinkedQueueGenerator.class, args);
@@ -127,11 +139,7 @@ public class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtomicQueu
         if (node instanceof MethodDeclaration && ("newBufferAndOffset".equals(name) || "nextArrayOffset".equals(name))) {
             node.setType(PrimitiveType.intType());
         } else if (PrimitiveType.longType().equals(type)) {
-            switch(name) {
-            case "offset":
-            case "offsetInNew":
-            case "offsetInOld":
-            case "lookAheadElementOffset":
+            if (LONG_NAMES_NARROWED_TO_INT.contains(name)) {
                 node.setType(PrimitiveType.intType());
             }
         } else if (isRefType(type, "LinkedQueueNode")) {

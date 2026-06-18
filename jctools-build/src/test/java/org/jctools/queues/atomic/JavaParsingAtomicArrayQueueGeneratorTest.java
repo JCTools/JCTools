@@ -178,4 +178,27 @@ public class JavaParsingAtomicArrayQueueGeneratorTest {
 
         assertTrue("non-Unsafe initializer preserved: " + out, out.contains("sentinel = 42"));
     }
+
+    /**
+     * processSpecialNodeTypes used a switch on {@code name} with no default arm. A long-typed local
+     * whose name is in the narrow-to-int allow-list (e.g. {@code mask}, {@code offset}) becomes int;
+     * any other long stays long. Pin both halves so a regression that flips the rule is caught.
+     */
+    @Test
+    public void longNamedMaskBecomesIntButOtherLongsStayLong() {
+        String src =
+                "package org.jctools.queues;\n" +
+                "class FooArrayQueue<E> extends ConcurrentCircularArrayQueue<E> {\n" +
+                "  long mask = 0L;\n" +
+                "  long unrelated = 0L;\n" +
+                "  FooArrayQueue(int c) { super(c); }\n" +
+                "}";
+
+        String out = generate(src);
+
+        // Allow-list match → narrowed to int.
+        assertTrue("mask narrowed to int: " + out, out.contains("int mask"));
+        // Non-listed long must stay long.
+        assertTrue("unrelated stays long: " + out, out.contains("long unrelated"));
+    }
 }
