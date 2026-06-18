@@ -325,14 +325,7 @@ public abstract class JavaParsingVarHandleQueueGenerator extends JavaParsingQueu
     if (n != null && fieldType instanceof ClassOrInterfaceType) {
       String typeName = ((ClassOrInterfaceType) fieldType).getNameAsString();
       if (typeName.length() == 1 && Character.isUpperCase(typeName.charAt(0))) {
-        for (com.github.javaparser.ast.type.TypeParameter tp : n.getTypeParameters()) {
-          if (tp.getNameAsString().equals(typeName)) {
-            NodeList<ClassOrInterfaceType> bounds = tp.getTypeBound();
-            if (!bounds.isEmpty()) {
-              return bounds.get(0).getNameAsString();
-            }
-          }
-        }
+        return resolveErasedBound(n, typeName);
       }
     }
     return "Object";

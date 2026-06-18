@@ -279,17 +279,19 @@ public abstract class JavaParsingQueueGeneratorBase extends VoidVisitorAdapter<V
     /**
      * Resolves the erased bound of a single-letter generic type parameter by looking at the class
      * declaration's type parameters. E.g. for {@code class Foo<R extends Bar<R,E>, E>}, resolving
-     * {@code "R"} returns {@code "Bar"}. Returns {@code "Object"} if no bound is found.
+     * {@code "R"} returns {@code "Bar"}; resolving {@code "E"} returns {@code "Object"} (no bound).
+     * Throws if the type parameter is not declared on {@code n} at all — that case indicates a
+     * generator bug, not a missing bound, and silently returning {@code "Object"} would emit a
+     * field updater whose declared type is wrong.
      */
     protected static String resolveErasedBound(ClassOrInterfaceDeclaration n, String typeParamName) {
         for (com.github.javaparser.ast.type.TypeParameter tp : n.getTypeParameters()) {
             if (tp.getNameAsString().equals(typeParamName)) {
                 NodeList<ClassOrInterfaceType> bounds = tp.getTypeBound();
-                if (!bounds.isEmpty()) {
-                    return bounds.get(0).getNameAsString();
-                }
+                return bounds.isEmpty() ? "Object" : bounds.get(0).getNameAsString();
             }
         }
-        return "Object";
+        throw new IllegalStateException("Type parameter '" + typeParamName + "' not declared on "
+                + n.getNameAsString() + " — cannot resolve its erased bound.");
     }
 }

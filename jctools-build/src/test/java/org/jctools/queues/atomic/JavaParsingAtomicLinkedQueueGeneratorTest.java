@@ -7,6 +7,7 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Regression tests for the linked-queue atomic generator. Each test fixes a specific bug uncovered
@@ -115,5 +116,34 @@ public class JavaParsingAtomicLinkedQueueGeneratorTest {
                 out.replaceAll("\\s+", " ").contains("AtomicReferenceFieldUpdater<FooLinkedAtomicQueue, Thread> P_LIMIT_UPDATER"));
         assertFalse("no leftover hard-coded LinkedQueueAtomicNode in updater type: " + out,
                 out.contains("AtomicReferenceFieldUpdater<FooLinkedAtomicQueue, LinkedQueueAtomicNode>"));
+    }
+
+    /**
+     * resolveErasedBound used to silently return "Object" both when a generic parameter had no bound
+     * and when the parameter was not declared on the class at all. The not-declared case indicates a
+     * generator bug and must throw — silently emitting an updater typed against Object would compile
+     * but blow up at static-init time with ClassCastException far from the cause.
+     */
+    @Test
+    public void undeclaredGenericFieldTypeThrows() {
+        // Field type R is a single-letter capital but R is not a type parameter on the class.
+        String src =
+                "package org.jctools.queues;\n" +
+                "// $gen:ordered-fields\n" +
+                "class FooLinkedQueue<E> extends BaseLinkedQueue<E> {\n" +
+                "  private R producerLimit;\n" +
+                "  public final R lvProducerLimit() { return null; }\n" +
+                "  final void soProducerLimit(final R newValue) {}\n" +
+                "}";
+
+        try {
+            generate(src);
+            fail("expected IllegalStateException");
+        } catch (IllegalStateException expected) {
+            assertTrue(expected.getMessage(), expected.getMessage().contains("'R'"));
+            // Class name in the message is the post-translation name (resolveErasedBound runs
+            // after the class has been renamed). Assert on the translated form.
+            assertTrue(expected.getMessage(), expected.getMessage().contains("FooLinkedAtomicQueue"));
+        }
     }
 }
