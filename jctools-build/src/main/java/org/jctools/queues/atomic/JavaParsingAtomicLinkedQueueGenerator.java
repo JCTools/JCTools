@@ -16,7 +16,6 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
-import static org.jctools.queues.util.GeneratorUtils.formatMultilineJavadoc;
 import static org.jctools.queues.util.GeneratorUtils.prependGeneratedNoteJavadoc;
 import static org.jctools.queues.util.GeneratorUtils.replaceType;
 import static org.jctools.queues.util.GeneratorUtils.runJCToolsGenerator;
@@ -224,7 +223,7 @@ public class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtomicQueu
 
     /**
      * Generates something like
-     * <code>return P_INDEX_UPDATER.getAndSet(this, newValue)</code>
+     * <code>return P_NODE_UPDATER.getAndSet(this, newValue)</code>
      */
     private BlockStmt fieldUpdaterGetAndSet(String fieldUpdaterFieldName, String newValueName) {
         BlockStmt body = new BlockStmt();

@@ -87,10 +87,9 @@ public abstract class JavaParsingVarHandleQueueGenerator extends JavaParsingQueu
     }
 
     if (methodName.startsWith("so") || methodName.startsWith("sp")) {
-      /*
-       * In the case of 'sp' use setRelease as the weakest
-       * ordering allowed by VarHandle
-       */
+      // 'so' (store-ordered) needs release semantics for correctness; we use setRelease.
+      // 'sp' (store-plain) could legally use a weaker store, but we collapse it to setRelease
+      // since the queues' fields don't gain meaningful headroom from setOpaque/setPlain.
       usesVarHandle = true;
       String varHandleFieldName = varHandleFieldName(variableName);
 
