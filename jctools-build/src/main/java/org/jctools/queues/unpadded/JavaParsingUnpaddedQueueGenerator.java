@@ -50,20 +50,7 @@ public class JavaParsingUnpaddedQueueGenerator extends JavaParsingQueueGenerator
     public void organiseImports(CompilationUnit cu) {
         List<ImportDeclaration> importDecls = new ArrayList<>();
         for (ImportDeclaration importDeclaration : cu.getImports()) {
-            String name = importDeclaration.getNameAsString();
-            // Rewrite static imports from Chunk classes to point at the translated variant,
-            // e.g. "import static o.j.q.MpmcUnboundedXaddChunk.NOT_USED" ->
-            //      "import static o.j.q.unpadded.MpmcUnboundedXaddUnpaddedChunk.NOT_USED"
-            if (importDeclaration.isStatic() && name.startsWith("org.jctools.queues.") && name.contains("Chunk.")) {
-                String simpleName = name.substring(name.lastIndexOf('.') + 1);
-                String className = name.substring("org.jctools.queues.".length(), name.lastIndexOf('.'));
-                if (className.endsWith("Chunk")) {
-                    String translatedClass = translateQueueName(className);
-                    importDecls.add(new ImportDeclaration("org.jctools.queues.unpadded." + translatedClass + "." + simpleName, true, false));
-                    continue;
-                }
-            }
-            importDecls.add(importDeclaration);
+            importDecls.add(translateChunkStaticImportOrSelf(importDeclaration));
         }
         cu.getImports().clear();
         for (ImportDeclaration importDecl : importDecls) {

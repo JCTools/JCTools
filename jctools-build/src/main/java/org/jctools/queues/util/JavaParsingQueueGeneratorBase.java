@@ -311,4 +311,23 @@ public abstract class JavaParsingQueueGeneratorBase extends VoidVisitorAdapter<V
         }
         return false;
     }
+
+    /**
+     * Returns the rewritten static import for a Chunk class, or {@code imp} unchanged. E.g.
+     * {@code import static o.j.q.MpmcUnboundedXaddChunk.NOT_USED} becomes
+     * {@code import static <outputPackage>.MpmcUnboundedXadd<prefix>Chunk.NOT_USED}.
+     */
+    protected final ImportDeclaration translateChunkStaticImportOrSelf(ImportDeclaration imp) {
+        String name = imp.getNameAsString();
+        if (!imp.isStatic() || !name.startsWith("org.jctools.queues.") || !name.contains("Chunk.")) {
+            return imp;
+        }
+        int lastDot = name.lastIndexOf('.');
+        String simpleName = name.substring(lastDot + 1);
+        String className = name.substring("org.jctools.queues.".length(), lastDot);
+        if (!className.endsWith("Chunk")) {
+            return imp;
+        }
+        return new ImportDeclaration(outputPackage + "." + translateQueueName(className) + "." + simpleName, true, false);
+    }
 }

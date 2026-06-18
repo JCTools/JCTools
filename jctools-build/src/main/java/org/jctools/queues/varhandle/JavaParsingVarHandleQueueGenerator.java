@@ -157,20 +157,7 @@ public abstract class JavaParsingVarHandleQueueGenerator extends JavaParsingQueu
         continue;
       }
 
-      // Rewrite static imports from Chunk classes to point at the translated variant,
-      // e.g. "import static o.j.q.MpmcUnboundedXaddChunk.NOT_USED" ->
-      //      "import static o.j.q.varhandle.MpmcUnboundedXaddVarHandleChunk.NOT_USED"
-      if (importDeclaration.isStatic() && name.startsWith("org.jctools.queues.") && name.contains("Chunk.")) {
-        String simpleName = name.substring(name.lastIndexOf('.') + 1);
-        String className = name.substring("org.jctools.queues.".length(), name.lastIndexOf('.'));
-        if (className.endsWith("Chunk")) {
-          String translatedClass = translateQueueName(className);
-          importDecls.add(new ImportDeclaration(outputPackage + "." + translatedClass + "." + simpleName, true, false));
-          continue;
-        }
-      }
-
-      importDecls.add(importDeclaration);
+      importDecls.add(translateChunkStaticImportOrSelf(importDeclaration));
     }
     cu.getImports().clear();
     for (ImportDeclaration importDecl : importDecls) {
