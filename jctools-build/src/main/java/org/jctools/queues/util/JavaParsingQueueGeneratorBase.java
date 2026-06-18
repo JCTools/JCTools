@@ -157,6 +157,9 @@ public abstract class JavaParsingQueueGeneratorBase extends VoidVisitorAdapter<V
      * {@code Unsafe} or {@code *_OFFSET} (i.e. ones that compute Unsafe field offsets) and static
      * fields ending with {@code _OFFSET}. Unrelated static initializer blocks and {@code NOT_USED}-
      * style constants are preserved.
+     * <p>
+     * On a multi-declarator row like {@code static long P_OFFSET = ..., MASK = ...;}, only the
+     * {@code _OFFSET} declarators are dropped — surviving declarators stay on the field.
      */
     protected static void removeStaticFieldsAndInitialisers(ClassOrInterfaceDeclaration node) {
         for (InitializerDeclaration child : node.getChildNodesByType(InitializerDeclaration.class)) {
@@ -165,12 +168,12 @@ public abstract class JavaParsingQueueGeneratorBase extends VoidVisitorAdapter<V
             }
         }
         for (FieldDeclaration field : node.getFields()) {
-            if (field.getModifiers().contains(Modifier.staticModifier())) {
-                boolean isOffsetField = field.getVariables().stream()
-                        .anyMatch(v -> v.getNameAsString().endsWith("_OFFSET"));
-                if (isOffsetField) {
-                    field.remove();
-                }
+            if (!field.getModifiers().contains(Modifier.staticModifier())) {
+                continue;
+            }
+            field.getVariables().removeIf(v -> v.getNameAsString().endsWith("_OFFSET"));
+            if (field.getVariables().isEmpty()) {
+                field.remove();
             }
         }
     }

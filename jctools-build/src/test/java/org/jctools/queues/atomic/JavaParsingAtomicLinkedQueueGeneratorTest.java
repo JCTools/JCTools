@@ -146,4 +146,28 @@ public class JavaParsingAtomicLinkedQueueGeneratorTest {
             assertTrue(expected.getMessage(), expected.getMessage().contains("FooLinkedAtomicQueue"));
         }
     }
+
+    /**
+     * removeStaticFieldsAndInitialisers used to drop the entire FieldDeclaration when any one
+     * declarator ended with _OFFSET. A multi-declarator row that combined an _OFFSET constant with
+     * an unrelated sibling would have lost the sibling silently. Today no jctools source declares
+     * one this way; the regression is real.
+     */
+    @Test
+    public void multiDeclaratorOffsetFieldKeepsNonOffsetSibling() {
+        String src =
+                "package org.jctools.queues;\n" +
+                "// $gen:ordered-fields\n" +
+                "class FooLinkedQueue<E> extends BaseLinkedQueue<E> {\n" +
+                "  private static final long P_INDEX_OFFSET = 0L, MASK = 7L;\n" +
+                "  private long producerIndex;\n" +
+                "  public final long lvProducerIndex() { return 0; }\n" +
+                "  final void soProducerIndex(final long newValue) {}\n" +
+                "}";
+
+        String out = generate(src);
+
+        assertFalse("offset declarator removed: " + out, out.contains("P_INDEX_OFFSET"));
+        assertTrue("non-offset sibling preserved: " + out, out.contains("MASK = 7L"));
+    }
 }
