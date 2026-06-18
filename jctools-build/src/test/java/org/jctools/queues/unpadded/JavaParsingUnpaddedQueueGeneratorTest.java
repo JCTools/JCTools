@@ -158,4 +158,42 @@ public class JavaParsingUnpaddedQueueGeneratorTest {
 
         assertTrue(out.contains("Integer.class"));
     }
+
+    @Test
+    public void renamesAnyPoolQueueTypeNotJustSpsc() {
+        // The pool-queue rewrite used to be hard-coded to SpscArrayQueue. A future xadd queue using
+        // any other ArrayQueue for pooling would have silently kept a padded reference. Generalised
+        // so any type ending with Queue or Chunk is renamed.
+        String src =
+                "package org.jctools.queues;\n" +
+                "class FooArrayQueue<E> extends ConcurrentCircularArrayQueue<E> {\n" +
+                "  final MpscArrayQueue<E> pool = new MpscArrayQueue<E>(8);\n" +
+                "  void take(MpscArrayQueue<E> p) {}\n" +
+                "  FooArrayQueue(int c) { super(c); }\n" +
+                "}";
+
+        String out = generate(src);
+
+        assertTrue("field type renamed: " + out, out.contains("MpscUnpaddedArrayQueue<E> pool"));
+        assertTrue("new-expression renamed: " + out, out.contains("new MpscUnpaddedArrayQueue<E>(8)"));
+        assertTrue("parameter type renamed: " + out, out.contains("take(MpscUnpaddedArrayQueue<E> p)"));
+    }
+
+    @Test
+    public void leavesNonQueueHelperTypesAlone() {
+        // LinkedQueueNode is referenced by linked queues but is not itself an outer Queue/Chunk
+        // class. The unpadded variant must keep it unchanged.
+        String src =
+                "package org.jctools.queues;\n" +
+                "class FooLinkedQueue<E> extends BaseLinkedQueue<E> {\n" +
+                "  LinkedQueueNode<E> head;\n" +
+                "  LinkedQueueNode<E> get() { return head; }\n" +
+                "}";
+
+        String out = generate(src);
+
+        assertTrue("LinkedQueueNode field type kept: " + out, out.contains("LinkedQueueNode<E> head"));
+        assertTrue("LinkedQueueNode return type kept: " + out, out.contains("LinkedQueueNode<E> get()"));
+        assertFalse("no spurious unpadded rename: " + out, out.contains("LinkedUnpaddedQueueNode"));
+    }
 }

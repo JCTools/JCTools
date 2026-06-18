@@ -129,40 +129,56 @@ public class JavaParsingUnpaddedQueueGenerator extends JavaParsingQueueGenerator
     }
 
     /**
-     * Replaces {@code new SpscArrayQueue<R>(...)} with {@code new SpscUnpaddedArrayQueue<R>(...)}.
-     * Used by xadd queues which pool chunks internally via SpscArrayQueue.
+     * Rewrites {@code new SomeArrayQueue<R>(...)} so the new-expression points at the unpadded
+     * variant. Originally hard-coded to {@code SpscArrayQueue} only; generalised so any other
+     * pool-queue type used by xadd queues (or future ones) is renamed too instead of silently
+     * leaking a padded reference into the unpadded variant.
      */
     @Override
     public void visit(ObjectCreationExpr n, Void arg) {
         super.visit(n, arg);
-        if (isRefType(n.getType(), "SpscArrayQueue")) {
-            ClassOrInterfaceType newType = new ClassOrInterfaceType(null, "SpscUnpaddedArrayQueue");
-            n.getType().getTypeArguments().ifPresent(newType::setTypeArguments);
-            n.setType(newType);
+        ClassOrInterfaceType type = n.getType();
+        String name = type.getNameAsString();
+        if (name.contains(queueClassNamePrefix) || !isOuterQueueOrChunkType(name)) {
+            return;
         }
+        ClassOrInterfaceType newType = new ClassOrInterfaceType(null, translateQueueName(name));
+        type.getTypeArguments().ifPresent(newType::setTypeArguments);
+        n.setType(newType);
     }
 
     @Override
     public void visit(VariableDeclarator n, Void arg) {
         super.visit(n, arg);
-        rewriteSpscArrayQueueType(n);
+        translateQueueOrChunkType(n);
     }
 
     @Override
     public void visit(Parameter n, Void arg) {
         super.visit(n, arg);
-        rewriteSpscArrayQueueType(n);
+        translateQueueOrChunkType(n);
     }
 
-    private void rewriteSpscArrayQueueType(NodeWithType<?, Type> holder) {
+    private void translateQueueOrChunkType(NodeWithType<?, Type> holder) {
         Type type = holder.getType();
-        if (!isRefType(type, "SpscArrayQueue")) {
+        if (!(type instanceof ClassOrInterfaceType)) {
             return;
         }
-        ClassOrInterfaceType newType = new ClassOrInterfaceType(null, "SpscUnpaddedArrayQueue");
-        if (type instanceof ClassOrInterfaceType) {
-            ((ClassOrInterfaceType) type).getTypeArguments().ifPresent(newType::setTypeArguments);
+        String name = ((ClassOrInterfaceType) type).getNameAsString();
+        if (name.contains(queueClassNamePrefix) || !isOuterQueueOrChunkType(name)) {
+            return;
         }
+        ClassOrInterfaceType newType = new ClassOrInterfaceType(null, translateQueueName(name));
+        ((ClassOrInterfaceType) type).getTypeArguments().ifPresent(newType::setTypeArguments);
         holder.setType(newType);
+    }
+
+    /**
+     * Stricter than {@link #isQueueOrChunkName(String)}: only top-level queue/chunk classes (not
+     * helpers like {@code LinkedQueueNode}). Used for type references where translating a
+     * helper-class name would be wrong.
+     */
+    private static boolean isOuterQueueOrChunkType(String name) {
+        return name.endsWith("Queue") || name.endsWith("Chunk");
     }
 }
