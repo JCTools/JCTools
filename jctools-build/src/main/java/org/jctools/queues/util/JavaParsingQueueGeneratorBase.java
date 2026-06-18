@@ -27,7 +27,9 @@ import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 
 import java.util.Optional;
 
+import static org.jctools.queues.util.GeneratorUtils.cleanupPaddingComments;
 import static org.jctools.queues.util.GeneratorUtils.formatMultilineJavadoc;
+import static org.jctools.queues.util.GeneratorUtils.removePaddingFields;
 import static org.jctools.queues.util.GeneratorUtils.renameType;
 
 /**
@@ -124,6 +126,56 @@ public abstract class JavaParsingQueueGeneratorBase extends VoidVisitorAdapter<V
         if (name.endsWith("Chunk") && Character.isUpperCase(name.charAt(0)) && !name.contains(queueClassNamePrefix)) {
             n.setName(translateQueueName(name));
         }
+    }
+
+    /**
+     * Template-method dispatch for class declaration visiting. The base recursively descends
+     * (calling {@code super.visit}), then invokes the {@link #visitClass} hook for subclass-specific
+     * rewrites, then conditionally strips padding fields based on {@link #stripsPadding}.
+     * Subclasses override {@link #visitClass}; the {@code visit} override itself is final so the
+     * post-visit padding step always runs in the right order.
+     */
+    @Override
+    public final void visit(ClassOrInterfaceDeclaration node, Void arg) {
+        super.visit(node, arg);
+        visitClass(node, arg);
+        if (stripsPadding()) {
+            removePaddingFields(node);
+        }
+    }
+
+    /**
+     * Hook called after the recursive visit of a class declaration. Default no-op; concrete
+     * generators override to rewrite class names, parents, methods, and fields.
+     */
+    protected void visitClass(ClassOrInterfaceDeclaration node, Void arg) {
+    }
+
+    /**
+     * Whether this generator strips byte-padding fields and their attached comments. Defaults to
+     * {@code false}; the {@code *Unpadded*} variants override to {@code true}. Centralising the
+     * decision means each concrete generator declares intent in one line rather than overriding
+     * both {@code visit(ClassOrInterfaceDeclaration)} and {@code cleanupComments}.
+     */
+    protected boolean stripsPadding() {
+        return false;
+    }
+
+    /**
+     * Default cleanup pass: drops padding-related comments when {@link #stripsPadding} is true.
+     * Subclasses extend by overriding {@link #cleanupCommentsExtra} rather than this method, so the
+     * padding cleanup always runs.
+     */
+    @Override
+    public final void cleanupComments(com.github.javaparser.ast.CompilationUnit cu) {
+        if (stripsPadding()) {
+            cleanupPaddingComments(cu);
+        }
+        cleanupCommentsExtra(cu);
+    }
+
+    /** Hook for subclasses to add extra cleanup passes; default no-op. */
+    protected void cleanupCommentsExtra(com.github.javaparser.ast.CompilationUnit cu) {
     }
 
     /**

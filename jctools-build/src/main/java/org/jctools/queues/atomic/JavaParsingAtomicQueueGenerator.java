@@ -128,11 +128,6 @@ public abstract class JavaParsingAtomicQueueGenerator extends JavaParsingQueueGe
     }
 
     @Override
-    public void cleanupComments(CompilationUnit cu) {
-        // nop
-    }
-
-    @Override
     public void organiseImports(CompilationUnit cu) {
         List<ImportDeclaration> importDecls = new ArrayList<>();
 

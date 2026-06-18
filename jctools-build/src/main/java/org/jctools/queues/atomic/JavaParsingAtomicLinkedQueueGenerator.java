@@ -62,9 +62,7 @@ public class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtomicQueu
     }
 
     @Override
-    public void visit(ClassOrInterfaceDeclaration node, Void arg) {
-        super.visit(node, arg);
-
+    protected void visitClass(ClassOrInterfaceDeclaration node, Void arg) {
         replaceParentClasses(node);
 
         String nameAsString = node.getNameAsString();

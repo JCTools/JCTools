@@ -18,9 +18,7 @@ import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.Type;
 import org.jctools.queues.util.JavaParsingQueueGeneratorBase;
 
-import static org.jctools.queues.util.GeneratorUtils.cleanupPaddingComments;
 import static org.jctools.queues.util.GeneratorUtils.prependGeneratedNoteJavadoc;
-import static org.jctools.queues.util.GeneratorUtils.removePaddingFields;
 import static org.jctools.queues.util.GeneratorUtils.runJCToolsGenerator;
 
 /**
@@ -42,8 +40,8 @@ public class JavaParsingUnpaddedQueueGenerator extends JavaParsingQueueGenerator
     }
 
     @Override
-    public void cleanupComments(CompilationUnit cu) {
-        cleanupPaddingComments(cu);
+    protected boolean stripsPadding() {
+        return true;
     }
 
     @Override
@@ -60,8 +58,7 @@ public class JavaParsingUnpaddedQueueGenerator extends JavaParsingQueueGenerator
     }
 
     @Override
-    public void visit(ClassOrInterfaceDeclaration node, Void arg) {
-        super.visit(node, arg);
+    protected void visitClass(ClassOrInterfaceDeclaration node, Void arg) {
         String nameAsString = node.getNameAsString();
         if (!nameAsString.contains("Queue") && !nameAsString.endsWith("Chunk"))
             return;
@@ -69,8 +66,6 @@ public class JavaParsingUnpaddedQueueGenerator extends JavaParsingQueueGenerator
         node.setName(translateQueueName(nameAsString));
 
         prependGeneratedNoteJavadoc(node, this.getClass(), sourceFileName);
-
-        removePaddingFields(node);
     }
 
     /**
