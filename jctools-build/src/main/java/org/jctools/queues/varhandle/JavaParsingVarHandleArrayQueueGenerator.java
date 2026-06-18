@@ -66,7 +66,6 @@ public class JavaParsingVarHandleArrayQueueGenerator extends JavaParsingVarHandl
         ((ClassOrInterfaceType) type).getTypeArguments().ifPresent(newType::setTypeArguments);
       }
       node.setType(newType);
-      usesPoolQueue = true;
     }
   }
 
@@ -80,7 +79,6 @@ public class JavaParsingVarHandleArrayQueueGenerator extends JavaParsingVarHandl
       ClassOrInterfaceType newType = classType(unpaddedPoolQueueName);
       n.getType().getTypeArguments().ifPresent(newType::setTypeArguments);
       n.setType(newType);
-      usesPoolQueue = true;
     }
   }
 
@@ -112,8 +110,6 @@ public class JavaParsingVarHandleArrayQueueGenerator extends JavaParsingVarHandl
       node.setComment(null);
       removeStaticFieldsAndInitialisers(node);
       patchVarHandleAccessorMethods(node);
-      // Mark that this file has VarHandle fields so we can add proper imports
-      hasVarHandleFields = true;
     }
 
     for (MethodDeclaration method : node.getMethods()) {
@@ -221,7 +217,7 @@ public class JavaParsingVarHandleArrayQueueGenerator extends JavaParsingVarHandl
 
   @Override
   protected void addExtraImports(CompilationUnit cu) {
-    if (usesPoolQueue && unpaddedPoolQueueImport != null) {
+    if (referencesType(cu, unpaddedPoolQueueName)) {
       cu.addImport(new ImportDeclaration(unpaddedPoolQueueImport, false, false));
     }
   }

@@ -137,7 +137,6 @@ public class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomicQueue
             ClassOrInterfaceType newType = classType(unpaddedPoolQueueName);
             n.getType().getTypeArguments().ifPresent(newType::setTypeArguments);
             n.setType(newType);
-            usesPoolQueue = true;
         }
     }
 
@@ -158,7 +157,6 @@ public class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomicQueue
                 ((ClassOrInterfaceType) type).getTypeArguments().ifPresent(newType::setTypeArguments);
             }
             node.setType(newType);
-            usesPoolQueue = true;
         } else if (PrimitiveType.longType().equals(type)) {
             if (LONG_NAMES_NARROWED_TO_INT.contains(name)) {
                 node.setType(PrimitiveType.intType());

@@ -41,8 +41,6 @@ public abstract class JavaParsingAtomicQueueGenerator extends JavaParsingQueueGe
     protected final String unpaddedPoolQueueName = "SpscAtomicUnpaddedArrayQueue";
     protected final String unpaddedPoolQueueImport = "org.jctools.queues.atomic.unpadded.SpscAtomicUnpaddedArrayQueue";
 
-    protected boolean usesPoolQueue = false;
-
     protected JavaParsingAtomicQueueGenerator(String sourceFileName, String outputPackage, String queueClassNamePrefix) {
         super(sourceFileName, outputPackage, queueClassNamePrefix);
     }
@@ -174,7 +172,7 @@ public abstract class JavaParsingAtomicQueueGenerator extends JavaParsingQueueGe
         cu.addImport(new ImportDeclaration("org.jctools.queues", false, true));
         cu.addImport(staticImportDeclaration("org.jctools.queues.atomic.AtomicQueueUtil"));
 
-        if (usesPoolQueue && unpaddedPoolQueueImport != null) {
+        if (referencesType(cu, unpaddedPoolQueueName)) {
             cu.addImport(new ImportDeclaration(unpaddedPoolQueueImport, false, false));
         }
     }

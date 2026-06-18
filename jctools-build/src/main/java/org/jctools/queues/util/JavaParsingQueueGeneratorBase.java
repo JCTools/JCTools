@@ -297,4 +297,18 @@ public abstract class JavaParsingQueueGeneratorBase extends VoidVisitorAdapter<V
         throw new IllegalStateException("Type parameter '" + typeParamName + "' not declared on "
                 + n.getNameAsString() + " — cannot resolve its erased bound.");
     }
+
+    /**
+     * Returns whether {@code cu} contains any {@link ClassOrInterfaceType} whose simple name equals
+     * {@code typeName}. Used by {@code organiseImports} to decide whether a generated import is
+     * actually needed — replaces post-visit boolean side-channels that the visitor used to set.
+     */
+    protected static boolean referencesType(com.github.javaparser.ast.CompilationUnit cu, String typeName) {
+        for (ClassOrInterfaceType t : cu.findAll(ClassOrInterfaceType.class)) {
+            if (typeName.equals(t.getNameAsString())) {
+                return true;
+            }
+        }
+        return false;
+    }
 }

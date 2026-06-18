@@ -45,10 +45,6 @@ import org.jctools.queues.util.JavaParsingQueueGeneratorBase;
  */
 public abstract class JavaParsingVarHandleQueueGenerator extends JavaParsingQueueGeneratorBase {
 
-  // Track whether the current file has VarHandle field declarations
-  protected boolean hasVarHandleFields = false;
-  protected boolean usesPoolQueue = false;
-
   protected JavaParsingVarHandleQueueGenerator(String sourceFileName, String outputPackage, String queueClassNamePrefix) {
     super(sourceFileName, outputPackage, queueClassNamePrefix);
   }
@@ -181,9 +177,8 @@ public abstract class JavaParsingVarHandleQueueGenerator extends JavaParsingQueu
       cu.addImport(importDecl);
     }
 
-    // Only add java.lang.invoke imports if the class has VarHandle fields
-    // (set during the visit phase when we find $gen:ordered-fields comment)
-    if (hasVarHandleFields) {
+    // Add java.lang.invoke imports if the visit phase introduced VarHandle field declarations.
+    if (referencesType(cu, "VarHandle")) {
       cu.addImport(new ImportDeclaration("java.lang.invoke.MethodHandles", false, false));
       cu.addImport(new ImportDeclaration("java.lang.invoke.VarHandle", false, false));
     }
