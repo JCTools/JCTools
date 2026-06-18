@@ -88,23 +88,35 @@ public class JavaParsingUnpaddedQueueGenerator extends JavaParsingQueueGenerator
 
     /**
      * Rewrites {@code fieldOffset(SomeClass.class, ...)} so the class literal targets the unpadded
-     * variant. Other {@code MethodCallExpr} sites are left alone.
+     * variant. Throws if a class literal of a translatable queue/chunk type appears as an argument
+     * to any other method — silently leaving such a literal untranslated would produce an unpadded
+     * variant that reflects into the padded class at runtime (NoSuchFieldException on a private
+     * field) far from the cause.
      */
     @Override
     public void visit(MethodCallExpr n, Void arg) {
         super.visit(n, arg);
-        if (!n.getName().getIdentifier().equals("fieldOffset")) {
-            return;
-        }
+        boolean isFieldOffset = "fieldOffset".equals(n.getName().getIdentifier());
         for (Expression argument : n.getArguments()) {
-            if (argument.isClassExpr()) {
-                ClassExpr classExpr = argument.asClassExpr();
-                String type = classExpr.getTypeAsString();
-                if (!type.contains(queueClassNamePrefix)) {
-                    classExpr.setType(translateQueueName(type));
-                }
+            if (!argument.isClassExpr()) {
+                continue;
             }
+            ClassExpr classExpr = argument.asClassExpr();
+            String type = classExpr.getTypeAsString();
+            if (type.contains(queueClassNamePrefix) || !isQueueOrChunkName(type)) {
+                continue;
+            }
+            if (!isFieldOffset) {
+                throw new IllegalStateException("Unpadded generator does not know how to rewrite '"
+                        + type + ".class' passed to '" + n.getName().getIdentifier()
+                        + "(...)'. Add explicit handling in JavaParsingUnpaddedQueueGenerator.");
+            }
+            classExpr.setType(translateQueueName(type));
         }
+    }
+
+    private static boolean isQueueOrChunkName(String name) {
+        return name.contains("LinkedQueue") || name.contains("ArrayQueue") || name.endsWith("Chunk");
     }
 
     @Override

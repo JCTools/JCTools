@@ -8,6 +8,7 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * End-to-end behavioural tests for {@link JavaParsingUnpaddedQueueGenerator}. The unpadded variant
@@ -97,5 +98,64 @@ public class JavaParsingUnpaddedQueueGeneratorTest {
         assertEquals("SpscUnpaddedArrayQueue", g.translateQueueName("SpscArrayQueue"));
         assertEquals("MpUnboundedXaddUnpaddedChunk", g.translateQueueName("MpUnboundedXaddChunk"));
         assertEquals("MpscLinkedUnpaddedQueue", g.translateQueueName("MpscLinkedQueue"));
+    }
+
+    @Test
+    public void rewritesClassLiteralInsideFieldOffset() {
+        // The fieldOffset class literal is rewritten so the generated unpadded class points at
+        // its own translated parent class rather than reflecting back into the padded source class.
+        String src =
+                "package org.jctools.queues;\n" +
+                "class MpUnboundedXaddArrayQueue<E> extends ConcurrentCircularArrayQueue<E> {\n" +
+                "  static final long P_OFFSET = fieldOffset(MpUnboundedXaddArrayQueueProducerFields.class, \"producerIndex\");\n" +
+                "  MpUnboundedXaddArrayQueue(int c) { super(c); }\n" +
+                "}";
+
+        String out = generate(src);
+
+        assertTrue("class literal rewritten: " + out,
+                out.contains("MpUnboundedXaddUnpaddedArrayQueueProducerFields.class"));
+        assertFalse("padded class literal removed: " + out,
+                out.contains("MpUnboundedXaddArrayQueueProducerFields.class"));
+    }
+
+    @Test
+    public void failsLoudOnUnknownClassLiteralHelper() {
+        // A class literal of a translatable type passed to anything other than fieldOffset would
+        // silently leak a padded-class reference into the generated unpadded variant. The generator
+        // must throw so the build fails instead.
+        String src =
+                "package org.jctools.queues;\n" +
+                "class SpscArrayQueue<E> extends ConcurrentCircularArrayQueue<E> {\n" +
+                "  static { Class<?> k = lookup(SpscArrayQueueProducerIndexFields.class); }\n" +
+                "  SpscArrayQueue(int c) { super(c); }\n" +
+                "  static Class<?> lookup(Class<?> c) { return c; }\n" +
+                "}";
+
+        try {
+            generate(src);
+            fail("expected IllegalStateException");
+        } catch (IllegalStateException expected) {
+            assertTrue(expected.getMessage(),
+                    expected.getMessage().contains("SpscArrayQueueProducerIndexFields.class"));
+            assertTrue(expected.getMessage(), expected.getMessage().contains("lookup"));
+        }
+    }
+
+    @Test
+    public void ignoresClassLiteralsWithoutTranslatableNames() {
+        // An Integer.class arg to a non-fieldOffset helper isn't a queue/chunk type, so the
+        // generator must let it through without throwing.
+        String src =
+                "package org.jctools.queues;\n" +
+                "import java.util.Objects;\n" +
+                "class SpscArrayQueue<E> extends ConcurrentCircularArrayQueue<E> {\n" +
+                "  static { Objects.requireNonNull(Integer.class); }\n" +
+                "  SpscArrayQueue(int c) { super(c); }\n" +
+                "}";
+
+        String out = generate(src);
+
+        assertTrue(out.contains("Integer.class"));
     }
 }
