@@ -194,6 +194,38 @@ public class JavaParsingAtomicArrayQueueGeneratorTest {
         assertTrue("sv body assigns the field directly: " + out,
                 out.replaceAll("\\s+", " ").contains("final void svProducerLimit(final long newValue) { producerLimit = newValue; }"));
     }
+
+    /**
+     * Field-updater declarations should appear in source field declaration order — matching the
+     * varhandle generator's behaviour. Pre-refactor the atomic patchers used
+     * {@code n.getMembers().add(0, ...)} per field, which reversed the order.
+     */
+    @Test
+    public void updaterDeclarationsFollowSourceFieldOrder() {
+        String src =
+                "package org.jctools.queues;\n" +
+                "// $gen:ordered-fields\n" +
+                "class FooArrayQueue<E> extends ConcurrentCircularArrayQueue<E> {\n" +
+                "  private long producerIndex;\n" +
+                "  private long producerLimit;\n" +
+                "  private long consumerIndex;\n" +
+                "  FooArrayQueue(int c) { super(c); }\n" +
+                "  public final void soProducerIndex(long v) {}\n" +
+                "  public final void soProducerLimit(long v) {}\n" +
+                "  public final void soConsumerIndex(long v) {}\n" +
+                "}";
+
+        String out = generate(src);
+
+        int pIdx = out.indexOf("P_INDEX_UPDATER");
+        int pLim = out.indexOf("P_LIMIT_UPDATER");
+        int cIdx = out.indexOf("C_INDEX_UPDATER");
+        assertTrue("P_INDEX_UPDATER present: " + out, pIdx > 0);
+        assertTrue("P_LIMIT_UPDATER present: " + out, pLim > 0);
+        assertTrue("C_INDEX_UPDATER present: " + out, cIdx > 0);
+        assertTrue("P_INDEX_UPDATER before P_LIMIT_UPDATER: " + out, pIdx < pLim);
+        assertTrue("P_LIMIT_UPDATER before C_INDEX_UPDATER: " + out, pLim < cIdx);
+    }
     /**
      * Bug 7: removeStaticFieldsAndInitialisers used to drop ALL static initializer blocks. Only
      * blocks that reference Unsafe / *_OFFSET infrastructure should be removed.

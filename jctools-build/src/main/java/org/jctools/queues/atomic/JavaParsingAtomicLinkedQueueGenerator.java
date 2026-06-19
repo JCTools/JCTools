@@ -12,8 +12,10 @@ import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.PrimitiveType;
 import com.github.javaparser.ast.type.Type;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import static org.jctools.queues.util.GeneratorUtils.prependGeneratedNoteJavadoc;
@@ -159,6 +161,7 @@ public class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtomicQueu
      */
     private void patchAtomicFieldUpdaterAccessorMethods(ClassOrInterfaceDeclaration n) {
         String className = n.getNameAsString();
+        List<FieldDeclaration> updaterDeclarations = new ArrayList<>();
 
         for (FieldDeclaration field : n.getFields()) {
             if (field.getModifiers().contains(Modifier.staticModifier())) {
@@ -198,7 +201,7 @@ public class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtomicQueu
                 }
                 if (variablePatch == FieldPatchResult.NEEDS_UPDATER) {
                     if (PrimitiveType.longType().equals(variable.getType())) {
-                        n.getMembers().add(0, declareLongFieldUpdater(className, variableName));
+                        updaterDeclarations.add(declareLongFieldUpdater(className, variableName));
                     } else {
                         // Use the variable's declared type for the AtomicReferenceFieldUpdater
                         // type-parameter, not a hard-coded LinkedQueueAtomicNode. Resolve a single-
@@ -211,7 +214,7 @@ public class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtomicQueu
                         } else if (variable.getType().isClassOrInterfaceType()) {
                             typeName = variable.getType().asClassOrInterfaceType().getNameAsString();
                         }
-                        n.getMembers().add(0, declareRefFieldUpdater(className, typeName, variableName));
+                        updaterDeclarations.add(declareRefFieldUpdater(className, typeName, variableName));
                     }
                 }
             }
@@ -219,6 +222,12 @@ public class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtomicQueu
             if (fieldNeedsVolatile) {
                 field.addModifier(Keyword.VOLATILE);
             }
+        }
+
+        // Prepend updater declarations in source field declaration order — mirrors the VarHandle
+        // generator's pattern so the two hierarchies emit equivalent member ordering.
+        for (int i = 0; i < updaterDeclarations.size(); i++) {
+            n.getMembers().add(i, updaterDeclarations.get(i));
         }
     }
 

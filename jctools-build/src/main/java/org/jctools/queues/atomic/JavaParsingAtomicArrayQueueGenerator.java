@@ -14,8 +14,10 @@ import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.PrimitiveType;
 import com.github.javaparser.ast.type.Type;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import static org.jctools.queues.util.GeneratorUtils.prependGeneratedNoteJavadoc;
@@ -175,6 +177,7 @@ public class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomicQueue
      */
     private void patchAtomicFieldUpdaterAccessorMethods(ClassOrInterfaceDeclaration n) {
         String className = n.getNameAsString();
+        List<FieldDeclaration> updaterDeclarations = new ArrayList<>();
 
         for (FieldDeclaration field : n.getFields()) {
             if (field.getModifiers().contains(Modifier.staticModifier())) {
@@ -209,9 +212,9 @@ public class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomicQueue
                             // AtomicReferenceFieldUpdater requires the erased field type, not Object
                             typeName = resolveErasedBound(n, typeName);
                         }
-                        n.getMembers().add(0, declareRefFieldUpdater(className, typeName, variableName));
+                        updaterDeclarations.add(declareRefFieldUpdater(className, typeName, variableName));
                     } else if (variable.getType().asPrimitiveType().equals(PrimitiveType.longType()))
-                        n.getMembers().add(0, declareLongFieldUpdater(className, variableName));
+                        updaterDeclarations.add(declareLongFieldUpdater(className, variableName));
                     else
                         throw new RuntimeException("Unexpected field type:" + variable);
                 }
@@ -220,6 +223,12 @@ public class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomicQueue
             if (fieldNeedsVolatile) {
                 field.addModifier(Keyword.VOLATILE);
             }
+        }
+
+        // Prepend updater declarations in source field declaration order — mirrors the VarHandle
+        // generator's pattern so the two hierarchies emit equivalent member ordering.
+        for (int i = 0; i < updaterDeclarations.size(); i++) {
+            n.getMembers().add(i, updaterDeclarations.get(i));
         }
     }
 
