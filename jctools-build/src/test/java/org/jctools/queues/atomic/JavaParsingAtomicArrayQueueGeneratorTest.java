@@ -156,6 +156,44 @@ public class JavaParsingAtomicArrayQueueGeneratorTest {
         assertTrue("updater for accessed field: " + out, out.contains("P_INDEX_UPDATER"));
         assertFalse("no stray updater for unaccessed sibling: " + out, out.contains("UNRELATED_UPDATER"));
     }
+
+    /**
+     * A field whose only accessors are {@code lv}/{@code lp}/{@code sv} (read-only or write-only
+     * ordered access, no field updater needed) must still get a {@code volatile} modifier so the
+     * patched plain reads/writes carry volatile JMM semantics. The patcher must NOT declare a
+     * field updater for such a field — that would be unused, and would also throw on fields whose
+     * names aren't listed in {@code fieldUpdaterFieldName}.
+     *
+     * <p>Pre-fix the lv/lp/sv branches signalled "no patch performed", so neither the volatile
+     * modifier nor an updater were added — the read-only ordered field silently lost its
+     * volatile semantics in the generated atomic variant.
+     */
+    @Test
+    public void lvSvOnlyFieldGetsVolatileWithoutDeclaringUpdater() {
+        // producerLimit is in the atomic field map (P_LIMIT_UPDATER), so the latent bug isn't
+        // masked by an "Unhandled field" throw. Source field is plain long, only lv + sv exist.
+        String src =
+                "package org.jctools.queues;\n" +
+                "// $gen:ordered-fields\n" +
+                "class FooArrayQueue<E> extends ConcurrentCircularArrayQueue<E> {\n" +
+                "  private long producerLimit;\n" +
+                "  FooArrayQueue(int c) { super(c); }\n" +
+                "  public final long lvProducerLimit() { return 0; }\n" +
+                "  final void svProducerLimit(final long newValue) {}\n" +
+                "}";
+
+        String out = generate(src);
+
+        assertTrue("producerLimit becomes volatile: " + out,
+                out.contains("volatile long producerLimit"));
+        assertFalse("no stray P_LIMIT_UPDATER declaration: " + out,
+                out.contains("P_LIMIT_UPDATER"));
+        // Bodies are plain field reads/writes, not updater calls.
+        assertTrue("lv body returns the field directly: " + out,
+                out.replaceAll("\\s+", " ").contains("public final long lvProducerLimit() { return producerLimit; }"));
+        assertTrue("sv body assigns the field directly: " + out,
+                out.replaceAll("\\s+", " ").contains("final void svProducerLimit(final long newValue) { producerLimit = newValue; }"));
+    }
     /**
      * Bug 7: removeStaticFieldsAndInitialisers used to drop ALL static initializer blocks. Only
      * blocks that reference Unsafe / *_OFFSET infrastructure should be removed.

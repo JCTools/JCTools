@@ -172,18 +172,19 @@ public class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtomicQueu
                 continue;
             }
 
-            boolean fieldUsesUpdater = false;
+            boolean fieldNeedsVolatile = false;
             for (VariableDeclarator variable : field.getVariables()) {
                 String variableName = variable.getNameAsString();
                 String methodNameSuffix = capitalise(variableName);
 
-                boolean variableUsesUpdater = false;
+                FieldPatchResult variablePatch = FieldPatchResult.NONE;
                 for (MethodDeclaration method : n.getMethods()) {
-                    variableUsesUpdater |= patchAtomicFieldUpdaterAccessorMethod(variableName, method, methodNameSuffix);
+                    variablePatch = FieldPatchResult.max(variablePatch,
+                            patchAtomicFieldUpdaterAccessorMethod(variableName, method, methodNameSuffix));
                 }
 
                 if ("producerNode".equals(variableName)) {
-                    variableUsesUpdater = true;
+                    variablePatch = FieldPatchResult.NEEDS_UPDATER;
                     String fieldUpdaterFieldName = fieldUpdaterFieldName(variableName);
 
                     MethodDeclaration method = n.addMethod("xchgProducerNode", Keyword.PROTECTED, Keyword.FINAL);
@@ -192,8 +193,10 @@ public class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtomicQueu
                     method.setBody(fieldUpdaterGetAndSet(fieldUpdaterFieldName, "newValue"));
                 }
 
-                if (variableUsesUpdater) {
-                    fieldUsesUpdater = true;
+                if (variablePatch.atLeast(FieldPatchResult.VOLATILE_ONLY)) {
+                    fieldNeedsVolatile = true;
+                }
+                if (variablePatch == FieldPatchResult.NEEDS_UPDATER) {
                     if (PrimitiveType.longType().equals(variable.getType())) {
                         n.getMembers().add(0, declareLongFieldUpdater(className, variableName));
                     } else {
@@ -213,7 +216,7 @@ public class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtomicQueu
                 }
             }
 
-            if (fieldUsesUpdater) {
+            if (fieldNeedsVolatile) {
                 field.addModifier(Keyword.VOLATILE);
             }
         }

@@ -62,13 +62,34 @@ public abstract class JavaParsingAtomicQueueGenerator extends JavaParsingQueueGe
         processSpecialNodeTypes(n, n.getNameAsString());
     }
 
-    final boolean patchAtomicFieldUpdaterAccessorMethod(String variableName, MethodDeclaration method, String methodNameSuffix)
+    /**
+     * Outcome of patching one accessor method against one field. {@link #NONE} means the
+     * method's name didn't match the field's suffix and the body was left untouched.
+     * {@link #VOLATILE_ONLY} means the body was rewritten as a plain field read/write — the
+     * field needs to be {@code volatile} for those reads/writes to carry the right JMM semantics,
+     * but no field updater is needed. {@link #NEEDS_UPDATER} means the body delegates to a
+     * field updater and the field also needs to be {@code volatile}.
+     */
+    enum FieldPatchResult {
+        NONE,
+        VOLATILE_ONLY,
+        NEEDS_UPDATER;
+
+        boolean atLeast(FieldPatchResult other) {
+            return ordinal() >= other.ordinal();
+        }
+
+        static FieldPatchResult max(FieldPatchResult a, FieldPatchResult b) {
+            return a.atLeast(b) ? a : b;
+        }
+    }
+
+    final FieldPatchResult patchAtomicFieldUpdaterAccessorMethod(String variableName, MethodDeclaration method, String methodNameSuffix)
     {
-        boolean usesFieldUpdater = false;
         String methodName = method.getNameAsString();
         if (!methodName.endsWith(methodNameSuffix)) {
             // Leave it untouched
-            return false;
+            return FieldPatchResult.NONE;
         }
 
         if (methodName.startsWith("so") || methodName.startsWith("sp"))
@@ -76,16 +97,15 @@ public abstract class JavaParsingAtomicQueueGenerator extends JavaParsingQueueGe
             // Use lazySet as the weakest ordering allowed by field updaters.
             // Read actual param name from the method — xadd sources use different names than the
             // original array queue sources (e.g. "value" vs "newValue").
-            usesFieldUpdater = true;
             String fieldUpdaterFieldName = fieldUpdaterFieldName(variableName);
             String valueName = method.getParameters().isEmpty() ? "newValue" :
                 method.getParameters().get(method.getParameters().size() - 1).getNameAsString();
             method.setBody(fieldUpdaterLazySet(fieldUpdaterFieldName, valueName));
+            return FieldPatchResult.NEEDS_UPDATER;
         }
         else if (methodName.startsWith("cas"))
         {
             // Read actual param names — xadd sources use "expected"/"value" not "expect"/"newValue"
-            usesFieldUpdater = true;
             String fieldUpdaterFieldName = fieldUpdaterFieldName(variableName);
             String expectedValueName = method.getParameters().size() >= 1 ?
                 method.getParameters().get(0).getNameAsString() : "expect";
@@ -93,38 +113,44 @@ public abstract class JavaParsingAtomicQueueGenerator extends JavaParsingQueueGe
                 method.getParameters().get(1).getNameAsString() : "newValue";
             method.setBody(
                 fieldUpdaterCompareAndSet(fieldUpdaterFieldName, expectedValueName, newValueName));
+            return FieldPatchResult.NEEDS_UPDATER;
         }
         else if (methodName.startsWith("getAndAdd"))
         {
             // Xadd queues use getAndAddProducerIndex(long delta) — maps to fieldUpdater.getAndAdd()
-            usesFieldUpdater = true;
             String fieldUpdaterFieldName = fieldUpdaterFieldName(variableName);
             String deltaName = method.getParameters().isEmpty() ? "delta" :
                 method.getParameters().get(0).getNameAsString();
             method.setBody(fieldUpdaterGetAndAdd(fieldUpdaterFieldName, deltaName));
+            return FieldPatchResult.NEEDS_UPDATER;
         }
         else if (methodName.startsWith("getAndIncrement"))
         {
             // Xadd queues use getAndIncrementProducerIndex() — maps to fieldUpdater.getAndIncrement()
-            usesFieldUpdater = true;
             String fieldUpdaterFieldName = fieldUpdaterFieldName(variableName);
             method.setBody(fieldUpdaterGetAndIncrement(fieldUpdaterFieldName));
+            return FieldPatchResult.NEEDS_UPDATER;
         }
         else if (methodName.startsWith("sv"))
         {
+            // Plain field assignment — the caller adds volatile to the field, so this carries
+            // volatile-store semantics without needing the field updater.
             String valueName = method.getParameters().isEmpty() ? "newValue" :
                 method.getParameters().get(method.getParameters().size() - 1).getNameAsString();
             method.setBody(fieldAssignment(variableName, valueName));
+            return FieldPatchResult.VOLATILE_ONLY;
         }
         else if (methodName.startsWith("lv") || methodName.startsWith("lp"))
         {
+            // Plain field read — the caller adds volatile to the field so this carries
+            // volatile-load semantics without needing the field updater.
             method.setBody(returnField(variableName));
+            return FieldPatchResult.VOLATILE_ONLY;
         }
         else
         {
             throw new IllegalStateException("Unhandled method: " + methodName);
         }
-        return usesFieldUpdater;
     }
 
     @Override

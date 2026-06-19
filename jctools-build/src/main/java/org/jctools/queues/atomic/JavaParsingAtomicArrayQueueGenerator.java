@@ -187,18 +187,21 @@ public class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomicQueue
                 continue;
             }
 
-            boolean fieldUsesUpdater = false;
+            boolean fieldNeedsVolatile = false;
             for (VariableDeclarator variable : field.getVariables()) {
                 String variableName = variable.getNameAsString();
                 String methodNameSuffix = capitalise(variableName);
 
-                boolean variableUsesUpdater = false;
+                FieldPatchResult variablePatch = FieldPatchResult.NONE;
                 for (MethodDeclaration method : n.getMethods()) {
-                    variableUsesUpdater |= patchAtomicFieldUpdaterAccessorMethod(variableName, method, methodNameSuffix);
+                    variablePatch = FieldPatchResult.max(variablePatch,
+                            patchAtomicFieldUpdaterAccessorMethod(variableName, method, methodNameSuffix));
                 }
 
-                if (variableUsesUpdater) {
-                    fieldUsesUpdater = true;
+                if (variablePatch.atLeast(FieldPatchResult.VOLATILE_ONLY)) {
+                    fieldNeedsVolatile = true;
+                }
+                if (variablePatch == FieldPatchResult.NEEDS_UPDATER) {
                     if (variable.getType().isReferenceType()) {
                         String typeName = variable.getType().asString();
                         if (typeName.length() == 1 && Character.isUpperCase(typeName.charAt(0))) {
@@ -214,7 +217,7 @@ public class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomicQueue
                 }
             }
 
-            if (fieldUsesUpdater) {
+            if (fieldNeedsVolatile) {
                 field.addModifier(Keyword.VOLATILE);
             }
         }
