@@ -43,10 +43,11 @@ public class GeneratorUtils {
     }
 
     /**
-     * Remove padding fields from the given class.
+     * Remove padding fields — those whose first declarator is named {@code b0...} or {@code b1...}
+     * — from the given class. JCTools queue sources name padding bytes that way (e.g.
+     * {@code byte b000, b001, ..., b007;}); no other field names are recognised.
      */
     public static void removePaddingFields(ClassOrInterfaceDeclaration node) {
-        // remove padding fields
         for (FieldDeclaration field : node.getFields())
         {
             String fieldName = field.getVariables().get(0).getNameAsString();
