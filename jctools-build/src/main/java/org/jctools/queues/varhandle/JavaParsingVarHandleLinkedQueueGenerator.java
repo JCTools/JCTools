@@ -2,12 +2,10 @@ package org.jctools.queues.varhandle;
 
 import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.Modifier.Keyword;
-import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.nodeTypes.NodeWithType;
 import com.github.javaparser.ast.stmt.BlockStmt;
-import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.stmt.ReturnStmt;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.Type;
@@ -108,9 +106,11 @@ public class JavaParsingVarHandleLinkedQueueGenerator extends JavaParsingVarHand
     }
 
     /**
-     * Given a variable declaration of some sort, check its name and type and
-     * if it looks like any of the key type changes between unsafe and VarHandle
-     * queues, perform the conversion to change its type.
+     * Rewrite the type of a {@link com.github.javaparser.ast.body.VariableDeclarator},
+     * {@link com.github.javaparser.ast.body.Parameter}, or {@link MethodDeclaration} return type
+     * when the source uses {@code LinkedQueueNode} — the VarHandle variant uses
+     * {@code LinkedQueueVarHandleNode}. VarHandle keeps {@code long} offsets and raw
+     * {@code E[]} arrays as-is (unlike the atomic variant which wraps them).
      */
     void processSpecialNodeTypes(NodeWithType<?, Type> node, String name) {
         Type type = node.getType();

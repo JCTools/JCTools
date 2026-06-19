@@ -30,8 +30,9 @@ import java.util.List;
  * sun.misc.Unsafe} accesses into {@link java.lang.invoke.VarHandle}. It outputs a Java source file
  * with these patches.
  *
- * <p>An 'ArrayQueue' is one that is backed by a circular array and use a <code>producerLimit</code>
- * and a <code>consumerLimit</code> field to track the positions of each.
+ * <p>An 'ArrayQueue' is one that is backed by a circular array and uses {@code producerIndex} and
+ * {@code consumerIndex} fields (with a {@code producerLimit} cache on the producer side) to track
+ * positions.
  */
 public class JavaParsingVarHandleArrayQueueGenerator extends JavaParsingVarHandleQueueGenerator {
 

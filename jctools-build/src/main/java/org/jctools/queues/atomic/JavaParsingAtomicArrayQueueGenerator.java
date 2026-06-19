@@ -28,8 +28,9 @@ import static org.jctools.queues.util.GeneratorUtils.runJCToolsGenerator;
  * This generator takes in an JCTools 'ArrayQueue' Java source file and patches {@link sun.misc.Unsafe} accesses into
  * atomic {@link java.util.concurrent.atomic.AtomicLongFieldUpdater}. It outputs a Java source file with these patches.
  * <p>
- * An 'ArrayQueue' is one that is backed by a circular array and use a <code>producerLimit</code> and a
- * <code>consumerLimit</code> field to track the positions of each.
+ * An 'ArrayQueue' is one that is backed by a circular array and uses {@code producerIndex} and
+ * {@code consumerIndex} fields (with a {@code producerLimit} cache on the producer side) to track
+ * positions.
  */
 public class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomicQueueGenerator {
 
@@ -141,9 +142,12 @@ public class JavaParsingAtomicArrayQueueGenerator extends JavaParsingAtomicQueue
     }
 
     /**
-     * Given a variable declaration of some sort, check it's name and type and
-     * if it looks like any of the key type changes between unsafe and atomic
-     * queues, perform the conversion to change it's type.
+     * Rewrite the type of a {@link com.github.javaparser.ast.body.VariableDeclarator},
+     * {@link com.github.javaparser.ast.body.Parameter}, or {@link MethodDeclaration} return type
+     * when the source uses an Unsafe-flavoured idiom whose atomic counterpart needs a different
+     * type — e.g. {@code E[] buffer} → {@code AtomicReferenceArray<E>},
+     * {@code long[] sequence} → {@code AtomicLongArray}, {@code SpscArrayQueue} → unpadded pool
+     * variant, and {@code long} index/offset locals narrowed to {@code int}.
      */
     void processSpecialNodeTypes(NodeWithType<?, Type> node, String name) {
         Type type = node.getType();

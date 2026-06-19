@@ -129,13 +129,16 @@ public class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtomicQueu
     }
 
     /**
-     * Given a variable declaration of some sort, check it's name and type and
-     * if it looks like any of the key type changes between unsafe and atomic
-     * queues, perform the conversion to change it's type.
+     * Rewrite the type of a {@link com.github.javaparser.ast.body.VariableDeclarator},
+     * {@link com.github.javaparser.ast.body.Parameter}, or {@link MethodDeclaration} return type
+     * when the source uses an Unsafe-flavoured idiom whose atomic counterpart needs a different
+     * type — {@code LinkedQueueNode} → {@code LinkedQueueAtomicNode}, {@code E[]} →
+     * {@code AtomicReferenceArray<E>}, the return type of {@code nextArrayOffset} narrowed to
+     * {@code int}, and {@code long} locals listed in {@link #LONG_NAMES_NARROWED_TO_INT}.
      */
     void processSpecialNodeTypes(NodeWithType<?, Type> node, String name) {
         Type type = node.getType();
-        if (node instanceof MethodDeclaration && ("newBufferAndOffset".equals(name) || "nextArrayOffset".equals(name))) {
+        if (node instanceof MethodDeclaration && "nextArrayOffset".equals(name)) {
             node.setType(PrimitiveType.intType());
         } else if (PrimitiveType.longType().equals(type)) {
             if (LONG_NAMES_NARROWED_TO_INT.contains(name)) {
