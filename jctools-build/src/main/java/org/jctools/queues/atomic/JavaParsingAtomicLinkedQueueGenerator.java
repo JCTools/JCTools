@@ -26,15 +26,12 @@ import static org.jctools.queues.util.GeneratorUtils.runJCToolsGenerator;
  */
 public class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtomicQueueGenerator {
 
-    private final String mpscLinkedQueueName;
-
     public static void main(String[] args) throws Exception {
         runJCToolsGenerator(JavaParsingAtomicLinkedQueueGenerator.class, args);
     }
 
     public JavaParsingAtomicLinkedQueueGenerator(String sourceFileName) {
         super(sourceFileName);
-        this.mpscLinkedQueueName = atomicQueueName();
     }
 
     @Override
@@ -46,15 +43,6 @@ public class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtomicQueu
         if (nameAsString.equals("WeakIterator"))
             return;
         n.setName(translateQueueName(nameAsString));
-        if (mpscLinkedQueueName.equals(nameAsString)) {
-            // Special case for MPSC because the Unsafe variant has a static factory method and a protected constructor.
-            n.setModifier(Keyword.PROTECTED, false);
-            n.setModifier(Keyword.PUBLIC, true);
-        }
-    }
-
-    private String atomicQueueName() {
-        return "MpscLinked" + queueClassNamePrefix() + "Queue";
     }
 
     @Override
@@ -66,12 +54,6 @@ public class JavaParsingAtomicLinkedQueueGenerator extends JavaParsingAtomicQueu
         String nameAsString = node.getNameAsString();
         if (nameAsString.contains("Queue"))
             node.setName(translateQueueName(nameAsString));
-        if (mpscLinkedQueueName.equals(nameAsString)) {
-            /*
-             * Special case for MPSC
-             */
-            node.removeModifier(Keyword.ABSTRACT);
-        }
 
         if (isCommentPresent(node, GEN_DIRECTIVE_CLASS_CONTAINS_ORDERED_FIELD_ACCESSORS)) {
             node.setComment(null);

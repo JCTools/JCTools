@@ -31,15 +31,12 @@ import static org.jctools.queues.util.GeneratorUtils.runJCToolsGenerator;
  */
 public class JavaParsingVarHandleLinkedQueueGenerator extends JavaParsingVarHandleQueueGenerator {
 
-    private final String mpscLinkedQueueName;
-
     public static void main(String[] args) throws Exception {
         runJCToolsGenerator(JavaParsingVarHandleLinkedQueueGenerator.class, args);
     }
 
     public JavaParsingVarHandleLinkedQueueGenerator(String sourceFileName) {
         super(sourceFileName);
-        this.mpscLinkedQueueName = varHandleQueueName();
     }
 
     @Override
@@ -51,15 +48,6 @@ public class JavaParsingVarHandleLinkedQueueGenerator extends JavaParsingVarHand
         if (nameAsString.equals("WeakIterator"))
             return;
         n.setName(translateQueueName(nameAsString));
-        if (mpscLinkedQueueName.equals(nameAsString)) {
-            // Special case for MPSC because the Unsafe variant has a static factory method and a protected constructor.
-            n.setModifier(Keyword.PROTECTED, false);
-            n.setModifier(Keyword.PUBLIC, true);
-        }
-    }
-
-    private String varHandleQueueName() {
-        return "MpscLinked" + queueClassNamePrefix() + "Queue";
     }
 
     @Override
@@ -71,12 +59,6 @@ public class JavaParsingVarHandleLinkedQueueGenerator extends JavaParsingVarHand
         String nameAsString = node.getNameAsString();
         if (nameAsString.contains("Queue"))
             node.setName(translateQueueName(nameAsString));
-        if (mpscLinkedQueueName.equals(nameAsString)) {
-            /*
-             * Special case for MPSC
-             */
-            node.removeModifier(Keyword.ABSTRACT);
-        }
 
         if (isCommentPresent(node, GEN_DIRECTIVE_CLASS_CONTAINS_ORDERED_FIELD_ACCESSORS)) {
             node.setComment(null);
