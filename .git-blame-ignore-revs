@@ -1,0 +1,14 @@
+# Revisions to skip when running `git blame`.
+#
+# Use:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+# (or set --ignore-revs-file=.git-blame-ignore-revs explicitly).
+#
+# Each entry is a full commit SHA followed by an optional comment.
+# Only purely mechanical commits belong here — wholesale reformats,
+# regeneration of derived files, etc.
+
+# Regenerate generated queue sources after the codegen overhaul. Diff is
+# dominated by LexicalPreservingPrinter reformatting and *Updater field-order
+# shifts; semantically a no-op (verified via check-codegen-semantics.sh).
+4f7cf4436dc89430fb20ec8796d69f0222c3935c
