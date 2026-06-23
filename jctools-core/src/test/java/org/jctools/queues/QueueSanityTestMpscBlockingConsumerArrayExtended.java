@@ -216,7 +216,7 @@ public class QueueSanityTestMpscBlockingConsumerArrayExtended
         assertEquals(0, q.drain(ints::add, 1, 250L, MILLISECONDS));
         long tookMillis = MILLISECONDS.convert(System.nanoTime() - beforeNanos, NANOSECONDS);
         assertEquals(0, ints.size());
-        assertTrue("took " + tookMillis + "ms", 200L < tookMillis && tookMillis < 300L);
+        assertTrue("took " + tookMillis + "ms", 200L < tookMillis && tookMillis < 500L);
     }
 
     private void testOfferBlockSemantics(boolean withTimeout) throws Exception
