@@ -55,6 +55,7 @@ abstract class MpscCompoundQueueColdFields<E> extends MpscCompoundQueueL0Pad<E>
     @SuppressWarnings("unchecked")
     MpscCompoundQueueColdFields(int capacity, int queueParallelism)
     {
+        RangeUtil.checkGreaterThanOrEqual(queueParallelism, 1, "queueParallelism");
         parallelQueues = isPowerOfTwo(queueParallelism) ? queueParallelism : roundToPowerOfTwo(queueParallelism) / 2;
         parallelQueuesMask = parallelQueues - 1;
         queues = new MpscArrayQueue[parallelQueues];
