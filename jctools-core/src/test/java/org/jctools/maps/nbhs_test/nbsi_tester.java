@@ -2,6 +2,7 @@ package org.jctools.maps.nbhs_test;
 
 import java.io.*;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -246,5 +247,35 @@ public class nbsi_tester
             //double ops = ITERS*2;
             //System.out.println("Thrd"+thrd+" "+(ops/delta_secs)+" ops/sec size="+nbsi.size());
         }
+    }
+
+    @Test
+    public void testEmptyIteratorNext()
+    {
+        Iterator<Integer> iterator = new NonBlockingSetInt().iterator();
+        assertFalse(iterator.hasNext());
+        assertThrows(NoSuchElementException.class, iterator::next);
+        assertFalse(iterator.hasNext());
+        assertThrows(NoSuchElementException.class, iterator::next);
+        assertThrows(IllegalStateException.class, iterator::remove);
+    }
+
+    @Test
+    public void testExhaustedIteratorNextPreservesRemove()
+    {
+        NonBlockingSetInt set = new NonBlockingSetInt();
+        set.add(0);
+        set.add(10000);
+        Iterator<Integer> iterator = set.iterator();
+        assertEquals(Integer.valueOf(0), iterator.next());
+        assertEquals(Integer.valueOf(10000), iterator.next());
+        assertFalse(iterator.hasNext());
+        assertThrows(NoSuchElementException.class, iterator::next);
+        assertFalse(iterator.hasNext());
+        assertThrows(NoSuchElementException.class, iterator::next);
+        iterator.remove();
+        assertFalse(set.contains(10000));
+        assertTrue(set.contains(0));
+        assertThrows(IllegalStateException.class, iterator::remove);
     }
 }

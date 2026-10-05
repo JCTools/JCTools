@@ -217,7 +217,7 @@ public class NonBlockingSetInt extends AbstractSet<Integer> implements Serializa
 
         public Integer next()
         {
-            if (_idx == -1) throw new NoSuchElementException();
+            if (!hasNext()) throw new NoSuchElementException();
             _prev = _idx;
             advance();
             return _prev;
