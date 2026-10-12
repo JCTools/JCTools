@@ -1773,6 +1773,8 @@ public class NonBlockingHashMap<TypeK, TypeV>
         for (Object K : keySet())
         {
             final Object V = get(K);  // Do an official 'get'
+            // The key may have been removed since the iterator prefetched it.
+            if (V == null) continue;
             s.writeObject(K);         // Write the <TypeK,TypeV> pair
             s.writeObject(V);
         }

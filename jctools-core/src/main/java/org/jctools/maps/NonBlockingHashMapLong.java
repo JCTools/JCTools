@@ -1582,6 +1582,8 @@ public class NonBlockingHashMapLong<TypeV>
         for (long K : keySet())
         {
             final Object V = get(K);  // Do an official 'get'
+            // The key may have been removed since the iterator prefetched it.
+            if (V == null) continue;
             s.writeLong(K);         // Write the <long,TypeV> pair
             s.writeObject(V);
         }
