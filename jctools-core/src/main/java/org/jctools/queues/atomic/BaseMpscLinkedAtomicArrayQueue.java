@@ -167,6 +167,16 @@ abstract class BaseMpscLinkedAtomicArrayQueueColdProducerFields<E> extends BaseM
     protected long producerMask;
     protected AtomicReferenceArray<E> producerBuffer;
 
+    protected long offerInitialProducerMask0()
+    {
+        return 0L;
+    }
+
+    protected long reloadProducerMask0(long mask)
+    {
+        return producerMask;
+    }
+
     final long lvProducerLimit()
     {
         return producerLimit;
@@ -198,10 +208,12 @@ abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAtomicArr
     // No post padding here, subclasses must add
     private static final Object JUMP = new Object();
     private static final Object BUFFER_CONSUMED = new Object();
-    private static final int CONTINUE_TO_P_INDEX_CAS = 0;
-    private static final int RETRY = 1;
-    private static final int QUEUE_FULL = 2;
-    private static final int QUEUE_RESIZE = 3;
+    // offerSlowPath encodes its outcome in a long: a non-negative value is the freshly
+    // established producerLimit (continue to the pIndex CAS, caching the value); the negative
+    // sentinels below are control signals. Indices are non-negative, so they never collide.
+    private static final long RETRY = -1;
+    private static final long QUEUE_FULL = -2;
+    private static final long QUEUE_RESIZE = -3;
 
 
     /**
@@ -254,13 +266,18 @@ abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAtomicArr
             throw new NullPointerException();
         }
 
-        long mask;
+        long mask = offerInitialProducerMask0();
         AtomicReferenceArray<E> buffer;
         long pIndex;
 
+        // producerLimit is cached across retries: loaded once here, reused each iteration, and
+        // only reloaded from the volatile when the cached value suggests the queue may be full.
+        // producerLimit is monotonic, so a stale (lower) cached value is always safe -- it can
+        // only send us into the slow path where it is refreshed, never wrongly admit an element.
+        long producerLimit = lvProducerLimit();
+
         while (true)
         {
-            long producerLimit = lvProducerLimit();
             pIndex = lvProducerIndex();
             // lower bit is indicative of resize, if we see it we spin until it's cleared
             if ((pIndex & 1) == 1)
@@ -270,29 +287,41 @@ abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAtomicArr
             // pIndex is even (lower bit is 0) -> actual index is (pIndex >> 1)
 
             // mask/buffer may get changed by resizing -> only use for array access after successful CAS.
-            mask = this.producerMask;
+
+            mask = reloadProducerMask0(mask);
             buffer = this.producerBuffer;
             // a successful CAS ties the ordering, lv(pIndex) - [mask/buffer] -> cas(pIndex)
 
-            // assumption behind this optimization is that queue is almost always empty or near empty
-            if (producerLimit <= pIndex)
+            // reuse the cached producerLimit; only reload the volatile when it looks stale
+            if (producerLimit <= pIndex && (producerLimit = lvProducerLimit()) <= pIndex)
             {
-                int result = offerSlowPath(mask, pIndex, producerLimit);
-                switch (result)
+                final long result = offerSlowPath(mask, pIndex, producerLimit);
+                // non-negative result is the freshly established producerLimit: continue to the
+                // pIndex CAS. negatives are control signals. order mirrors the original switch.
+                if (result >= 0) // CONTINUE_TO_P_INDEX_CAS
                 {
-                    case CONTINUE_TO_P_INDEX_CAS:
+                    if (casProducerIndex(pIndex, pIndex + 2))
+                    {
                         break;
-                    case RETRY:
-                        continue;
-                    case QUEUE_FULL:
-                        return false;
-                    case QUEUE_RESIZE:
-                        resize(mask, buffer, pIndex, e, null);
-                        return true;
+                    }
+                    // CAS lost: cache the fresh producerLimit so the retry skips the reload
+                    // (deferred to here so a control sentinel never overwrites the cached limit).
+                    producerLimit = result;
+                    continue;
                 }
+                if (result == RETRY)
+                {
+                    continue;
+                }
+                if (result == QUEUE_FULL)
+                {
+                    return false;
+                }
+                // QUEUE_RESIZE
+                resize(mask, buffer, pIndex, e, null);
+                return true;
             }
-
-            if (casProducerIndex(pIndex, pIndex + 2))
+            else if (casProducerIndex(pIndex, pIndex + 2))
             {
                 break;
             }
@@ -387,23 +416,20 @@ abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAtomicArr
     /**
      * We do not inline resize into this method because we do not resize on fill.
      */
-    private int offerSlowPath(long mask, long pIndex, long producerLimit)
+    private long offerSlowPath(long mask, long pIndex, long producerLimit)
     {
         final long cIndex = lvConsumerIndex();
-        long bufferCapacity = getCurrentBufferCapacity(mask);
+        final long bufferCapacity = getCurrentBufferCapacity(mask);
+        final long newProducerLimit = cIndex + bufferCapacity;
 
-        if (cIndex + bufferCapacity > pIndex)
+        if (newProducerLimit > pIndex)
         {
-            if (!casProducerLimit(producerLimit, cIndex + bufferCapacity))
-            {
-                // retry from top
-                return RETRY;
-            }
-            else
-            {
-                // continue to pIndex CAS
-                return CONTINUE_TO_P_INDEX_CAS;
-            }
+            casProducerLimit(producerLimit, newProducerLimit);
+            // continue to pIndex CAS; return the fresh limit so the caller can cache it on the
+            // stack unconditionally (it is derived from a fresh consumer-index read, so it is a
+            // valid local limit whether or not the CAS won) and skip reloading the volatile on a
+            // CAS-failure retry.
+            return newProducerLimit;
         }
         // full and cannot grow
         else if (availableInQueue(pIndex, cIndex) <= 0)
@@ -586,19 +612,25 @@ abstract class BaseMpscLinkedAtomicArrayQueue<E> extends BaseMpscLinkedAtomicArr
 
             if (pIndex >= producerLimit)
             {
-                int result = offerSlowPath(mask, pIndex, producerLimit);
-                switch (result)
+                long result = offerSlowPath(mask, pIndex, producerLimit);
+                // CONTINUE (a non-negative fresh producerLimit) or RETRY: offer slow path verifies
+                // only one slot ahead, we cannot rely on indication here, so retry from the top.
+                // order mirrors the original switch.
+                if (result >= 0) // CONTINUE_TO_P_INDEX_CAS
                 {
-                    case CONTINUE_TO_P_INDEX_CAS:
-                        // offer slow path verifies only one slot ahead, we cannot rely on indication here
-                    case RETRY:
-                        continue;
-                    case QUEUE_FULL:
-                        return 0;
-                    case QUEUE_RESIZE:
-                        resize(mask, buffer, pIndex, null, s);
-                        return 1;
+                    continue;
                 }
+                if (result == RETRY)
+                {
+                    continue;
+                }
+                if (result == QUEUE_FULL)
+                {
+                    return 0;
+                }
+                // QUEUE_RESIZE
+                resize(mask, buffer, pIndex, null, s);
+                return 1;
             }
 
             // claim limit slots at once

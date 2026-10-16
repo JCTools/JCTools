@@ -26,9 +26,12 @@ import org.jctools.queues.*;
  */
 public class MpscUnboundedUnpaddedArrayQueue<E> extends BaseMpscLinkedUnpaddedArrayQueue<E>
 {
+    private final long finalProducerMask;
+
     public MpscUnboundedUnpaddedArrayQueue(int chunkSize)
     {
         super(chunkSize);
+        this.finalProducerMask = producerMask;
     }
 
 
@@ -64,6 +67,18 @@ public class MpscUnboundedUnpaddedArrayQueue<E> extends BaseMpscLinkedUnpaddedAr
 
     @Override
     protected long getCurrentBufferCapacity(long mask)
+    {
+        return mask;
+    }
+
+    @Override
+    protected final long offerInitialProducerMask0()
+    {
+        return finalProducerMask;
+    }
+
+    @Override
+    protected final long reloadProducerMask0(long mask)
     {
         return mask;
     }
