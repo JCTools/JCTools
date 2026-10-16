@@ -525,10 +525,9 @@ public class NonBlockingIdentityHashMap<TypeK, TypeV>
             // Wipe out the cloned array (it was shallow anyways).
             t.clear();
             // Now copy sanely
-            for (TypeK K : keySet())
+            for (Map.Entry<TypeK, TypeV> entry : entrySet())
             {
-                final TypeV V = get(K);  // Do an official 'get'
-                t.put(K, V);
+                t.put(entry.getKey(), entry.getValue());
             }
             return t;
         }
@@ -1605,13 +1604,10 @@ public class NonBlockingIdentityHashMap<TypeK, TypeV>
     private void writeObject(java.io.ObjectOutputStream s) throws IOException
     {
         s.defaultWriteObject();     // Nothing to write
-        for (Object K : keySet())
+        for (Map.Entry<TypeK, TypeV> entry : entrySet())
         {
-            final Object V = get(K);  // Do an official 'get'
-            // The key may have been removed since the iterator prefetched it.
-            if (V == null) continue;
-            s.writeObject(K);         // Write the <TypeK,TypeV> pair
-            s.writeObject(V);
+            s.writeObject(entry.getKey()); // Write the <TypeK,TypeV> pair
+            s.writeObject(entry.getValue());
         }
         s.writeObject(null);        // Sentinel to indicate end-of-data
         s.writeObject(null);
