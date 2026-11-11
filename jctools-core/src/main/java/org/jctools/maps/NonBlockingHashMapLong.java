@@ -1583,11 +1583,10 @@ public class NonBlockingHashMapLong<TypeV>
     private void writeObject(java.io.ObjectOutputStream s) throws IOException
     {
         s.defaultWriteObject();     // Write nothing
-        for (long K : keySet())
+        for (Map.Entry<Long, TypeV> entry : entrySet())
         {
-            final Object V = get(K);  // Do an official 'get'
-            s.writeLong(K);         // Write the <long,TypeV> pair
-            s.writeObject(V);
+            s.writeLong(entry.getKey()); // Write the <long,TypeV> pair
+            s.writeObject(entry.getValue());
         }
         s.writeLong(NO_KEY);        // Sentinel to indicate end-of-data
         s.writeObject(null);
@@ -1631,9 +1630,9 @@ public class NonBlockingHashMapLong<TypeV>
             //
             // Wipe out the cloned array (it was shallow anyways).
             t.clear();
-            // Now copy sanely
-            for (long K : keySetLong())
-                t.put(K, get(K));
+            // Unbox keys to keep the primitive put overload used by the old keySetLong loop.
+            for (Map.Entry<Long, TypeV> entry : entrySet())
+                t.put(entry.getKey().longValue(), entry.getValue());
             return t;
         }
         catch (CloneNotSupportedException e)
