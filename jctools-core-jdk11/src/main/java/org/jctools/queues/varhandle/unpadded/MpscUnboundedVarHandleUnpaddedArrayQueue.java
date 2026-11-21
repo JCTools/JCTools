@@ -27,9 +27,12 @@ import org.jctools.queues.varhandle.LinkedQueueVarHandleNode;
  */
 public class MpscUnboundedVarHandleUnpaddedArrayQueue<E> extends BaseMpscLinkedVarHandleUnpaddedArrayQueue<E>
 {
+    private final long finalProducerMask;
+
     public MpscUnboundedVarHandleUnpaddedArrayQueue(int chunkSize)
     {
         super(chunkSize);
+        this.finalProducerMask = producerMask;
     }
 
 
@@ -65,6 +68,18 @@ public class MpscUnboundedVarHandleUnpaddedArrayQueue<E> extends BaseMpscLinkedV
 
     @Override
     protected long getCurrentBufferCapacity(long mask)
+    {
+        return mask;
+    }
+
+    @Override
+    protected final long offerInitialProducerMask0()
+    {
+        return finalProducerMask;
+    }
+
+    @Override
+    protected final long reloadProducerMask0(long mask)
     {
         return mask;
     }

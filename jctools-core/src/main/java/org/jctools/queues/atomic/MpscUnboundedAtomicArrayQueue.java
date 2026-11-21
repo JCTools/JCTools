@@ -44,9 +44,12 @@ public class MpscUnboundedAtomicArrayQueue<E> extends BaseMpscLinkedAtomicArrayQ
     byte b160,b161,b162,b163,b164,b165,b166,b167;//120b
     byte b170,b171,b172,b173,b174,b175,b176,b177;//128b
 
+    private final long finalProducerMask;
+
     public MpscUnboundedAtomicArrayQueue(int chunkSize)
     {
         super(chunkSize);
+        this.finalProducerMask = producerMask;
     }
 
 
@@ -82,6 +85,18 @@ public class MpscUnboundedAtomicArrayQueue<E> extends BaseMpscLinkedAtomicArrayQ
 
     @Override
     protected long getCurrentBufferCapacity(long mask)
+    {
+        return mask;
+    }
+
+    @Override
+    protected final long offerInitialProducerMask0()
+    {
+        return finalProducerMask;
+    }
+
+    @Override
+    protected final long reloadProducerMask0(long mask)
     {
         return mask;
     }
