@@ -44,6 +44,111 @@ public class NBHML_Tester2
         _nbhml = null;
     }
 
+    @Test
+    public void testKeySetIteratorBeforeBulkResize()
+    {
+        regressionIteratorBeforeBulkResize(ITERATOR_KEYSET);
+    }
+
+    @Test
+    public void testValuesIteratorBeforeBulkResize()
+    {
+        regressionIteratorBeforeBulkResize(ITERATOR_VALUES);
+    }
+
+    @Test
+    public void testEntrySetIteratorBeforeBulkResize()
+    {
+        regressionIteratorBeforeBulkResize(ITERATOR_ENTRYSET);
+    }
+
+    private static final int ITERATOR_KEYSET = 0;
+    private static final int ITERATOR_VALUES = 1;
+    private static final int ITERATOR_ENTRYSET = 2;
+
+    private void regressionIteratorBeforeBulkResize(final int iteratorKind)
+    {
+        final NonBlockingHashMapLong<String> map = new NonBlockingHashMapLong<>(1024);
+
+        final long[] stableKeys = new long[104];
+        int idx = 0;
+        for (long key = 1024; key < 1124; key++)
+        {
+            stableKeys[idx++] = key;
+        }
+        stableKeys[idx++] = 0L;
+        stableKeys[idx++] = -1L;
+        stableKeys[idx++] = Long.MIN_VALUE;
+        stableKeys[idx++] = Long.MAX_VALUE;
+
+        for (long key : stableKeys)
+        {
+            map.put(key, "v" + key);
+        }
+
+        final Iterator<?> iterator;
+        final Set<Object> expectedStableElements = new HashSet<>();
+        for (long key : stableKeys)
+        {
+            if (iteratorKind == ITERATOR_KEYSET)
+            {
+                expectedStableElements.add(key);
+            }
+            else if (iteratorKind == ITERATOR_VALUES)
+            {
+                expectedStableElements.add("v" + key);
+            }
+            else // entry set
+            {
+                expectedStableElements.add(new AbstractMap.SimpleImmutableEntry<Long, String>(key, "v" + key));
+            }
+        }
+
+        switch (iteratorKind)
+        {
+            case ITERATOR_KEYSET:
+                iterator = map.keySet().iterator();
+                break;
+            case ITERATOR_VALUES:
+                iterator = map.values().iterator();
+                break;
+            case ITERATOR_ENTRYSET:
+                iterator = map.entrySet().iterator();
+                break;
+            default:
+                throw new IllegalArgumentException("Unknown iterator kind");
+        }
+
+        for (long key = 1000000; key < 1100000; key++)
+        {
+            map.put(key, "v" + key);
+        }
+
+        final Set<Object> seenElements = new HashSet<>();
+        final Set<Object> duplicateElements = new HashSet<>();
+        while (iterator.hasNext())
+        {
+            final Object element = iterator.next();
+            if (iteratorKind == ITERATOR_ENTRYSET)
+            {
+                final Map.Entry<?, ?> entry = (Map.Entry<?, ?>) element;
+                assertEquals("v" + entry.getKey(), entry.getValue());
+            }
+            if (!seenElements.add(element))
+            {
+                duplicateElements.add(element);
+            }
+        }
+
+        assertTrue("Iterator returned duplicate elements: " + duplicateElements, duplicateElements.isEmpty());
+
+        for (Object expected : expectedStableElements)
+        {
+            assertTrue("Stable element missing from iteration: " + expected, seenElements.contains(expected));
+        }
+
+    }
+
     // Test some basic stuff; add a few keys, remove a few keys
     @Test
     public void testBasic()

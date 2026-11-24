@@ -1147,16 +1147,6 @@ public class NonBlockingHashMapLong<TypeV>
         // overwrite) and not from a thread directly writing in the new table.
         private boolean copy_slot(int idx)
         {
-            // Blindly set the key slot from NO_KEY to some key which hashes here,
-            // to eagerly stop fresh put's from inserting new values in the old
-            // table when the old table is mid-resize.  We don't need to act on the
-            // results here, because our correctness stems from box'ing the Value
-            // field.  Slamming the Key field is a minor speed optimization.
-            long key;
-            while ((key = _keys[idx]) == NO_KEY)
-                CAS_key(idx, NO_KEY, (idx + _keys.length)/*a non-zero key which hashes here*/);
-
-            // ---
             // Prevent new values from appearing in the old table.
             // Box what we see in the old table, to prevent further updates.
             Object oldval = _vals[idx]; // Read OLD table
@@ -1180,6 +1170,11 @@ public class NonBlockingHashMapLong<TypeV>
                 oldval = _vals[idx];    // Else try, try again
             }
             if (oldval == TOMBPRIME) return false; // Copy already complete here!
+
+            // A put claims the key before installing a real value. Once that value
+            // is boxed, its key is stable; empty slots need no synthetic key that
+            // an iterator could mistake for a real mapping.
+            long key = _keys[idx];
 
             // ---
             // Copy the value into the new table, but only if we overwrite a null.
