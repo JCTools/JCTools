@@ -73,7 +73,8 @@ public class NonBlockingHashMapLongZeroKeyTest
             // Every successful remove was preceded by a successful putIfAbsent, so the key is present
             // exactly when the number of wins exceeds the number of removals by one.
             assertEquals("run " + run + ": putIfAbsent/remove results disagree with the map content",
-                wins.get() - removals.get(), map.size());
+                wins.get() - removals.get(),
+                map.size());
 
             map.clear();
         }
