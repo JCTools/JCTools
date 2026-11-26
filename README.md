@@ -131,6 +131,47 @@ Two things to know before sending a patch:
   A full "mvn clean install" regenerates everything - if you skip it your change will look like it did nothing.
 
 
+Reusing test utilities from source
+==========
+The development build attaches a `tests` JAR to `jctools-core`, containing helpers such as `QueueSanityTest`.
+These are internal test classes with no compatibility guarantee. The 4.0.6 release does not include this classifier;
+install the development version from source as described above, then use the same version for both artifacts:
+
+```xml
+<dependencies>
+    <dependency>
+        <groupId>org.jctools</groupId>
+        <artifactId>jctools-core</artifactId>
+        <version>5.0.0-SNAPSHOT</version>
+    </dependency>
+    <dependency>
+        <groupId>org.jctools</groupId>
+        <artifactId>jctools-core</artifactId>
+        <version>5.0.0-SNAPSHOT</version>
+        <classifier>tests</classifier>
+        <type>test-jar</type>
+        <scope>test</scope>
+    </dependency>
+    <dependency>
+        <groupId>junit</groupId>
+        <artifactId>junit</artifactId>
+        <version>4.13.2</version>
+        <scope>test</scope>
+    </dependency>
+    <dependency>
+        <groupId>org.hamcrest</groupId>
+        <artifactId>hamcrest-all</artifactId>
+        <version>1.3</version>
+        <scope>test</scope>
+    </dependency>
+</dependencies>
+```
+
+Test dependencies are not inherited from the test JAR. `QueueSanityTest` needs JUnit 4 and Hamcrest, as shown above;
+other helpers may need additional dependencies. `-DskipTests` still compiles and packages test classes, whereas
+`-Dmaven.test.skip=true` skips their compilation and can omit the test JAR.
+
+
 But I have a zero-dependency/single-jar project
 ==========
 While you are free to copy & extend JCTools, we would much prefer it if you have a versioned dependency on JCTools to
