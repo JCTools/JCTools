@@ -361,7 +361,7 @@ public class NonBlockingHashMapLong<TypeV>
      *  @throws NullPointerException if the specified value is null */
     public boolean remove(long key, Object val)
     {
-        return putIfMatch(key, TOMBSTONE, val) == val;
+        return objectsEquals(putIfMatch(key, TOMBSTONE, val), val);
     }
 
     /** Atomically do a <code>put(key,val)</code> if-and-only-if the key is
@@ -377,7 +377,12 @@ public class NonBlockingHashMapLong<TypeV>
      *  @throws NullPointerException if the specified value is null */
     public boolean replace(long key, TypeV oldValue, TypeV newValue)
     {
-        return putIfMatch(key, newValue, oldValue) == oldValue;
+        return objectsEquals(putIfMatch(key, newValue, oldValue), oldValue);
+    }
+
+    private static boolean objectsEquals(Object a, Object b)
+    {
+        return (a == b) || (a != null && a.equals(b));
     }
 
     @SuppressWarnings("unchecked")
