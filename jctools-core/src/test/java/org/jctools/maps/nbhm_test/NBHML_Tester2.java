@@ -137,6 +137,61 @@ public class NBHML_Tester2
         assertFalse(map.replace(1, 2, 3));
     }
 
+    // --- Tests on equality of values, for key 0 (kept outside the table) and for a key in the table
+    @Test
+    public void replaceResultIsBasedOnEquality()
+    {
+        for (long key : new long[] {0, 1})
+        {
+            NonBlockingHashMapLong<String> map = new NonBlockingHashMapLong<>();
+            String stored = new String("v1");
+            String equalValue = new String("v1");
+            assertNotSame(stored, equalValue);
+            map.put(key, stored);
+
+            boolean replaced = map.replace(key, equalValue, "v2");
+            assertEquals("v2", map.get(key));
+            assertTrue("replace(" + key + ", equal value, v2) replaced the value but returned false", replaced);
+
+            assertFalse(map.replace(key, "v1", "v3"));
+            assertEquals("v2", map.get(key));
+
+            replaced = map.replace(Long.valueOf(key), new String("v2"), "v3");
+            assertEquals("v3", map.get(key));
+            assertTrue("boxed replace(" + key + ", equal value, v3) replaced the value but returned false", replaced);
+        }
+    }
+
+    @Test
+    public void removeResultIsBasedOnEquality()
+    {
+        for (long key : new long[] {0, 1})
+        {
+            NonBlockingHashMapLong<String> map = new NonBlockingHashMapLong<>();
+            String stored = new String("v1");
+            String equalValue = new String("v1");
+            assertNotSame(stored, equalValue);
+            map.put(key, stored);
+
+            assertFalse(map.remove(key, "v2"));
+            assertEquals("v1", map.get(key));
+
+            boolean removed = map.remove(key, equalValue);
+            assertFalse(map.containsKey(key));
+            assertTrue("remove(" + key + ", equal value) removed the mapping but returned false", removed);
+
+            map.put(key, new String("v1"));
+            removed = map.remove((Object) key, new String("v1"));
+            assertFalse(map.containsKey(key));
+            assertTrue("boxed remove(" + key + ", equal value) removed the mapping but returned false", removed);
+
+            map.put(key, new String("v1"));
+            removed = map.entrySet().remove(new AbstractMap.SimpleEntry<>(key, new String("v1")));
+            assertFalse(map.containsKey(key));
+            assertTrue("entrySet().remove(" + key + "=equal value) removed the mapping but returned false", removed);
+        }
+    }
+
     @Test
     public void testIterationBig2()
     {
